@@ -44,6 +44,14 @@ function extractBrkImmediate(u32) {
     return (u32 >> 5) & 0xFFFF;
 }
 
+function allocationAddress(response) {
+    if (typeof response !== 'string' || /^E[0-9a-f]{2}$/i.test(response) ||
+        !/^[0-9a-f]{1,16}$/i.test(response)) return 0n;
+    const address = BigInt(`0x${response}`);
+    return address >= 0x4000n && (address & 0x3fffn) === 0n ? address : 0n;
+}
+
+log('Something PC JIT protocol 0.5: validated debugger allocation responses');
 let pid = get_pid();
 log(`Madeira JIT: pid = ${pid}`);
 let attachResponse = send_command(`vAttach;${pid.toString(16)}`);
@@ -270,9 +278,11 @@ while (!detached) {
             let addr = x0;
             if (x0 === 0n && x1 !== 0n) {
                 let allocResp = send_command(`_M${x1.toString(16)},rx`);
-                if (allocResp && allocResp.length > 0) {
-                    addr = BigInt(`0x${allocResp}`);
+                addr = allocationAddress(allocResp);
+                if (addr !== 0n) {
                     ulog(`Madeira JIT: allocated at 0x${addr.toString(16)}`);
+                } else {
+                    ulog(`Madeira JIT: allocation refused or invalid response: ${String(allocResp).slice(0, 80)}`);
                 }
             }
 

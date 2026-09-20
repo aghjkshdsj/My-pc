@@ -50,6 +50,14 @@ final class SessionDiagnostics: NSObject, MXMetricManagerSubscriber {
         }
     }
 
+    func checkpoint(_ message: String) {
+        queue.sync {
+            self.events.append(["time": Self.timestamp(), "event": message])
+            self.events = Array(self.events.suffix(100))
+            self.persist()
+        }
+    }
+
     @MainActor func launch(game: LibraryGame, profile: GameProfile) {
         let settings = EmulatorSettings.shared
         let input = InputSettings.shared
@@ -78,7 +86,7 @@ final class SessionDiagnostics: NSObject, MXMetricManagerSubscriber {
     func libraryInventory(_ games: [LibraryGame]) {
         let inventory = games.prefix(100).map { game in
             ["id": game.id, "title": game.title, "selected": game.executable?.lastPathComponent ?? "not selected",
-             "candidates": game.candidates.map { String($0.path.dropFirst(GameLibrary.gamesFolder.path.count + 1)) }.joined(separator: " | ")]
+             "candidates": game.candidates.map(GameLibrary.launcherPath).joined(separator: " | ")]
         }
         queue.async { self.context["library"] = inventory; self.context["libraryCount"] = games.count; self.persist() }
     }

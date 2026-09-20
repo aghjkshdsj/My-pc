@@ -146,3 +146,43 @@ expect(StartupStage.firstFrame.percent == 100, "first frame must be 100 percent"
 expect(StartupStage.allCases.dropLast().allSatisfy { $0.percent < 100 }, "startup completed before first frame")
 expect(zip(StartupStage.allCases, StartupStage.allCases.dropFirst()).allSatisfy { $0.percent < $1.percent }, "startup progress must be monotonic")
 print("Startup milestone tests passed")
+
+let indexURL = root.appendingPathComponent("index.json")
+let index = try LibraryIndex(games: grouped, drive: drive)
+try index.write(to: indexURL)
+let restored = try LibraryIndex.read(indexURL, drive: drive)
+expect(restored.games.map(\.id) == grouped.map(\.id), "saved index identity round trip")
+expect(restored.games[0].candidates.map(\.lastPathComponent) == grouped[0].candidates.map(\.lastPathComponent), "saved EXE choices lost")
+let newDrive = root.appendingPathComponent("new-container/drive_c")
+try manager.createDirectory(at: newDrive, withIntermediateDirectories: true)
+let relocated = try index.games(in: newDrive)
+expect(relocated[0].executable!.path.hasPrefix(newDrive.path), "index retained the old iOS container path")
+expect(!manager.fileExists(atPath: relocated[0].executable!.path), "index loading must not require a recursive rescan")
+var hostileIndex = index
+hostileIndex.entries[0].executable = "../escaped.exe"
+rejects("cached traversal accepted") { _ = try hostileIndex.games(in: drive) }
+hostileIndex = index
+hostileIndex.entries.append(hostileIndex.entries[0])
+rejects("duplicate cached identity accepted") { _ = try hostileIndex.games(in: drive) }
+try Data("not json".utf8).write(to: indexURL)
+rejects("corrupt index accepted") { _ = try LibraryIndex.read(indexURL, drive: drive) }
+let emptyIndex = try LibraryIndex(games: [], drive: drive)
+expect(try emptyIndex.games(in: drive).isEmpty, "empty library must remain a valid cached scan")
+print("Persistent library index tests passed")
+
+var account = try LocalAccountRecord.create(username: "Test User", password: "test-password-938")
+let anotherAccount = try LocalAccountRecord.create(username: "Test User", password: "test-password-938")
+expect(account.salt != anotherAccount.salt && account.verifier != anotherAccount.verifier, "accounts need independent random salts")
+expect(try account.authenticate(username: "Test User", password: "test-password-938", remember: true), "correct local password rejected")
+expect(account.remember, "remember sign-in not saved")
+let attemptTime = Date()
+for _ in 0..<5 { expect(try !account.authenticate(username: "Test User", password: "wrong-password", remember: true, now: attemptTime), "incorrect password accepted") }
+expect(!account.remember, "failed login preserved remembered sign-in")
+rejects("rate limit bypassed") { _ = try account.authenticate(username: "Test User", password: "test-password-938", remember: false, now: attemptTime) }
+expect(try account.authenticate(username: "Test User", password: "test-password-938", remember: false, now: attemptTime.addingTimeInterval(31)), "rate limit did not expire")
+expect(!account.remember && account.failures == 0, "successful login state incorrect")
+let accountBytes = try JSONEncoder().encode(account)
+expect(!String(decoding: accountBytes, as: UTF8.self).contains("test-password-938"), "password stored in plaintext")
+var accountCopy = try JSONDecoder().decode(LocalAccountRecord.self, from: accountBytes)
+expect(try accountCopy.authenticate(username: "Test User", password: "test-password-938", remember: false), "stored verifier round trip")
+print("Local account verifier tests passed")

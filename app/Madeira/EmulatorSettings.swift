@@ -291,10 +291,14 @@ struct EmulatorSettingsView: View {
                 NavigationLink { controllersPage } label: { Label("Controllers", systemImage: "gamecontroller") }
                 NavigationLink { touchPage } label: { Label("Touch & Mouse", systemImage: "hand.draw") }
                 NavigationLink { generalPage } label: { Label("General", systemImage: "gearshape") }
+                NavigationLink { LocalAccountSettingsView() } label: { Label("Local Account", systemImage: "person.crop.circle") }
+                NavigationLink { StoreLibrariesView() } label: { Label("Steam & GOG", systemImage: "bag") }
                 NavigationLink { runtimePage } label: { Label("Windows Runtime", systemImage: "shippingbox") }
                 NavigationLink { aboutPage } label: { Label("About", systemImage: "info.circle") }
                 NavigationLink { DiagnosticsView() } label: { Label("Diagnostics & Sharing", systemImage: "stethoscope") }
                 Section("Library") {
+                    if let date = GameLibrary.shared.scannedAt { Text("Saved index: \(date.formatted())") }
+                    Text("The saved index loads without scanning. Use Library > Refresh library after adding or moving files outside the app. Imports refresh automatically.").font(.caption)
                     Text("One card per game folder. Touch and hold a game to choose its EXE, graphics, controller mode, and runtime. Installers and redistributable folders are excluded.")
                         .font(.caption).foregroundStyle(.secondary)
                 }

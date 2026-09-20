@@ -13,7 +13,7 @@ struct MadeiraApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AccountRootView()
                 .onAppear { CrashRecovery.shared.record(foreground: true) }
                 .onChange(of: scenePhase) { phase in
                     if phase == .active { CrashRecovery.shared.record(foreground: true) }

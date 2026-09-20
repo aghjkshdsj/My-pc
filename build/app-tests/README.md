@@ -1,4 +1,20 @@
-# Something PC 0.4
+# Something PC 0.5
+
+## Saved library
+
+`somethingpc-library-index.json` stores the last successful scan atomically with a schema version, timestamp, and C:-relative paths. App launch, returning from Settings, choosing an EXE, and hiding/restoring cards do not recursively scan. A first launch without an index scans once. Imports and explicit Refresh library rebuild it. Missing/moved files are caught at launch; externally changed folders require manual refresh. A corrupt index reports an error rather than silently scanning again or modifying games. Relative paths survive an iOS container move. Steam and GOG imported games use separate roots, `C:\Steam\steamapps\common` and `C:\GOG Games`, with namespaced identities.
+
+## Local account
+
+First launch asks you to create the local account (username prefilled as Dan) and enter your chosen password. No password/default verifier is shipped in source or the IPA. The salted PBKDF2-HMAC-SHA256 verifier (600,000 rounds), failed-attempt cooldown and optional remembered sign-in are stored together in iOS Keychain with WhenUnlockedThisDeviceOnly accessibility. Save credentials remembers the sign-in rather than storing the plaintext password. Settings can require a password at the next launch without disrupting a running game. This is a local launch gate, not game-file encryption or a server account; it has no online recovery. Changing signing identity can change Keychain access.
+
+## Store integration boundary
+
+GameNative uses JavaSteam/DepotDownloader plus Android services for Steam, and GOG OAuth, manifests, authenticated CDN chunks, decompression and integrity checks for GOG. These are not included in this Swift/iOS runtime. The Steam & GOG screen deliberately labels its current capabilities: official website sign-in in the system browser and import of complete already-installed Windows game folders. It does not claim website login connects a native downloader. Store passwords/cookies are not accessed by app code or included in diagnostic exports. Steam-client/DRM dependencies may prevent imported games from running, and 32-bit store installers are unsupported. Full owned-library synchronization, native downloading/installation, updates and cloud saves remain unimplemented; merely adding login buttons cannot supply them.
+
+## ScarletSkips / debugger diagnosis
+
+The supplied build-39 report stops at startup 43%, during the 896 MiB debugger allocation, before Wine or the Windows EXE executes. It does not demonstrate a VC++ exception. Unsupported QSetIgnoredExceptions/QPassSignals responses are best-effort capability probes with existing fallbacks, not sufficient proof of the cause. A separate concrete script defect was found: `_M` error replies such as `E35` were parsed as hexadecimal pointers (0xe35), and malformed replies could throw. The script now rejects errors/malformed/unaligned replies without preparing that address. Protocol tests cover error and success responses. Release CI verifies that the tested JS file is copied byte-for-byte into the IPA instead of falling back to a stale embedded copy. Durable before/after allocation checkpoints distinguish a returned failure from a process/debugger termination. This does not prove ScarletSkips compatibility or diagnose the final iOS termination; matching app/StikDebug OS crash reports may still be needed.
 
 Discovery produces one card per immediate game folder under `C:\Games`, not one card per executable. Redistributable/support directories (including `_Redist`, `_CommonRedist`, and engine prerequisites) and .NET/VC++ installers are excluded. The shallowest eligible EXE is selected only when unique; otherwise tapping the card opens its executable picker. Long-press Game Settings changes that choice. Hide removes a card without deleting files; Restore Hidden Games reverses it. Keep each game in its own immediate folder. Unknown helpers can remain in the executable picker, but do not create extra cards within a game folder.
 
@@ -24,6 +40,8 @@ Settings > Diagnostics & Sharing exports the current report. Close acknowledges 
 
 ## Validation
 
-`swiftc app/Madeira/GameLibraryCore.swift build/app-tests/main.swift -o /tmp/app-tests && /tmp/app-tests`
+`swiftc app/Madeira/GameLibraryCore.swift app/Madeira/LocalAccountCore.swift build/app-tests/main.swift -o /tmp/app-tests && /tmp/app-tests`
+
+`node build/app-tests/jit-script.test.cjs`
 
 CI tests PE validation, path containment, symlink rejection, discovery filtering, metadata, folder/EXE imports, profile round trips, and registry activation/restoration. Release CI builds the complete iOS app and downloads its published IPA to compare bytes and checksum. Real-device testing is still required for layout, controller behavior, JIT launch, and game/runtime compatibility. Back up app documents before installing.

@@ -26,8 +26,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test library discovery, import, PE validation and registry restoration
         run: |
-          swiftc app/Madeira/GameLibraryCore.swift build/app-tests/main.swift -o /tmp/app-tests
+          swiftc app/Madeira/GameLibraryCore.swift app/Madeira/LocalAccountCore.swift build/app-tests/main.swift -o /tmp/app-tests
           /tmp/app-tests
+          node build/app-tests/jit-script.test.cjs
       - name: Typecheck complete iOS interface
         if: always()
         run: |
@@ -347,6 +348,7 @@ jobs:
           bash build/ci/package.sh
           test -s build/DerivedData/Build/Products/Release-iphoneos/Madeira.app/ARM64Runtime/manifest.json
           test -s build/DerivedData/Build/Products/Release-iphoneos/Madeira.app/Assets.car
+          cmp app/Madeira/madeira-jit.js build/DerivedData/Build/Products/Release-iphoneos/Madeira.app/madeira-jit.js
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' build/DerivedData/Build/Products/Release-iphoneos/Madeira.app/Info.plist)" = "Something PC"
           mv build/IPA/Madeira.ipa build/IPA/SomethingPC.ipa
           (cd build/IPA && shasum -a 256 SomethingPC.ipa > SomethingPC.ipa.sha256)
@@ -367,7 +369,7 @@ jobs:
           set -euo pipefail
           gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" \
             --title "Something PC unsigned IPA build ${{ github.run_number }}" \
-            --notes "Something PC 0.4: one card per game folder, installer/redist filtering, selectable launch EXE, and hide/restore library entries. Fullscreen startup uses real milestone progress; 100% means the first frame, not the end of a game's own loading. Fullscreen play has a session menu; developer tools are separate. Settings are organized by category. Support reports include startup stages, effective settings, device/build/runtime information, library inventory, memory/thermal history, and available iOS diagnostics. JIT allocation failure no longer forcibly closes the app. Android drivers are not ported; reported game/graphics crashes are not claimed fixed. Back up app documents before updating. Requires signing and the existing JIT setup." \
+            --notes "Something PC 0.5: saved portable library index (manual refresh after external file changes), local account setup with PBKDF2 verification and iOS Keychain remembered sign-in, and separate Steam/GOG imported-game folders. Set the local account password on your phone; no default password is shipped. Store website sign-in and installed-folder import are available; native store downloads, automatic installation and cloud sync are NOT implemented. JIT debugger allocation error packets are now rejected instead of interpreted as memory addresses, and the tested script is bundled directly. Additional durable allocation checkpoints aid crash diagnosis. This is a protocol bug fix, NOT confirmation that ScarletSkips now runs; its supplied log ended before Wine startup. Back up app documents before updating. Requires signing and the existing JIT setup." \
             build/IPA/SomethingPC.ipa build/IPA/SomethingPC.ipa.sha256
           mkdir -p build/release-verification
           gh release download "$RELEASE_TAG" --dir build/release-verification \

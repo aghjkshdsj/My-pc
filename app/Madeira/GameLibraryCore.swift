@@ -184,6 +184,74 @@ enum GameFiles {
     }
 }
 
+struct LibraryIndex: Codable {
+    struct Entry: Codable {
+        var id: String
+        var title: String
+        var publisher: String
+        var executable: String?
+        var cover: String?
+        var steamID: String?
+        var candidates: [String]
+        var folder: String?
+    }
+    var version = 1
+    var scannedAt = Date()
+    var entries: [Entry]
+
+    static func relative(_ file: URL, to drive: URL) throws -> String {
+        guard GameFiles.isInside(file, root: drive) else { throw LibraryFailure.invalid("Library path is outside C:.") }
+        return String(file.resolvingSymlinksInPath().standardizedFileURL.path.dropFirst(drive.resolvingSymlinksInPath().standardizedFileURL.path.count + 1))
+    }
+
+    private static func resolve(_ path: String, in drive: URL) throws -> URL {
+        guard !path.isEmpty, !path.hasPrefix("/"), !path.contains("\\"),
+              !path.split(separator: "/").contains(".."), !path.contains("\0") else {
+            throw LibraryFailure.invalid("Invalid saved library path.")
+        }
+        let file = drive.appendingPathComponent(path).standardizedFileURL
+        guard GameFiles.isInside(file, root: drive) else { throw LibraryFailure.invalid("Saved library path escapes C:.") }
+        return file
+    }
+
+    init(games: [LibraryGame], drive: URL) throws {
+        entries = try games.filter { $0.id != "pc" }.map { game in
+            Entry(id: game.id, title: game.title, publisher: game.publisher,
+                executable: try game.executable.map { try Self.relative($0, to: drive) },
+                cover: try game.cover.map { try Self.relative($0, to: drive) }, steamID: game.steamID,
+                candidates: try game.candidates.map { try Self.relative($0, to: drive) },
+                folder: try game.folder.map { try Self.relative($0, to: drive) })
+        }
+    }
+
+    func games(in drive: URL) throws -> [LibraryGame] {
+        guard version == 1, entries.count <= 20_000, Set(entries.map(\.id)).count == entries.count else {
+            throw LibraryFailure.invalid("Saved library index is incompatible or invalid. Use Refresh library to rebuild it.")
+        }
+        return try entries.map { entry in
+            guard entry.id != "pc", entry.candidates.count <= 10_000 else { throw LibraryFailure.invalid("Invalid saved library entry.") }
+            let executable = try entry.executable.map { try Self.resolve($0, in: drive) }
+            let candidates = try entry.candidates.map { try Self.resolve($0, in: drive) }
+            guard candidates.allSatisfy({ $0.pathExtension.lowercased() == "exe" }),
+                  executable == nil || candidates.contains(executable!) else { throw LibraryFailure.invalid("Invalid cached executable.") }
+            var game = LibraryGame(id: entry.id, title: entry.title, publisher: entry.publisher,
+                executable: executable, cover: try entry.cover.map { try Self.resolve($0, in: drive) }, steamID: entry.steamID)
+            game.candidates = candidates
+            game.folder = try entry.folder.map { try Self.resolve($0, in: drive) }
+            return game
+        }
+    }
+
+    static func read(_ url: URL, drive: URL) throws -> (games: [LibraryGame], date: Date) {
+        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        guard size <= 16_777_216 else { throw LibraryFailure.invalid("Saved library index is too large.") }
+        let index = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        return (try index.games(in: drive), index.scannedAt)
+    }
+
+    func write(to url: URL) throws { try JSONEncoder().encode(self).write(to: url, options: .atomic) }
+}
+
 enum StartupStage: Int, CaseIterable {
     case requested, jitReady, filesReady, runtimeReady, poolReady, serverReady, processReady, firstFrame
     var percent: Int { 1 + rawValue * 99 / (Self.allCases.count - 1) }

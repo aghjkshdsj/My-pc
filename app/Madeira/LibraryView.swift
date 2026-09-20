@@ -8,13 +8,19 @@ final class GameLibrary: ObservableObject {
     static let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].resolvingSymlinksInPath().standardizedFileURL
     static let drive = documents.appendingPathComponent("wine/drive_c", isDirectory: true)
     static let gamesFolder = drive.appendingPathComponent("Games", isDirectory: true)
+    static let steamFolder = drive.appendingPathComponent("Steam/steamapps/common", isDirectory: true)
+    static let gogFolder = drive.appendingPathComponent("GOG Games", isDirectory: true)
     @Published private(set) var games: [LibraryGame] = [.pc]
+    @Published private(set) var scannedAt: Date?
     @Published var busy = false
     @Published var error: String?
     @Published var sessionStarted = false
     private var profiles: [String: GameProfile] = [:]
     private var launchers: [String: String] = [:]
     private var hidden: Set<String> = []
+    private var indexedGames: [LibraryGame] = []
+    private var loaded = false
+    private let indexURL = documents.appendingPathComponent("somethingpc-library-index.json")
     private let profilesURL = documents.appendingPathComponent("somethingpc-games.json")
     private let launchersURL = documents.appendingPathComponent("somethingpc-launchers.json")
 
@@ -32,7 +38,7 @@ final class GameLibrary: ObservableObject {
 
     func profile(for game: LibraryGame) -> GameProfile {
         if let profile = profiles[game.id] { return profile }
-        if let executable = game.executable {
+        if let executable = game.executable, GameFiles.isInside(executable, root: Self.gamesFolder) {
             let legacyID = String(executable.path.dropFirst(Self.gamesFolder.path.count + 1))
             if let profile = profiles[legacyID] { return profile }
         }
@@ -63,17 +69,59 @@ final class GameLibrary: ObservableObject {
         } catch { self.error = error.localizedDescription }
     }
 
+    func loadSavedLibrary() {
+        guard !loaded, !busy else { return }
+        loaded = true
+        guard FileManager.default.fileExists(atPath: indexURL.path) else { refresh(); return }
+        busy = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Result { try LibraryIndex.read(self.indexURL, drive: Self.drive) }
+            DispatchQueue.main.async {
+                self.busy = false
+                switch result {
+                case .success(let saved):
+                    self.indexedGames = saved.games
+                    self.scannedAt = saved.date
+                    self.applyIndex()
+                case .failure(let error): self.error = "Could not load the saved library: \(error.localizedDescription) Use Refresh library to rescan. Your games have not been changed."
+                }
+            }
+        }
+    }
+
+    private func applyIndex() {
+        games = [.pc] + indexedGames.filter { !hidden.contains($0.id) }.map(resolve)
+        SessionDiagnostics.shared.libraryInventory(games)
+    }
+
     func refresh() {
         guard !busy else { return }
         busy = true
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = Result { try GameFiles.discover(in: Self.gamesFolder) }
+            let result = Result { () throws -> LibraryIndex in
+                var found = try GameFiles.discover(in: Self.gamesFolder)
+                for (prefix, folder) in [("steam:", Self.steamFolder), ("gog:", Self.gogFolder)] {
+                    found += try GameFiles.discover(in: folder).map { game in
+                        var entry = LibraryGame(id: prefix + game.id, title: game.title, publisher: prefix == "steam:" ? "Steam · imported" : "GOG · imported", executable: game.executable, cover: game.cover, steamID: game.steamID)
+                        entry.candidates = game.candidates
+                        entry.folder = game.folder
+                        return entry
+                    }
+                }
+                let index = try LibraryIndex(games: found, drive: Self.drive)
+                try index.write(to: self.indexURL)
+                return index
+            }
             DispatchQueue.main.async {
                 self.busy = false
                 switch result {
-                case .success(let games):
-                    self.games = [.pc] + games.filter { !self.hidden.contains($0.id) }.map(self.resolve)
-                    SessionDiagnostics.shared.libraryInventory(self.games)
+                case .success(let index):
+                    do {
+                        self.indexedGames = try index.games(in: Self.drive)
+                        self.scannedAt = index.scannedAt
+                        self.loaded = true
+                        self.applyIndex()
+                    } catch { self.error = error.localizedDescription }
                 case .failure(let error): self.error = error.localizedDescription
                 }
             }
@@ -82,7 +130,7 @@ final class GameLibrary: ObservableObject {
 
     private func resolve(_ game: LibraryGame) -> LibraryGame {
         guard let relative = launchers[game.id], let selected = game.candidates.first(where: {
-            String($0.path.dropFirst(Self.gamesFolder.path.count + 1)) == relative
+            Self.launcherPath($0) == relative || (try? LibraryIndex.relative($0, to: Self.drive)) == relative
         }) else { return game }
         var updated = LibraryGame(id: game.id, title: game.title,
             publisher: game.publisher, executable: selected, cover: game.cover, steamID: game.steamID)
@@ -95,15 +143,19 @@ final class GameLibrary: ObservableObject {
         var updated = launchers
         if relative.isEmpty { updated.removeValue(forKey: game.id) }
         else {
-            guard let selected = game.candidates.first(where: { String($0.path.dropFirst(Self.gamesFolder.path.count + 1)) == relative }) else {
+            guard let selected = game.candidates.first(where: { Self.launcherPath($0) == relative }) else {
                 throw LibraryFailure.invalid("Choose one of this game's executable files.")
             }
             _ = try GameFiles.gameExecutableMachine(selected)
-            updated[game.id] = relative
+            updated[game.id] = try LibraryIndex.relative(selected, to: Self.drive)
         }
         try JSONEncoder().encode(updated).write(to: launchersURL, options: .atomic)
         launchers = updated
-        refresh()
+        applyIndex()
+    }
+
+    static func launcherPath(_ file: URL) -> String {
+        (try? LibraryIndex.relative(file, to: GameFiles.isInside(file, root: gamesFolder) ? gamesFolder : drive)) ?? file.lastPathComponent
     }
 
     func hide(_ game: LibraryGame) {
@@ -116,10 +168,10 @@ final class GameLibrary: ObservableObject {
     func restoreHidden() {
         hidden.removeAll()
         UserDefaults.standard.removeObject(forKey: "hiddenLibraryGames")
-        refresh()
+        applyIndex()
     }
 
-    func importGame(_ result: Result<[URL], Error>, folder: Bool) {
+    func importGame(_ result: Result<[URL], Error>, folder: Bool, destination: URL? = nil) {
         guard case .success(let urls) = result, let source = urls.first else {
             if case .failure(let error) = result { self.error = error.localizedDescription }
             return
@@ -131,7 +183,7 @@ final class GameLibrary: ObservableObject {
             var coordinationError: NSError?
             var failure: Error?
             NSFileCoordinator().coordinate(readingItemAt: source, options: [], error: &coordinationError) { url in
-                do { try GameFiles.copyImport(url, to: Self.gamesFolder, folder: folder) }
+                do { try GameFiles.copyImport(url, to: destination ?? Self.gamesFolder, folder: folder) }
                 catch { failure = error }
             }
             let message = (failure ?? coordinationError)?.localizedDescription
@@ -208,7 +260,7 @@ struct LibraryView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { library.refresh() }
+        .onAppear { library.loadSavedLibrary() }
         .sheet(item: $selectedGame) { GameSettingsView(game: $0) }
         .sheet(isPresented: $supportPresented) {
             NavigationStack { DiagnosticsView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { supportPresented = false } } } }
@@ -335,7 +387,7 @@ struct GameSettingsView: View {
     init(game: LibraryGame) {
         self.game = game
         _profile = State(initialValue: GameLibrary.shared.profile(for: game))
-        _selectedExecutable = State(initialValue: game.executable.map { String($0.path.dropFirst(GameLibrary.gamesFolder.path.count + 1)) } ?? "")
+        _selectedExecutable = State(initialValue: game.executable.map(GameLibrary.launcherPath) ?? "")
     }
 
     var body: some View {
@@ -347,7 +399,7 @@ struct GameSettingsView: View {
                         Picker("Launch executable", selection: $selectedExecutable) {
                             Text("Choose an EXE").tag("")
                             ForEach(game.candidates, id: \.path) { file in
-                                let relative = String(file.path.dropFirst(GameLibrary.gamesFolder.path.count + 1))
+                                let relative = GameLibrary.launcherPath(file)
                                 Text(relative).tag(relative)
                             }
                         }
