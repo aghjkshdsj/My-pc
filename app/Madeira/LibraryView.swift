@@ -5,7 +5,7 @@ import ImageIO
 
 final class GameLibrary: ObservableObject {
     static let shared = GameLibrary()
-    static let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    static let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].resolvingSymlinksInPath().standardizedFileURL
     static let drive = documents.appendingPathComponent("wine/drive_c", isDirectory: true)
     static let gamesFolder = drive.appendingPathComponent("Games", isDirectory: true)
     @Published private(set) var games: [LibraryGame] = [.pc]
@@ -84,7 +84,7 @@ final class GameLibrary: ObservableObject {
         guard let relative = launchers[game.id], let selected = game.candidates.first(where: {
             String($0.path.dropFirst(Self.gamesFolder.path.count + 1)) == relative
         }) else { return game }
-        var updated = LibraryGame(id: game.id, title: selected.deletingPathExtension().lastPathComponent,
+        var updated = LibraryGame(id: game.id, title: game.title,
             publisher: game.publisher, executable: selected, cover: game.cover, steamID: game.steamID)
         updated.candidates = game.candidates
         updated.folder = game.folder

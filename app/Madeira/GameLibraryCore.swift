@@ -100,7 +100,8 @@ enum GameFiles {
         return path
     }
 
-    static func discover(in root: URL) throws -> [LibraryGame] {
+    static func discover(in directory: URL) throws -> [LibraryGame] {
+        let root = directory.resolvingSymlinksInPath().standardizedFileURL
         let manager = FileManager.default
         try manager.createDirectory(at: root, withIntermediateDirectories: true)
         guard let enumerator = manager.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { return [] }
