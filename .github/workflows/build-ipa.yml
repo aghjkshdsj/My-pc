@@ -29,6 +29,7 @@ jobs:
           swiftc app/Madeira/GameLibraryCore.swift build/app-tests/main.swift -o /tmp/app-tests
           /tmp/app-tests
       - name: Typecheck complete iOS interface
+        if: always()
         run: |
           xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 \
             -target arm64-apple-ios17.0 -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \

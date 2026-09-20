@@ -55,7 +55,7 @@ try Data("480\n".utf8).write(to: game.appendingPathComponent("steam_appid.txt"))
 try Data("{\"title\":\"Example Title\",\"publisher\":\"Example Studio\"}".utf8).write(to: game.appendingPathComponent("somethingpc-game.json"))
 let found = try GameFiles.discover(in: games)
 expect(found.count == 1, "discovery included helper executables or symlinks")
-expect(found[0].id == "folder:Example Game", "folder identity must be relative to the canonical Games directory: \(found[0].id)")
+expect(found[0].id == "folder:Example Game", "folder identity must be relative to the canonical Games directory: \(found[0].id); file=\(found[0].executable?.path ?? "none"); root=\(games.resolvingSymlinksInPath().standardizedFileURL.path)")
 expect(found[0].title == "Example Title" && found[0].publisher == "Example Studio", "local metadata")
 expect(found[0].cover?.lastPathComponent == "cover.png" && found[0].steamID == "480", "cover metadata")
 for name in ["assets.bin", "data.dll", "resources.dat", "level.pak", "Game.exe.bin", "Game.exe.txt", "shortcut.lnk"] {

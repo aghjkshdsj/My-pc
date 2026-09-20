@@ -106,9 +106,10 @@ enum GameFiles {
         try manager.createDirectory(at: root, withIntermediateDirectories: true)
         guard let enumerator = manager.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { return [] }
         var games: [LibraryGame] = []
-        for case let file as URL in enumerator {
-            let values = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
+        for case let entry as URL in enumerator {
+            let values = try entry.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
             if values.isSymbolicLink == true { enumerator.skipDescendants(); continue }
+            let file = entry.resolvingSymlinksInPath().standardizedFileURL
             guard values.isRegularFile == true, file.pathExtension.lowercased() == "exe",
                   isInside(file, root: root), !isSupportPath(String(file.path.dropFirst(root.path.count + 1))) else { continue }
             guard (try? gameExecutableMachine(file)) != nil else { continue }
