@@ -76,6 +76,7 @@ struct StoreLibrariesView: View {
         .sheet(item: $login) { attempt in
             NavigationStack {
                 GOGLoginView(state: attempt.id) { result in
+                    guard login?.id == attempt.id else { return }
                     login = nil
                     switch result {
                     case .success(let code): gog.complete(code: code)

@@ -294,6 +294,10 @@ struct GOGLoginView: UIViewRepresentable {
         return view
     }
     func updateUIView(_ uiView: WKWebView, context: Context) {}
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        uiView.stopLoading()
+        uiView.navigationDelegate = nil
+    }
     final class Coordinator: NSObject, WKNavigationDelegate {
         let state: String
         let completion: (Result<String, Error>) -> Void

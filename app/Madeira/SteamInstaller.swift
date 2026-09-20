@@ -92,6 +92,7 @@ enum StoreNetwork {
     }
 
     func update(_ phase: String, completed: Int64 = 0, total: Int64 = 0) {
+        guard busy else { return }
         self.phase = phase; self.completed = completed; self.total = total
     }
     func cancel() { task?.cancel() }
@@ -184,13 +185,13 @@ enum SteamInstaller {
         """
         let file = try StoreFiles.destination("steam-launch.bat", root: GameLibrary.drive)
         try batch.replacingOccurrences(of: "\n", with: "\r\n").write(to: file, atomically: true, encoding: .utf8)
-        setenv("MADEIRA_USE_ARM64EC", "1", 1)
+        setenv("MADEIRA_USE_ARM64EC", "0", 1)
         setenv("MADEIRA_EXE", "explorer.exe", 1)
         setenv("MADEIRA_DESKTOP", "1", 1)
         setenv("MADEIRA_JITLESS", "1", 1)
         let width = getenv("MADEIRA_SCREEN_W").map { String(cString: $0) } ?? "960"
         let height = getenv("MADEIRA_SCREEN_H").map { String(cString: $0) } ?? "540"
         setenv("MADEIRA_ARGS", "/desktop=shell,\(width)x\(height) cmd /c C:\\steam-launch.bat", 1)
-        SessionDiagnostics.shared.event("Steam launch: desktop → services → 64-bit Steam; CEF software rendering and jitless mode")
+        SessionDiagnostics.shared.event("Steam launch: native ARM64 desktop → services → x64 Steam child via ARM64EC/FEX; CEF software rendering and jitless mode")
     }
 }

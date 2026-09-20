@@ -80,8 +80,8 @@ enum GOGContent {
             let chunks = try JSONDecoder().decode([GOGChunk].self, from: JSONSerialization.data(withJSONObject: chunksObject))
             guard chunks.count <= 65_536 else { throw LibraryFailure.invalid("GOG file has too many chunks.") }
             for chunk in chunks { try chunk.validate() }
-            let md5 = item["md5"] as? String
-            let sha256 = item["sha256"] as? String
+            let md5 = (item["md5"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            let sha256 = (item["sha256"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             guard md5 == nil || validHash(md5!), sha256 == nil || validHash(sha256!, length: 64) else { throw LibraryFailure.invalid("Invalid GOG file hash.") }
             return GOGFile(path: path, product: product, chunks: chunks, md5: md5, sha256: sha256)
         }
