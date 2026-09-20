@@ -62,6 +62,9 @@
 		B1000420 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000420; };
 		B1000430 /* RuntimeSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000430; };
 		B1000440 /* ARM64Runtime in Resources */ = {isa = PBXBuildFile; fileRef = B2000440; };
+		B1000500 /* SessionDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000500; };
+		B1000510 /* LaunchSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000510; };
+		B1000520 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000520; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -131,6 +134,9 @@
 		B2000420 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		B2000430 /* RuntimeSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeSupport.swift; sourceTree = "<group>"; };
 		B2000440 /* ARM64Runtime */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ARM64Runtime; sourceTree = "<group>"; };
+		B2000500 /* SessionDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDiagnostics.swift; sourceTree = "<group>"; };
+		B2000510 /* LaunchSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSession.swift; sourceTree = "<group>"; };
+		B2000520 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -190,6 +196,9 @@
 				B2000420 /* LibraryView.swift */,
 				B2000430 /* RuntimeSupport.swift */,
 				B2000440 /* ARM64Runtime */,
+				B2000500 /* SessionDiagnostics.swift */,
+				B2000510 /* LaunchSession.swift */,
+				B2000520 /* DiagnosticsView.swift */,
 				A2000003 /* LogStore.swift */,
 				A2000200 /* LogPattern.swift */,
 				A2000201 /* LogTail.swift */,
@@ -349,6 +358,9 @@
 				B1000410 /* GameLibraryCore.swift in Sources */,
 				B1000420 /* LibraryView.swift in Sources */,
 				B1000430 /* RuntimeSupport.swift in Sources */,
+				B1000500 /* SessionDiagnostics.swift in Sources */,
+				B1000510 /* LaunchSession.swift in Sources */,
+				B1000520 /* DiagnosticsView.swift in Sources */,
 				A1000003 /* LogStore.swift in Sources */,
 				A1000200 /* LogPattern.swift in Sources */,
 				A1000201 /* LogTail.swift in Sources */,

@@ -169,11 +169,7 @@ enum StikJITHelper {
                 : "  bad region kept as pin (vm_deallocate kr=\(dkr))")
         }
         guard let rxPtr = rxPtrOpt else {
-            LogStore.shared.log("BAD POOL: no valid placement after retries. Killing in 10s — please relaunch.", level: .error)
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 10) {
-                LogStore.shared.log("BAD POOL — exiting now. Relaunch the app.", level: .error)
-                exit(0)
-            }
+            LogStore.shared.log("BAD POOL: no valid placement after retries. Startup stopped; export diagnostics, then relaunch.", level: .error)
             return nil
         }
         let rxAddr = Int(bitPattern: rxPtr)

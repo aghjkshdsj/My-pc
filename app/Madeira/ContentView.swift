@@ -865,7 +865,10 @@ struct ContentView: View {
     @State private var pointerPanel = false
     @State private var settingsPresented = false
     @State private var libraryPresented = true
-    @State private var launchPending = false
+    @State private var pendingLaunch: (LibraryGame, GameProfile)?
+    @State private var diagnosticsVisible = false
+    @State private var sharedReport: SharedReport?
+    @ObservedObject private var launch = LaunchSession.shared
     @ObservedObject private var settings = EmulatorSettings.shared
     @Namespace private var pointerNS
     /// .compact = iPhone landscape: game surface expands, arrow keys appear.
@@ -889,7 +892,9 @@ struct ContentView: View {
          * two-column selection behaviour. */
         NavigationStack {
             Group {
-                if vSizeClass == .compact {
+                if !diagnosticsVisible {
+                    fullscreenBody
+                } else if vSizeClass == .compact {
                     landscapeBody
                 } else {
                     portraitBody
@@ -901,7 +906,8 @@ struct ContentView: View {
             // a fresh placeholder only re-parents the same CAMetalLayer.
             .navigationTitle("Something PC")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarHidden(vSizeClass == .compact)
+            .navigationBarHidden(!diagnosticsVisible || vSizeClass == .compact)
+            .statusBarHidden(!diagnosticsVisible && !libraryPresented)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { libraryPresented = true } label: { Image(systemName: "square.grid.2x2") }
@@ -916,16 +922,25 @@ struct ContentView: View {
                 libraryPresented = true
             }
             .fullScreenCover(isPresented: $libraryPresented, onDismiss: {
-                setSettingsVisible(false)
-                if launchPending { launchPending = false; runWineFullSequence() }
+                updatePresentation()
+                if let request = pendingLaunch {
+                    pendingLaunch = nil
+                    prepareLibraryGame(request.0, request.1)
+                }
             }) {
                 LibraryView(launch: launchLibraryGame,
-                    resume: { libraryPresented = false }, diagnostics: { libraryPresented = false })
+                    resume: { diagnosticsVisible = false; libraryPresented = false },
+                    diagnostics: { diagnosticsVisible = true; libraryPresented = false })
                     .onAppear { setSettingsVisible(true) }
             }
-            .fullScreenCover(isPresented: $settingsPresented, onDismiss: { setSettingsVisible(false) }) {
+            .fullScreenCover(isPresented: $settingsPresented, onDismiss: { updatePresentation() }) {
                 EmulatorSettingsView().onAppear { setSettingsVisible(true) }
             }
+            .sheet(item: $sharedReport, onDismiss: { updatePresentation() }) { DiagnosticShareSheet(url: $0.url) }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("somethingpc.shareDiagnostics"))) { _ in shareDiagnostics() }
+            .onChange(of: launch.ready) { _ in updatePresentation() }
+            .onChange(of: libraryPresented) { _ in updatePresentation() }
+            .onChange(of: sharedReport?.id) { _ in updatePresentation() }
             .onAppear {
                 _ = GameControllerManager.shared
                 jit_install_trap_handler()
@@ -943,9 +958,48 @@ struct ContentView: View {
         winios_set_presentation_hidden(visible ? 1 : 0)
         TouchControlsHost.setSuspended(visible)
         JoystickPadState.shared.hidden = visible || pointerPanel
+        SessionMenuHost.show(!visible && launch.ready && !diagnosticsVisible)
+    }
+
+    private func updatePresentation() {
+        setSettingsVisible(libraryPresented || settingsPresented || sharedReport != nil || (!diagnosticsVisible && !launch.ready))
+    }
+
+    private var fullscreenBody: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            MadeiraMetalView().ignoresSafeArea()
+                .onAppear { TouchControlsHost.attach(); updatePresentation() }
+            if !launch.ready {
+                StartupView(library: { libraryPresented = true }, share: shareDiagnostics)
+            }
+        }
+    }
+
+    private func shareDiagnostics() {
+        Task {
+            do { sharedReport = SharedReport(url: try await Task.detached(priority: .utility) { try SupportReport.current() }.value) }
+            catch { launch.fail("Could not export diagnostics: \(error.localizedDescription)") }
+        }
     }
 
     private func launchLibraryGame(_ game: LibraryGame, _ profile: GameProfile) {
+        guard !GameLibrary.shared.busy, pendingLaunch == nil else { return }
+        guard !GameLibrary.shared.sessionStarted, wineserver_is_running() == 0, wine_process_is_running() == 0 else {
+            GameLibrary.shared.error = "A Windows session is already running. Resume it, or restart the app before launching another game."
+            return
+        }
+        guard game.id == "pc" || game.executable != nil else {
+            GameLibrary.shared.error = "Open Game Settings and choose this game's launch EXE first."
+            return
+        }
+        diagnosticsVisible = false
+        launch.begin(game)
+        pendingLaunch = (game, profile)
+        libraryPresented = false
+    }
+
+    private func prepareLibraryGame(_ game: LibraryGame, _ profile: GameProfile) {
         let library = GameLibrary.shared
         guard !library.busy else { return }
         guard !library.sessionStarted, wineserver_is_running() == 0, wine_process_is_running() == 0 else {
@@ -954,8 +1008,10 @@ struct ContentView: View {
         }
         library.busy = true
         let prepare = {
+            launch.advance(.jitReady)
             settings.beginSession(profile)
             settings.applyResolution()
+            SessionDiagnostics.shared.launch(game: game, profile: profile)
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     unsetenv("MADEIRA_ARGS")
@@ -977,20 +1033,21 @@ struct ContentView: View {
                         let height = String(cString: getenv("MADEIRA_SCREEN_H")!)
                         setenv("MADEIRA_ARGS", "/desktop=shell,\(width)x\(height) C:\\windows\\system32\\services.exe", 1)
                     }
+                    launch.advance(.filesReady)
                     try RuntimeSupport.prepare(enabled: profile.visualCppARM64)
+                    launch.advance(.runtimeReady)
                     DispatchQueue.main.async {
                         CrashRecovery.shared.launching(game.title)
                         LogStore.shared.log("Launching \(game.title); bundled ARM64 VC++: \(profile.visualCppARM64)")
                         library.busy = false
                         library.sessionStarted = true
-                        launchPending = true
-                        libraryPresented = false
+                        runWineFullSequence()
                     }
                 } catch {
                     DispatchQueue.main.async {
                         settings.endSession()
                         library.busy = false
-                        library.error = error.localizedDescription
+                        launch.fail(error.localizedDescription)
                     }
                 }
             }
@@ -1002,7 +1059,7 @@ struct ContentView: View {
                     if success { prepare() }
                     else {
                         library.busy = false
-                        library.error = "JIT could not be enabled. Use your existing StikDebug/JIT setup, then try again. Diagnostics & JIT is available from the Library menu."
+                        launch.fail("JIT could not be enabled. Use your existing StikDebug/JIT setup, then restart the app and try again.")
                     }
                 }
             }
@@ -1854,6 +1911,7 @@ struct ContentView: View {
         if wineserver_is_running() == 0 { settings.applyResolution() }
         guard jit_check_debugged() else {
             logStore.log("JIT not enabled. Press 'Enable JIT' first.", level: .error)
+            launch.fail("JIT access was lost before startup. Restart the app and reconnect StikDebug.")
             return
         }
 
@@ -2206,6 +2264,7 @@ struct ContentView: View {
             }
 
             if let pool = pool {
+                launch.advance(.poolReady)
                 logStore.log("JIT pool: RX=\(String(format: "%p", Int(bitPattern: pool.rx))), RW=\(String(format: "%p", Int(bitPattern: pool.rw))), size=\(pool.size / 1024 / 1024)MB", level: .success)
                 setenv("WINE_IOS_JIT_RX", String(format: "%lx", Int(bitPattern: pool.rx)), 1)
                 setenv("WINE_IOS_JIT_RW", String(format: "%lx", Int(bitPattern: pool.rw)), 1)
@@ -2222,6 +2281,8 @@ struct ContentView: View {
                 logStore.log("  and depends on current memory layout, so a fresh process", level: .info)
                 logStore.log("  usually lands somewhere valid.", level: .info)
                 logStore.uiPaused = false
+                launch.fail("Executable memory could not be allocated safely. Restart the app and re-enable JIT. A diagnostic report can be shared without closing this screen.")
+                DispatchQueue.main.async { heartbeat.invalidate() }
                 return
             }
 
@@ -2266,13 +2327,23 @@ struct ContentView: View {
             winios_phase("detach-done")
 
             // Step 2: Start wineserver
-            self.startWineserver()
+            guard self.startWineserver() else {
+                launch.fail("Windows services failed to start. Share diagnostics, then restart the app.")
+                DispatchQueue.main.async { heartbeat.invalidate() }
+                return
+            }
+            launch.advance(.serverReady)
             winios_phase("wineserver-up")
 
             // Step 3: Start Wine (debugger still attached for PE loading BRK calls)
             Thread.sleep(forTimeInterval: 2.0)
             winios_phase("wine-start")
-            self.startWineProcess()
+            guard self.startWineProcess() else {
+                launch.fail("The Windows process failed to start. Share diagnostics, then restart the app.")
+                DispatchQueue.main.async { heartbeat.invalidate() }
+                return
+            }
+            launch.advance(.processReady)
 
             // Step 4: Wait for Wine to finish instead of fixed timer
             // Poll wine_process_is_running() — it clears when __wine_main returns
@@ -2413,7 +2484,7 @@ struct ContentView: View {
         return true
     }
 
-    private func startWineserver() {
+    @discardableResult private func startWineserver() -> Bool {
         logStore.log("Starting wineserver...")
 
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -2427,14 +2498,15 @@ struct ContentView: View {
         } else {
             logStore.log("Failed to start wineserver (error: \(result))", level: .error)
         }
+        return result == 0
     }
 
-    private func startWineProcess() {
+    @discardableResult private func startWineProcess() -> Bool {
         logStore.log("Starting Wine process...")
 
         if wineserver_is_running() == 0 {
             logStore.log("Wineserver not running! Start it first.", level: .error)
-            return
+            return false
         }
 
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -2447,6 +2519,7 @@ struct ContentView: View {
         } else {
             logStore.log("Failed to start Wine process (error: \(result))", level: .error)
         }
+        return result == 0
     }
 
     private func testDualMapping() {

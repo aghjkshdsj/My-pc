@@ -287,7 +287,26 @@ struct EmulatorSettingsView: View {
                     Text("A session is running. These controls change temporary session values only. Long-press a library card to save per-game settings for your next launch.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Section("Graphics") {
+                NavigationLink { graphicsPage } label: { Label("Graphics", systemImage: "display") }
+                NavigationLink { controllersPage } label: { Label("Controllers", systemImage: "gamecontroller") }
+                NavigationLink { touchPage } label: { Label("Touch & Mouse", systemImage: "hand.draw") }
+                NavigationLink { generalPage } label: { Label("General", systemImage: "gearshape") }
+                NavigationLink { runtimePage } label: { Label("Windows Runtime", systemImage: "shippingbox") }
+                NavigationLink { aboutPage } label: { Label("About", systemImage: "info.circle") }
+                NavigationLink { DiagnosticsView() } label: { Label("Diagnostics & Sharing", systemImage: "stethoscope") }
+                Section("Library") {
+                    Text("One card per game folder. Touch and hold a game to choose its EXE, graphics, controller mode, and runtime. Installers and redistributable folders are excluded.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Settings")
+            .toolbar { if showDone { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } } }
+            .sheet(isPresented: $testing) { ControllerTestView() }
+        }
+    }
+    private var graphicsPage: some View {
+        Form {
+            Section("Graphics") {
                     Picker("Desktop resolution", selection: $settings.resolution) {
                         ForEach(EmulatorSettings.resolutions, id: \.self) { Text($0).tag($0) }
                     }
@@ -302,7 +321,12 @@ struct EmulatorSettingsView: View {
                     Text("This controls presentation pacing, not guaranteed game performance.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Section("Controllers") {
+        }.navigationTitle("Graphics")
+    }
+
+    private var controllersPage: some View {
+        Form {
+            Section("Controllers") {
                     Picker("Game input", selection: $settings.controllerMode) {
                         Text("Xbox-compatible (XInput)").tag("xinput")
                         Text("Keyboard & mouse fallback").tag("keyboard")
@@ -328,38 +352,55 @@ struct EmulatorSettingsView: View {
                         Slider(value: $settings.mouseSpeed, in: 1...20) { Text("Right-stick mouse speed") }
                     }
                 }
-                Section("Touch & mouse") {
+        }.navigationTitle("Controllers")
+    }
+
+    private var touchPage: some View {
+        Form {
+            Section("Touch & mouse") {
                     Toggle("Relative mouse mode", isOn: $input.relative)
                     LabeledContent("Pointer sensitivity", value: String(format: "%.2f", input.sensAbs))
                     Slider(value: $input.sensAbs, in: 0.1...8)
                     LabeledContent("Mouse-look sensitivity", value: String(format: "%.2f", input.sensRel))
                     Slider(value: $input.sensRel, in: 0.1...8)
                 }
-                Section("General") {
+        }.navigationTitle("Touch & Mouse")
+    }
+
+    private var generalPage: some View {
+        Form {
+            Section("General") {
                     Toggle("Keep screen awake", isOn: $settings.keepAwake)
                     Toggle("Verbose diagnostics", isOn: $input.diagnostics)
                     Text("Settings and existing games stay in the same app container. Save states, CPU speed hacks, and DirectX 12 are not supported.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Section("Windows runtime help") {
+        }.navigationTitle("General")
+    }
+
+    private var runtimePage: some View {
+        Form {
+            Section("Windows runtime help") {
                     Text("Touch and hold a game in Library, open Game Settings, then enable bundled ARM64 Visual C++. Restart the app before launching that game. You do not need to run the ARM64 installer.")
                     Text("The required Windows runtime depends on the game, not the iPhone CPU. This compatibility option does not guarantee that every game will run; the working Wine/x64 exception handlers are preserved.")
                         .font(.caption).foregroundStyle(.secondary)
                     Link("Microsoft runtime documentation", destination: URL(string: "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist")!)
                 }
-                Section("About") {
+        }.navigationTitle("Windows Runtime")
+    }
+
+    private var aboutPage: some View {
+        Form {
+            Section("About") {
                     Text("Something PC")
                         .font(.headline)
                     Text("Based on Madeira • Wine • FEX • DXMT")
                     Text("Unsigned builds require your existing signing and JIT setup.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-            }
-            .navigationTitle("Settings")
-            .toolbar { if showDone { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } } }
-            .sheet(isPresented: $testing) { ControllerTestView() }
-        }
+        }.navigationTitle("About")
     }
+
 }
 
 struct ControllerTestView: View {

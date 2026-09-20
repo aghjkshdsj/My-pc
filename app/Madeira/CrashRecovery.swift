@@ -20,13 +20,8 @@ final class CrashRecovery: ObservableObject {
                 let destination = reports.appendingPathComponent("Unexpected-close-\(UUID().uuidString).txt")
                 let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
                 var output = Data("Something PC \(version)\niOS \(UIDevice.current.systemVersion)\nPrevious session: \(previous)\nAn unfinished foreground session was detected. This may be a crash, force-quit, or OS termination; this is not a crash stack trace.\nLogs may contain game names, paths, and other private information. Review before sharing.\n\n".utf8)
-                let source = documents.appendingPathComponent("madeira-log.txt")
-                if let handle = try? FileHandle(forReadingFrom: source) {
-                    defer { try? handle.close() }
-                    let length = try handle.seekToEnd()
-                    try handle.seek(toOffset: length > 4_194_304 ? length - 4_194_304 : 0)
-                    output.append(try handle.read(upToCount: 4_194_304) ?? Data())
-                }
+                output.append(SupportReport.context())
+                output.append(SupportReport.log())
                 try output.write(to: destination, options: .atomic)
                 UserDefaults.standard.set(destination.lastPathComponent, forKey: "pendingCrashReport")
             }

@@ -597,6 +597,9 @@ static void winios_apply_contents_rect(NSNumber *key, CALayer *l) {
 }
 static UIView *g_compositor_view;
 static BOOL g_presentation_hidden;
+static unsigned long long spc_gdi_presents;
+
+unsigned long long spc_gdi_present_count(void) { return spc_gdi_presents; }
 
 void winios_set_presentation_hidden(int hidden) {
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1180,6 +1183,7 @@ void winios_surface_present(HWND hwnd, int dx, int dy, int dw, int dh,
                 l.frame = winios_layer_rect(0, 0, sw, sh);
             }
             winios_apply_contents_rect(key, l);
+            if (!l.hidden && sw >= 100 && sh >= 100) spc_gdi_presents++;
             CGImageRelease(img);
         }
         CGDataProviderRelease(dp);

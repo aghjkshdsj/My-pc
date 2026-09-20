@@ -13,9 +13,14 @@ final class GameLibrary: ObservableObject {
     @Published var error: String?
     @Published var sessionStarted = false
     private var profiles: [String: GameProfile] = [:]
+    private var launchers: [String: String] = [:]
+    private var hidden: Set<String> = []
     private let profilesURL = documents.appendingPathComponent("somethingpc-games.json")
+    private let launchersURL = documents.appendingPathComponent("somethingpc-launchers.json")
 
     private init() {
+        if let data = try? Data(contentsOf: launchersURL), let saved = try? JSONDecoder().decode([String: String].self, from: data) { launchers = saved }
+        hidden = Set(UserDefaults.standard.stringArray(forKey: "hiddenLibraryGames") ?? [])
         if let data = try? Data(contentsOf: profilesURL) {
             do { profiles = try JSONDecoder().decode([String: GameProfile].self, from: data) }
             catch {
@@ -27,6 +32,10 @@ final class GameLibrary: ObservableObject {
 
     func profile(for game: LibraryGame) -> GameProfile {
         if let profile = profiles[game.id] { return profile }
+        if let executable = game.executable {
+            let legacyID = String(executable.path.dropFirst(Self.gamesFolder.path.count + 1))
+            if let profile = profiles[legacyID] { return profile }
+        }
         let settings = EmulatorSettings.shared
         let input = InputSettings.shared
         var profile = GameProfile()
@@ -62,11 +71,52 @@ final class GameLibrary: ObservableObject {
             DispatchQueue.main.async {
                 self.busy = false
                 switch result {
-                case .success(let games): self.games = [.pc] + games
+                case .success(let games):
+                    self.games = [.pc] + games.filter { !self.hidden.contains($0.id) }.map(self.resolve)
+                    SessionDiagnostics.shared.libraryInventory(self.games)
                 case .failure(let error): self.error = error.localizedDescription
                 }
             }
         }
+    }
+
+    private func resolve(_ game: LibraryGame) -> LibraryGame {
+        guard let relative = launchers[game.id], let selected = game.candidates.first(where: {
+            String($0.path.dropFirst(Self.gamesFolder.path.count + 1)) == relative
+        }) else { return game }
+        var updated = LibraryGame(id: game.id, title: selected.deletingPathExtension().lastPathComponent,
+            publisher: game.publisher, executable: selected, cover: game.cover, steamID: game.steamID)
+        updated.candidates = game.candidates
+        updated.folder = game.folder
+        return updated
+    }
+
+    func selectExecutable(_ relative: String, for game: LibraryGame) throws {
+        var updated = launchers
+        if relative.isEmpty { updated.removeValue(forKey: game.id) }
+        else {
+            guard let selected = game.candidates.first(where: { String($0.path.dropFirst(Self.gamesFolder.path.count + 1)) == relative }) else {
+                throw LibraryFailure.invalid("Choose one of this game's executable files.")
+            }
+            _ = try GameFiles.gameExecutableMachine(selected)
+            updated[game.id] = relative
+        }
+        try JSONEncoder().encode(updated).write(to: launchersURL, options: .atomic)
+        launchers = updated
+        refresh()
+    }
+
+    func hide(_ game: LibraryGame) {
+        guard game.id != "pc" else { return }
+        hidden.insert(game.id)
+        UserDefaults.standard.set(Array(hidden), forKey: "hiddenLibraryGames")
+        games.removeAll { $0.id == game.id }
+    }
+
+    func restoreHidden() {
+        hidden.removeAll()
+        UserDefaults.standard.removeObject(forKey: "hiddenLibraryGames")
+        refresh()
     }
 
     func importGame(_ result: Result<[URL], Error>, folder: Bool) {
@@ -105,6 +155,7 @@ struct LibraryView: View {
     @State private var exeWarning = false
     @State private var selectedGame: LibraryGame?
     @State private var sharing = false
+    @State private var supportPresented = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -119,11 +170,14 @@ struct LibraryView: View {
                         ScrollView {
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: geometry.size.width > geometry.size.height ? 4 : 2), spacing: 20) {
                                 ForEach(library.games) { game in
-                                    Button { launch(game, library.profile(for: game)) } label: { GameCard(game: game, profile: library.profile(for: game)) }
+                                    Button { play(game) } label: { GameCard(game: game, profile: library.profile(for: game)) }
                                         .buttonStyle(.plain)
                                         .contextMenu {
                                             Button("Game settings", systemImage: "slider.horizontal.3") { selectedGame = game }
-                                            Button("Play", systemImage: "play.fill") { launch(game, library.profile(for: game)) }
+                                            Button("Play", systemImage: "play.fill") { play(game) }
+                                            if game.id != "pc" {
+                                                Button("Hide from library", systemImage: "eye.slash") { library.hide(game) }
+                                            }
                                         }
                                         .accessibilityHint("Play. Touch and hold for game settings.")
                                 }
@@ -156,6 +210,9 @@ struct LibraryView: View {
         .preferredColorScheme(.dark)
         .onAppear { library.refresh() }
         .sheet(item: $selectedGame) { GameSettingsView(game: $0) }
+        .sheet(isPresented: $supportPresented) {
+            NavigationStack { DiagnosticsView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { supportPresented = false } } } }
+        }
         .sheet(isPresented: $sharing) {
             if let report = recovery.report { DiagnosticShareSheet(url: report) }
         }
@@ -183,7 +240,9 @@ struct LibraryView: View {
         HStack {
             Menu {
                 Button("Refresh library", systemImage: "arrow.clockwise") { library.refresh() }
+                Button("Restore hidden games", systemImage: "eye") { library.restoreHidden() }
                 Button("Diagnostics & JIT", systemImage: "stethoscope") { diagnostics() }
+                Button("Share diagnostic report", systemImage: "square.and.arrow.up") { supportPresented = true }
                 if recovery.report != nil { Button("Share last unexpected-close log", systemImage: "square.and.arrow.up") { sharing = true } }
                 if library.sessionStarted { Button("Resume session", systemImage: "play.fill") { resume() } }
             } label: { Image(systemName: "ellipsis.circle").font(.title) }
@@ -196,6 +255,11 @@ struct LibraryView: View {
             } label: { Image(systemName: "plus").font(.title) }
         }
         .foregroundStyle(.white).padding(.horizontal, 28).padding(.vertical, 14)
+    }
+
+    private func play(_ game: LibraryGame) {
+        if game.id != "pc" && game.executable == nil { selectedGame = game }
+        else { launch(game, library.profile(for: game)) }
     }
 
     private func tab(_ title: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -266,10 +330,12 @@ struct GameSettingsView: View {
     @State private var profile = GameProfile()
     @State private var coverPicker = false
     @State private var error: String?
+    @State private var selectedExecutable = ""
 
     init(game: LibraryGame) {
         self.game = game
         _profile = State(initialValue: GameLibrary.shared.profile(for: game))
+        _selectedExecutable = State(initialValue: game.executable.map { String($0.path.dropFirst(GameLibrary.gamesFolder.path.count + 1)) } ?? "")
     }
 
     var body: some View {
@@ -277,6 +343,17 @@ struct GameSettingsView: View {
             Form {
                 Section("Game") {
                     Text(game.title).font(.headline)
+                    if game.id != "pc" {
+                        Picker("Launch executable", selection: $selectedExecutable) {
+                            Text("Choose an EXE").tag("")
+                            ForEach(game.candidates, id: \.path) { file in
+                                let relative = String(file.path.dropFirst(GameLibrary.gamesFolder.path.count + 1))
+                                Text(relative).tag(relative)
+                            }
+                        }
+                        Text("One card per game folder. Select the game's launcher, not an installer or utility. Supporting data files are kept on disk.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     if let executable = game.executable { Text(executable.lastPathComponent).font(.caption) }
                     Button("Choose cover artwork") { coverPicker = true }
                     Button("Reset cover") { profile.customCover = nil }
@@ -329,7 +406,13 @@ struct GameSettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { GameLibrary.shared.save(profile, for: game); dismiss() }
+                    Button("Save") {
+                        do {
+                            if game.id != "pc" { try GameLibrary.shared.selectExecutable(selectedExecutable, for: game) }
+                            GameLibrary.shared.save(profile, for: game)
+                            dismiss()
+                        } catch { self.error = error.localizedDescription }
+                    }
                 }
             }
         }

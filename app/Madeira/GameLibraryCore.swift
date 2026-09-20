@@ -25,6 +25,8 @@ struct LibraryGame: Identifiable, Equatable {
     let executable: URL?
     let cover: URL?
     let steamID: String?
+    var candidates: [URL] = []
+    var folder: URL?
     static let pc = LibraryGame(id: "pc", title: "PC", publisher: "Windows desktop", executable: nil, cover: nil, steamID: nil)
 }
 
@@ -36,6 +38,15 @@ enum LibraryFailure: LocalizedError {
 }
 
 enum GameFiles {
+    static func isSupportPath(_ relativePath: String) -> Bool {
+        let parts = relativePath.lowercased().split(separator: "/").map(String.init)
+        let folders: Set<String> = ["_redist", "_commonredist", "redist", "redistributables", "redistributable", "prerequisites", "prereqs", "__installer", "installers", "directx", "dotnet", "dotnetfx", "vcredist", "support", "extras"]
+        if parts.dropLast().contains(where: folders.contains) { return true }
+        let stem = URL(fileURLWithPath: parts.last ?? "").deletingPathExtension().lastPathComponent
+        let helpers = ["unins", "uninstall", "setup", "install", "vc_redist", "vcredist", "dotnet", "ndp", "dxsetup", "directx", "ueprereq", "crashreport", "crashpad", "unitycrashhandler", "unitybugreport", "cefsubprocess", "unrealcefsubprocess", "bsppack", "dxwebsetup"]
+        return helpers.contains(where: stem.hasPrefix) || stem.hasSuffix("_setup") || stem.hasSuffix("_installer")
+    }
+
     static func isInside(_ file: URL, root: URL) -> Bool {
         let base = root.resolvingSymlinksInPath().standardizedFileURL.path
         let candidate = file.resolvingSymlinksInPath().standardizedFileURL.path
@@ -94,12 +105,11 @@ enum GameFiles {
         try manager.createDirectory(at: root, withIntermediateDirectories: true)
         guard let enumerator = manager.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { return [] }
         var games: [LibraryGame] = []
-        let excluded = ["unins", "uninstall", "setup", "vc_redist", "vcredist", "crashreport", "crashpad", "dxsetup", "unitycrashhandler"]
         for case let file as URL in enumerator {
             let values = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
             if values.isSymbolicLink == true { enumerator.skipDescendants(); continue }
             guard values.isRegularFile == true, file.pathExtension.lowercased() == "exe",
-                  isInside(file, root: root), !excluded.contains(where: { file.lastPathComponent.lowercased().hasPrefix($0) }) else { continue }
+                  isInside(file, root: root), !isSupportPath(String(file.path.dropFirst(root.path.count + 1))) else { continue }
             guard (try? gameExecutableMachine(file)) != nil else { continue }
             let folder = file.deletingLastPathComponent()
             let metadataURL = folder.appendingPathComponent("somethingpc-game.json")
@@ -117,7 +127,28 @@ enum GameFiles {
                 publisher: metadata["publisher"] ?? folder.lastPathComponent,
                 executable: file, cover: cover, steamID: validID ? steamID : nil))
         }
-        return games.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        let groups = Dictionary(grouping: games) { game -> String in
+            let parts = game.id.split(separator: "/")
+            return parts.count > 1 ? "folder:" + String(parts[0]) : game.id
+        }
+        return groups.map { id, entries in
+            let sorted = entries.sorted {
+                let leftDepth = $0.id.split(separator: "/").count
+                let rightDepth = $1.id.split(separator: "/").count
+                return leftDepth == rightDepth ? $0.id.localizedStandardCompare($1.id) == .orderedAscending : leftDepth < rightDepth
+            }
+            let first = sorted[0]
+            let depth = first.id.split(separator: "/").count
+            let preferred = sorted.filter { $0.id.split(separator: "/").count == depth }
+            let selected = preferred.count == 1 ? first : nil
+            let folder = id.hasPrefix("folder:") ? root.appendingPathComponent(String(id.dropFirst(7))) : root
+            var game = LibraryGame(id: id, title: selected?.title ?? folder.lastPathComponent,
+                publisher: selected?.publisher ?? "Choose launch executable",
+                executable: selected?.executable, cover: selected?.cover ?? first.cover, steamID: selected?.steamID ?? first.steamID)
+            game.candidates = sorted.compactMap(\.executable)
+            game.folder = folder
+            return game
+        }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
 
     static func copyImport(_ source: URL, to root: URL, folder: Bool) throws {
@@ -148,6 +179,23 @@ enum GameFiles {
         let destination = root.appendingPathComponent(String(name), isDirectory: true)
         if folder { try manager.moveItem(at: payload, to: destination) }
         else { try manager.moveItem(at: staging, to: destination) }
+    }
+}
+
+enum StartupStage: Int, CaseIterable {
+    case requested, jitReady, filesReady, runtimeReady, poolReady, serverReady, processReady, firstFrame
+    var percent: Int { 1 + rawValue * 99 / (Self.allCases.count - 1) }
+    var title: String {
+        switch self {
+        case .requested: return "Requesting JIT access"
+        case .jitReady: return "Checking game files"
+        case .filesReady: return "Preparing Windows runtime"
+        case .runtimeReady: return "Allocating executable memory"
+        case .poolReady: return "Starting Windows services"
+        case .serverReady: return "Starting the application"
+        case .processReady: return "Waiting for the first rendered frame"
+        case .firstFrame: return "Ready"
+        }
     }
 }
 

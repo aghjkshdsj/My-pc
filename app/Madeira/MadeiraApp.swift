@@ -6,6 +6,7 @@ struct MadeiraApp: App {
 
     init() {
         _ = CrashRecovery.shared
+        _ = SessionDiagnostics.shared
         do { try RuntimeSupport.restoreRegistryIfNeeded() }
         catch { GameLibrary.shared.error = "Could not restore runtime settings: \(error.localizedDescription)" }
     }
