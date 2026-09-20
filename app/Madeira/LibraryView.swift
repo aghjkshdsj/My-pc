@@ -390,7 +390,7 @@ private struct GameCard: View {
                     else if game.id == "steam-client" {
                         ZStack {
                             LinearGradient(colors: [.blue.opacity(0.5), Color(red: 0.02, green: 0.05, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            VStack { Image(systemName: "gearshape.2.fill").font(.system(size: 48)); Text("STEAM").font(.title3.bold()) }.foregroundStyle(.white)
+                            Image("SteamLogo").resizable().scaledToFit().padding(20)
                         }
                     }
                     else if let steamID = game.steamID {
@@ -453,7 +453,7 @@ struct GameSettingsView: View {
             Form {
                 Section("Game") {
                     Text(game.title).font(.headline)
-                    if game.id != "pc" {
+                    if !game.isDesktop {
                         Picker("Launch executable", selection: $selectedExecutable) {
                             Text("Choose an EXE").tag("")
                             ForEach(game.candidates, id: \.path) { file in
@@ -467,7 +467,7 @@ struct GameSettingsView: View {
                     if let executable = game.executable { Text(executable.lastPathComponent).font(.caption) }
                     Button("Choose cover artwork") { coverPicker = true }
                     Button("Reset cover") { profile.customCover = nil }
-                    if game.id != "pc" { TextField("Launch arguments", text: $profile.arguments) }
+                    if !game.isDesktop { TextField("Launch arguments", text: $profile.arguments) }
                 }
                 Section("Compatibility") {
                     Toggle("Enable bundled ARM64 Visual C++", isOn: $profile.visualCppARM64)
@@ -518,7 +518,7 @@ struct GameSettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         do {
-                            if game.id != "pc" { try GameLibrary.shared.selectExecutable(selectedExecutable, for: game) }
+                            if !game.isDesktop { try GameLibrary.shared.selectExecutable(selectedExecutable, for: game) }
                             GameLibrary.shared.save(profile, for: game)
                             dismiss()
                         } catch { self.error = error.localizedDescription }

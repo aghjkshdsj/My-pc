@@ -142,11 +142,16 @@ enum SteamInstaller {
         }
         try Task.checkCancellation()
         await StoreInstallation.shared.update("Installing verified Steam client", completed: total, total: total)
+        try commit(staging, version: manifest.version)
+    }
+
+    private static func commit(_ staging: URL, version: String) throws {
+        let manager = FileManager.default
         madeira_seed_prefix_if_needed(GameLibrary.documents.appendingPathComponent("wine").path)
         _ = try StoreFiles.destination("Steam", root: GameLibrary.drive)
         try manager.createDirectory(at: directory, withIntermediateDirectories: true)
         let marker = try StoreFiles.destination(".somethingpc-installing", root: directory)
-        try Data(manifest.version.utf8).write(to: marker, options: .atomic)
+        try Data(version.utf8).write(to: marker, options: .atomic)
         guard let enumerator = manager.enumerator(at: staging, includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey]) else { throw LibraryFailure.invalid("Cannot enumerate Steam installation.") }
         for case let file as URL in enumerator {
             try Task.checkCancellation()
@@ -164,9 +169,9 @@ enum SteamInstaller {
                 else { try manager.moveItem(at: file, to: target) }
             } else { throw LibraryFailure.invalid("Unexpected Steam package file type.") }
         }
-        try Data(manifest.version.utf8).write(to: directory.appendingPathComponent(".somethingpc-version"), options: .atomic)
+        try Data(version.utf8).write(to: directory.appendingPathComponent(".somethingpc-version"), options: .atomic)
         try manager.removeItem(at: marker)
-        SessionDiagnostics.shared.event("Installed verified official Steam win64 packages; version \(manifest.version)")
+        SessionDiagnostics.shared.event("Installed verified official Steam win64 packages; version \(version)")
     }
 
     static func prepareLaunch() throws {

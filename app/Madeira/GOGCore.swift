@@ -25,6 +25,16 @@ struct GOGFile: Equatable {
 }
 
 enum GOGContent {
+    static func authorizationCode(_ url: URL, state: String) throws -> String {
+        let fields = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        guard url.scheme == "https", url.host == "embed.gog.com", url.path == "/on_login_success",
+              fields.filter({ $0.name == "state" }).count == 1, fields.first(where: { $0.name == "state" })?.value == state,
+              fields.filter({ $0.name == "code" }).count == 1,
+              let code = fields.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
+            throw LibraryFailure.invalid("GOG sign-in state did not match. Please try again.")
+        }
+        return code
+    }
     static func validHash(_ value: String, length: Int = 32) -> Bool {
         value.count == length && value.unicodeScalars.allSatisfy { "0123456789abcdefABCDEF".unicodeScalars.contains($0) }
     }

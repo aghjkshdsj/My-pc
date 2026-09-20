@@ -16,6 +16,8 @@ The user-supplied GameNative master source (GPL-3.0) was used as a protocol refe
 
 Valve Steam client packages and GOG game files are separate programs downloaded directly from their providers at the user's request, not bundled in the IPA. Their respective terms and licenses apply; Something PC does not grant ownership of any game or bypass store authorization.
 
+The Steam tile uses Valve's identifying logo from `https://store.fastly.steamstatic.com/public/shared/images/header/logo_steam.svg?t=962016`. Its SVG viewport metadata is normalized for Apple's asset compiler and the unused external DTD is removed; the artwork is unchanged. Steam and its logo are Valve trademarks; no affiliation or endorsement is implied. This identifying artwork is not relicensed as original Something PC code.
+
 | Component | Upstream license | **Madeira's fork** | Notes |
 |---|---|---|---|
 | **Wine** | LGPL-2.1-or-later | **GPL-3.0-or-later** | Fork relicensed under LGPL-2.1 §3, which expressly permits applying the ordinary GPL to a copy. `ntdll`, `wineserver`, `win32u`, ARM64EC loader modified for iOS. |

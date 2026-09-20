@@ -146,9 +146,17 @@ enum GameFiles {
             let preferred = sorted.filter { $0.id.split(separator: "/").count == depth }
             let selected = preferred.count == 1 ? first : nil
             let folder = id.hasPrefix("folder:") ? root.appendingPathComponent(String(id.dropFirst(7))) : root
-            var game = LibraryGame(id: id, title: selected?.title ?? folder.lastPathComponent,
-                publisher: selected?.publisher ?? "Choose launch executable",
-                executable: selected?.executable, cover: selected?.cover ?? first.cover, steamID: selected?.steamID ?? first.steamID)
+            let metadataURL = folder.appendingPathComponent("somethingpc-game.json")
+            let metadataData = (try? metadataURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { size in
+                size <= 65_536 && isInside(metadataURL, root: folder) ? try? Data(contentsOf: metadataURL) : nil
+            }
+            let metadata = metadataData.flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+            let rootCover = metadata["cover"].map { folder.appendingPathComponent($0) }.flatMap { file in
+                isInside(file, root: folder) && ["png", "jpg", "jpeg"].contains(file.pathExtension.lowercased()) && manager.fileExists(atPath: file.path) ? file : nil
+            }
+            var game = LibraryGame(id: id, title: metadata["title"] ?? selected?.title ?? folder.lastPathComponent,
+                publisher: metadata["publisher"] ?? selected?.publisher ?? "Choose launch executable",
+                executable: selected?.executable, cover: rootCover ?? selected?.cover ?? first.cover, steamID: selected?.steamID ?? first.steamID)
             game.candidates = sorted.compactMap(\.executable)
             game.folder = folder
             return game
@@ -217,7 +225,7 @@ struct LibraryIndex: Codable {
     }
 
     init(games: [LibraryGame], drive: URL) throws {
-        entries = try games.filter { $0.id != "pc" }.map { game in
+        entries = try games.filter { !$0.isDesktop }.map { game in
             Entry(id: game.id, title: game.title, publisher: game.publisher,
                 executable: try game.executable.map { try Self.relative($0, to: drive) },
                 cover: try game.cover.map { try Self.relative($0, to: drive) }, steamID: game.steamID,
@@ -231,7 +239,7 @@ struct LibraryIndex: Codable {
             throw LibraryFailure.invalid("Saved library index is incompatible or invalid. Use Refresh library to rebuild it.")
         }
         return try entries.map { entry in
-            guard entry.id != "pc", entry.candidates.count <= 10_000 else { throw LibraryFailure.invalid("Invalid saved library entry.") }
+            guard entry.id != "pc", entry.id != "steam-client", entry.candidates.count <= 10_000 else { throw LibraryFailure.invalid("Invalid saved library entry.") }
             let executable = try entry.executable.map { try Self.resolve($0, in: drive) }
             let candidates = try entry.candidates.map { try Self.resolve($0, in: drive) }
             guard candidates.allSatisfy({ $0.pathExtension.lowercased() == "exe" }),

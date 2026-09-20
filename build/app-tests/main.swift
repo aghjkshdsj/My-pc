@@ -253,7 +253,7 @@ func storeZip(name: String, contents: Data, flags: UInt16 = 0, mode: UInt32 = 0,
 let archive = root.appendingPathComponent("store.zip")
 try storeZip(name: "folder/test.txt", contents: Data("verified".utf8)).write(to: archive)
 try StoreZIP.extract(archive, to: storeRoot)
-expect(try String(contentsOf: storeRoot.appendingPathComponent("folder/test.txt")) == "verified", "ZIP extraction failed")
+expect(try String(contentsOf: storeRoot.appendingPathComponent("folder/test.txt"), encoding: .utf8) == "verified", "ZIP extraction failed")
 for (name, flags, mode, badCRC) in [("../escape", UInt16(0), UInt32(0), false), ("secret", 1, 0, false), ("symlink", 0, 0xa1ff, false), ("bad-crc", 0, 0, true)] {
     try storeZip(name: name, contents: Data("bad".utf8), flags: flags, mode: mode, wrongCRC: badCRC).write(to: archive)
     rejects("unsafe ZIP accepted \(name)") { try StoreZIP.extract(archive, to: storeRoot) }
@@ -290,3 +290,14 @@ if let archivePath = ProcessInfo.processInfo.environment["STEAM_SMOKE_ARCHIVE"] 
     print("Official Valve bootstrap extraction and 64-bit PE verification passed")
 }
 print("Store integrity/path safety, runtime migration, and library ranking tests passed")
+
+expect(try GOGContent.authorizationCode(URL(string: "https://embed.gog.com/on_login_success?state=expected&code=authorized")!, state: "expected") == "authorized", "valid GOG OAuth callback rejected")
+for callback in ["https://embed.gog.com/on_login_success?state=wrong&code=bad", "https://example.com/on_login_success?state=expected&code=bad", "https://embed.gog.com/on_login_success?state=expected&state=wrong&code=bad", "https://embed.gog.com/on_login_success?state=expected&code=first&code=second"] {
+    rejects("invalid GOG OAuth callback accepted") { _ = try GOGContent.authorizationCode(URL(string: callback)!, state: "expected") }
+}
+expect(try LibraryIndex(games: [.pc, .steam], drive: drive).entries.isEmpty, "desktop entries must not be stored as scanned games")
+if let manifestPath = ProcessInfo.processInfo.environment["STEAM_SMOKE_MANIFEST"] {
+    let current = try ValveManifest(String(contentsOfFile: manifestPath, encoding: .utf8))
+    print("Current official Steam win64 manifest parsed: \(current.packages.count) packages, version \(current.version)")
+}
+print("GOG OAuth callback safety tests passed")

@@ -33,7 +33,8 @@ jobs:
         run: |
           curl --fail --location --retry 2 https://client-update.fastly.steamstatic.com/steam_win64.zip.6f024698857e81681cf673422a8c1a4d06e2be7f -o /tmp/steam-bootstrap.zip
           echo '5dbc39918056cc8b7815daaa181eb3fa19a264b25dab33f3d1ad631b79ee3bb8  /tmp/steam-bootstrap.zip' | shasum -a 256 -c -
-          STEAM_SMOKE_ARCHIVE=/tmp/steam-bootstrap.zip /tmp/app-tests
+          curl --fail --location --retry 2 https://client-update.fastly.steamstatic.com/steam_client_win64 -o /tmp/steam-client-manifest.vdf
+          STEAM_SMOKE_MANIFEST=/tmp/steam-client-manifest.vdf STEAM_SMOKE_ARCHIVE=/tmp/steam-bootstrap.zip /tmp/app-tests
       - name: Typecheck complete iOS interface
         if: always()
         run: |

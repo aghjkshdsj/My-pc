@@ -939,6 +939,7 @@ struct ContentView: View {
             .sheet(item: $sharedReport, onDismiss: { updatePresentation() }) { DiagnosticShareSheet(url: $0.url) }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("somethingpc.shareDiagnostics"))) { _ in shareDiagnostics() }
             .onChange(of: launch.ready) { _ in updatePresentation() }
+            .onChange(of: launch.stage) { _ in updatePresentation() }
             .onChange(of: libraryPresented) { _ in updatePresentation() }
             .onChange(of: sharedReport?.id) { _ in updatePresentation() }
             .onAppear {

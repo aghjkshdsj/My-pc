@@ -225,6 +225,14 @@ actor GOGService {
             "dependencies": manifest["dependencies"] as? [String] ?? [], "scriptInterpreter": manifest["scriptInterpreter"] as? Bool ?? false,
             "note": "Game files verified. Automatic post-install scripts, prerequisite installers and cloud saves are not implemented."]
         try JSONSerialization.data(withJSONObject: metadata, options: .prettyPrinted).write(to: staging.appendingPathComponent("somethingpc-gog-install.json"))
+        var libraryMetadata = ["title": game.title, "publisher": "GOG"]
+        if let image = game.image, image.host?.hasSuffix(".gog-statics.com") == true,
+           let bytes = try? await StoreNetwork.data(image, limit: 4_194_304) {
+            try bytes.write(to: staging.appendingPathComponent("somethingpc-cover.jpg"), options: .atomic)
+            libraryMetadata["cover"] = "somethingpc-cover.jpg"
+        }
+        try Task.checkCancellation()
+        try JSONEncoder().encode(libraryMetadata).write(to: staging.appendingPathComponent("somethingpc-game.json"), options: .atomic)
         try manager.moveItem(at: staging, to: destination)
         SessionDiagnostics.shared.event("GOG game files installed and verified: \(game.title). Post-install prerequisites may still be required.")
     }
@@ -297,13 +305,7 @@ struct GOGLoginView: UIViewRepresentable {
                 decisionHandler(.cancel)
                 guard !finished else { return }
                 finished = true
-                let fields = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-                guard fields.filter({ $0.name == "state" }).count == 1, fields.first(where: { $0.name == "state" })?.value == state,
-                      fields.filter({ $0.name == "code" }).count == 1,
-                      let code = fields.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
-                    completion(.failure(LibraryFailure.invalid("GOG sign-in state did not match. Please try again."))); return
-                }
-                completion(.success(code))
+                completion(Result { try GOGContent.authorizationCode(url, state: state) })
             } else { decisionHandler(.allow) }
         }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -313,4 +315,3 @@ struct GOGLoginView: UIViewRepresentable {
         }
     }
 }
-
