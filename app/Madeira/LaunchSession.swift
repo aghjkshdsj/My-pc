@@ -67,8 +67,12 @@ struct StartupView: View {
     var body: some View {
         ZStack {
             LinearGradient(colors: [Color(red: 0.015, green: 0.045, blue: 0.1), .black], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
-            VStack(spacing: 18) {
-                Image("PCCover").resizable().scaledToFit().frame(width: 96, height: 96).clipShape(RoundedRectangle(cornerRadius: 22))
+            GeometryReader { geometry in
+              ScrollView {
+               VStack(spacing: geometry.size.height < 500 ? 8 : 18) {
+                Image("PCCover").resizable().scaledToFit()
+                    .frame(width: geometry.size.height < 500 ? 52 : 96, height: geometry.size.height < 500 ? 52 : 96)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
                 Text(session.title).font(.title2.bold()).lineLimit(2)
                 if let failure = session.failure {
                     Label("Couldn’t start this session", systemImage: "exclamationmark.triangle").font(.headline)
@@ -91,8 +95,11 @@ struct StartupView: View {
                 }.buttonStyle(.bordered)
                 Text(session.failure == nil ? "Returning to Library does not terminate Windows startup." : "A fresh app launch may be required before trying again.")
                     .font(.caption2).foregroundStyle(.secondary)
+               }
+               .multilineTextAlignment(.center).frame(maxWidth: 460).padding(24)
+               .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+              }
             }
-            .multilineTextAlignment(.center).frame(maxWidth: 460).padding(28)
         }.preferredColorScheme(.dark)
     }
 }
