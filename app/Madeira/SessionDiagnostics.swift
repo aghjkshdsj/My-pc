@@ -161,6 +161,45 @@ enum SupportReport {
             output.append(read(file, limit: 4_194_304))
         }
         if files.isEmpty { output.append(Data("No system diagnostic payload has been delivered. An iOS .ips/JetsamEvent report may still be needed.\n".utf8)) }
+        output.append(gameCrashLogs())
+        return output
+    }
+
+    static func gameCrashLogs() -> Data {
+        let manager = FileManager.default
+        let local = GameLibrary.drive.appendingPathComponent("users/mobile/AppData/Local")
+        let applications = (try? manager.contentsOfDirectory(at: local, includingPropertiesForKeys: [.isSymbolicLinkKey])) ?? []
+        var candidates: [(URL, Date)] = []
+        var visited = 0
+        for application in applications.prefix(500) {
+            let saved = application.appendingPathComponent("Saved")
+            guard GameFiles.isInside(saved, root: local),
+                  (try? application.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
+                  let enumerator = manager.enumerator(at: saved, includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey, .contentModificationDateKey], options: [.skipsHiddenFiles]) else { continue }
+            for case let file as URL in enumerator {
+                visited += 1
+                if visited > 4000 { break }
+                guard let values = try? file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey, .contentModificationDateKey]),
+                      values.isSymbolicLink == false, GameFiles.isInside(file, root: saved) else { enumerator.skipDescendants(); continue }
+                let relative = String(file.path.dropFirst(saved.path.count + 1)).lowercased()
+                guard values.isRegularFile == true, relative.hasPrefix("logs/") || relative.hasPrefix("crashes/"),
+                      file.pathExtension.lowercased() == "log" || file.lastPathComponent == "CrashContext.runtime-xml" else { continue }
+                candidates.append((file, values.contentModificationDate ?? .distantPast))
+            }
+            if visited > 4000 { break }
+        }
+        var output = Data("\n--- Recent Unreal game logs/crash context (up to 8 files; review for personal information) ---\n".utf8)
+        for (file, date) in candidates.sorted(by: { $0.1 > $1.1 }).prefix(8) {
+            guard let handle = try? FileHandle(forReadingFrom: file) else { continue }
+            defer { try? handle.close() }
+            output.append(Data("\n\(String(file.path.dropFirst(GameLibrary.drive.path.count))) · \(date)\n".utf8))
+            if let size = try? handle.seekToEnd(), size > 262_144 {
+                output.append(Data("[Last 256 KiB]\n".utf8))
+                try? handle.seek(toOffset: size - 262_144)
+            } else { try? handle.seek(toOffset: 0) }
+            output.append((try? handle.read(upToCount: 262_144)) ?? Data())
+        }
+        if candidates.isEmpty { output.append(Data("No game-created Unreal log or crash context found.\n".utf8)) }
         return output
     }
 

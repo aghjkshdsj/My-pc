@@ -1,4 +1,6 @@
 import Foundation
+import CryptoKit
+import zlib
 
 func expect(_ condition: Bool, _ message: String) {
     guard condition else { fatalError(message) }
@@ -186,3 +188,105 @@ expect(!String(decoding: accountBytes, as: UTF8.self).contains("test-password-93
 var accountCopy = try JSONDecoder().decode(LocalAccountRecord.self, from: accountBytes)
 expect(try accountCopy.authenticate(username: "Test User", password: "test-password-938", remember: false), "stored verifier round trip")
 print("Local account verifier tests passed")
+
+let wowOriginal = "[\(RuntimeRegistry.wowKey)] 42\n\"Installed\"=dword:00000000\n\n"
+let wowActive = "[\(RuntimeRegistry.wowKey)]\n\"Installed\"=dword:00000001\n\n"
+let dualOriginal = before + existing + wowOriginal + after
+let dualActive = RuntimeRegistry.replacing(in: RuntimeRegistry.replacing(in: dualOriginal, with: replacement), with: wowActive, key: RuntimeRegistry.wowKey)
+let journal = try JSONEncoder().encode([RuntimeRegistry.key: existing, RuntimeRegistry.wowKey: wowOriginal])
+expect(try RuntimeRegistry.restore(in: dualActive, backup: journal) == dualOriginal, "dual-view registry restoration lost user state")
+expect(try RuntimeRegistry.restore(in: activated, backup: JSONEncoder().encode(existing)) == original, "legacy registry journal migration")
+rejects("registry journal accepted unrelated key") { _ = try RuntimeRegistry.restore(in: dualActive, backup: JSONEncoder().encode(["Other": "bad"])) }
+expect(RuntimeRegistry.section(in: dualActive, key: RuntimeRegistry.wowKey) == wowActive, "WOW registry view missing")
+
+let rankedGames = [LibraryGame.pc, .steam, LibraryGame(id: "game", title: "A Game", publisher: "", executable: nil, cover: nil, steamID: nil)]
+let activity = ["pc": GameActivity(favorite: false, seconds: 500), "steam-client": GameActivity(favorite: true, seconds: 1), "game": GameActivity(favorite: false, seconds: 1000)]
+expect(GameActivity.sorted(rankedGames, activity: activity).map(\.id) == ["steam-client", "game", "pc"], "favorite/playtime sorting")
+expect(try JSONDecoder().decode([String: GameActivity].self, from: JSONEncoder().encode(activity)) == activity, "activity persistence")
+expect(GameActivity.sorted(rankedGames, activity: [:]).first?.id == "pc", "new library default PC position")
+
+let storeRoot = root.resolvingSymlinksInPath().appendingPathComponent("store")
+try manager.createDirectory(at: storeRoot, withIntermediateDirectories: true)
+for path in ["../escape", "/absolute", "C:\\outside", "a/../../escape", "a//b", "a/./b", "a\0b"] {
+    rejects("unsafe store path: \(path)") { _ = try StoreFiles.destination(path, root: storeRoot) }
+}
+try manager.createSymbolicLink(at: storeRoot.appendingPathComponent("link"), withDestinationURL: root)
+rejects("store symlink escape") { _ = try StoreFiles.destination("link/escape", root: storeRoot) }
+expect(try StoreFiles.destination("directory\\game.exe", root: storeRoot).lastPathComponent == "game.exe", "Windows separators not normalized")
+
+let fakeFile = "steam_win64.zip." + String(repeating: "a", count: 40)
+let fakeHash = String(repeating: "b", count: 64)
+let valveText = """
+"win64" {
+"version" "123"
+"steam_win64" { "file" "\(fakeFile)" "size" "1234" "sha2" "\(fakeHash)" "steamchina" { "file" "ignored" } }
+"bins_cef_win64" { "file" "bins_cef_win64.zip.\(String(repeating: "c", count: 40))" "size" "12345" "sha2" "\(fakeHash)" }
+}
+"kvsign2" "example"
+"""
+let valve = try ValveManifest(valveText)
+expect(valve.packages.count == 2 && valve.version == "123", "Valve package nesting parsed incorrectly")
+rejects("unsafe Valve package URL") { _ = try ValveManifest(valveText.replacingOccurrences(of: fakeFile, with: "../escape")) }
+rejects("missing Valve package digest") { _ = try ValveManifest(valveText.replacingOccurrences(of: fakeHash, with: "bad")) }
+rejects("duplicate Valve key") { _ = try ValveManifest(valveText.replacingOccurrences(of: "\"version\" \"123\"", with: "\"version\" \"123\" \"version\" \"456\"")) }
+
+func storeZip(name: String, contents: Data, flags: UInt16 = 0, mode: UInt32 = 0, wrongCRC: Bool = false) -> Data {
+    let nameBytes = Data(name.utf8)
+    let crc = contents.withUnsafeBytes { UInt32(crc32(0, $0.bindMemory(to: UInt8.self).baseAddress, uInt(contents.count))) }
+    var result = Data()
+    func append(_ value: UInt32, width: Int = 4) { for index in 0..<width { result.append(UInt8((value >> (8 * index)) & 255)) } }
+    append(0x04034b50); append(20, width: 2); append(UInt32(flags), width: 2); append(0, width: 2)
+    append(0); append(crc); append(UInt32(contents.count)); append(UInt32(contents.count))
+    append(UInt32(nameBytes.count), width: 2); append(0, width: 2)
+    result.append(nameBytes); result.append(contents)
+    let directoryStart = result.count
+    append(0x02014b50); append(0x0314, width: 2); append(20, width: 2); append(UInt32(flags), width: 2); append(0, width: 2)
+    append(0); append(wrongCRC ? crc ^ 1 : crc); append(UInt32(contents.count)); append(UInt32(contents.count))
+    append(UInt32(nameBytes.count), width: 2); append(0, width: 2); append(0, width: 2)
+    append(0, width: 2); append(0, width: 2); append(mode << 16); append(0)
+    result.append(nameBytes)
+    let directoryLength = result.count - directoryStart
+    append(0x06054b50); append(0, width: 2); append(0, width: 2); append(1, width: 2); append(1, width: 2)
+    append(UInt32(directoryLength)); append(UInt32(directoryStart)); append(0, width: 2)
+    return result
+}
+let archive = root.appendingPathComponent("store.zip")
+try storeZip(name: "folder/test.txt", contents: Data("verified".utf8)).write(to: archive)
+try StoreZIP.extract(archive, to: storeRoot)
+expect(try String(contentsOf: storeRoot.appendingPathComponent("folder/test.txt")) == "verified", "ZIP extraction failed")
+for (name, flags, mode, badCRC) in [("../escape", UInt16(0), UInt32(0), false), ("secret", 1, 0, false), ("symlink", 0, 0xa1ff, false), ("bad-crc", 0, 0, true)] {
+    try storeZip(name: name, contents: Data("bad".utf8), flags: flags, mode: mode, wrongCRC: badCRC).write(to: archive)
+    rejects("unsafe ZIP accepted \(name)") { try StoreZIP.extract(archive, to: storeRoot) }
+}
+expect(!manager.fileExists(atPath: storeRoot.appendingPathComponent("bad-crc").path), "bad checksum file published")
+try Data([0, 1, 2]).write(to: archive)
+rejects("truncated ZIP accepted") { try StoreZIP.extract(archive, to: storeRoot) }
+
+let message = Data("GOG chunk verification".utf8)
+var compressed = Data(count: Int(compressBound(uLong(message.count))))
+var compressedLength = uLongf(compressed.count)
+let compressionResult = compressed.withUnsafeMutableBytes { destination in
+    message.withUnsafeBytes { source in
+        compress2(destination.bindMemory(to: UInt8.self).baseAddress, &compressedLength, source.bindMemory(to: UInt8.self).baseAddress, uLong(message.count), Z_DEFAULT_COMPRESSION)
+    }
+}
+expect(compressionResult == Z_OK, "test compression failed")
+compressed.count = Int(compressedLength)
+let chunk = GOGChunk(compressedMd5: StoreFiles.hex(Insecure.MD5.hash(data: compressed)), md5: StoreFiles.hex(Insecure.MD5.hash(data: message)), size: message.count, compressedSize: compressed.count)
+expect(try GOGContent.decodeChunk(compressed, chunk: chunk) == message, "GOG chunk verification/decompression failed")
+rejects("decompression size limit bypassed") { _ = try StoreFiles.inflated(compressed, limit: 1) }
+rejects("corrupt GOG chunk accepted") { _ = try GOGContent.decodeChunk(compressed + Data([1]), chunk: chunk) }
+let chunkURL = try GOGContent.chunkURL(base: URL(string: "https://gog-cdn-fastly.gog.com/content-system/v2/store?__token__=test")!, hash: chunk.compressedMd5)
+expect(chunkURL.query == "__token__=test" && chunkURL.path.hasSuffix(chunk.compressedMd5), "GOG signed query was broken when appending chunk")
+rejects("invalid GOG content hash") { _ = try GOGContent.hashPath("../secret") }
+let chunkObject: [String: Any] = ["compressedMd5": chunk.compressedMd5, "md5": chunk.md5, "size": chunk.size, "compressedSize": compressed.count]
+let depot: [String: Any] = ["depot": ["items": [["type": "DepotFile", "path": "Game\\Game.exe", "chunks": [chunkObject]]]]]
+expect(try GOGContent.files(depot, product: "123", root: storeRoot).first?.path == "Game/Game.exe", "GOG manifest path conversion")
+rejects("GOG depot link accepted") { _ = try GOGContent.files(["items": [["type": "DepotLink", "path": "outside"]]], product: "123", root: storeRoot) }
+rejects("GOG depot traversal accepted") { _ = try GOGContent.files(["items": [["type": "DepotFile", "path": "../outside", "chunks": [chunkObject]]]], product: "123", root: storeRoot) }
+if let archivePath = ProcessInfo.processInfo.environment["STEAM_SMOKE_ARCHIVE"] {
+    try StoreZIP.extract(URL(fileURLWithPath: archivePath), to: storeRoot)
+    expect(try GameFiles.gameExecutableMachine(storeRoot.appendingPathComponent("steam.exe")) == 0x8664, "official Steam bootstrap is not x86-64")
+    print("Official Valve bootstrap extraction and 64-bit PE verification passed")
+}
+print("Store integrity/path safety, runtime migration, and library ranking tests passed")

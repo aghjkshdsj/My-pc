@@ -10,6 +10,12 @@ dependency license texts are in `LICENSES/`. See "Why GPL-3.0-or-later" below.
 
 ## Components that ship in the built app
 
+### GameNative reference for GOG integration
+
+The user-supplied GameNative master source (GPL-3.0) was used as a protocol reference for GOG OAuth, owned-product lookup, generation-2 manifests, depot ownership/language selection, secure-link expansion and chunk verification. Relevant reference files are `service/gog/GOGConstants.kt`, `GOGAuthManager.kt`, `GOGApiClient.kt`, and `service/gog/api/GOGDataModels.kt` / `GOGManifestParser.kt`. The Swift implementation is in `GOGCore.swift` and `GOGStore.swift`; it does not embed GameNative's Android runtime. The shared Galaxy client identifier is public application metadata, not a user's secret. User OAuth tokens are kept separately in iOS Keychain.
+
+Valve Steam client packages and GOG game files are separate programs downloaded directly from their providers at the user's request, not bundled in the IPA. Their respective terms and licenses apply; Something PC does not grant ownership of any game or bypass store authorization.
+
 | Component | Upstream license | **Madeira's fork** | Notes |
 |---|---|---|---|
 | **Wine** | LGPL-2.1-or-later | **GPL-3.0-or-later** | Fork relicensed under LGPL-2.1 §3, which expressly permits applying the ordinary GPL to a copy. `ntdll`, `wineserver`, `win32u`, ARM64EC loader modified for iOS. |

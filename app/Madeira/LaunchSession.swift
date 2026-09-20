@@ -16,6 +16,7 @@ final class LaunchSession: ObservableObject {
     var ready: Bool { active && (stage == .firstFrame || displayEarly) && failure == nil }
 
     func begin(_ game: LibraryGame) {
+        PlaytimeRecorder.shared.begin(game.id)
         stage = .requested
         title = game.title
         failure = nil
@@ -42,6 +43,7 @@ final class LaunchSession: ObservableObject {
         DispatchQueue.main.async {
             guard self.active else { return }
             self.failure = message
+            PlaytimeRecorder.shared.setVisible(false)
             self.timer?.invalidate()
             SessionDiagnostics.shared.event("Startup failed: \(message)")
         }
@@ -57,6 +59,46 @@ final class LaunchSession: ObservableObject {
             advance(.firstFrame)
             timer?.invalidate()
         }
+    }
+}
+
+final class PlaytimeRecorder: NSObject {
+    static let shared = PlaytimeRecorder()
+    private var gameID: String?
+    private var visible = false
+    private var previous: TimeInterval?
+    private var timer: Timer?
+
+    private override init() {
+        super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(suspend), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(resume), name: UIApplication.didBecomeActiveNotification, object: nil)
+        timer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in self?.checkpoint() }
+    }
+
+    func begin(_ id: String) {
+        checkpoint()
+        gameID = id
+        visible = false
+        previous = nil
+    }
+
+    func setVisible(_ value: Bool) {
+        checkpoint()
+        visible = value
+        resume()
+    }
+
+    @objc private func suspend() { checkpoint(); previous = nil }
+    @objc private func resume() {
+        previous = visible && UIApplication.shared.applicationState == .active && wine_process_is_running() != 0 ? ProcessInfo.processInfo.systemUptime : nil
+    }
+
+    private func checkpoint() {
+        if let previous, let gameID {
+            GameLibrary.shared.addPlaytime(max(0, min(30, ProcessInfo.processInfo.systemUptime - previous)), id: gameID)
+        }
+        resume()
     }
 }
 

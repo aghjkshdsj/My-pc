@@ -9,6 +9,17 @@ Mach process on iOS with wineserver as a thread rather than a separate process.
 
 ## Status
 
+### Something PC 0.6
+
+- Favorites (star button) sort before accumulated foreground session time. Library/settings/background time is excluded. Playtime checkpoints every 15 seconds; this is session time, not per-process Steam game telemetry.
+- Settings → Steam & GOG downloads the official 64-bit Steam client directly from Valve and verifies manifest SHA-256 plus ZIP CRC/size/path checks. The Steam card opens the desktop, then Steam. Sign in and download owned games inside that client. This is experimental Wine/CEF compatibility, **not** native Steam library synchronization or a guarantee that Steam login works on every device.
+- GOG uses official OAuth pages, device-only Keychain tokens, owned-library access and generation-2 depot downloads with compressed/uncompressed checksums. Installs to `C:\GOG Games`; cancelled downloads can reuse verified chunks. English and 64-bit/neutral depots are supported. Generation-1/offline installers, post-install scripts, prerequisite automation, cloud saves and game updates are not implemented. Existing game folders are never overwritten.
+- Install with Windows stopped; keep the app open. Steam preserves existing `steamapps`, `userdata` and `config`. Refresh Library after installing games through the Windows Steam client.
+- Bundled ARM64 VC++ registration now covers both native and WOW64 registry views; switching it off restores prior entries. This corrects a detection omission, **not** the separate ScarletSkips memory-write fault observed after its VC++ DLLs loaded.
+- Shared reports now include bounded recent Unreal `Saved/Logs` and `Saved/Crashes/CrashContext.runtime-xml` content. Review for private information before sharing. No automatic upload.
+
+Store protocol handling was informed by the user-supplied GameNative source; see `THIRD-PARTY-NOTICES.md`. Apple/iOS and Windows compatibility are different: installing a game does not establish that it can run.
+
 Thumper and ULTRAKILL are playable. Marvel Cosmic Invasion has reached
 gameplay, though a run has also ended in an unexplained termination and its
 controls are not yet reliable. Others reach gameplay at low frame rates. This

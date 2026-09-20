@@ -69,6 +69,10 @@
 		B1000610 /* LocalAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000610; };
 		B1000620 /* StoreLibrariesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000620; };
 		B1000630 /* madeira-jit.js in Resources */ = {isa = PBXBuildFile; fileRef = B2000630; };
+		B1000700 /* StoreCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000700; };
+		B1000701 /* SteamInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000701; };
+		B1000702 /* GOGCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000702; };
+		B1000703 /* GOGStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000703; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -145,6 +149,10 @@
 		B2000610 /* LocalAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalAccountView.swift; sourceTree = "<group>"; };
 		B2000620 /* StoreLibrariesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreLibrariesView.swift; sourceTree = "<group>"; };
 		B2000630 /* madeira-jit.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "madeira-jit.js"; sourceTree = "<group>"; };
+		B2000700 /* StoreCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreCore.swift; sourceTree = "<group>"; };
+		B2000701 /* SteamInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamInstaller.swift; sourceTree = "<group>"; };
+		B2000702 /* GOGCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GOGCore.swift; sourceTree = "<group>"; };
+		B2000703 /* GOGStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GOGStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -209,6 +217,10 @@
 				B2000520 /* DiagnosticsView.swift */,
 				B2000600 /* LocalAccountCore.swift */,
 				B2000610 /* LocalAccountView.swift */,
+				B2000700 /* StoreCore.swift */,
+				B2000701 /* SteamInstaller.swift */,
+				B2000702 /* GOGCore.swift */,
+				B2000703 /* GOGStore.swift */,
 				B2000620 /* StoreLibrariesView.swift */,
 				B2000630 /* madeira-jit.js */,
 				A2000003 /* LogStore.swift */,
@@ -376,6 +388,10 @@
 				B1000520 /* DiagnosticsView.swift in Sources */,
 				B1000600 /* LocalAccountCore.swift in Sources */,
 				B1000610 /* LocalAccountView.swift in Sources */,
+				B1000700 /* StoreCore.swift in Sources */,
+				B1000701 /* SteamInstaller.swift in Sources */,
+				B1000702 /* GOGCore.swift in Sources */,
+				B1000703 /* GOGStore.swift in Sources */,
 				B1000620 /* StoreLibrariesView.swift in Sources */,
 				A1000003 /* LogStore.swift in Sources */,
 				A1000200 /* LogPattern.swift in Sources */,

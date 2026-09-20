@@ -28,6 +28,8 @@ struct LibraryGame: Identifiable, Equatable {
     var candidates: [URL] = []
     var folder: URL?
     static let pc = LibraryGame(id: "pc", title: "PC", publisher: "Windows desktop", executable: nil, cover: nil, steamID: nil)
+    static let steam = LibraryGame(id: "steam-client", title: "Steam", publisher: "Desktop + Steam client", executable: nil, cover: nil, steamID: nil)
+    var isDesktop: Bool { id == Self.pc.id || id == Self.steam.id }
 }
 
 enum LibraryFailure: LocalizedError {
@@ -271,8 +273,18 @@ enum StartupStage: Int, CaseIterable {
 
 enum RuntimeRegistry {
     static let key = "Software\\\\Microsoft\\\\VisualStudio\\\\14.0\\\\VC\\\\Runtimes\\\\arm64"
+    static let wowKey = "Software\\\\Wow6432Node\\\\Microsoft\\\\VisualStudio\\\\14.0\\\\VC\\\\Runtimes\\\\arm64"
+    static let keys = [key, wowKey]
 
-    static func section(in text: String) -> String {
+    static func restore(in text: String, backup: Data) throws -> String {
+        let previous: [String: String]
+        if let legacy = try? JSONDecoder().decode(String.self, from: backup) { previous = [key: legacy] }
+        else { previous = try JSONDecoder().decode([String: String].self, from: backup) }
+        guard previous.keys.allSatisfy(keys.contains) else { throw LibraryFailure.invalid("Invalid runtime registry backup.") }
+        return previous.reduce(text) { replacing(in: $0, with: $1.value, key: $1.key) }
+    }
+
+    static func section(in text: String, key: String = key) -> String {
         let header = "[" + key + "]"
         guard let range = text.range(of: "\n" + header).map({ text.index(after: $0.lowerBound)..<$0.upperBound }) ??
                 (text.hasPrefix(header) ? text.startIndex..<text.index(text.startIndex, offsetBy: header.count) : nil) else { return "" }
@@ -280,9 +292,26 @@ enum RuntimeRegistry {
         return String(text[range.lowerBound..<end])
     }
 
-    static func replacing(in text: String, with replacement: String) -> String {
-        let old = section(in: text)
+    static func replacing(in text: String, with replacement: String, key: String = key) -> String {
+        let old = section(in: text, key: key)
         if old.isEmpty { return replacement.isEmpty ? text : text + "\n" + replacement }
         return text.replacingOccurrences(of: old, with: replacement)
+    }
+}
+
+struct GameActivity: Codable, Equatable {
+    var favorite = false
+    var seconds: Double = 0
+
+    static func sorted(_ games: [LibraryGame], activity: [String: GameActivity]) -> [LibraryGame] {
+        games.sorted { first, second in
+            let left = activity[first.id] ?? GameActivity()
+            let right = activity[second.id] ?? GameActivity()
+            if left.favorite != right.favorite { return left.favorite }
+            if left.seconds != right.seconds { return left.seconds > right.seconds }
+            if first.id == "pc" || second.id == "pc" { return first.id == "pc" }
+            let comparison = first.title.localizedStandardCompare(second.title)
+            return comparison == .orderedSame ? first.id < second.id : comparison == .orderedAscending
+        }
     }
 }

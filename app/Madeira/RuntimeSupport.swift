@@ -18,8 +18,8 @@ enum RuntimeSupport {
         let manager = FileManager.default
         if manager.fileExists(atPath: backup.path) {
             var text = try String(contentsOf: registry, encoding: .utf8)
-            let previous = try JSONDecoder().decode(String.self, from: Data(contentsOf: backup))
-            text = RuntimeRegistry.replacing(in: text, with: previous)
+            let data = try Data(contentsOf: backup)
+            text = try RuntimeRegistry.restore(in: text, backup: data)
             try text.write(to: registry, atomically: true, encoding: .utf8)
             try manager.removeItem(at: backup)
         }
@@ -51,12 +51,16 @@ enum RuntimeSupport {
             guard actual == hash.lowercased() else { throw LibraryFailure.invalid("Runtime checksum mismatch: \(name)") }
         }
         guard spc_install_arm64_runtime(prefix.path) == 0 else { throw LibraryFailure.invalid("Could not install the bundled ARM64 runtime files.") }
-        let prior = RuntimeRegistry.section(in: text)
+        let prior = Dictionary(uniqueKeysWithValues: RuntimeRegistry.keys.map { ($0, RuntimeRegistry.section(in: text, key: $0)) })
         try JSONEncoder().encode(prior).write(to: backup, options: .atomic)
         let values: [(String, UInt32)] = [("Installed", 1), ("Major", manifest.major), ("Minor", manifest.minor), ("Bld", manifest.build), ("Rbld", manifest.revision)]
-        var section = "[\(RuntimeRegistry.key)]\n\"Version\"=\"\(manifest.version)\"\n"
-        for (key, value) in values { section += "\"\(key)\"=dword:\(String(format: "%08x", value))\n" }
-        section += "\n"
-        try RuntimeRegistry.replacing(in: text, with: section).write(to: registry, atomically: true, encoding: .utf8)
+        var updated = text
+        for registryKey in RuntimeRegistry.keys {
+            var section = "[\(registryKey)]\n\"Version\"=\"\(manifest.version)\"\n"
+            for (key, value) in values { section += "\"\(key)\"=dword:\(String(format: "%08x", value))\n" }
+            updated = RuntimeRegistry.replacing(in: updated, with: section + "\n", key: registryKey)
+        }
+        try updated.write(to: registry, atomically: true, encoding: .utf8)
+        SessionDiagnostics.shared.checkpoint("Verified ARM64 VC++ \(manifest.version); registered native and WOW64 views")
     }
 }

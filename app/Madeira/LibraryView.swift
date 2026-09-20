@@ -10,7 +10,7 @@ final class GameLibrary: ObservableObject {
     static let gamesFolder = drive.appendingPathComponent("Games", isDirectory: true)
     static let steamFolder = drive.appendingPathComponent("Steam/steamapps/common", isDirectory: true)
     static let gogFolder = drive.appendingPathComponent("GOG Games", isDirectory: true)
-    @Published private(set) var games: [LibraryGame] = [.pc]
+    @Published private(set) var games: [LibraryGame] = [.pc, .steam]
     @Published private(set) var scannedAt: Date?
     @Published var busy = false
     @Published var error: String?
@@ -20,11 +20,18 @@ final class GameLibrary: ObservableObject {
     private var hidden: Set<String> = []
     private var indexedGames: [LibraryGame] = []
     private var loaded = false
+    private var activity: [String: GameActivity] = [:]
+    private let activityURL = documents.appendingPathComponent("somethingpc-playtime.json")
     private let indexURL = documents.appendingPathComponent("somethingpc-library-index.json")
     private let profilesURL = documents.appendingPathComponent("somethingpc-games.json")
     private let launchersURL = documents.appendingPathComponent("somethingpc-launchers.json")
 
     private init() {
+        if let data = try? Data(contentsOf: activityURL) {
+            if let saved = try? JSONDecoder().decode([String: GameActivity].self, from: data),
+               saved.values.allSatisfy({ $0.seconds.isFinite && $0.seconds >= 0 }) { activity = saved }
+            else { try? data.write(to: Self.documents.appendingPathComponent("playtime-backup-\(UUID().uuidString).json"), options: .atomic) }
+        }
         if let data = try? Data(contentsOf: launchersURL), let saved = try? JSONDecoder().decode([String: String].self, from: data) { launchers = saved }
         hidden = Set(UserDefaults.standard.stringArray(forKey: "hiddenLibraryGames") ?? [])
         if let data = try? Data(contentsOf: profilesURL) {
@@ -90,8 +97,33 @@ final class GameLibrary: ObservableObject {
     }
 
     private func applyIndex() {
-        games = [.pc] + indexedGames.filter { !hidden.contains($0.id) }.map(resolve)
+        games = GameActivity.sorted([.pc, .steam] + indexedGames.filter { !hidden.contains($0.id) }.map(resolve), activity: activity)
         SessionDiagnostics.shared.libraryInventory(games)
+    }
+
+    func activity(for game: LibraryGame) -> GameActivity { activity[game.id] ?? GameActivity() }
+
+    func toggleFavorite(_ game: LibraryGame) {
+        var entry = activity(for: game)
+        entry.favorite.toggle()
+        saveActivity(entry, id: game.id)
+    }
+
+    func addPlaytime(_ seconds: Double, id: String) {
+        guard seconds.isFinite, seconds > 0 else { return }
+        var entry = activity[id] ?? GameActivity()
+        entry.seconds += seconds
+        saveActivity(entry, id: id)
+    }
+
+    private func saveActivity(_ entry: GameActivity, id: String) {
+        var updated = activity
+        updated[id] = entry
+        do {
+            try JSONEncoder().encode(updated).write(to: activityURL, options: .atomic)
+            activity = updated
+            games = GameActivity.sorted(games, activity: activity)
+        } catch { self.error = "Could not save favorites/playtime: \(error.localizedDescription)" }
     }
 
     func refresh() {
@@ -102,7 +134,7 @@ final class GameLibrary: ObservableObject {
                 var found = try GameFiles.discover(in: Self.gamesFolder)
                 for (prefix, folder) in [("steam:", Self.steamFolder), ("gog:", Self.gogFolder)] {
                     found += try GameFiles.discover(in: folder).map { game in
-                        var entry = LibraryGame(id: prefix + game.id, title: game.title, publisher: prefix == "steam:" ? "Steam · imported" : "GOG · imported", executable: game.executable, cover: game.cover, steamID: game.steamID)
+                        var entry = LibraryGame(id: prefix + game.id, title: game.title, publisher: prefix == "steam:" ? "Steam" : "GOG", executable: game.executable, cover: game.cover, steamID: game.steamID)
                         entry.candidates = game.candidates
                         entry.folder = game.folder
                         return entry
@@ -159,7 +191,7 @@ final class GameLibrary: ObservableObject {
     }
 
     func hide(_ game: LibraryGame) {
-        guard game.id != "pc" else { return }
+        guard !game.isDesktop else { return }
         hidden.insert(game.id)
         UserDefaults.standard.set(Array(hidden), forKey: "hiddenLibraryGames")
         games.removeAll { $0.id == game.id }
@@ -208,6 +240,7 @@ struct LibraryView: View {
     @State private var selectedGame: LibraryGame?
     @State private var sharing = false
     @State private var supportPresented = false
+    @State private var storesPresented = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -222,22 +255,31 @@ struct LibraryView: View {
                         ScrollView {
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: geometry.size.width > geometry.size.height ? 4 : 2), spacing: 20) {
                                 ForEach(library.games) { game in
-                                    Button { play(game) } label: { GameCard(game: game, profile: library.profile(for: game)) }
+                                    ZStack(alignment: .topTrailing) {
+                                    Button { play(game) } label: { GameCard(game: game, profile: library.profile(for: game), activity: library.activity(for: game)) }
                                         .buttonStyle(.plain)
                                         .contextMenu {
                                             Button("Game settings", systemImage: "slider.horizontal.3") { selectedGame = game }
                                             Button("Play", systemImage: "play.fill") { play(game) }
-                                            if game.id != "pc" {
+                                            Button(library.activity(for: game).favorite ? "Remove favorite" : "Favorite", systemImage: "star") { library.toggleFavorite(game) }
+                                            if !game.isDesktop {
                                                 Button("Hide from library", systemImage: "eye.slash") { library.hide(game) }
                                             }
                                         }
                                         .accessibilityHint("Play. Touch and hold for game settings.")
+                                    Button { library.toggleFavorite(game) } label: {
+                                        Image(systemName: library.activity(for: game).favorite ? "star.fill" : "star")
+                                            .foregroundStyle(library.activity(for: game).favorite ? Color.yellow : Color.white)
+                                            .padding(10).background(.black.opacity(0.7), in: Circle())
+                                    }.buttonStyle(.plain).padding(16)
+                                        .accessibilityLabel(library.activity(for: game).favorite ? "Remove \(game.title) from favorites" : "Favorite \(game.title)")
+                                    }
                                 }
                             }
                             .padding(.horizontal, geometry.size.width > 700 ? 40 : 20)
                             .padding(.top, 12)
                             .padding(.bottom, 110)
-                            if library.games.count == 1 {
+                            if library.games.count == 2 {
                                 Text("Add a game folder with +, or copy games into C:\\Games using Files. Touch and hold a card for game settings.")
                                     .font(.callout).foregroundStyle(.secondary).padding().padding(.bottom, 100)
                             }
@@ -262,6 +304,9 @@ struct LibraryView: View {
         .preferredColorScheme(.dark)
         .onAppear { library.loadSavedLibrary() }
         .sheet(item: $selectedGame) { GameSettingsView(game: $0) }
+        .sheet(isPresented: $storesPresented) {
+            NavigationStack { StoreLibrariesView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { storesPresented = false } } } }
+        }
         .sheet(isPresented: $supportPresented) {
             NavigationStack { DiagnosticsView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { supportPresented = false } } } }
         }
@@ -302,6 +347,7 @@ struct LibraryView: View {
             Text("Library").font(.title2.bold())
             Spacer()
             Menu {
+                Button("Install from Steam or GOG", systemImage: "arrow.down.circle") { storesPresented = true }
                 Button("Import Game Folder", systemImage: "folder.badge.plus") { importFolder = true; importing = true }
                 Button("Custom EXE", systemImage: "doc.badge.plus") { exeWarning = true }
             } label: { Image(systemName: "plus").font(.title) }
@@ -310,7 +356,8 @@ struct LibraryView: View {
     }
 
     private func play(_ game: LibraryGame) {
-        if game.id != "pc" && game.executable == nil { selectedGame = game }
+        if game.id == "steam-client" && !SteamInstaller.isInstalled { storesPresented = true }
+        else if !game.isDesktop && game.executable == nil { selectedGame = game }
         else { launch(game, library.profile(for: game)) }
     }
 
@@ -326,6 +373,7 @@ struct LibraryView: View {
 private struct GameCard: View {
     let game: LibraryGame
     let profile: GameProfile
+    let activity: GameActivity
     @State private var localImage: UIImage?
     private var coverURL: URL? {
         if let name = profile.customCover, name == URL(fileURLWithPath: name).lastPathComponent {
@@ -339,6 +387,12 @@ private struct GameCard: View {
                 .overlay {
                     if let localImage { Image(uiImage: localImage).resizable().scaledToFill() }
                     else if game.id == "pc" { Image("PCCover").resizable().scaledToFill() }
+                    else if game.id == "steam-client" {
+                        ZStack {
+                            LinearGradient(colors: [.blue.opacity(0.5), Color(red: 0.02, green: 0.05, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            VStack { Image(systemName: "gearshape.2.fill").font(.system(size: 48)); Text("STEAM").font(.title3.bold()) }.foregroundStyle(.white)
+                        }
+                    }
                     else if let steamID = game.steamID {
                         AsyncImage(url: URL(string: "https://cdn.akamai.steamstatic.com/steam/apps/\(steamID)/library_600x900_2x.jpg")) { phase in
                             if let image = phase.image { image.resizable().scaledToFill() } else { placeholder }
@@ -348,6 +402,10 @@ private struct GameCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             Text(game.title).font(.headline).lineLimit(1)
             Text(game.publisher).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            if activity.seconds >= 60 {
+                Text(activity.seconds >= 3600 ? String(format: "%.1f h played", activity.seconds / 3600) : "\(Int(activity.seconds / 60)) min played")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let executable = game.executable {
                 Text(executable.lastPathComponent).font(.caption).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle)
