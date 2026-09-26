@@ -3,7 +3,7 @@ name: Build Something PC IPA
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, codex/steam-ios-integration]
     paths:
       - "build/**"
       - "FEX"
@@ -367,6 +367,7 @@ jobs:
             build/IPA/SomethingPC.ipa.sha256
           if-no-files-found: error
       - name: Publish release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
