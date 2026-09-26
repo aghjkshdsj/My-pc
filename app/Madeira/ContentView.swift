@@ -1030,10 +1030,17 @@ struct ContentView: View {
                         guard [UInt16(0x8664), 0xaa64, 0xa641, 0xa64e].contains(machine) else {
                             throw LibraryFailure.invalid("This build supports 64-bit Windows games, not 32-bit x86 executables.")
                         }
-                        setenv("MADEIRA_USE_ARM64EC", machine == 0xaa64 || machine == 0xa64e ? "0" : "1", 1)
-                        setenv("MADEIRA_EXE", try GameFiles.windowsPath(executable, drive: GameLibrary.drive), 1)
-                        guard profile.arguments.utf8.count < 1000 else { throw LibraryFailure.invalid("Launch arguments are too long.") }
-                        setenv("MADEIRA_ARGS", profile.arguments, 1)
+                        // Resolve the local installation again at launch; cached artwork IDs
+                        // and user-supplied steam_appid.txt files cannot redirect a launch.
+                        let steamLaunch = profile.launchThroughSteam == false ? nil : try SteamInstaller.gameLaunch(containing: executable)
+                        if let appID = try SteamLaunchPlan.route(app: steamLaunch?.app, preference: profile.launchThroughSteam, arguments: profile.arguments) {
+                            try SteamInstaller.prepareLaunch(appID: appID, clientDirectory: steamLaunch?.directory)
+                        } else {
+                            setenv("MADEIRA_USE_ARM64EC", machine == 0xaa64 || machine == 0xa64e ? "0" : "1", 1)
+                            setenv("MADEIRA_EXE", try GameFiles.windowsPath(executable, drive: GameLibrary.drive), 1)
+                            guard profile.arguments.utf8.count < 1000 else { throw LibraryFailure.invalid("Launch arguments are too long.") }
+                            setenv("MADEIRA_ARGS", profile.arguments, 1)
+                        }
                     } else {
                         setenv("MADEIRA_USE_ARM64EC", "0", 1)
                         setenv("MADEIRA_EXE", "explorer.exe", 1)

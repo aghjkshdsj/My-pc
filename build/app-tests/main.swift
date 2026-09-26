@@ -143,6 +143,12 @@ var profile = GameProfile()
 profile.customSettings = true; profile.visualCppARM64 = true; profile.resolution = "1280x720"
 expect(try JSONDecoder().decode(GameProfile.self, from: JSONEncoder().encode(profile)) == profile, "profile round trip")
 print("All Something PC library/runtime registry tests passed")
+// Profiles written by older builds must remain readable after Steam routing is added.
+var legacyProfile = try JSONSerialization.jsonObject(with: JSONEncoder().encode(profile)) as! [String: Any]
+legacyProfile.removeValue(forKey: "launchThroughSteam")
+expect(try JSONDecoder().decode(GameProfile.self, from: JSONSerialization.data(withJSONObject: legacyProfile)).launchThroughSteam == nil, "legacy profile must use automatic routing")
+profile.launchThroughSteam = false
+expect(try JSONDecoder().decode(GameProfile.self, from: JSONEncoder().encode(profile)).launchThroughSteam == false, "direct-launch preference was lost")
 expect(StartupStage.requested.percent == 1, "startup must begin at 1 percent")
 expect(StartupStage.firstFrame.percent == 100, "first frame must be 100 percent")
 expect(StartupStage.allCases.dropLast().allSatisfy { $0.percent < 100 }, "startup completed before first frame")
@@ -301,3 +307,125 @@ if let manifestPath = ProcessInfo.processInfo.environment["STEAM_SMOKE_MANIFEST"
     print("Current official Steam win64 manifest parsed: \(current.packages.count) packages, version \(current.version)")
 }
 print("GOG OAuth callback safety tests passed")
+
+func steamAppManifest(id: String = "480", directory: String = "Space Game", flags: String = "4") -> String {
+    "\"AppState\" { \"appid\" \"\(id)\" \"name\" \"Space Game\" \"installdir\" \"\(directory)\" \"StateFlags\" \"\(flags)\" }"
+}
+let steamApp = try SteamInstalledApp(manifest: steamAppManifest(), fileName: "appmanifest_480.acf")
+expect(steamApp.id == "480" && steamApp.directory == "Space Game", "installed Steam app parsing")
+for id in ["0", "-1", "0480", "4294967296", "480 & whoami", "480\r\n", "４８０"] {
+    expect(!SteamInstalledApp.validID(id), "unsafe/noncanonical Steam ID accepted")
+    rejects("unsafe app launch accepted") { _ = try SteamLaunchPlan(width: 960, height: 540, appID: id) }
+}
+rejects("mismatched appmanifest filename") { _ = try SteamInstalledApp(manifest: steamAppManifest(), fileName: "appmanifest_481.acf") }
+for folder in ["..", "../escape", "C:/outside", "a/b", ""] {
+    rejects("unsafe Steam folder") { _ = try SteamInstalledApp(manifest: steamAppManifest(directory: folder), fileName: "appmanifest_480.acf") }
+}
+rejects("incomplete download accepted") { _ = try SteamInstalledApp(manifest: steamAppManifest(flags: "1024"), fileName: "appmanifest_480.acf") }
+rejects("duplicate app ID accepted") { _ = try SteamInstalledApp(manifest: steamAppManifest().replacingOccurrences(of: "\"appid\" \"480\"", with: "\"appid\" \"480\" \"appid\" \"481\""), fileName: "appmanifest_480.acf") }
+rejects("oversized appmanifest accepted") { _ = try SteamInstalledApp(manifest: String(repeating: " ", count: 1_048_577), fileName: "appmanifest_480.acf") }
+let standardSteam = try SteamLaunchPlan(width: 960, height: 540)
+expect(standardSteam.environment["MADEIRA_JITLESS"] == "1", "compatibility must remain default")
+expect(standardSteam.environment["MADEIRA_USE_ARM64EC"] == "0" && standardSteam.environment["MADEIRA_DESKTOP"] == "1", "Steam must bootstrap native desktop before x64 children")
+expect(standardSteam.environment["MADEIRA_ARGS"] == "/desktop=shell,960x540 cmd /c C:\\steam-launch.bat", "wrong desktop command")
+expect(!standardSteam.batch.contains("-gamepadui") && !standardSteam.batch.contains("-console"), "default should not open extra UI")
+expect(!standardSteam.batch.replacingOccurrences(of: "\r\n", with: "").contains("\n"), "batch must use CRLF")
+let fastSteam = try SteamLaunchPlan(width: 1280, height: 720, interface: .bigPicture, webEngine: .jit, appID: "480")
+expect(fastSteam.environment["MADEIRA_JITLESS"] == "0" && fastSteam.batch.contains("-gamepadui") && fastSteam.batch.contains("-applaunch 480"), "Steam selections not applied")
+rejects("invalid screen size") { _ = try SteamLaunchPlan(width: -1, height: 540) }
+expect(try SteamLaunchPlan.route(app: steamApp, preference: nil, arguments: "") == "480", "automatic Steam routing")
+expect(try SteamLaunchPlan.route(app: steamApp, preference: false, arguments: "-example") == nil, "direct mode must remain available")
+expect(try SteamLaunchPlan.route(app: nil, preference: nil, arguments: "") == nil, "imported game without manifest should launch directly")
+rejects("forced Steam without manifest") { _ = try SteamLaunchPlan.route(app: nil, preference: true, arguments: "") }
+rejects("custom shell arguments forwarded to batch") { _ = try SteamLaunchPlan.route(app: steamApp, preference: true, arguments: "& calc") }
+
+let steamRoot = drive.appendingPathComponent("Steam", isDirectory: true)
+let steamApps = steamRoot.appendingPathComponent("steamapps", isDirectory: true)
+let steamGameRoot = steamApps.appendingPathComponent("common/Space Game", isDirectory: true)
+try manager.createDirectory(at: steamGameRoot, withIntermediateDirectories: true)
+let steamGameExe = steamGameRoot.appendingPathComponent("game.exe")
+try executable(0x8664, at: steamGameExe)
+let acf = steamApps.appendingPathComponent("appmanifest_480.acf")
+try steamAppManifest().write(to: acf, atomically: true, encoding: .utf8)
+let steamCatalog = try SteamLibraryCatalog(steamDirectory: steamRoot)
+expect(steamCatalog.app(containing: steamGameExe)?.id == "480", "Steam game executable not associated with manifest")
+expect(steamCatalog.app(containing: steamGameRoot)?.id == "480", "Steam folder metadata not associated")
+expect(steamCatalog.app(containing: exe) == nil, "unrelated imported game matched Steam manifest")
+let unrelated = steamApps.appendingPathComponent("appmanifest_482.acf")
+try Data("damaged".utf8).write(to: unrelated)
+expect(try SteamLibraryCatalog(steamDirectory: steamRoot).app(containing: steamGameExe)?.id == "480", "unrelated damaged manifest blocked valid game")
+let duplicate = steamApps.appendingPathComponent("appmanifest_481.acf")
+try steamAppManifest(id: "481", directory: "space game").write(to: duplicate, atomically: true, encoding: .utf8)
+expect(try SteamLibraryCatalog(steamDirectory: steamRoot).app(containing: steamGameExe) == nil, "ambiguous installation must not launch an arbitrary Steam ID")
+try manager.removeItem(at: duplicate)
+try manager.removeItem(at: acf)
+let outsideManifest = root.appendingPathComponent("outside.acf")
+try steamAppManifest().write(to: outsideManifest, atomically: true, encoding: .utf8)
+try manager.createSymbolicLink(at: acf, withDestinationURL: outsideManifest)
+expect(try SteamLibraryCatalog(steamDirectory: steamRoot).app(containing: steamGameExe) == nil, "symlink manifest was followed")
+print("Steam routing, profile migration, appmanifest validation, and launch-plan tests passed")
+
+let clientDrive = root.appendingPathComponent("client-drive", isDirectory: true)
+try manager.createDirectory(at: clientDrive, withIntermediateDirectories: true)
+expect(SteamClientInstallation.findAll(in: clientDrive).isEmpty, "empty prefix reports Steam installed")
+expect(SteamClientInstallation.libraryApps(for: nil).map(\.id) == ["pc", "steam-client"], "Steam must appear even before install or game scanning")
+expect(!manager.fileExists(atPath: clientDrive.appendingPathComponent("Steam").path), "Steam detection must not create folders")
+let managedClient = clientDrive.appendingPathComponent("Steam", isDirectory: true)
+try manager.createDirectory(at: managedClient, withIntermediateDirectories: true)
+try executable(0x8664, at: managedClient.appendingPathComponent("SteamSetup.exe"))
+expect(SteamClientInstallation.findAll(in: clientDrive).isEmpty, "installer incorrectly treated as installed Steam")
+try executable(0x8664, at: managedClient.appendingPathComponent("steam.exe"))
+expect(SteamClientInstallation.findAll(in: clientDrive).isEmpty, "incomplete client without Steam DLL accepted")
+try executable(0x8664, at: managedClient.appendingPathComponent("steamclient64.dll"))
+let installedClient = SteamClientInstallation.findAll(in: clientDrive).first!
+expect(installedClient.windowsDirectory == "C:\\Steam", "in-app Steam installer location not detected")
+let installedApps = SteamClientInstallation.libraryApps(for: installedClient)
+expect(installedApps.count == 2 && installedApps[1].id == "steam-client" && installedApps[1].executable?.lastPathComponent == "steam.exe", "installed Steam must replace its fixed launcher entry")
+expect(installedApps[1].isDesktop, "Steam launcher must not require game EXE selection")
+let emptyGameIndex = try LibraryIndex(games: [], drive: clientDrive)
+expect(try emptyGameIndex.games(in: clientDrive).isEmpty, "empty game index fixture")
+expect(SteamClientInstallation.libraryApps(for: installedClient)[1].title == "Steam", "Steam should be independent of a saved game index")
+expect(try LibraryIndex(games: installedApps, drive: clientDrive).entries.isEmpty, "system app cards must not become cached game entries")
+let installMarker = managedClient.appendingPathComponent(".somethingpc-installing")
+try Data().write(to: installMarker)
+expect(SteamClientInstallation.findAll(in: clientDrive).isEmpty, "interrupted Steam installation must not be launched")
+try manager.removeItem(at: installMarker)
+try executable(0x014c, at: managedClient.appendingPathComponent("steam.exe"))
+expect(SteamClientInstallation.findAll(in: clientDrive).isEmpty, "unsupported 32-bit Steam accepted")
+try executable(0x8664, at: managedClient.appendingPathComponent("steam.exe"))
+
+for relative in SteamClientInstallation.relativeDirectories.dropFirst() {
+    let folder = clientDrive.appendingPathComponent(relative, isDirectory: true)
+    try manager.createDirectory(at: folder, withIntermediateDirectories: true)
+    try executable(0x8664, at: folder.appendingPathComponent("steam.exe"))
+    try executable(0x8664, at: folder.appendingPathComponent("steamclient64.dll"))
+    let client = SteamClientInstallation.findAll(in: clientDrive).first { $0.directory == folder }!
+    let plan = try SteamLaunchPlan(width: 960, height: 540, windowsDirectory: client.windowsDirectory)
+    expect(plan.batch.contains("cd /d \"\(client.windowsDirectory)\"") && plan.batch.contains("\"\(client.windowsDirectory)\\steam.exe\""), "Steam must launch from its detected location")
+}
+expect(SteamClientInstallation.findAll(in: clientDrive).count == 3, "standard Steam locations not all detected")
+for badDirectory in ["C:\\Steam\" & calc & \"", "C:\\Steam\ncalc", "C:\\%USERNAME%\\Steam", "Z:\\Steam"] {
+    rejects("unsafe Steam command path") { _ = try SteamLaunchPlan(width: 960, height: 540, windowsDirectory: badDirectory) }
+}
+let alternateClient = clientDrive.appendingPathComponent("Program Files (x86)/Steam", isDirectory: true)
+let alternateApps = alternateClient.appendingPathComponent("steamapps", isDirectory: true)
+let alternateGame = alternateApps.appendingPathComponent("common/Space Game", isDirectory: true)
+try manager.createDirectory(at: alternateGame, withIntermediateDirectories: true)
+try executable(0x8664, at: alternateGame.appendingPathComponent("game.exe"))
+try steamAppManifest().write(to: alternateApps.appendingPathComponent("appmanifest_480.acf"), atomically: true, encoding: .utf8)
+let alternateGames = try SteamLibraryCatalog.discoverGames(in: alternateClient, drive: clientDrive)
+expect(alternateGames.count == 1 && alternateGames[0].steamID == "480" && alternateGames[0].title == "Space Game", "games outside C:\\Games and C:\\Steam missing from Steam discovery")
+expect(alternateGames[0].id.hasPrefix("steam:Program Files (x86)/Steam:"), "alternate Steam install has colliding IDs")
+try manager.removeItem(at: acf)
+try steamAppManifest().write(to: acf, atomically: true, encoding: .utf8)
+let managedGames = try SteamLibraryCatalog.discoverGames(in: steamRoot, drive: drive)
+expect(managedGames[0].id == "steam:folder:Space Game", "existing Steam game ID changed")
+
+let linkedDrive = root.appendingPathComponent("linked-client-drive", isDirectory: true)
+try manager.createDirectory(at: linkedDrive, withIntermediateDirectories: true)
+try manager.createSymbolicLink(at: linkedDrive.appendingPathComponent("Steam"), withDestinationURL: managedClient)
+expect(SteamClientInstallation.findAll(in: linkedDrive).isEmpty, "Steam client symlink escaped the prefix")
+try manager.removeItem(at: managedClient.appendingPathComponent("steamclient64.dll"))
+try manager.createSymbolicLink(at: managedClient.appendingPathComponent("steamclient64.dll"), withDestinationURL: alternateClient.appendingPathComponent("steamclient64.dll"))
+expect(!SteamClientInstallation.findAll(in: clientDrive).contains { $0.directory == managedClient }, "linked Steam DLL accepted")
+print("Steam fixed-library-entry, installation-detection, alternate-location and game-discovery tests passed")

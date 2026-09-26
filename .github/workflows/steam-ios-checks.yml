@@ -1,0 +1,30 @@
+name: Steam iOS integration checks
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "build/app-tests/**"
+      - ".github/workflows/steam-ios-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  steam-ios:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Steam launch routing, manifests, and existing app core
+        run: |
+          swiftc app/Madeira/GameLibraryCore.swift app/Madeira/LocalAccountCore.swift app/Madeira/StoreCore.swift app/Madeira/GOGCore.swift app/Madeira/SteamLaunchCore.swift build/app-tests/main.swift -o /tmp/app-tests
+          /tmp/app-tests
+          node build/app-tests/jit-script.test.cjs
+      - name: Typecheck iPhone interface and validate Xcode project
+        run: |
+          plutil -lint app/Madeira.xcodeproj/project.pbxproj
+          xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 \
+            -target arm64-apple-ios17.0 -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+            -import-objc-header app/Madeira/Madeira-Bridging-Header.h app/Madeira/*.swift

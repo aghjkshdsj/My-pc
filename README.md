@@ -26,6 +26,21 @@ controls are not yet reliable. Others reach gameplay at low frame rates. This
 is a research project, not a product: expect rough edges, per-title quirks and
 breaking changes.
 
+## Steam launch options
+
+Settings → Steam & GOG now offers Standard Steam or experimental Big Picture,
+an explicit StikDebug JIT action, and a separate experimental web-UI JIT option.
+FEX CPU JIT remains required in both web modes. Local Steam appmanifests supply
+installed game names/IDs; matching games launch through Steam by default, with
+Automatic / Steam client / Direct EXE choices in Game Settings. This builds on
+the existing official Valve installer; Android component archives are not used.
+PC and Steam have fixed entries in Library → Apps, above the game list. Steam
+installation status refreshes after installation, returning to Library, and
+foregrounding the app. Steam is detected in C:\Steam and the standard Program
+Files Steam folders; its launcher does not depend on the C:\Games scan or cache.
+See [iPhone Steam setup and validation limits](docs/STEAM_IOS.md). These changes
+do not establish successful iPhone login, game compatibility, or measured FPS.
+
 ## Requirements
 
 - A non-jailbroken iPhone. Development has been on an A15 (iPhone 13 Pro).

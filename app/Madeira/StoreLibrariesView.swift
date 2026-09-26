@@ -1,9 +1,17 @@
 import SwiftUI
 
 struct StoreLibrariesView: View {
+    private let openSteam: (() -> Void)?
+    init(openSteam: (() -> Void)? = nil) { self.openSteam = openSteam }
     @ObservedObject private var library = GameLibrary.shared
     @ObservedObject private var installation = StoreInstallation.shared
     @ObservedObject private var gog = GOGAccount.shared
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(SteamLaunchPlan.interfaceKey) private var steamInterface = SteamInterface.standard.rawValue
+    @AppStorage(SteamLaunchPlan.webEngineKey) private var steamWebEngine = SteamWebEngine.compatibility.rawValue
+    @State private var jitAttached = false
+    @State private var requestingJIT = false
+    @State private var jitMessage: String?
     @State private var login: LoginAttempt?
     @State private var steamConfirmation = false
     @State private var selectedGame: GOGGame?
@@ -27,13 +35,48 @@ struct StoreLibrariesView: View {
             }
             Section("Steam on your phone") {
                 Label(SteamInstaller.isInstalled ? "64-bit client installed" : "Install the 64-bit Windows client", systemImage: "desktopcomputer")
+                if let client = library.steamClient {
+                    Text("Steam is in Library → Apps. Installed at \(client.windowsDirectory).")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let openSteam {
+                        Button("Open Steam", systemImage: "play.fill", action: openSteam)
+                            .disabled(installation.busy || library.busy || library.sessionStarted)
+                    }
+                }
                 Button(SteamInstaller.isInstalled ? "Repair / update Steam client" : "Download & install Steam") { steamConfirmation = true }
                     .disabled(installation.busy || gog.busy)
                 Text("Downloads official Valve packages, verifies SHA-256, and installs into C:\\Steam without SteamSetup.exe. Keep roughly 2 GB free and use Wi-Fi.")
-                Text("Then tap Steam in Library: Windows desktop opens first, followed by Steam. Sign in there, including Steam Guard, and install owned games to the default C:\\Steam\\steamapps\\common folder. Refresh Library after downloads finish.")
+                Text("Steam stays at the top of Library under Apps and updates automatically after installation. Tap it to open the Windows desktop and Steam. Sign in there, including Steam Guard, and Refresh Library after game downloads finish.")
                 Text("Experimental: this is the real Steam client inside Wine, not GameNative’s native Steam library API. CEF rendering, login, client updates, DRM and individual games may still fail on iOS. Signing in is not proof of game compatibility.")
                     .foregroundStyle(.secondary)
             }.font(.callout)
+            Section("Steam launch & performance") {
+                Picker("Steam interface", selection: $steamInterface) {
+                    ForEach(SteamInterface.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                }
+                Picker("Steam web interface", selection: $steamWebEngine) {
+                    ForEach(SteamWebEngine.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                }
+                Text("FEX CPU JIT is required in both modes. Compatibility interprets Steam's web UI JavaScript. Web UI JIT may improve responsiveness, but can hang or crash; restart the app and switch back if that happens.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("Start with Standard Steam at 960×540 and a 60 FPS limit in Game Settings. Higher resolution and Big Picture can use more memory and GPU time. Game performance and compatibility depend on the iPhone and game.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Label(jitAttached ? "JIT debugger access detected" : "JIT debugger access required", systemImage: jitAttached ? "checkmark.circle" : "bolt.circle")
+                Button(requestingJIT ? "Waiting for StikDebug…" : "Enable JIT with StikDebug") {
+                    requestingJIT = true
+                    jitMessage = nil
+                    StikJITHelper.enableJIT { success in
+                        DispatchQueue.main.async {
+                            requestingJIT = false
+                            jitAttached = jit_check_debugged()
+                            jitMessage = success ? "Debugger access detected. Executable memory is allocated and checked when you launch Steam." : "JIT was not enabled. Check your StikDebug setup, then retry."
+                        }
+                    }
+                }.disabled(requestingJIT || jitAttached || installation.busy || library.busy || library.sessionStarted)
+                if let jitMessage { Text(jitMessage).font(.caption).foregroundStyle(.secondary) }
+                Text("Return to Library and tap Steam after installation. Steam handles account login, Steam Guard, store purchases you choose, and game downloads. Refresh Library after installing a game.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }.disabled(library.sessionStarted)
             Section("GOG library & downloads") {
                 if gog.connected {
                     HStack {
@@ -72,6 +115,10 @@ struct StoreLibrariesView: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .navigationTitle("Steam & GOG")
+        .onAppear { jitAttached = jit_check_debugged(); library.refreshSteamClient() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { jitAttached = jit_check_debugged() }
+        }
         .searchable(text: $search, prompt: "Search owned GOG games")
         .sheet(item: $login) { attempt in
             NavigationStack {

@@ -16,6 +16,8 @@ struct GameProfile: Codable, Equatable {
     var diagnostics = false
     var arguments = ""
     var customCover: String?
+    // nil preserves automatic behavior when decoding profiles saved before Steam routing.
+    var launchThroughSteam: Bool?
 }
 
 struct LibraryGame: Identifiable, Equatable {

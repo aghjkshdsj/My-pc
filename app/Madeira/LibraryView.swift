@@ -11,6 +11,8 @@ final class GameLibrary: ObservableObject {
     static let steamFolder = drive.appendingPathComponent("Steam/steamapps/common", isDirectory: true)
     static let gogFolder = drive.appendingPathComponent("GOG Games", isDirectory: true)
     @Published private(set) var games: [LibraryGame] = [.pc, .steam]
+    @Published private(set) var steamClient: SteamClientInstallation?
+    var apps: [LibraryGame] { SteamClientInstallation.libraryApps(for: steamClient) }
     @Published private(set) var scannedAt: Date?
     @Published var busy = false
     @Published var error: String?
@@ -77,6 +79,7 @@ final class GameLibrary: ObservableObject {
     }
 
     func loadSavedLibrary() {
+        refreshSteamClient()
         guard !loaded, !busy else { return }
         loaded = true
         guard FileManager.default.fileExists(atPath: indexURL.path) else { refresh(); return }
@@ -97,8 +100,14 @@ final class GameLibrary: ObservableObject {
     }
 
     private func applyIndex() {
-        games = GameActivity.sorted([.pc, .steam] + indexedGames.filter { !hidden.contains($0.id) }.map(resolve), activity: activity)
+        games = GameActivity.sorted(apps + indexedGames.filter { !$0.isDesktop && !hidden.contains($0.id) }.map(resolve), activity: activity)
         SessionDiagnostics.shared.libraryInventory(games)
+    }
+
+    /// A bounded check of Steam client locations, independent of scanning game folders.
+    func refreshSteamClient() {
+        steamClient = SteamInstaller.installedClients.first
+        applyIndex()
     }
 
     func activity(for game: LibraryGame) -> GameActivity { activity[game.id] ?? GameActivity() }
@@ -127,14 +136,18 @@ final class GameLibrary: ObservableObject {
     }
 
     func refresh() {
+        refreshSteamClient()
         guard !busy else { return }
         busy = true
         DispatchQueue.global(qos: .userInitiated).async {
             let result = Result { () throws -> LibraryIndex in
                 var found = try GameFiles.discover(in: Self.gamesFolder)
-                for (prefix, folder) in [("steam:", Self.steamFolder), ("gog:", Self.gogFolder)] {
+                for directory in SteamInstaller.libraryDirectories {
+                    found += try SteamLibraryCatalog.discoverGames(in: directory, drive: Self.drive)
+                }
+                for (prefix, folder) in [("gog:", Self.gogFolder)] {
                     found += try GameFiles.discover(in: folder).map { game in
-                        var entry = LibraryGame(id: prefix + game.id, title: game.title, publisher: prefix == "steam:" ? "Steam" : "GOG", executable: game.executable, cover: game.cover, steamID: game.steamID)
+                        var entry = LibraryGame(id: prefix + game.id, title: game.title, publisher: "GOG", executable: game.executable, cover: game.cover, steamID: game.steamID)
                         entry.candidates = game.candidates
                         entry.folder = game.folder
                         return entry
@@ -231,6 +244,7 @@ struct LibraryView: View {
     let launch: (LibraryGame, GameProfile) -> Void
     let resume: () -> Void
     let diagnostics: () -> Void
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var library = GameLibrary.shared
     @ObservedObject private var recovery = CrashRecovery.shared
     @State private var settingsTab = false
@@ -254,33 +268,22 @@ struct LibraryView: View {
                         header
                         ScrollView {
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: geometry.size.width > geometry.size.height ? 4 : 2), spacing: 20) {
-                                ForEach(library.games) { game in
-                                    ZStack(alignment: .topTrailing) {
-                                    Button { play(game) } label: { GameCard(game: game, profile: library.profile(for: game), activity: library.activity(for: game)) }
-                                        .buttonStyle(.plain)
-                                        .contextMenu {
-                                            Button("Game settings", systemImage: "slider.horizontal.3") { selectedGame = game }
-                                            Button("Play", systemImage: "play.fill") { play(game) }
-                                            Button(library.activity(for: game).favorite ? "Remove favorite" : "Favorite", systemImage: "star") { library.toggleFavorite(game) }
-                                            if !game.isDesktop {
-                                                Button("Hide from library", systemImage: "eye.slash") { library.hide(game) }
-                                            }
-                                        }
-                                        .accessibilityHint("Play. Touch and hold for game settings.")
-                                    Button { library.toggleFavorite(game) } label: {
-                                        Image(systemName: library.activity(for: game).favorite ? "star.fill" : "star")
-                                            .foregroundStyle(library.activity(for: game).favorite ? Color.yellow : Color.white)
-                                            .padding(10).background(.black.opacity(0.7), in: Circle())
-                                    }.buttonStyle(.plain).padding(16)
-                                        .accessibilityLabel(library.activity(for: game).favorite ? "Remove \(game.title) from favorites" : "Favorite \(game.title)")
-                                    }
+                                Section {
+                                    ForEach(library.apps) { game in libraryCard(game) }
+                                } header: {
+                                    Text("Apps").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                Section {
+                                    ForEach(library.games.filter { !$0.isDesktop }) { game in libraryCard(game) }
+                                } header: {
+                                    Text("Games").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
                             .padding(.horizontal, geometry.size.width > 700 ? 40 : 20)
                             .padding(.top, 12)
                             .padding(.bottom, 110)
-                            if library.games.count == 2 {
-                                Text("Add a game folder with +, or copy games into C:\\Games using Files. Touch and hold a card for game settings.")
+                            if !library.games.contains(where: { !$0.isDesktop }) {
+                                Text("Steam is always in Apps above. Install it there, then use Steam to download games and Refresh library. You can also import game folders with +. Library checks C:\\Games, detected Steam game folders, and C:\\GOG Games.")
                                     .font(.callout).foregroundStyle(.secondary).padding().padding(.bottom, 100)
                             }
                         }
@@ -303,9 +306,15 @@ struct LibraryView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear { library.loadSavedLibrary() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { library.refreshSteamClient() }
+        }
         .sheet(item: $selectedGame) { GameSettingsView(game: $0) }
-        .sheet(isPresented: $storesPresented) {
-            NavigationStack { StoreLibrariesView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { storesPresented = false } } } }
+        .sheet(isPresented: $storesPresented, onDismiss: { library.refreshSteamClient() }) {
+            NavigationStack {
+                StoreLibrariesView(openSteam: { storesPresented = false; play(.steam) })
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { storesPresented = false } } }
+            }
         }
         .sheet(isPresented: $supportPresented) {
             NavigationStack { DiagnosticsView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { supportPresented = false } } } }
@@ -353,6 +362,28 @@ struct LibraryView: View {
             } label: { Image(systemName: "plus").font(.title) }
         }
         .foregroundStyle(.white).padding(.horizontal, 28).padding(.vertical, 14)
+    }
+
+    private func libraryCard(_ game: LibraryGame) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Button { play(game) } label: { GameCard(game: game, profile: library.profile(for: game), activity: library.activity(for: game)) }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button("Game settings", systemImage: "slider.horizontal.3") { selectedGame = game }
+                    Button("Play", systemImage: "play.fill") { play(game) }
+                    Button(library.activity(for: game).favorite ? "Remove favorite" : "Favorite", systemImage: "star") { library.toggleFavorite(game) }
+                    if !game.isDesktop {
+                        Button("Hide from library", systemImage: "eye.slash") { library.hide(game) }
+                    }
+                }
+                .accessibilityHint("Play. Touch and hold for game settings.")
+            Button { library.toggleFavorite(game) } label: {
+                Image(systemName: library.activity(for: game).favorite ? "star.fill" : "star")
+                    .foregroundStyle(library.activity(for: game).favorite ? Color.yellow : Color.white)
+                    .padding(10).background(.black.opacity(0.7), in: Circle())
+            }.buttonStyle(.plain).padding(16)
+                .accessibilityLabel(library.activity(for: game).favorite ? "Remove \(game.title) from favorites" : "Favorite \(game.title)")
+        }
     }
 
     private func play(_ game: LibraryGame) {
@@ -470,6 +501,17 @@ struct GameSettingsView: View {
                     if !game.isDesktop { TextField("Launch arguments", text: $profile.arguments) }
                 }
                 Section("Compatibility") {
+                    if game.id.hasPrefix("steam:") {
+                        Picker("Launch using", selection: Binding<String>(
+                            get: { profile.launchThroughSteam.map { $0 ? "steam" : "direct" } ?? "automatic" },
+                            set: { profile.launchThroughSteam = $0 == "automatic" ? nil : $0 == "steam" })) {
+                            Text("Automatic").tag("automatic")
+                            Text("Steam client").tag("steam")
+                            Text("Direct EXE").tag("direct")
+                        }
+                        Text("Automatic uses Steam for games with a matching installed Steam manifest, so Steam can handle login and game startup. Otherwise it uses the selected EXE. Steam chooses its configured game launcher; set arguments in Steam → Properties → Launch Options.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     Toggle("Enable bundled ARM64 Visual C++", isOn: $profile.visualCppARM64)
                     Text("Installs the bundled, Microsoft-signed ARM64 DLLs and their verified version information for this session—no installer is launched. Experimental: some games remain incompatible. The default Wine/x64 exception handlers stay unchanged. Disable this option and restart to restore the default runtime.")
                         .font(.caption).foregroundStyle(.secondary)

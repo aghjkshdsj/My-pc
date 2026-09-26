@@ -130,7 +130,7 @@ struct ValveManifest {
     }
 }
 
-private struct ValveParser {
+struct ValveParser {
     let characters: [Character]
     var offset = 0
 

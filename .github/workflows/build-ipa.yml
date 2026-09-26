@@ -3,7 +3,7 @@ name: Build Something PC IPA
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, codex/steam-ios-integration]
     paths:
       - "build/**"
       - "FEX"
@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test library discovery, import, PE validation and registry restoration
         run: |
-          swiftc app/Madeira/GameLibraryCore.swift app/Madeira/LocalAccountCore.swift app/Madeira/StoreCore.swift app/Madeira/GOGCore.swift build/app-tests/main.swift -o /tmp/app-tests
+          swiftc app/Madeira/GameLibraryCore.swift app/Madeira/LocalAccountCore.swift app/Madeira/StoreCore.swift app/Madeira/GOGCore.swift app/Madeira/SteamLaunchCore.swift build/app-tests/main.swift -o /tmp/app-tests
           /tmp/app-tests
           node build/app-tests/jit-script.test.cjs
       - name: Smoke test extraction of official Valve win64 bootstrap
@@ -367,15 +367,29 @@ jobs:
             build/IPA/SomethingPC.ipa.sha256
           if-no-files-found: error
       - name: Publish release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/steam-ios-integration'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: build-${{ github.run_number }}
         run: |
           set -euo pipefail
-          gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" \
+          release_flags=()
+          if [ "$GITHUB_REF" = "refs/heads/codex/steam-ios-integration" ]; then
+            release_flags=(--prerelease --latest=false)
+          fi
+          cat > build/release-notes.md <<'NOTES'
+          Download SomethingPC.ipa directly from Assets. This unsigned iPhone build requires signing and the existing StikDebug JIT setup.
+
+          Steam has a fixed entry in Library → Apps, above the game list. Installation status refreshes immediately after the in-app download, returning to Library, and foregrounding the app. Steam detection and game discovery support C:\Steam and the standard Program Files Steam folders. The Library's installer sheet offers Open Steam after installation.
+
+          Uses the full official Windows x64 Steam client through Wine/FEX JIT, with Standard Steam / experimental Big Picture, a separate experimental web-interface JIT option, and Steam-managed game launches. This is not native ARM Steam and does not bundle winlator-contents Android packages or its SteamLite agent.
+
+          Steam login, game compatibility, and performance require iPhone testing. Existing Wine/CEF issues are not claimed fixed.
+          NOTES
+          gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --draft "${release_flags[@]}" \
             --title "Something PC unsigned IPA build ${{ github.run_number }}" \
-            --notes "Something PC 0.6: persistent favorites (stars) sort above foreground session playtime. ARM64 Visual C++ runtime now registers both native and WOW64 registry views with rollback/migration. Reports include bounded recent Unreal game logs/crash context. Added an official Valve win64 client downloader with SHA-256/ZIP validation and a Steam Library tile that launches Windows desktop first, then Steam. Steam login/installation uses the Windows client and remains experimental on iOS; not a native Steam library API. Native GOG OAuth/Keychain login, owned library, and integrity-checked generation-2 Windows game downloads are implemented; legacy downloads, post-install scripts, prerequisite installers, cloud saves and updates are not. ScarletSkips still needs device investigation: its latest log reaches a game memory-write fault after loading VC++ DLLs. This release does NOT claim that crash or Steam compatibility is solved. Back up Documents before updating; requires signing and existing JIT setup." \
+            --notes-file build/release-notes.md \
             build/IPA/SomethingPC.ipa build/IPA/SomethingPC.ipa.sha256
           mkdir -p build/release-verification
           gh release download "$RELEASE_TAG" --dir build/release-verification \
@@ -383,6 +397,7 @@ jobs:
           cd build/release-verification
           shasum -a 256 -c SomethingPC.ipa.sha256
           cmp SomethingPC.ipa ../IPA/SomethingPC.ipa
+          gh release edit "$RELEASE_TAG" --draft=false "${release_flags[@]}"
           gh release view "$RELEASE_TAG" --json url,assets
       - name: Preserve iOS debug symbols
         if: always()
