@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct StoreLibrariesView: View {
+    private let openSteam: (() -> Void)?
+    init(openSteam: (() -> Void)? = nil) { self.openSteam = openSteam }
     @ObservedObject private var library = GameLibrary.shared
     @ObservedObject private var installation = StoreInstallation.shared
     @ObservedObject private var gog = GOGAccount.shared
@@ -33,10 +35,18 @@ struct StoreLibrariesView: View {
             }
             Section("Steam on your phone") {
                 Label(SteamInstaller.isInstalled ? "64-bit client installed" : "Install the 64-bit Windows client", systemImage: "desktopcomputer")
+                if let client = library.steamClient {
+                    Text("Steam is in Library → Apps. Installed at \(client.windowsDirectory).")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let openSteam {
+                        Button("Open Steam", systemImage: "play.fill", action: openSteam)
+                            .disabled(installation.busy || library.busy || library.sessionStarted)
+                    }
+                }
                 Button(SteamInstaller.isInstalled ? "Repair / update Steam client" : "Download & install Steam") { steamConfirmation = true }
                     .disabled(installation.busy || gog.busy)
                 Text("Downloads official Valve packages, verifies SHA-256, and installs into C:\\Steam without SteamSetup.exe. Keep roughly 2 GB free and use Wi-Fi.")
-                Text("Then tap Steam in Library: Windows desktop opens first, followed by Steam. Sign in there, including Steam Guard, and install owned games to the default C:\\Steam\\steamapps\\common folder. Refresh Library after downloads finish.")
+                Text("Steam stays at the top of Library under Apps and updates automatically after installation. Tap it to open the Windows desktop and Steam. Sign in there, including Steam Guard, and Refresh Library after game downloads finish.")
                 Text("Experimental: this is the real Steam client inside Wine, not GameNative’s native Steam library API. CEF rendering, login, client updates, DRM and individual games may still fail on iOS. Signing in is not proof of game compatibility.")
                     .foregroundStyle(.secondary)
             }.font(.callout)
@@ -105,7 +115,7 @@ struct StoreLibrariesView: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .navigationTitle("Steam & GOG")
-        .onAppear { jitAttached = jit_check_debugged() }
+        .onAppear { jitAttached = jit_check_debugged(); library.refreshSteamClient() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { jitAttached = jit_check_debugged() }
         }

@@ -34,6 +34,10 @@ FEX CPU JIT remains required in both web modes. Local Steam appmanifests supply
 installed game names/IDs; matching games launch through Steam by default, with
 Automatic / Steam client / Direct EXE choices in Game Settings. This builds on
 the existing official Valve installer; Android component archives are not used.
+PC and Steam have fixed entries in Library → Apps, above the game list. Steam
+installation status refreshes after installation, returning to Library, and
+foregrounding the app. Steam is detected in C:\Steam and the standard Program
+Files Steam folders; its launcher does not depend on the C:\Games scan or cache.
 See [iPhone Steam setup and validation limits](docs/STEAM_IOS.md). These changes
 do not establish successful iPhone login, game compatibility, or measured FPS.
 

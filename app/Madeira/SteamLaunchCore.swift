@@ -1,5 +1,38 @@
 import Foundation
 
+/// Steam is a launcher, not a game discovered by the C:\Games scanner.
+struct SteamClientInstallation: Equatable {
+    static let relativeDirectories = ["Steam", "Program Files (x86)/Steam", "Program Files/Steam"]
+    let directory: URL
+    let executable: URL
+    let windowsDirectory: String
+
+    static func findAll(in drive: URL) -> [Self] {
+        relativeDirectories.compactMap { relative in
+            guard let directory = try? StoreFiles.destination(relative, root: drive),
+                  !FileManager.default.fileExists(atPath: directory.appendingPathComponent(".somethingpc-installing").path),
+                  let executable = try? StoreFiles.destination("steam.exe", root: directory),
+                  (try? GameFiles.gameExecutableMachine(executable)) == 0x8664,
+                  let clientDLL = try? StoreFiles.destination("steamclient64.dll", root: directory),
+                  (try? GameFiles.machine(clientDLL)) == 0x8664 else { return nil }
+            return Self(directory: directory, executable: executable,
+                        windowsDirectory: "C:\\" + relative.replacingOccurrences(of: "/", with: "\\"))
+        }
+    }
+
+    static func libraryCard(for client: Self?) -> LibraryGame {
+        var game = LibraryGame(id: "steam-client", title: "Steam",
+            publisher: client == nil ? "Install Steam" : "Installed · Windows x64",
+            executable: client?.executable, cover: nil, steamID: nil)
+        game.folder = client?.directory
+        return game
+    }
+
+    static func libraryApps(for client: Self?) -> [LibraryGame] {
+        [.pc, libraryCard(for: client)]
+    }
+}
+
 enum SteamInterface: String, CaseIterable {
     case standard, bigPicture
     var title: String { self == .standard ? "Standard Steam" : "Big Picture (experimental)" }
@@ -18,12 +51,19 @@ struct SteamLaunchPlan {
     let environment: [String: String]
 
     init(width: Int, height: Int, interface: SteamInterface = .standard,
-         webEngine: SteamWebEngine = .compatibility, appID: String? = nil) throws {
+         webEngine: SteamWebEngine = .compatibility, appID: String? = nil,
+         windowsDirectory: String = "C:\\Steam") throws {
         guard (640...3840).contains(width), (360...2160).contains(height) else {
             throw LibraryFailure.invalid("Unsupported Steam desktop resolution.")
         }
         if let appID, !SteamInstalledApp.validID(appID) {
             throw LibraryFailure.invalid("Invalid Steam app ID.")
+        }
+        let supportedDirectories = SteamClientInstallation.relativeDirectories.map {
+            "C:\\" + $0.replacingOccurrences(of: "/", with: "\\")
+        }
+        guard supportedDirectories.contains(windowsDirectory) else {
+            throw LibraryFailure.invalid("Steam must be in C:\\Steam or a standard Program Files Steam folder.")
         }
         var arguments = "-no-cef-sandbox -cef-disable-gpu -nocrashmonitor -cef-disable-features=SegmentationPlatform,OptimizationTargetPrediction,OptimizationHints"
         if interface == .bigPicture { arguments += " -gamepadui" }
@@ -31,8 +71,8 @@ struct SteamLaunchPlan {
         batch = [
             "@echo off",
             "start \"\" \"C:\\windows\\system32\\services.exe\"",
-            "cd /d \"C:\\Steam\"",
-            "\"C:\\Steam\\steam.exe\" \(arguments)",
+            "cd /d \"\(windowsDirectory)\"",
+            "\"\(windowsDirectory)\\steam.exe\" \(arguments)",
             ""
         ].joined(separator: "\r\n")
         environment = [
@@ -48,7 +88,7 @@ struct SteamLaunchPlan {
         guard preference != false else { return nil }
         guard let app else {
             if preference == true {
-                throw LibraryFailure.invalid("Steam launch needs a matching installed appmanifest in C:\\Steam\\steamapps. Install the game through Steam, or choose Direct EXE in Game Settings.")
+                throw LibraryFailure.invalid("Steam launch needs a matching installed appmanifest in a detected Steam folder. Install the game through Steam, or choose Direct EXE in Game Settings.")
             }
             return nil
         }
@@ -95,6 +135,23 @@ struct SteamInstalledApp: Equatable {
 struct SteamLibraryCatalog {
     let common: URL
     private let byFolder: [String: SteamInstalledApp]
+
+    static func discoverGames(in steamDirectory: URL, drive: URL) throws -> [LibraryGame] {
+        let catalog = try Self(steamDirectory: steamDirectory)
+        guard FileManager.default.fileExists(atPath: catalog.common.path) else { return [] }
+        let relative = try LibraryIndex.relative(steamDirectory, to: drive)
+        // Preserve IDs, favorites and per-game settings from the original C:\Steam scanner.
+        let prefix = relative == "Steam" ? "steam:" : "steam:\(relative):"
+        return try GameFiles.discover(in: catalog.common).map { game in
+            let app = (game.folder ?? game.executable).flatMap { catalog.app(containing: $0) }
+            var entry = LibraryGame(id: prefix + game.id, title: app?.name ?? game.title,
+                publisher: "Steam", executable: game.executable, cover: game.cover,
+                steamID: app?.id ?? game.steamID)
+            entry.candidates = game.candidates
+            entry.folder = game.folder
+            return entry
+        }
+    }
 
     init(steamDirectory: URL) throws {
         let apps = try StoreFiles.destination("steamapps", root: steamDirectory)

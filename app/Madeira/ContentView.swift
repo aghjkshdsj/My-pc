@@ -1032,12 +1032,9 @@ struct ContentView: View {
                         }
                         // Resolve the local installation again at launch; cached artwork IDs
                         // and user-supplied steam_appid.txt files cannot redirect a launch.
-                        let steamApp: SteamInstalledApp?
-                        if profile.launchThroughSteam != false && GameFiles.isInside(executable, root: GameLibrary.steamFolder) {
-                            steamApp = try SteamLibraryCatalog(steamDirectory: SteamInstaller.directory).app(containing: executable)
-                        } else { steamApp = nil }
-                        if let appID = try SteamLaunchPlan.route(app: steamApp, preference: profile.launchThroughSteam, arguments: profile.arguments) {
-                            try SteamInstaller.prepareLaunch(appID: appID)
+                        let steamLaunch = profile.launchThroughSteam == false ? nil : try SteamInstaller.gameLaunch(containing: executable)
+                        if let appID = try SteamLaunchPlan.route(app: steamLaunch?.app, preference: profile.launchThroughSteam, arguments: profile.arguments) {
+                            try SteamInstaller.prepareLaunch(appID: appID, clientDirectory: steamLaunch?.directory)
                         } else {
                             setenv("MADEIRA_USE_ARM64EC", machine == 0xaa64 || machine == 0xa64e ? "0" : "1", 1)
                             setenv("MADEIRA_EXE", try GameFiles.windowsPath(executable, drive: GameLibrary.drive), 1)

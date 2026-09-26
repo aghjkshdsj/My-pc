@@ -12,9 +12,13 @@ iOS or use an Android Linux container.
 2. Keep Standard Steam and Compatibility selected initially. Enable JIT with
    the existing StikDebug setup. Debugger detection is only a preflight check;
    executable-memory allocation is checked during runtime startup.
-3. Return to Library and tap Steam. Sign in, complete Steam Guard, and use
+3. Return to Library → Apps and tap the fixed Steam card (or Open Steam from
+   the Library's installer sheet). Its installed status updates after installation
+   without depending on the game scanner or saved game index. Sign in, complete Steam Guard, and use
    Steam's store/library/download UI. No native account token importer is used.
-4. Install into the default C:\Steam\steamapps\common location. Refresh Library
+4. Install into the default C:\Steam\steamapps\common location. Steam installations
+   in C:\Program Files (x86)\Steam and C:\Program Files\Steam are also detected,
+   launched from their actual paths, and scanned for games. Refresh Library
    after installation. Complete local appmanifest files supply game names and
    app IDs, even when the game does not ship a steam_appid.txt file.
 5. Restart the app before starting another session. A game with a matching
@@ -27,7 +31,14 @@ For Steam launches, put additional arguments in Steam → Properties → Launch
 Options. App-level EXE arguments are rejected with an explanation, rather than
 inserted into a batch file. Direct EXE mode still supports those arguments.
 Manually selecting an EXE does not override Steam's launcher in Steam mode.
-Additional Steam library locations are not indexed by this integration.
+Custom Steam library locations from libraryfolders.vdf are not indexed by this integration.
+The built-in Steam installer writes C:\Steam; it does not need C:\Games.
+Detection checks the x64 steam.exe and steamclient64.dll and excludes an
+installation marked as incomplete. A SteamSetup.exe download alone is not an
+installed client. 32-bit Steam clients are unsupported; the in-app downloader
+installs Valve's 64-bit client. This is Windows x64 Steam translated by FEX,
+not a native ARM version of Steam. The winlator-contents packages were assessed,
+not incorporated; the full-client path was selected instead of its headless agent.
 
 ## JIT and performance
 

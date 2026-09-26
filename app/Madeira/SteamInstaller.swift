@@ -80,6 +80,7 @@ enum StoreNetwork {
             do {
                 try await operation()
                 phase = "Installed. Return to Library to play."
+                GameLibrary.shared.refreshSteamClient()
                 GameLibrary.shared.refresh()
             } catch is CancellationError { phase = "Cancelled. Verified download packages are kept for retry." }
             catch {
@@ -100,9 +101,22 @@ enum StoreNetwork {
 
 enum SteamInstaller {
     static let directory = GameLibrary.drive.appendingPathComponent("Steam")
-    static var isInstalled: Bool {
-        !FileManager.default.fileExists(atPath: directory.appendingPathComponent(".somethingpc-installing").path) &&
-        (try? GameFiles.gameExecutableMachine(directory.appendingPathComponent("steam.exe"))) == 0x8664
+    static var installedClients: [SteamClientInstallation] {
+        SteamClientInstallation.findAll(in: GameLibrary.drive)
+    }
+    static var isInstalled: Bool { !installedClients.isEmpty }
+    static var libraryDirectories: [URL] {
+        [directory] + installedClients.map(\.directory).filter { $0.standardizedFileURL != directory.standardizedFileURL }
+    }
+
+    static func gameLaunch(containing executable: URL) throws -> (app: SteamInstalledApp, directory: URL)? {
+        for root in libraryDirectories {
+            guard GameFiles.isInside(executable, root: root.appendingPathComponent("steamapps/common")) else { continue }
+            if let app = try SteamLibraryCatalog(steamDirectory: root).app(containing: executable) {
+                return (app, root)
+            }
+        }
+        return nil
     }
 
     static func install() async throws {
@@ -175,8 +189,9 @@ enum SteamInstaller {
         SessionDiagnostics.shared.event("Installed verified official Steam win64 packages; version \(version)")
     }
 
-    static func prepareLaunch(appID: String? = nil) throws {
-        guard isInstalled else { throw LibraryFailure.invalid("Install or repair the 64-bit Steam client in Settings → Steam & GOG first.") }
+    static func prepareLaunch(appID: String? = nil, clientDirectory: URL? = nil) throws {
+        let client = installedClients.first { clientDirectory == nil || $0.directory.standardizedFileURL == clientDirectory?.standardizedFileURL }
+        guard let client else { throw LibraryFailure.invalid("Install or repair the complete 64-bit Steam client in Settings → Steam & GOG first. A downloaded SteamSetup.exe alone is not an installed client.") }
         guard jit_check_debugged() else { throw LibraryFailure.invalid("Steam requires FEX JIT. Enable JIT with StikDebug and retry.") }
         let defaults = UserDefaults.standard
         let interface = SteamInterface(rawValue: defaults.string(forKey: SteamLaunchPlan.interfaceKey) ?? "") ?? .standard
@@ -184,7 +199,7 @@ enum SteamInstaller {
         let plan = try SteamLaunchPlan(
             width: getenv("MADEIRA_SCREEN_W").flatMap { Int(String(cString: $0)) } ?? 960,
             height: getenv("MADEIRA_SCREEN_H").flatMap { Int(String(cString: $0)) } ?? 540,
-            interface: interface, webEngine: webEngine, appID: appID)
+            interface: interface, webEngine: webEngine, appID: appID, windowsDirectory: client.windowsDirectory)
         let file = try StoreFiles.destination("steam-launch.bat", root: GameLibrary.drive)
         try plan.batch.write(to: file, atomically: true, encoding: .utf8)
         for (key, value) in plan.environment { setenv(key, value, 1) }
