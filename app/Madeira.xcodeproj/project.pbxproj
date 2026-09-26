@@ -71,6 +71,7 @@
 		B1000630 /* madeira-jit.js in Resources */ = {isa = PBXBuildFile; fileRef = B2000630; };
 		B1000700 /* StoreCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000700; };
 		B1000701 /* SteamInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000701; };
+		B1000710 /* SteamLaunchCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000710; };
 		B1000702 /* GOGCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000702; };
 		B1000703 /* GOGStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000703; };
 /* End PBXBuildFile section */
@@ -151,6 +152,7 @@
 		B2000630 /* madeira-jit.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "madeira-jit.js"; sourceTree = "<group>"; };
 		B2000700 /* StoreCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreCore.swift; sourceTree = "<group>"; };
 		B2000701 /* SteamInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamInstaller.swift; sourceTree = "<group>"; };
+		B2000710 /* SteamLaunchCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamLaunchCore.swift; sourceTree = "<group>"; };
 		B2000702 /* GOGCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GOGCore.swift; sourceTree = "<group>"; };
 		B2000703 /* GOGStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GOGStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -219,6 +221,7 @@
 				B2000610 /* LocalAccountView.swift */,
 				B2000700 /* StoreCore.swift */,
 				B2000701 /* SteamInstaller.swift */,
+				B2000710 /* SteamLaunchCore.swift */,
 				B2000702 /* GOGCore.swift */,
 				B2000703 /* GOGStore.swift */,
 				B2000620 /* StoreLibrariesView.swift */,
@@ -390,6 +393,7 @@
 				B1000610 /* LocalAccountView.swift in Sources */,
 				B1000700 /* StoreCore.swift in Sources */,
 				B1000701 /* SteamInstaller.swift in Sources */,
+				B1000710 /* SteamLaunchCore.swift in Sources */,
 				B1000702 /* GOGCore.swift in Sources */,
 				B1000703 /* GOGStore.swift in Sources */,
 				B1000620 /* StoreLibrariesView.swift in Sources */,

@@ -175,23 +175,19 @@ enum SteamInstaller {
         SessionDiagnostics.shared.event("Installed verified official Steam win64 packages; version \(version)")
     }
 
-    static func prepareLaunch() throws {
+    static func prepareLaunch(appID: String? = nil) throws {
         guard isInstalled else { throw LibraryFailure.invalid("Install or repair the 64-bit Steam client in Settings → Steam & GOG first.") }
-        let batch = """
-        @echo off
-        start "" "C:\\windows\\system32\\services.exe"
-        cd /d "C:\\Steam"
-        "C:\\Steam\\steam.exe" -no-cef-sandbox -cef-disable-gpu -console -nocrashmonitor -cef-disable-features=SegmentationPlatform,OptimizationTargetPrediction,OptimizationHints
-        """
+        guard jit_check_debugged() else { throw LibraryFailure.invalid("Steam requires FEX JIT. Enable JIT with StikDebug and retry.") }
+        let defaults = UserDefaults.standard
+        let interface = SteamInterface(rawValue: defaults.string(forKey: SteamLaunchPlan.interfaceKey) ?? "") ?? .standard
+        let webEngine = SteamWebEngine(rawValue: defaults.string(forKey: SteamLaunchPlan.webEngineKey) ?? "") ?? .compatibility
+        let plan = try SteamLaunchPlan(
+            width: getenv("MADEIRA_SCREEN_W").flatMap { Int(String(cString: $0)) } ?? 960,
+            height: getenv("MADEIRA_SCREEN_H").flatMap { Int(String(cString: $0)) } ?? 540,
+            interface: interface, webEngine: webEngine, appID: appID)
         let file = try StoreFiles.destination("steam-launch.bat", root: GameLibrary.drive)
-        try batch.replacingOccurrences(of: "\n", with: "\r\n").write(to: file, atomically: true, encoding: .utf8)
-        setenv("MADEIRA_USE_ARM64EC", "0", 1)
-        setenv("MADEIRA_EXE", "explorer.exe", 1)
-        setenv("MADEIRA_DESKTOP", "1", 1)
-        setenv("MADEIRA_JITLESS", "1", 1)
-        let width = getenv("MADEIRA_SCREEN_W").map { String(cString: $0) } ?? "960"
-        let height = getenv("MADEIRA_SCREEN_H").map { String(cString: $0) } ?? "540"
-        setenv("MADEIRA_ARGS", "/desktop=shell,\(width)x\(height) cmd /c C:\\steam-launch.bat", 1)
-        SessionDiagnostics.shared.event("Steam launch: native ARM64 desktop → services → x64 Steam child via ARM64EC/FEX; CEF software rendering and jitless mode")
+        try plan.batch.write(to: file, atomically: true, encoding: .utf8)
+        for (key, value) in plan.environment { setenv(key, value, 1) }
+        SessionDiagnostics.shared.event("Steam launch: ARM64 desktop → x64 Steam via FEX CPU JIT; web engine=\(webEngine.rawValue); interface=\(interface.rawValue); app=\(appID ?? "client")")
     }
 }

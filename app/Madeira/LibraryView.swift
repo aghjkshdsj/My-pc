@@ -132,9 +132,11 @@ final class GameLibrary: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async {
             let result = Result { () throws -> LibraryIndex in
                 var found = try GameFiles.discover(in: Self.gamesFolder)
+                let steamCatalog = try SteamLibraryCatalog(steamDirectory: SteamInstaller.directory)
                 for (prefix, folder) in [("steam:", Self.steamFolder), ("gog:", Self.gogFolder)] {
                     found += try GameFiles.discover(in: folder).map { game in
-                        var entry = LibraryGame(id: prefix + game.id, title: game.title, publisher: prefix == "steam:" ? "Steam" : "GOG", executable: game.executable, cover: game.cover, steamID: game.steamID)
+                        let steamApp = prefix == "steam:" ? (game.folder ?? game.executable).flatMap { steamCatalog.app(containing: $0) } : nil
+                        var entry = LibraryGame(id: prefix + game.id, title: steamApp?.name ?? game.title, publisher: prefix == "steam:" ? "Steam" : "GOG", executable: game.executable, cover: game.cover, steamID: steamApp?.id ?? game.steamID)
                         entry.candidates = game.candidates
                         entry.folder = game.folder
                         return entry
@@ -470,6 +472,17 @@ struct GameSettingsView: View {
                     if !game.isDesktop { TextField("Launch arguments", text: $profile.arguments) }
                 }
                 Section("Compatibility") {
+                    if game.id.hasPrefix("steam:") {
+                        Picker("Launch using", selection: Binding<String>(
+                            get: { profile.launchThroughSteam.map { $0 ? "steam" : "direct" } ?? "automatic" },
+                            set: { profile.launchThroughSteam = $0 == "automatic" ? nil : $0 == "steam" })) {
+                            Text("Automatic").tag("automatic")
+                            Text("Steam client").tag("steam")
+                            Text("Direct EXE").tag("direct")
+                        }
+                        Text("Automatic uses Steam for games with a matching installed Steam manifest, so Steam can handle login and game startup. Otherwise it uses the selected EXE. Steam chooses its configured game launcher; set arguments in Steam → Properties → Launch Options.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     Toggle("Enable bundled ARM64 Visual C++", isOn: $profile.visualCppARM64)
                     Text("Installs the bundled, Microsoft-signed ARM64 DLLs and their verified version information for this session—no installer is launched. Experimental: some games remain incompatible. The default Wine/x64 exception handlers stay unchanged. Disable this option and restart to restore the default runtime.")
                         .font(.caption).foregroundStyle(.secondary)
