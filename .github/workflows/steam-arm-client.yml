@@ -2,7 +2,7 @@ name: Verify Valve ARM64 Steam client
 on:
   push:
     branches: [codex/steam-arm-linux]
-    paths: [build/linux-arm/steam-arm-fetch.py, build/linux-arm/test-steam-fetch.py, .github/workflows/steam-arm-client.yml]
+    paths: [build/linux-arm/steam-arm-fetch.py, build/linux-arm/test-steam-fetch.py, build/linux-arm/steam-session.sh, build/linux-arm/probe-steam.py, .github/workflows/steam-arm-client.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,3 +21,26 @@ jobs:
         with:
           name: valve-steam-arm64-verification
           path: build/linux-arm/output/steam-audit/arm64-verification.json
+  launch:
+    name: Open full ARM64 Steam client on Linux
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth x11-utils scrot dbus-x11 \
+            libgl1-mesa-dri libglx-mesa0 libegl-mesa0 mesa-vulkan-drivers libvulkan1 \
+            libxrandr2 libxinerama1 libxcursor1 libxcomposite1 libxdamage1 libxtst6 \
+            libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
+            libgtk-3-0t64 libgbm1 libdrm2 libibus-1.0-5 libnm0 libopenal1 \
+            libpipewire-0.3-0t64 libpulse0 libasound2t64 fonts-dejavu-core
+      - name: Download verified packages and open client without an account
+        run: xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session python3 build/linux-arm/probe-steam.py build/linux-arm/output/client-probe
+      - name: Preserve client diagnostics, not Valve packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: valve-arm64-client-probe
+          path: build/linux-arm/output/client-probe

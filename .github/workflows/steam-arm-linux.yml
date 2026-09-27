@@ -83,6 +83,8 @@ jobs:
         run: bash build/linux-arm/build-guest.sh
       - name: Verify boot, network, persistence and shutdown
         run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest
+      - name: Verify real X11 desktop, mouse and keyboard
+        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --desktop --expect-existing
       - name: Package test runtime
         run: |
           cd build/linux-arm/output/guest
@@ -97,7 +99,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-arm-boot-logs
-          path: build/linux-arm/output/guest/boot-*.log
+          path: |
+            build/linux-arm/output/guest/boot-*.log
+            build/linux-arm/output/guest/desktop.ppm
   apple-boot:
     name: Boot Linux through Apple framework and display bridge
     runs-on: macos-26
@@ -128,8 +132,11 @@ jobs:
       - name: Verify actual dylib boot and framebuffer
         run: |
           python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --expect-existing --display --desktop --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: linux-arm-apple-boot-logs
-          path: build/linux-arm/output/guest/boot-*.log
+          path: |
+            build/linux-arm/output/guest/boot-*.log
+            build/linux-arm/output/guest/desktop.ppm
