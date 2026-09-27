@@ -1,0 +1,22 @@
+name: ARM port diagnostic artifacts
+on:
+  push:
+    branches: [codex/steam-arm-linux]
+    paths: [.github/workflows/steam-arm-diagnostics.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  logs:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Read saved boot and client diagnostics
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run download 36319559959 --name linux-arm-boot-logs --dir guest
+          gh run download 36320095396 --name valve-arm64-client-probe --dir client
+          tail -n 160 guest/boot-3.log
+          cat client/launch.log client/dependencies.txt
+          find client/steam-logs -name '*.txt' -exec tail -n 100 {} \;
