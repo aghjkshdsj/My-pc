@@ -45,11 +45,22 @@ replace_once('build $QEMU_DIR --cross-prefix="" $QEMU_PLATFORM_BUILD_FLAGS $QEMU
     '''build $QEMU_SRC --cross-prefix="" $QEMU_PLATFORM_BUILD_FLAGS $QEMU_DEBUG_FLAGS --target-list=aarch64-softmmu --without-default-features --enable-tcg --enable-slirp --enable-pixman --enable-vnc --disable-tools --disable-docs --disable-guest-agent --disable-hvf''')
 replace_once("\nbuild_spice_client\nbuild_vulkan_drivers\nbuild_d3d_drivers\n", "\n")
 replace_once("\nremove_shared_gst_plugins # another hack...", "")
+replace_once("\nfixup_all\n", '\nmkdir -p "$PREFIX/libexec"\nfixup_all\n')
 script.write_text(source)
 # Extend QEMU's existing console translation unit with the small display ABI.
 # The append happens after extraction and after upstream's own patch is applied.
 display = pathlib.Path(__file__).with_name("qemu-display.inc.c").read_text()
 injection = '\n    cat >> "$BUILD_DIR/qemu-10.0.12-utm/ui/console.c" <<\'MYPC_DISPLAY_EOF\'\n' + display + '\nMYPC_DISPLAY_EOF\n'
+injection += '''    python3 - "$BUILD_DIR/qemu-10.0.12-utm/configure" "$PLATFORM" <<'MYPC_CROSS_PY'
+import pathlib, sys
+if sys.argv[2] == "ios":
+    path = pathlib.Path(sys.argv[1])
+    content = path.read_text()
+    anchor = '  echo "[properties]" >> $cross'
+    assert content.count(anchor) == 1, "QEMU cross-file anchor changed"
+    path.write_text(content.replace(anchor, anchor + '\\n  echo "needs_exe_wrapper = true" >> $cross'))
+MYPC_CROSS_PY
+'''
 marker = '    clone "$LIBUCONTEXT_REPO" "$LIBUCONTEXT_COMMIT"\n'
 if source.count(marker) != 1:
     raise SystemExit("Missing libucontext download anchor")

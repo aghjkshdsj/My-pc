@@ -19,6 +19,9 @@ jobs:
           xcrun --sdk iphoneos clang -target arm64-apple-ios17.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -std=c11 -Wall -Wextra -Werror -fsyntax-only app/Madeira/LinuxVMBridge.c
           node --test build/app-tests/jit-script.test.cjs
           python3 -m py_compile build/linux-arm/*.py
+          cp build/linux-arm/core-tests.swift "$RUNNER_TEMP/main.swift"
+          swiftc app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/linux-core-tests"
+          "$RUNNER_TEMP/linux-core-tests"
   qemu:
     name: QEMU ARM64 (${{ matrix.platform }})
     runs-on: macos-26
@@ -29,7 +32,13 @@ jobs:
         platform: [ios, macos]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: qemu-cache
+        with:
+          path: build/linux-arm/output/${{ matrix.platform }}
+          key: arm-qemu-v1-${{ matrix.platform }}-${{ hashFiles('build/linux-arm/build-qemu.sh', 'build/linux-arm/prepare-utm.py', 'build/linux-arm/qemu-display.inc.c', 'build/linux-arm/host-launcher.c', 'app/Madeira/LinuxVMBridge.*') }}
       - name: Install build tools
+        if: steps.qemu-cache.outputs.cache-hit != 'true'
         run: |
           brew install bison pkg-config gettext glib meson ninja
           echo "$(brew --prefix bison)/bin:$(brew --prefix gettext)/bin:$(brew --prefix glib)/bin" >> "$GITHUB_PATH"
@@ -37,6 +46,7 @@ jobs:
           build/linux-arm/venv/bin/pip install six pyparsing pyyaml setuptools distlib mako packaging
           echo "$PWD/build/linux-arm/venv/bin" >> "$GITHUB_PATH"
       - name: Build pinned QEMU framework
+        if: steps.qemu-cache.outputs.cache-hit != 'true'
         run: bash build/linux-arm/build-qemu.sh '${{ matrix.platform }}'
       - name: Upload framework
         uses: actions/upload-artifact@v4
