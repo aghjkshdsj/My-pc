@@ -173,6 +173,15 @@ def verify_arm64(path):
     if len(header) != 64 or header[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<H", header, 18)[0] != 183:
         raise ValueError(f"Not an AArch64 Linux ELF executable: {path}")
 
+def client_packages(packages, audit=False):
+    if audit:
+        return [p for p in packages if p["file"].startswith("bins_linuxarm64_linuxarm64.zip.")]
+    # This manifest also advertises legacy x86/SteamRT and Android packages.
+    # Install the full native client plus shared UI/resources. Legacy codec
+    # links target files produced later by x86 runtime extraction; they are
+    # unrelated to the ARM64 client's Steam/CEF executable and libraries.
+    return [p for p in packages if p["name"].endswith("_all") or "_linuxarm64_linuxarm64.zip." in p["file"]]
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--destination", type=pathlib.Path, default=pathlib.Path.home() / ".local/share/Steam")
@@ -185,8 +194,7 @@ def main():
         manifest = temporary / "manifest.vdf"
         fetch(CDN + MANIFEST, manifest, 2_000_000)
         version, packages = parse_manifest(manifest.read_text())
-        if args.audit:
-            packages = [p for p in packages if p["file"].startswith("bins_linuxarm64_linuxarm64.zip.")]
+        packages = client_packages(packages, args.audit)
         staged = temporary / "staged"
         staged.mkdir()
         links = []

@@ -10,6 +10,12 @@ steam = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(steam)
 
 class SteamARMTests(unittest.TestCase):
+    def test_native_client_keeps_browser_and_shared_ui(self):
+        names = ["steamui_websrc_all", "public_all", "webkit_linuxarm64_linuxarm64", "bins_linuxarm64_linuxarm64", "sdl3_linuxarm64_linuxarm64", "bins_steamrt_linuxarm64", "bins_androidarm64_linuxarm64"]
+        packages = [{"name": name, "file": name + ".zip." + "a" * 40} for name in names]
+        self.assertEqual([p["name"] for p in steam.client_packages(packages)], names[:5])
+        self.assertEqual([p["name"] for p in steam.client_packages(packages, True)], ["bins_linuxarm64_linuxarm64"])
+
     def test_requires_native_client_and_sha256(self):
         manifest = '"linuxarm64" { "version" "1" "bins_linuxarm64" { "file" "bins_linuxarm64_linuxarm64.zip.' + 'a' * 40 + '" "size" "64" "sha2" "' + 'b' * 64 + '" } }'
         self.assertEqual(steam.parse_manifest(manifest)[0], "1")
