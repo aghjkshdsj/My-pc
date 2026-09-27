@@ -1,6 +1,6 @@
 # ARM64 Linux Steam on iPhone: implementation record
 
-Status: development started; no ARM Steam IPA has been validated or released.
+Status: ARM64 Linux boots in CI; no ARM Steam IPA has been validated or released.
 The Windows Steam implementation and build 45 remain available.
 
 ## Objective
@@ -64,6 +64,16 @@ behavior inform this port; it is not an iOS runtime implementation.
 ## Resume record
 
 Branch: `codex/steam-arm-linux`, based on the existing Steam integration branch.
+Target: iPhone 15 Pro Max, 8 GB RAM, iOS 27. Initial Steam guest budget: 2 GiB
+plus 128 MiB TCG cache. Available system RAM is not an iOS per-app memory limit.
 Build scripts and CI live in `build/linux-arm` and
 `.github/workflows/steam-arm-linux.yml`. Update this section with actual test
 results and the next unresolved failure after each development stage.
+
+2026-09-26: [first Linux boot job](https://github.com/aghjkshdsj/My-pc/actions/runs/36283488715/job/108519714666)
+passed on an ARM64 Linux runner using TCG (no KVM). Debian trixie with kernel
+6.12.107 booted twice, reached the host HTTP probe, retained a file on ext4,
+and shut down cleanly. Runtime artifact approximately 286 MB compressed.
+This is a Linux-host boot result, not an iPhone result. Apple framework builds
+are still under validation. Next: boot through the exact Apple dylib bridge,
+verify framebuffer output, and integrate the iPhone session.

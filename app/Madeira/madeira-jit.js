@@ -247,7 +247,7 @@ while (!detached) {
     let x16 = x16Match ? x16Match.groups['reg'] : null;
 
     // Skip unknown BRK immediates (PC already advanced)
-    if ((brkImm !== 0xf00d && brkImm !== 0x69) || !x16) {
+    if ((brkImm !== 0xf00d && brkImm !== 0x69) || (brkImm === 0xf00d && !x16)) {
         // Set x0=0 (failure/skip indicator) so app's SIGTRAP fallback works
         send_command(`P0=${numberToLittleEndianHexString(0n)};thread:${tid};`);
         continue;
@@ -260,7 +260,7 @@ while (!detached) {
     let x1Match = /01:(?<reg>[0-9a-f]{16});/.exec(brkResponse);
     let x0 = x0Match ? littleEndianHexStringToNumber(x0Match.groups['reg']) : 0n;
     let x1 = x1Match ? littleEndianHexStringToNumber(x1Match.groups['reg']) : 0n;
-    let x16Num = littleEndianHexStringToNumber(x16);
+    let x16Num = x16 ? littleEndianHexStringToNumber(x16) : 0n;
 
     if (brkImm === 0xf00d) {
         ulog(`Madeira JIT: x16 = ${x16Num}`);
@@ -333,8 +333,9 @@ while (!detached) {
     } else if (brkImm === 0x69) {
         // Legacy protocol
         ulog(`Madeira JIT: legacy BRK 0x69, x0=0x${x0.toString(16)}`);
-        if (x0 !== 0n) {
-            prepare_memory_region(x0, x0);
+        if (x0 !== 0n && x1 !== 0n) {
+            // UTM/QEMU passes address in x0 and byte length in x1.
+            prepare_memory_region(x0, x1);
         }
         send_command(`P0=${numberToLittleEndianHexString(x0)};thread:${tid};`);
     }

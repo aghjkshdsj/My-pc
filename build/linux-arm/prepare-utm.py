@@ -42,9 +42,18 @@ function("build_qemu_dependencies", """    build $FFI_SRC
     meson_build $LIBUCONTEXT_REPO -Ddefault_library=static -Dfreestanding=true""")
 replace_once('HVF_FLAGS="--enable-hvf-private"', 'HVF_FLAGS="--disable-hvf"')
 replace_once('build $QEMU_DIR --cross-prefix="" $QEMU_PLATFORM_BUILD_FLAGS $QEMU_DEBUG_FLAGS',
-    '''build $QEMU_DIR --cross-prefix="" $QEMU_PLATFORM_BUILD_FLAGS $QEMU_DEBUG_FLAGS --target-list=aarch64-softmmu --without-default-features --enable-tcg --enable-slirp --enable-pixman --enable-vnc --disable-tools --disable-docs --disable-guest-agent --disable-hvf''')
+    '''build $QEMU_SRC --cross-prefix="" $QEMU_PLATFORM_BUILD_FLAGS $QEMU_DEBUG_FLAGS --target-list=aarch64-softmmu --without-default-features --enable-tcg --enable-slirp --enable-pixman --enable-vnc --disable-tools --disable-docs --disable-guest-agent --disable-hvf''')
 replace_once("\nbuild_spice_client\nbuild_vulkan_drivers\nbuild_d3d_drivers\n", "\n")
 replace_once("\nremove_shared_gst_plugins # another hack...", "")
+script.write_text(source)
+# Extend QEMU's existing console translation unit with the small display ABI.
+# The append happens after extraction and after upstream's own patch is applied.
+display = pathlib.Path(__file__).with_name("qemu-display.inc.c").read_text()
+injection = '\n    cat >> "$BUILD_DIR/qemu-10.0.12-utm/ui/console.c" <<\'MYPC_DISPLAY_EOF\'\n' + display + '\nMYPC_DISPLAY_EOF\n'
+marker = '    clone "$LIBUCONTEXT_REPO" "$LIBUCONTEXT_COMMIT"\n'
+if source.count(marker) != 1:
+    raise SystemExit("Missing libucontext download anchor")
+source = source.replace(marker, marker + injection, 1)
 script.write_text(source)
 # Prefer HTTPS even for upstream entries that still spell GNU URLs as HTTP.
 sources = root / "patches/sources"

@@ -2,7 +2,7 @@ name: ARM Linux runtime
 on:
   push:
     branches: [codex/steam-arm-linux]
-    paths: [build/linux-arm/**, .github/workflows/steam-arm-linux.yml]
+    paths: [build/linux-arm/**, app/Madeira/LinuxVM*, .github/workflows/steam-arm-linux.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,6 +10,15 @@ concurrency:
   group: arm-linux-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  bridge-checks:
+    name: iPhone bridge and JIT checks
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          xcrun --sdk iphoneos clang -target arm64-apple-ios17.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -std=c11 -Wall -Wextra -Werror -fsyntax-only app/Madeira/LinuxVMBridge.c
+          node --test build/app-tests/jit-script.test.cjs
+          python3 -m py_compile build/linux-arm/*.py
   qemu:
     name: QEMU ARM64 (${{ matrix.platform }})
     runs-on: macos-26
@@ -68,4 +77,35 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-arm-boot-logs
+          path: build/linux-arm/output/guest/boot-*.log
+  apple-boot:
+    name: Boot Linux through Apple framework and display bridge
+    runs-on: macos-26
+    needs: [qemu, guest, bridge-checks]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-qemu-macos
+          path: build/linux-arm/output/macos
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-guest
+          path: build/linux-arm/output
+      - name: Prepare runtime
+        run: |
+          mkdir -p build/linux-arm/output/guest
+          tar -xzf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm/output/guest
+          cd build/linux-arm/output/guest
+          shasum -a 256 -c SHA256SUMS
+          chmod +x ../macos/host-launcher
+          find ../macos/Frameworks -name '*.framework' -maxdepth 1 -exec codesign --force --sign - {} \;
+      - name: Verify actual dylib boot and framebuffer
+        run: |
+          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-arm-apple-boot-logs
           path: build/linux-arm/output/guest/boot-*.log

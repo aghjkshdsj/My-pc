@@ -21,3 +21,11 @@ ditto "$sysroot/Frameworks" "$repo_root/build/linux-arm/output/$platform/Framewo
 ditto "$sysroot/share/qemu" "$repo_root/build/linux-arm/output/$platform/qemu"
 find "$sysroot/Frameworks" -type f -perm +111 -exec otool -L {} \; > "$repo_root/build/linux-arm/output/$platform/dependencies.txt"
 printf '%s\n' "$utm_commit" > "$repo_root/build/linux-arm/output/$platform/utm-source-commit.txt"
+if [ "$platform" = macos ]; then
+    clang -std=c11 -Wall -Wextra -Wno-unused-parameter \
+        "$repo_root/build/linux-arm/host-launcher.c" \
+        "$repo_root/app/Madeira/LinuxVMBridge.c" \
+        -Wl,-rpath,@executable_path/Frameworks \
+        -o "$repo_root/build/linux-arm/output/$platform/host-launcher"
+    codesign --force --sign - "$repo_root/build/linux-arm/output/$platform/host-launcher"
+fi
