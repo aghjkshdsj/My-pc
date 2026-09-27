@@ -1,0 +1,23 @@
+name: Verify Valve ARM64 Steam client
+on:
+  push:
+    branches: [codex/steam-arm-linux]
+    paths: [build/linux-arm/steam-arm-fetch.py, build/linux-arm/test-steam-fetch.py, .github/workflows/steam-arm-client.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer regression checks
+        run: python3 build/linux-arm/test-steam-fetch.py
+      - name: Verify official package checksum and ARM64 executable
+        run: python3 build/linux-arm/steam-arm-fetch.py --audit --destination build/linux-arm/output/steam-audit
+      - name: Preserve architecture and checksum report
+        uses: actions/upload-artifact@v4
+        with:
+          name: valve-steam-arm64-verification
+          path: build/linux-arm/output/steam-audit/arm64-verification.json
