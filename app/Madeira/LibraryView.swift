@@ -275,8 +275,8 @@ struct LibraryView: View {
                                         Button { linuxPresented = true } label: {
                                             VStack(spacing: 12) {
                                                 Image(systemName: "desktopcomputer").font(.largeTitle)
-                                                Text("Linux ARM64").font(.headline)
-                                                Text("Development preview").font(.caption).foregroundStyle(.secondary)
+                                                Text("Steam ARM64").font(.headline)
+                                                Text("Linux • Experimental").font(.caption).foregroundStyle(.secondary)
                                             }
                                             .frame(maxWidth: .infinity, minHeight: 180)
                                             .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))

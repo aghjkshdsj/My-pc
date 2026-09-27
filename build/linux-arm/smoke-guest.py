@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory() as directory:
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         for boot in ((3,) if args.desktop else (1, 2)):
-            command = ["qemu-system-aarch64", "-machine", "virt", "-cpu", "cortex-a72", "-accel", "tcg,thread=multi,tb-size=128", "-smp", "2", "-m", "768", "-display", "none", "-monitor", "none", "-serial", "stdio", "-no-reboot", "-kernel", str(guest / "Image"), "-initrd", str(guest / "initrd.img"), "-append", "console=ttyAMA0 root=/dev/vda rw my_pc_smoke=1 panic=-1", "-drive", f"file={guest / 'rootfs.raw'},format=raw,if=virtio", "-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0"]
+            command = ["qemu-system-aarch64", "-machine", "virt", "-cpu", "cortex-a72", "-accel", "tcg,thread=multi,tb-size=128", "-smp", "2", "-m", "768", "-display", "none", "-monitor", "none", "-serial", "stdio", "-no-reboot", "-kernel", str(guest / "Image"), "-initrd", str(guest / "initrd.img"), "-append", "console=ttyAMA0 root=/dev/vda rw my_pc_smoke=1 panic=-1", "-drive", f"file={guest / 'rootfs.raw'},format=raw,if=virtio", "-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0,romfile="]
             if args.launcher:
                 if not args.library:
                     raise SystemExit("--launcher requires --library")

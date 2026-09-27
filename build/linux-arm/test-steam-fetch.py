@@ -74,5 +74,9 @@ class SteamARMTests(unittest.TestCase):
                 package.writestr(entry, "real")
             steam.install_links(steam.extract(archive, destination), destination)
             self.assertEqual((destination / "libs/link").read_text(), "library")
+            steam.install_links([(destination / "alias", "libs")], destination)
+            self.assertEqual((destination / "alias/real").read_text(), "library")
+            with self.assertRaises(ValueError):
+                steam.install_links([(destination / "libs/loop", "..")], destination)
 
 unittest.main()

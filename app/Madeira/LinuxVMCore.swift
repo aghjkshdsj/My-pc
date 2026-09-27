@@ -12,6 +12,7 @@ struct LinuxVMConfiguration {
     let control: URL
     var memoryMiB = 2048
     var cpuCount = 2
+    var resources: URL?
 
     func arguments() throws -> [String] {
         guard (512...3072).contains(memoryMiB), (1...4).contains(cpuCount) else {
@@ -39,7 +40,7 @@ struct LinuxVMConfiguration {
         }
         let storage = try json(["driver": "file", "filename": files[2].path, "node-name": "linux-file"])
         let raw = try json(["driver": "raw", "file": "linux-file", "node-name": "linux-root"])
-        return ["qemu-system-aarch64", "-no-user-config", "-nodefaults",
+        var arguments = ["qemu-system-aarch64", "-no-user-config", "-nodefaults",
                 "-machine", "virt-10.0,highmem=off", "-cpu", "cortex-a72",
                 "-accel", "tcg,thread=multi,tb-size=128,split-wx=on",
                 "-smp", String(cpuCount), "-m", String(memoryMiB),
@@ -47,13 +48,15 @@ struct LinuxVMConfiguration {
                 "-append", "console=ttyAMA0 root=/dev/vda rw quiet loglevel=3",
                 "-blockdev", storage, "-blockdev", raw,
                 "-device", "virtio-blk-pci,drive=linux-root",
-                "-netdev", "user,id=linux-net", "-device", "virtio-net-pci,netdev=linux-net",
+                "-netdev", "user,id=linux-net", "-device", "virtio-net-pci,netdev=linux-net,romfile=",
                 "-device", "virtio-gpu-pci,xres=960,yres=540",
                 "-device", "qemu-xhci", "-device", "usb-tablet", "-device", "usb-kbd",
                 "-display", "none", "-monitor", "none", "-no-reboot",
                 "-chardev", "file,id=linux-serial,path=\(log.path)", "-serial", "chardev:linux-serial",
                 "-chardev", "socket,id=linux-control,path=\(control.path),server=on,wait=off",
                 "-mon", "chardev=linux-control,mode=control"]
+        if let resources { arguments += ["-L", resources.path] }
+        return arguments
     }
 
     private func asset(_ name: String) throws -> URL {
@@ -109,5 +112,41 @@ enum LinuxQMP {
             ["type": "abs", "data": ["axis": "y", "value": coordinate(y)]],
             ["type": "btn", "data": ["button": "left", "down": down]]
         ]]
+    }
+
+    static func key(_ code: String, down: Bool) -> [String: Any] {
+        ["type": "key", "data": ["down": down, "key": ["type": "qcode", "data": code]]]
+    }
+
+    /// Guest keyboard layout is US. Validate the whole string before typing any
+    /// character, so an unsupported pasted password is never partially entered.
+    static func text(_ text: String) throws -> [String: Any] {
+        guard text.count <= 1024 else { throw LinuxVMError.invalid("Paste at most 1,024 characters at a time.") }
+        let plain = Array("`1234567890-=[]\\;',./")
+        let shifted = Array("~!@#$%^&*()_+{}|:\"<>?")
+        let codes = ["grave_accent", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "minus", "equal", "bracket_left", "bracket_right", "backslash", "semicolon", "apostrophe", "comma", "dot", "slash"]
+        var events = [[String: Any]]()
+        for character in text {
+            let code: String
+            var shift = false
+            if let ascii = character.asciiValue, (65...90).contains(ascii) {
+                code = String(character).lowercased(); shift = true
+            } else if let ascii = character.asciiValue, (97...122).contains(ascii) {
+                code = String(character)
+            } else if let index = plain.firstIndex(of: character) { code = codes[index] }
+            else if let index = shifted.firstIndex(of: character) { code = codes[index]; shift = true }
+            else {
+                switch character {
+                case " ": code = "spc"
+                case "\n", "\r": code = "ret"
+                case "\t": code = "tab"
+                default: throw LinuxVMError.invalid("The Linux keyboard currently supports the US English character set.")
+                }
+            }
+            if shift { events.append(key("shift", down: true)) }
+            events += [key(code, down: true), key(code, down: false)]
+            if shift { events.append(key("shift", down: false)) }
+        }
+        return ["events": events]
     }
 }

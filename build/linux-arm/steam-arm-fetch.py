@@ -145,20 +145,26 @@ def install_links(links, destination):
             source = (target.parent / link).resolve()
             if not source.is_relative_to(destination.resolve()):
                 raise ValueError("Steam symbolic link escapes staging directory")
-            if not source.is_file():
+            if not source.exists():
                 remaining.append((target, link))
                 continue
+            if source.is_dir() and target.parent.resolve().is_relative_to(source):
+                raise ValueError("Steam directory link creates a recursive tree")
             target.parent.mkdir(parents=True, exist_ok=True)
             if target.exists() or target.is_symlink():
                 raise ValueError("Duplicate Steam symbolic link destination")
             if os.name == "nt":
-                shutil.copy2(source, target)
+                if source.is_dir():
+                    shutil.copytree(source, target)
+                else:
+                    shutil.copy2(source, target)
             else:
                 target.symlink_to(link)
         if not remaining:
             return
         if len(remaining) == len(pending):
-            raise ValueError("Steam package contains dangling or cyclic links")
+            details = [f"{target.relative_to(destination)} -> {link}" for target, link in remaining[:20]]
+            raise ValueError("Steam package contains dangling or cyclic links: " + "; ".join(details))
         pending = remaining
 
 def verify_arm64(path):

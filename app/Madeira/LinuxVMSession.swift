@@ -186,7 +186,8 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
             let control = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("linux-qmp")
             if FileManager.default.fileExists(atPath: control.path) { try FileManager.default.removeItem(at: control) }
             let log = Self.directory.appendingPathComponent("boot.log")
-            let arguments = try LinuxVMConfiguration(directory: Self.directory, log: log, control: control).arguments()
+            let arguments = try LinuxVMConfiguration(directory: Self.directory, log: log, control: control,
+                resources: Bundle.main.bundleURL.appendingPathComponent("QEMU")).arguments()
             jit_install_trap_handler()
             started = true; running = true; status = "Booting ARM64 Linux…"
             UIApplication.shared.isIdleTimerDisabled = true
@@ -234,5 +235,14 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
     func setBackground(_ background: Bool) {
         guard connected else { return }
         qmp.send(background ? "stop" : "cont")
+    }
+    func type(_ text: String) {
+        guard connected, !text.isEmpty else { return }
+        do { qmp.send("input-send-event", arguments: try LinuxQMP.text(text)) }
+        catch { self.error = error.localizedDescription }
+    }
+    func press(_ code: String) {
+        guard connected, ["esc", "tab", "ret", "backspace", "up", "down", "left", "right"].contains(code) else { return }
+        qmp.send("input-send-event", arguments: ["events": [LinuxQMP.key(code, down: true), LinuxQMP.key(code, down: false)]])
     }
 }

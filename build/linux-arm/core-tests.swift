@@ -42,4 +42,10 @@ rejects { _ = try LinuxQMP.reply(Data(#"{"error":{"desc":"failure"},"id":1}"#.ut
 rejects { _ = try LinuxQMP.command("human-monitor-command", id: 1) }
 let pointer = LinuxQMP.pointer(x: .infinity, y: -1, down: true)
 check(JSONSerialization.isValidJSONObject(pointer), "Pointer event must handle invalid input")
+let typed = try LinuxQMP.text("aA@! ")
+let events = typed["events"] as! [[String: Any]]
+check(events.count == 16, "Each character must release its key and any shift modifier")
+check(JSONSerialization.isValidJSONObject(typed), "Keyboard must form valid QMP events")
+rejects { _ = try LinuxQMP.text("password🙂") }
+rejects { _ = try LinuxQMP.text(String(repeating: "a", count: 1025)) }
 print("PASS: Linux launch validation, disk paths, JIT options, control replies and input bounds")
