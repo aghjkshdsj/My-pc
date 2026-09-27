@@ -22,6 +22,9 @@ jobs:
           cp build/linux-arm/core-tests.swift "$RUNNER_TEMP/main.swift"
           swiftc app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/linux-core-tests"
           "$RUNNER_TEMP/linux-core-tests"
+          cp build/linux-arm/installer-tests.swift "$RUNNER_TEMP/main.swift"
+          swiftc app/Madeira/GameLibraryCore.swift app/Madeira/StoreCore.swift app/Madeira/LinuxVMCore.swift app/Madeira/LinuxRuntimeInstaller.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/linux-installer-tests"
+          "$RUNNER_TEMP/linux-installer-tests"
   qemu:
     name: QEMU ARM64 (${{ matrix.platform }})
     runs-on: macos-26

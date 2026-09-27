@@ -129,16 +129,39 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
         return FileManager.default.fileExists(atPath: file.path) ? file : nil
     }
     static let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].resolvingSymlinksInPath().appendingPathComponent("LinuxARM")
+    static var bundledRuntime: URL? {
+        let folder = Bundle.main.bundleURL.appendingPathComponent("LinuxRuntime")
+        return FileManager.default.fileExists(atPath: folder.appendingPathComponent("manifest.json").path) ? folder : nil
+    }
     @Published private(set) var status = "Import the ARM64 Linux runtime folder to begin."
     @Published private(set) var running = false
     @Published private(set) var started = false
     @Published private(set) var connected = false
     @Published private(set) var installing = false
+    @Published private(set) var installProgress = 0.0
     @Published private(set) var image: CGImage?
     @Published var error: String?
     private var timer: Timer?
     private let qmp = LinuxQMPConnection()
     var installed: Bool { FileManager.default.fileExists(atPath: Self.directory.appendingPathComponent("rootfs.raw").path) }
+
+    func installBundledRuntime() {
+        guard !started, !installing, !GameLibrary.shared.sessionStarted, let source = Self.bundledRuntime else { return }
+        installing = true; installProgress = 0
+        status = "Installing Linux runtime… Keep My-pc open."
+        let destination = Self.directory
+        Task {
+            do {
+                try await Task.detached(priority: .userInitiated) {
+                    try LinuxRuntimeInstaller.install(from: source, to: destination) { fraction in
+                        Task { @MainActor in self.installProgress = fraction }
+                    }
+                }.value
+                status = "Linux runtime installed. Enable JIT, then open Steam."
+            } catch { self.error = error.localizedDescription; status = "Linux installation failed." }
+            installing = false
+        }
+    }
 
     func importRuntime(_ source: URL) {
         guard !started, !installing, !GameLibrary.shared.sessionStarted else { error = "Restart My-pc before importing a Linux runtime."; return }

@@ -57,5 +57,9 @@ with (output / 'launch.log').open('w') as log:
             shutil.copytree(logs, output / 'steam-logs', dirs_exist_ok=True)
         shutil.copy2(steam / 'arm64-verification.json', output / 'arm64-verification.json')
 if not success:
+    for path in [output / 'launch.log', output / 'dependencies.txt', *sorted((output / 'steam-logs').glob('*.txt'))]:
+        if path.is_file():
+            print(f'\n{path.name}:\n{path.read_text(errors="replace")[-16000:]}')
+if not success:
     raise SystemExit('ARM Steam did not present a client window with a CEF renderer. Inspect launch/dependency/Steam logs.')
 print('PASS: ARM64 Steam client window and CEF renderer on Linux; no account login attempted')

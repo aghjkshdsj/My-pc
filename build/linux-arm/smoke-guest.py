@@ -79,7 +79,11 @@ with tempfile.TemporaryDirectory() as directory:
                                     {"type": "btn", "data": {"button": "left", "down": down}},
                                     {"type": "key", "data": {"key": {"type": "qcode", "data": "ret"}, "down": down}}
                                 ]})
-                    process.wait(timeout=360)
+                    try:
+                        process.wait(timeout=360)
+                    except subprocess.TimeoutExpired:
+                        print(log.read_text(errors="replace")[-12000:])
+                        raise
                 finally:
                     if process.poll() is None:
                         process.kill()

@@ -78,6 +78,7 @@
 		B1000721 /* LinuxVMSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000721; };
 		B1000722 /* LinuxVMView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000722; };
 		B1000723 /* LinuxVMBridge.c in Sources */ = {isa = PBXBuildFile; fileRef = B2000723; };
+		B1000725 /* LinuxRuntimeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000725; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -164,6 +165,7 @@
 		B2000722 /* LinuxVMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinuxVMView.swift; sourceTree = "<group>"; };
 		B2000723 /* LinuxVMBridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxVMBridge.c; sourceTree = "<group>"; };
 		B2000724 /* LinuxVMBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LinuxVMBridge.h; sourceTree = "<group>"; };
+		B2000725 /* LinuxRuntimeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinuxRuntimeInstaller.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -231,6 +233,7 @@
 				B2000700 /* StoreCore.swift */,
 				B2000701 /* SteamInstaller.swift */,
 				B2000710 /* SteamLaunchCore.swift */,
+				B2000725 /* LinuxRuntimeInstaller.swift */,
 				B2000724 /* LinuxVMBridge.h */,
 				B2000723 /* LinuxVMBridge.c */,
 				B2000722 /* LinuxVMView.swift */,
@@ -408,6 +411,7 @@
 				B1000700 /* StoreCore.swift in Sources */,
 				B1000701 /* SteamInstaller.swift in Sources */,
 				B1000710 /* SteamLaunchCore.swift in Sources */,
+				B1000725 /* LinuxRuntimeInstaller.swift in Sources */,
 				B1000723 /* LinuxVMBridge.c in Sources */,
 				B1000722 /* LinuxVMView.swift in Sources */,
 				B1000721 /* LinuxVMSession.swift in Sources */,

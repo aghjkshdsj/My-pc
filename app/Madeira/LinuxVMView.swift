@@ -54,7 +54,7 @@ struct LinuxVMView: View {
                 } else {
                     Image(systemName: "desktopcomputer").font(.system(size: 64)).foregroundStyle(.secondary)
                     Text("Steam ARM64 preview").font(.title2.bold())
-                    Text("Import the Linux runtime, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. This experimental build still needs iPhone testing.")
+                    Text("Set up Linux, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. This experimental build still needs iPhone testing.")
                         .foregroundStyle(.secondary).multilineTextAlignment(.center)
                     Spacer()
                 }
@@ -69,9 +69,13 @@ struct LinuxVMView: View {
                         Button("↓") { session.press("down") }
                     }.buttonStyle(.bordered)
                 }
-                if session.installing { ProgressView() }
+                if session.installing { ProgressView(value: session.installProgress) }
                 HStack {
                     if !session.installed {
+                        if LinuxVMSession.bundledRuntime != nil {
+                            Button("Set up Steam ARM64") { session.installBundledRuntime() }
+                                .buttonStyle(.borderedProminent).disabled(session.installing)
+                        }
                         Button("Import runtime folder") { importing = true }.disabled(session.installing)
                     } else if !session.started {
                         Button("Enable JIT") {
