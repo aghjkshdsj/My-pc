@@ -48,11 +48,21 @@ jobs:
       - name: Build pinned QEMU framework
         if: steps.qemu-cache.outputs.cache-hit != 'true'
         run: bash build/linux-arm/build-qemu.sh '${{ matrix.platform }}'
+      - name: Verify exports and preserve framework layout
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          binary="build/linux-arm/output/$PLATFORM/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu"
+          nm -gU "$binary" > "build/linux-arm/output/$PLATFORM/exports.txt"
+          for symbol in qemu_init qemu_main_loop qemu_cleanup my_pc_display_start my_pc_display_stop; do
+            grep -Eq " _$symbol$" "build/linux-arm/output/$PLATFORM/exports.txt"
+          done
+          tar -czf "build/linux-arm/output/linux-arm-qemu-$PLATFORM.tar.gz" -C "build/linux-arm/output/$PLATFORM" .
       - name: Upload framework
         uses: actions/upload-artifact@v4
         with:
           name: linux-arm-qemu-${{ matrix.platform }}
-          path: build/linux-arm/output/${{ matrix.platform }}/
+          path: build/linux-arm/output/linux-arm-qemu-${{ matrix.platform }}.tar.gz
       - name: Preserve build diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,19 +108,23 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: linux-arm-qemu-macos
-          path: build/linux-arm/output/macos
+          path: build/linux-arm/output
       - uses: actions/download-artifact@v4
         with:
           name: linux-arm-guest
           path: build/linux-arm/output
       - name: Prepare runtime
         run: |
-          mkdir -p build/linux-arm/output/guest
+          mkdir -p build/linux-arm/output/guest build/linux-arm/output/macos
+          tar -xzf build/linux-arm/output/linux-arm-qemu-macos.tar.gz -C build/linux-arm/output/macos
           tar -xzf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm/output/guest
           cd build/linux-arm/output/guest
           shasum -a 256 -c SHA256SUMS
           chmod +x ../macos/host-launcher
-          find ../macos/Frameworks -name '*.framework' -maxdepth 1 -exec codesign --force --sign - {} \;
+          for framework in ../macos/Frameworks/*.framework; do
+            codesign --force --sign - "$framework"
+            codesign --verify --strict "$framework"
+          done
       - name: Verify actual dylib boot and framebuffer
         run: |
           python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu

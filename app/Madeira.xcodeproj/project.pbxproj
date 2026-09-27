@@ -74,6 +74,10 @@
 		B1000710 /* SteamLaunchCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000710; };
 		B1000702 /* GOGCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000702; };
 		B1000703 /* GOGStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000703; };
+		B1000720 /* LinuxVMCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000720; };
+		B1000721 /* LinuxVMSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000721; };
+		B1000722 /* LinuxVMView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000722; };
+		B1000723 /* LinuxVMBridge.c in Sources */ = {isa = PBXBuildFile; fileRef = B2000723; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -155,6 +159,11 @@
 		B2000710 /* SteamLaunchCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamLaunchCore.swift; sourceTree = "<group>"; };
 		B2000702 /* GOGCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GOGCore.swift; sourceTree = "<group>"; };
 		B2000703 /* GOGStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GOGStore.swift; sourceTree = "<group>"; };
+		B2000720 /* LinuxVMCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinuxVMCore.swift; sourceTree = "<group>"; };
+		B2000721 /* LinuxVMSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinuxVMSession.swift; sourceTree = "<group>"; };
+		B2000722 /* LinuxVMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinuxVMView.swift; sourceTree = "<group>"; };
+		B2000723 /* LinuxVMBridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxVMBridge.c; sourceTree = "<group>"; };
+		B2000724 /* LinuxVMBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LinuxVMBridge.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -222,6 +231,11 @@
 				B2000700 /* StoreCore.swift */,
 				B2000701 /* SteamInstaller.swift */,
 				B2000710 /* SteamLaunchCore.swift */,
+				B2000724 /* LinuxVMBridge.h */,
+				B2000723 /* LinuxVMBridge.c */,
+				B2000722 /* LinuxVMView.swift */,
+				B2000721 /* LinuxVMSession.swift */,
+				B2000720 /* LinuxVMCore.swift */,
 				B2000702 /* GOGCore.swift */,
 				B2000703 /* GOGStore.swift */,
 				B2000620 /* StoreLibrariesView.swift */,
@@ -394,6 +408,10 @@
 				B1000700 /* StoreCore.swift in Sources */,
 				B1000701 /* SteamInstaller.swift in Sources */,
 				B1000710 /* SteamLaunchCore.swift in Sources */,
+				B1000723 /* LinuxVMBridge.c in Sources */,
+				B1000722 /* LinuxVMView.swift in Sources */,
+				B1000721 /* LinuxVMSession.swift in Sources */,
+				B1000720 /* LinuxVMCore.swift in Sources */,
 				B1000702 /* GOGCore.swift in Sources */,
 				B1000703 /* GOGStore.swift in Sources */,
 				B1000620 /* StoreLibrariesView.swift in Sources */,

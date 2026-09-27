@@ -40,7 +40,12 @@ int spc_linux_run(const char *library, int argc, char **argv,
         (int (*)(spc_linux_frame_callback, void *))dlsym(handle, "my_pc_display_start");
     void (*display_stop)(void) = (void (*)(void))dlsym(handle, "my_pc_display_stop");
     if (!initialize || !run_loop || !cleanup || (frame && (!display_start || !display_stop))) {
-        snprintf(error, error_capacity, "The bundled QEMU runtime has an incompatible ABI.");
+        snprintf(error, error_capacity,
+                 "QEMU runtime is missing required exports:%s%s%s%s%s",
+                 initialize ? "" : " qemu_init", run_loop ? "" : " qemu_main_loop",
+                 cleanup ? "" : " qemu_cleanup",
+                 !frame || display_start ? "" : " my_pc_display_start",
+                 !frame || display_stop ? "" : " my_pc_display_stop");
         dlclose(handle);
         atomic_store(&claimed, false);
         return -1;

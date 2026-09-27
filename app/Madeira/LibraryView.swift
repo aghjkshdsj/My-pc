@@ -255,6 +255,7 @@ struct LibraryView: View {
     @State private var sharing = false
     @State private var supportPresented = false
     @State private var storesPresented = false
+    @State private var linuxPresented = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -270,6 +271,17 @@ struct LibraryView: View {
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: geometry.size.width > geometry.size.height ? 4 : 2), spacing: 20) {
                                 Section {
                                     ForEach(library.apps) { game in libraryCard(game) }
+                                    if LinuxVMSession.framework != nil {
+                                        Button { linuxPresented = true } label: {
+                                            VStack(spacing: 12) {
+                                                Image(systemName: "desktopcomputer").font(.largeTitle)
+                                                Text("Linux ARM64").font(.headline)
+                                                Text("Development preview").font(.caption).foregroundStyle(.secondary)
+                                            }
+                                            .frame(maxWidth: .infinity, minHeight: 180)
+                                            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
+                                        }.buttonStyle(.plain)
+                                    }
                                 } header: {
                                     Text("Apps").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
                                 }
@@ -310,6 +322,7 @@ struct LibraryView: View {
             if phase == .active { library.refreshSteamClient() }
         }
         .sheet(item: $selectedGame) { GameSettingsView(game: $0) }
+        .fullScreenCover(isPresented: $linuxPresented) { LinuxVMView() }
         .sheet(isPresented: $storesPresented, onDismiss: { library.refreshSteamClient() }) {
             NavigationStack {
                 StoreLibrariesView(openSteam: { storesPresented = false; play(.steam) })
@@ -387,6 +400,10 @@ struct LibraryView: View {
     }
 
     private func play(_ game: LibraryGame) {
+        guard !LinuxVMSession.shared.started, !LinuxVMSession.shared.installing else {
+            library.error = "Restart My-pc before switching from Linux to Windows."
+            return
+        }
         if game.id == "steam-client" && !SteamInstaller.isInstalled { storesPresented = true }
         else if !game.isDesktop && game.executable == nil { selectedGame = game }
         else { launch(game, library.profile(for: game)) }

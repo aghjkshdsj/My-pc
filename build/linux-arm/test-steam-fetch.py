@@ -36,18 +36,43 @@ class SteamARMTests(unittest.TestCase):
             destination = root / "staged"
             destination.mkdir()
             archive = root / "package.zip"
-            for name in ["../outside", "/outside", "a/../../outside", "a\\outside", "C:outside"]:
-                with zipfile.ZipFile(archive, "w") as package:
-                    package.writestr(name, "bad")
-                with self.assertRaises(ValueError):
-                    steam.extract(archive, destination)
+            for name in ["../outside", "/outside", "a/../../outside", "a\\..\\..\\outside", "C:outside"]:
+                with self.subTest(name=name):
+                    entry = zipfile.ZipInfo("placeholder")
+                    entry.filename = name  # Preserve malicious backslashes on Windows too.
+                    with zipfile.ZipFile(archive, "w") as package:
+                        package.writestr(entry, "bad")
+                    with self.assertRaises(ValueError):
+                        steam.extract(archive, destination)
             with zipfile.ZipFile(archive, "w") as package:
                 package.writestr("config/loginusers.vdf", "do not install")
                 package.writestr("steamapps/game", "do not install")
                 package.writestr("steamrtarm64/steam", "ok")
+                package.writestr("steamrtarm64\\libs/", "")
             steam.extract(archive, destination)
             self.assertFalse((destination / "config").exists())
             self.assertFalse((destination / "steamapps").exists())
             self.assertEqual((destination / "steamrtarm64/steam").read_text(), "ok")
+
+    def test_internal_links_and_escaping_links(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            destination = root / "staged"
+            destination.mkdir()
+            archive = root / "package.zip"
+            for value in ["../../outside", "/outside"]:
+                entry = zipfile.ZipInfo("libs/link")
+                entry.external_attr = 0o120755 << 16
+                with zipfile.ZipFile(archive, "w") as package:
+                    package.writestr(entry, value)
+                with self.assertRaises(ValueError):
+                    steam.extract(archive, destination)
+            entry = zipfile.ZipInfo("libs/link")
+            entry.external_attr = 0o120755 << 16
+            with zipfile.ZipFile(archive, "w") as package:
+                package.writestr("libs/real", "library")
+                package.writestr(entry, "real")
+            steam.install_links(steam.extract(archive, destination), destination)
+            self.assertEqual((destination / "libs/link").read_text(), "library")
 
 unittest.main()

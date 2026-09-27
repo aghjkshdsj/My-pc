@@ -67,6 +67,10 @@ enum StoreNetwork {
 
     func start(_ title: String, operation: @escaping @Sendable () async throws -> Void) {
         guard !busy else { return }
+        guard !LinuxVMSession.shared.started, !LinuxVMSession.shared.installing else {
+            error = "Restart My-pc before installing Windows software after a Linux session."
+            return
+        }
         guard !GameLibrary.shared.sessionStarted, wine_process_is_running() == 0, wineserver_is_running() == 0 else {
             error = "Restart Something PC before installing. Files cannot be changed while Windows is running."
             return

@@ -53,6 +53,10 @@ display = pathlib.Path(__file__).with_name("qemu-display.inc.c").read_text()
 injection = '\n    cat >> "$BUILD_DIR/qemu-10.0.12-utm/ui/console.c" <<\'MYPC_DISPLAY_EOF\'\n' + display + '\nMYPC_DISPLAY_EOF\n'
 injection += '''    python3 - "$BUILD_DIR/qemu-10.0.12-utm/configure" "$PLATFORM" <<'MYPC_CROSS_PY'
 import pathlib, sys
+symbols = pathlib.Path(sys.argv[1]).parent / "system/qemu.symbols"
+exports = symbols.read_text()
+assert exports.count("  qemu_init;") == 1, "QEMU exported symbol anchor changed"
+symbols.write_text(exports.replace("  qemu_init;", "  qemu_init;\\n  my_pc_display_start;\\n  my_pc_display_stop;"))
 if sys.argv[2] == "ios":
     path = pathlib.Path(sys.argv[1])
     content = path.read_text()

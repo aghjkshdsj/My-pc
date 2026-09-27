@@ -99,29 +99,67 @@ def fetch(url, output, limit, expected_hash=None, expected_size=None):
         raise ValueError("Steam download SHA-256 mismatch")
 
 def extract(archive, destination):
+    links = []
     with zipfile.ZipFile(archive) as package:
         files = package.infolist()
         if len(files) > 100000 or sum(info.file_size for info in files) > 8 * 1024**3:
             raise ValueError("Steam ZIP exceeds extraction limits")
         for info in files:
-            name = pathlib.PurePosixPath(info.filename)
-            if name.is_absolute() or not name.parts or any(part in ("..", ".") for part in name.parts) or "\\" in info.filename or ":" in info.filename:
+            raw_name = info.orig_filename.replace("\\", "/")
+            name = pathlib.PurePosixPath(raw_name)
+            if name.is_absolute() or not name.parts or any(part in ("..", ".", "") for part in raw_name.rstrip("/").split("/")) or ":" in raw_name or "\x00" in raw_name:
                 raise ValueError("Unsafe path in Steam ZIP")
             if name.parts[0].lower() in ("steamapps", "userdata", "config"):
                 continue
             mode = info.external_attr >> 16
-            if stat.S_ISLNK(mode):
-                raise ValueError("Unexpected symbolic link in Steam ZIP")
             target = destination.joinpath(*name.parts)
             if not target.resolve().is_relative_to(destination.resolve()):
                 raise ValueError("Steam ZIP escapes staging directory")
+            if stat.S_ISLNK(mode):
+                if info.file_size > 4096:
+                    raise ValueError("Oversized Steam symbolic link")
+                link = package.read(info).decode("utf-8").replace("\\", "/")
+                if not link or pathlib.PurePosixPath(link).is_absolute() or ":" in link or "\x00" in link or not (target.parent / link).resolve().is_relative_to(destination.resolve()):
+                    raise ValueError("Steam symbolic link escapes staging directory")
+                links.append((target, link))
+                continue
             if info.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             with package.open(info) as source, target.open("wb") as output:
                 shutil.copyfileobj(source, output, 1024 * 1024)
-            target.chmod(0o755 if mode & 0o111 else 0o644)
+            with target.open("rb") as binary:
+                magic = binary.read(4)
+            target.chmod(0o755 if mode & 0o111 or magic == b"\x7fELF" or magic.startswith(b"#!") else 0o644)
+    return links
+
+def install_links(links, destination):
+    # Process links after regular files, preventing archive traversal through a
+    # link introduced by an earlier entry. Windows audit uses copies because
+    # symlink creation requires extra privileges; the Linux guest uses symlinks.
+    pending = links[:]
+    for _ in range(len(links) + 1):
+        remaining = []
+        for target, link in pending:
+            source = (target.parent / link).resolve()
+            if not source.is_relative_to(destination.resolve()):
+                raise ValueError("Steam symbolic link escapes staging directory")
+            if not source.is_file():
+                remaining.append((target, link))
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists() or target.is_symlink():
+                raise ValueError("Duplicate Steam symbolic link destination")
+            if os.name == "nt":
+                shutil.copy2(source, target)
+            else:
+                target.symlink_to(link)
+        if not remaining:
+            return
+        if len(remaining) == len(pending):
+            raise ValueError("Steam package contains dangling or cyclic links")
+        pending = remaining
 
 def verify_arm64(path):
     with path.open("rb") as binary:
@@ -145,22 +183,29 @@ def main():
             packages = [p for p in packages if p["file"].startswith("bins_linuxarm64_linuxarm64.zip.")]
         staged = temporary / "staged"
         staged.mkdir()
+        links = []
         for package in packages:
             print(f"Verifying {package['name']} ({package['size']} bytes)", flush=True)
             archive = temporary / package["file"]
             fetch(CDN + package["file"], archive, package["size"], package["sha256"], package["size"])
-            extract(archive, staged)
+            links.extend(extract(archive, staged))
+        install_links(links, staged)
         steam = staged / "steamrtarm64/steam"
         verify_arm64(steam)
+        verify_arm64(staged / "steamrtarm64/steamwebhelper")
         report = {"manifest": CDN + MANIFEST, "version": version, "architecture": "ELF64 AArch64 (EM_AARCH64=183)", "packages": packages, "steam_sha256": hashlib.sha256(steam.read_bytes()).hexdigest(), "launched": False}
         if not args.audit:
             # Preserve account state and games. Only commit verified package files.
             for source in staged.rglob("*"):
                 relative = source.relative_to(staged)
                 target = destination / relative
-                if target.is_symlink() or not target.resolve().is_relative_to(destination):
+                # Existing links may be replaced, but their parent must remain
+                # inside the installation. Never follow them while writing.
+                if not target.parent.resolve().is_relative_to(destination):
                     raise ValueError("Unsafe existing Steam installation path")
-                if source.is_dir():
+                if source.is_dir() and not source.is_symlink():
+                    if target.is_symlink():
+                        raise ValueError("Existing Steam directory is a symbolic link")
                     target.mkdir(parents=True, exist_ok=True)
                 else:
                     target.parent.mkdir(parents=True, exist_ok=True)
