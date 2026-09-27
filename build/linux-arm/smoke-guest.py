@@ -79,6 +79,13 @@ with tempfile.TemporaryDirectory() as directory:
                                     {"type": "btn", "data": {"button": "left", "down": down}},
                                     {"type": "key", "data": {"key": {"type": "qcode", "data": "ret"}, "down": down}}
                                 ]})
+                                time.sleep(0.1)
+                            deadline = time.monotonic() + 60
+                            while "MYPC_DESKTOP_INPUT_OK" not in log.read_text(errors="replace"):
+                                if process.poll() is not None or time.monotonic() > deadline:
+                                    raise RuntimeError("Desktop input failed: " + log.read_text(errors="replace")[-8000:])
+                                time.sleep(0.2)
+                            request("system_powerdown")
                     try:
                         process.wait(timeout=360)
                     except subprocess.TimeoutExpired:
@@ -94,7 +101,7 @@ with tempfile.TemporaryDirectory() as directory:
             if args.display:
                 required.append("MYPC_APPLE_FRAMEBUFFER_OK")
             if args.desktop:
-                required += ["MYPC_DESKTOP_MOUSE_OK", "MYPC_DESKTOP_KEYBOARD_OK", "MYPC_LINUX_DESKTOP_OK"]
+                required += ["MYPC_DESKTOP_MOUSE_OK", "MYPC_DESKTOP_KEYBOARD_OK", "MYPC_DESKTOP_INPUT_OK"]
             if process.returncode or "MYPC_LINUX_FAIL:" in content or any(marker not in content for marker in required):
                 raise SystemExit(f"ARM Linux boot {boot} failed; inspect {log}")
     finally:

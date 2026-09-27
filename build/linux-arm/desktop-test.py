@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Guest-side X11 test: require actual QMP mouse AND keyboard events."""
-import pathlib
 from Xlib import X, display
 
 console = open('/dev/ttyAMA0', 'w', buffering=1)
@@ -23,7 +22,6 @@ while not (mouse and keyboard):
     elif event.type == X.KeyPress:
         keyboard = True
         print('MYPC_DESKTOP_KEYBOARD_OK', file=console)
-pathlib.Path('/home/steam/.desktop-test-passed').write_text('mouse+keyboard\n')
 print('MYPC_DESKTOP_INPUT_OK', file=console)
 # Keep X alive until the system service completes the boot checks and powers off.
 while True:
