@@ -1,8 +1,6 @@
 name: Verify Valve ARM64 Steam client
 on:
-  push:
-    branches: [codex/steam-arm-linux]
-    paths: [build/linux-arm/steam-arm-fetch.py, build/linux-arm/test-steam-fetch.py, build/linux-arm/steam-session.sh, build/linux-arm/probe-steam.py, .github/workflows/steam-arm-client.yml]
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read

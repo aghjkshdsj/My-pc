@@ -2,7 +2,7 @@ name: ARM Linux runtime
 on:
   push:
     branches: [codex/steam-arm-linux]
-    paths: [build/linux-arm/**, app/Madeira/LinuxVM*, .github/workflows/steam-arm-linux.yml]
+    paths: [build/linux-arm/**, app/**, .github/workflows/steam-arm-linux.yml, .github/workflows/steam-arm-client.yml, .github/workflows/steam-arm-ipa.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,6 +10,8 @@ concurrency:
   group: arm-linux-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  client:
+    uses: ./.github/workflows/steam-arm-client.yml
   bridge-checks:
     name: iPhone bridge and JIT checks
     runs-on: macos-26
@@ -105,6 +107,13 @@ jobs:
           path: |
             build/linux-arm/output/guest/boot-*.log
             build/linux-arm/output/guest/desktop.ppm
+  ipa:
+    name: Build and publish experimental IPA
+    needs: [apple-boot, client]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/steam-arm-ipa.yml
   apple-boot:
     name: Boot Linux through Apple framework and display bridge
     runs-on: macos-26

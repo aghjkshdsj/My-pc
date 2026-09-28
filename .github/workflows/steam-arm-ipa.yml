@@ -1,0 +1,108 @@
+name: Package experimental ARM64 Steam IPA
+on:
+  workflow_call:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  package:
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BASE_RUNTIME_RUN: '36243324815'
+      BASE_RUNTIME_SHA: 992bbb795113f412ec5b1214a90d009b2a06decb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify unchanged native dependencies against successful build 45
+        run: |
+          git fetch --depth=1 origin "$BASE_RUNTIME_SHA"
+          git diff --exit-code "$BASE_RUNTIME_SHA" HEAD -- FEX wine research/dxmt .gitmodules \
+            build/ci/build-fex.sh build/ci/build-wine.sh build/ci/build-dxmt.sh build/ci/build-llvm.sh \
+            build/wineserver build/ntdll-unix build/win32u-unix build/dxmt-ios build/gnutls-ios build/freetype-ios build/controller
+          test "$(gh run view "$BASE_RUNTIME_RUN" --json headSha --jq .headSha)" = "$BASE_RUNTIME_SHA"
+          test "$(gh run view "$BASE_RUNTIME_RUN" --json conclusion --jq .conclusion)" = success
+      - name: Restore native libraries and redistributables from verified build
+        run: |
+          gh run download "$BASE_RUNTIME_RUN" --pattern 'native-*' --dir build/base-runtime
+          for archive in build/base-runtime/native-*/*.tar; do tar -xf "$archive"; done
+          gh run download "$BASE_RUNTIME_RUN" --name controller-support --dir app/Madeira/ControllerSupport
+          gh run download "$BASE_RUNTIME_RUN" --name vc-runtime-x64 --dir app/Madeira/x86_64-vcruntime
+          gh run download "$BASE_RUNTIME_RUN" --name runtime-installers --dir app/Madeira/RuntimeInstallers
+          gh run download "$BASE_RUNTIME_RUN" --name arm64-runtime --dir app/Madeira/ARM64Runtime
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-qemu-ios
+          path: build/linux-arm/output
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-guest
+          path: build/linux-arm/output
+      - name: Prepare tested Linux artifacts
+        run: |
+          mkdir -p build/linux-arm/output/ios build/linux-arm/output/guest
+          tar -xzf build/linux-arm/output/linux-arm-qemu-ios.tar.gz -C build/linux-arm/output/ios
+          tar -xzf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm/output/guest
+          (cd build/linux-arm/output/guest && shasum -a 256 -c SHA256SUMS)
+      - name: App regression checks
+        run: |
+          swiftc app/Madeira/GameLibraryCore.swift app/Madeira/LocalAccountCore.swift app/Madeira/StoreCore.swift app/Madeira/GOGCore.swift app/Madeira/SteamLaunchCore.swift build/app-tests/main.swift -o /tmp/app-tests
+          /tmp/app-tests
+          node build/app-tests/jit-script.test.cjs
+          xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -target arm64-apple-ios17.0 \
+            -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -import-objc-header app/Madeira/Madeira-Bridging-Header.h app/Madeira/*.swift
+      - name: Build actual iPhone IPA with bundled Linux runtime
+        run: |
+          /usr/libexec/PlistBuddy -c "Set CFBundleVersion 100${GITHUB_RUN_NUMBER}" app/Madeira/Info.plist
+          /usr/libexec/PlistBuddy -c "Add SomethingPCBuildCommit string $GITHUB_SHA" app/Madeira/Info.plist
+          bash build/linux-arm/package-ipa.sh
+          python3 build/linux-arm/package-sources.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SomethingPC-SteamARM64-unsigned
+          path: |
+            build/ARM-IPA/SomethingPC-SteamARM64.ipa
+            build/ARM-IPA/SomethingPC-SteamARM64.ipa.sha256
+            build/linux-arm/LinuxRuntime-Sources.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+      - name: Publish verified experimental IPA
+        if: github.ref == 'refs/heads/codex/steam-arm-linux'
+        env:
+          RELEASE_TAG: steam-arm-preview-${{ github.run_number }}
+        run: |
+          cat > build/arm-release-notes.md <<'NOTES'
+          Experimental ARM64 Linux Steam port for iPhone. Download **SomethingPC-SteamARM64.ipa** from Assets and sign it with your sideloading tool.
+
+          In My-pc, open **Library → Apps → Steam ARM64**, tap **Set up Steam ARM64**, enable JIT with the bundled madeira-jit.js/StikDebug setup, then tap **Open Steam**. Setup needs approximately 13 GB free. Linux and Steam downloads remain in the app's persistent disk. Steam downloads directly from Valve on first launch. Allow its updater to finish and restart. Use the keyboard button to type.
+
+          Includes a real ARM64 Linux kernel and Valve's full ARM64 client bootstrap, following winlator-contents' Linux Steam route. QEMU TCG uses JIT with a 2 GiB guest, two virtual CPUs and a 128 MiB translation cache. The first graphics path uses software rendering.
+
+          Automated checks cover Linux boot, networking, persistent storage, desktop input, Apple framework display and native Linux Steam startup. **iPhone 15 Pro Max/iOS 27 execution, Steam login and games have not been device-validated. GPU acceleration, audio output and Windows-game compatibility are unfinished. This is a development preview, not a gaming-performance release.**
+
+          The existing Windows Steam/Wine option remains available. Restart My-pc before switching runtimes. Source material for the new QEMU runtime is attached; exact build code and test logs are linked by this release commit and Actions run.
+          NOTES
+          gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --draft --prerelease --latest=false \
+            --title "Something PC ARM64 Steam development preview ${GITHUB_RUN_NUMBER}" \
+            --notes-file build/arm-release-notes.md \
+            build/ARM-IPA/SomethingPC-SteamARM64.ipa build/ARM-IPA/SomethingPC-SteamARM64.ipa.sha256 \
+            build/linux-arm/LinuxRuntime-Sources.tar.gz
+          mkdir -p build/arm-release-check
+          gh release download "$RELEASE_TAG" --dir build/arm-release-check --pattern '*.ipa' --pattern '*.ipa.sha256'
+          (cd build/arm-release-check && shasum -a 256 -c SomethingPC-SteamARM64.ipa.sha256)
+          cmp build/arm-release-check/SomethingPC-SteamARM64.ipa build/ARM-IPA/SomethingPC-SteamARM64.ipa
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
+          gh release view "$RELEASE_TAG" --json url,assets
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: arm-ipa-build-diagnostics
+          path: |
+            build/xcodebuild.log
+            build/DerivedData/Build/Products/Release-iphoneos/*.dSYM

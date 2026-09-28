@@ -74,6 +74,23 @@ results and the next unresolved failure after each development stage.
 passed on an ARM64 Linux runner using TCG (no KVM). Debian trixie with kernel
 6.12.107 booted twice, reached the host HTTP probe, retained a file on ext4,
 and shut down cleanly. Runtime artifact approximately 286 MB compressed.
-This is a Linux-host boot result, not an iPhone result. Apple framework builds
-are still under validation. Next: boot through the exact Apple dylib bridge,
-verify framebuffer output, and integrate the iPhone session.
+This is a Linux-host boot result, not an iPhone result.
+
+2026-09-27: Both Apple framework builds pass, including required exported
+symbols. Framework archives preserve symlinks and executable permissions.
+The iPhone UI, US keyboard, QMP controls, and streaming/sparse runtime installer
+pass compilation and regression tests. The desktop boot test has produced
+`MYPC_DESKTOP_READY`, `MYPC_DESKTOP_MOUSE_OK`, `MYPC_DESKTOP_KEYBOARD_OK`, and
+`MYPC_DESKTOP_INPUT_OK`. The shutdown gate is being retested through QMP.
+
+Valve's actual Steam and steamwebhelper executables pass ELF64/AArch64 checks.
+The native client starts its updater and installs its full package set. The
+launcher now handles the updater's status-42 restart and removes the helper's
+CPU-2-through-6 affinity restriction before every launch (the VM has two CPUs).
+CEF client-window startup is still under test. No account login was attempted.
+
+The release workflow is gated on guest tests, Apple display/boot tests, and
+native Steam client-window startup. Its IPA embeds the compressed Linux disk,
+with an atomic **Set up Steam ARM64** action in the fixed Library entry. The
+existing disk is never overwritten. Apple graphics acceleration, audio,
+Proton/FEX game execution, and real iPhone testing remain separate open gates.
