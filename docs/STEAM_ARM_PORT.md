@@ -95,7 +95,7 @@ Valve's installed files remain untouched so its integrity check can succeed.
 CEF client-window startup is still under test. No account login was attempted.
 
 The release workflow is gated on guest tests, Apple display/boot tests, and
-native Steam client-window startup. Its IPA embeds the compressed Linux disk,
+native Steam client-window startup.
 An additional release gate launches Steam inside the actual 2 GiB TCG guest,
 with the iPhone's initial display dimensions, using a separate disposable disk.
 Its IPA embeds the compressed Linux disk,

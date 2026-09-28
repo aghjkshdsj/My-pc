@@ -61,6 +61,20 @@ final class LinuxQMPConnection: @unchecked Sendable {
         }
     }
 
+    func sendKeyboard(_ events: [[String: Any]], completion: @escaping (Result<Void, Error>) -> Void) {
+        queue.async {
+            do {
+                for event in events {
+                    try self.request("input-send-event", arguments: ["events": [event]])
+                    // USB HID has a bounded event queue. Give the guest time to
+                    // consume each transition, including during a long paste.
+                    Thread.sleep(forTimeInterval: 0.01)
+                }
+                completion(.success(()))
+            } catch { completion(.failure(error)) }
+        }
+    }
+
     private func request(_ command: String, arguments: [String: Any]) throws {
         guard descriptor >= 0 else { throw LinuxVMError.invalid("Linux control is not connected.") }
         requestID += 1
@@ -261,11 +275,19 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
     }
     func type(_ text: String) {
         guard connected, !text.isEmpty else { return }
-        do { qmp.send("input-send-event", arguments: try LinuxQMP.text(text)) }
+        do {
+            let events = try LinuxQMP.text(text)["events"] as? [[String: Any]] ?? []
+            sendKeyboard(events)
+        }
         catch { self.error = error.localizedDescription }
     }
     func press(_ code: String) {
         guard connected, ["esc", "tab", "ret", "backspace", "up", "down", "left", "right"].contains(code) else { return }
-        qmp.send("input-send-event", arguments: ["events": [LinuxQMP.key(code, down: true), LinuxQMP.key(code, down: false)]])
+        sendKeyboard([LinuxQMP.key(code, down: true), LinuxQMP.key(code, down: false)])
+    }
+    private func sendKeyboard(_ events: [[String: Any]]) {
+        qmp.sendKeyboard(events) { result in
+            if case .failure(let error) = result { Task { @MainActor in self.error = error.localizedDescription } }
+        }
     }
 }

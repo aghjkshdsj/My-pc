@@ -83,10 +83,19 @@ with tempfile.TemporaryDirectory() as directory:
                                 request("input-send-event", {"events": [
                                     {"type": "abs", "data": {"axis": "x", "value": 16000}},
                                     {"type": "abs", "data": {"axis": "y", "value": 16000}},
-                                    {"type": "btn", "data": {"button": "left", "down": down}},
-                                    {"type": "key", "data": {"key": {"type": "qcode", "data": "ret"}, "down": down}}
+                                    {"type": "btn", "data": {"button": "left", "down": down}}
                                 ]})
                                 time.sleep(0.1)
+                            if not args.steam:
+                                # Same 10 ms transition pacing as the iPhone keyboard.
+                                def key(code, down):
+                                    request('input-send-event', {'events': [{'type': 'key', 'data': {'key': {'type': 'qcode', 'data': code}, 'down': down}}]})
+                                    time.sleep(0.01)
+                                for code, shift in [('s', True), ('t', False), ('e', False), ('a', False), ('m', False), ('spc', False), ('1', False), ('2', False), ('3', False), ('1', True), ('ret', False)]:
+                                    if shift: key('shift', True)
+                                    key(code, True)
+                                    key(code, False)
+                                    if shift: key('shift', False)
                             deadline = time.monotonic() + 60
                             while not args.steam and "MYPC_DESKTOP_INPUT_OK" not in log.read_text(errors="replace"):
                                 if process.poll() is not None or time.monotonic() > deadline:
