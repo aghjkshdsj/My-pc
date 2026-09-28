@@ -81,12 +81,13 @@ symbols. Framework archives preserve symlinks and executable permissions.
 The iPhone UI, US keyboard, QMP controls, and streaming/sparse runtime installer
 pass compilation and regression tests. The desktop boot test has produced
 `MYPC_DESKTOP_READY`, `MYPC_DESKTOP_MOUSE_OK`, `MYPC_DESKTOP_KEYBOARD_OK`, and
-`MYPC_DESKTOP_INPUT_OK`. The shutdown gate is being retested through QMP.
+`MYPC_DESKTOP_INPUT_OK`. The QMP shutdown gate now passes too.
 
 Valve's actual Steam and steamwebhelper executables pass ELF64/AArch64 checks.
 The native client starts its updater and installs its full package set. The
-launcher now handles the updater's status-42 restart and removes the helper's
-CPU-2-through-6 affinity restriction before every launch (the VM has two CPUs).
+launcher now handles the updater's status-42 restart and scopes a taskset shim
+to the helper's CPU-2-through-6 affinity restriction (the VM has two CPUs).
+Valve's installed files remain untouched so its integrity check can succeed.
 CEF client-window startup is still under test. No account login was attempted.
 
 The release workflow is gated on guest tests, Apple display/boot tests, and

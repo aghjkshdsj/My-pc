@@ -11,7 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Installer regression checks
-        run: python3 build/linux-arm/test-steam-fetch.py
+        run: |
+          python3 build/linux-arm/test-steam-fetch.py
+          python3 build/linux-arm/test-steam-session.py
       - name: Verify official package checksum and ARM64 executable
         run: python3 build/linux-arm/steam-arm-fetch.py --audit --destination build/linux-arm/output/steam-audit
       - name: Preserve architecture and checksum report
@@ -29,7 +31,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb xauth x11-utils scrot dbus-x11 \
-            libgl1-mesa-dri libglx-mesa0 libegl-mesa0 mesa-vulkan-drivers libvulkan1 \
+            libgl1-mesa-dri libglx-mesa0 libegl-mesa0 libegl1 mesa-vulkan-drivers libvulkan1 \
             libxrandr2 libxinerama1 libxcursor1 libxcomposite1 libxdamage1 libxtst6 \
             libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
             libgtk-3-0t64 libgbm1 libdrm2 libibus-1.0-5 libnm0 libopenal1 \
