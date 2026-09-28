@@ -30,8 +30,14 @@ environment = dict(os.environ, HOME=str(home), XDG_DATA_HOME=str(home / '.local/
 environment['LD_LIBRARY_PATH'] = str(steam / 'steamrtarm64')
 def dependencies():
     with (output / 'dependencies.txt').open('w') as log:
-        for name in ['steam', 'steamwebhelper', 'steamclient.so']:
-            subprocess.run(['ldd', str(steam / 'steamrtarm64' / name)], stdout=log, stderr=subprocess.STDOUT, env=environment)
+        # UI and codec modules are dlopened after the executable has started.
+        # Include them so one missing library does not mask the next one.
+        paths = [steam / 'steamrtarm64' / name for name in ['steam', 'steamwebhelper']]
+        paths += sorted((steam / 'steamrtarm64').glob('*.so*'))
+        for path in paths:
+            log.write(f'\n{path.name}:\n')
+            log.flush()
+            subprocess.run(['ldd', str(path)], stdout=log, stderr=subprocess.STDOUT, env=environment)
 success = False
 with (output / 'launch.log').open('w') as log:
     launcher = '/usr/local/bin/my-pc-steam' if args.guest else str(pathlib.Path(__file__).with_name('steam-session.sh'))
