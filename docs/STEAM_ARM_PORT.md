@@ -163,3 +163,10 @@ now enables loopback-only CEF debugging in disposable tests, reads the actual
 login page's ready state and visible password-field geometry, and requires that
 live response alongside the mapped window for ten seconds. Normal Steam launches
 do not enable this debugging endpoint. No credentials are entered or inspected.
+
+Run 36437513433 produced a screenshot that was visually inspected: the full
+Steam login form, account-name and password fields, sign-in button and QR panel
+are rendered correctly on native ARM Linux. CDP confirms the visible form is an
+`about:blank` popup titled `Sign in to Steam`, populated by `SharedJSContext`.
+The probe now selects that popup instead of only the background steamloopback
+page. This is visual evidence on native Linux, not an iPhone or TCG guest pass.

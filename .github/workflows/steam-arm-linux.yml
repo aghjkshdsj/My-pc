@@ -99,7 +99,7 @@ jobs:
         run: |
           cd build/linux-arm/output/guest
           sha256sum Image initrd.img rootfs.raw packages.tsv runtime.json > SHA256SUMS
-          tar -czf ../linux-arm-guest.tar.gz Image initrd.img rootfs.raw packages.tsv runtime.json SHA256SUMS
+          tar -Sczf ../linux-arm-guest.tar.gz Image initrd.img rootfs.raw packages.tsv runtime.json SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
           name: linux-arm-guest

@@ -4,21 +4,32 @@ import json
 import time
 import urllib.parse
 import urllib.request
+from steam_window import CLIENT_TITLES
 
 
 LOGIN_STATE = '''(() => {
   const password = document.querySelector('input[type="password"]');
   const rect = password && password.getBoundingClientRect();
-  return {hostname: location.hostname, title: document.title,
+  return {url: location.href, title: document.title,
     readyState: document.readyState,
     passwordVisible: !!(rect && rect.width > 0 && rect.height > 0 &&
       getComputedStyle(password).visibility !== 'hidden')};
 })()'''
 
 
+def login_target(target):
+    url = urllib.parse.urlsplit(target.get('url', ''))
+    # Steam's visible login is an about:blank popup populated by SharedJSContext.
+    # The latter has the steamloopback URL but does not contain the login form.
+    return (target.get('type') == 'page' and
+            ((url.scheme == 'https' and url.hostname == 'steamloopback.host') or
+             (url.scheme == 'about' and url.path == 'blank' and target.get('title') in CLIENT_TITLES)))
+
+
 def ready_login(state):
-    return (isinstance(state, dict) and state.get('hostname') == 'steamloopback.host'
-            and state.get('readyState') == 'complete' and state.get('passwordVisible') is True)
+    return (isinstance(state, dict) and login_target(dict(state, type='page'))
+            and state.get('title') in CLIENT_TITLES and state.get('readyState') == 'complete'
+            and state.get('passwordVisible') is True)
 
 
 def login_interface(output):
@@ -30,7 +41,7 @@ def login_interface(output):
             targets = json.loads(response.read(1024 * 1024))
         (output / 'cef-targets.json').write_text(json.dumps(targets, indent=2) + '\n')
         for target in targets[:32]:
-            if target.get('type') != 'page' or urllib.parse.urlsplit(target.get('url', '')).hostname != 'steamloopback.host':
+            if not login_target(target):
                 continue
             url = urllib.parse.urlsplit(target.get('webSocketDebuggerUrl', ''))
             if url.scheme != 'ws' or url.hostname not in {'localhost', '127.0.0.1'} or url.port != 8080:

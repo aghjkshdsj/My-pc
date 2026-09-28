@@ -2,7 +2,7 @@
 """Prevent false startup failures and hidden/updater-window false positives."""
 import unittest
 from steam_window import client_window
-from steam_cdp import ready_login
+from steam_cdp import ready_login, login_target
 
 
 RENDERER = True
@@ -23,12 +23,22 @@ class WindowTests(unittest.TestCase):
         self.assertIsNone(client_window('0x20 "Steam": ()', False, lambda _: VIEWABLE))
 
     def test_loaded_login_page_is_ready(self):
-        self.assertTrue(ready_login({'hostname': 'steamloopback.host', 'readyState': 'complete', 'passwordVisible': True}))
+        for url in ['https://steamloopback.host/index.html',
+                    'about:blank?createflags=4098&pid=0&browser=-1&useragent=Valve%20Steam%20Client']:
+            self.assertTrue(ready_login({'url': url, 'title': 'Sign in to Steam',
+                                        'readyState': 'complete', 'passwordVisible': True}))
+
+    def test_only_local_steam_targets_are_inspected(self):
+        for target in [{'type': 'page', 'url': 'https://example.com', 'title': 'Sign in to Steam'},
+                       {'type': 'page', 'url': 'about:blank', 'title': 'Unrelated popup'},
+                       {'type': 'worker', 'url': 'https://steamloopback.host/index.html'}]:
+            self.assertFalse(login_target(target))
 
     def test_loading_blank_or_unrelated_page_is_not_ready(self):
-        for state in [None, {}, {'hostname': 'example.com', 'readyState': 'complete', 'passwordVisible': True},
-                      {'hostname': 'steamloopback.host', 'readyState': 'loading', 'passwordVisible': True},
-                      {'hostname': 'steamloopback.host', 'readyState': 'complete', 'passwordVisible': False}]:
+        base = {'url': 'about:blank?createflags=4098', 'title': 'Sign in to Steam',
+                'readyState': 'complete', 'passwordVisible': True}
+        for state in [None, {}, dict(base, url='https://example.com'), dict(base, readyState='loading'),
+                      dict(base, passwordVisible=False), dict(base, title='SharedJSContext')]:
             with self.subTest(state=state):
                 self.assertFalse(ready_login(state))
 
