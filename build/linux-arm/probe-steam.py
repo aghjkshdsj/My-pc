@@ -29,6 +29,7 @@ if not args.guest:
 environment = dict(os.environ, HOME=str(home), XDG_DATA_HOME=str(home / '.local/share'))
 environment['LD_LIBRARY_PATH'] = str(steam / 'steamrtarm64')
 def dependencies():
+    missing = []
     with (output / 'dependencies.txt').open('w') as log:
         # UI and codec modules are dlopened after the executable has started.
         # Include them so one missing library does not mask the next one.
@@ -37,7 +38,10 @@ def dependencies():
         for path in paths:
             log.write(f'\n{path.name}:\n')
             log.flush()
-            subprocess.run(['ldd', str(path)], stdout=log, stderr=subprocess.STDOUT, env=environment)
+            result = subprocess.run(['ldd', str(path)], capture_output=True, text=True, env=environment)
+            log.write(result.stdout + result.stderr)
+            missing += [f'{path.name}: {line.strip()}' for line in result.stdout.splitlines() if 'not found' in line]
+    (output / 'missing-dependencies.txt').write_text('\n'.join(missing) + '\n')
 success = False
 with (output / 'launch.log').open('w') as log:
     launcher = '/usr/local/bin/my-pc-steam' if args.guest else str(pathlib.Path(__file__).with_name('steam-session.sh'))
@@ -80,7 +84,7 @@ with (output / 'launch.log').open('w') as log:
         if (steam / 'arm64-verification.json').is_file():
             shutil.copy2(steam / 'arm64-verification.json', output / 'arm64-verification.json')
 if not success:
-    for path in [output / 'launch.log', output / 'dependencies.txt', *sorted((output / 'steam-logs').glob('*.txt'))]:
+    for path in [output / 'launch.log', output / 'missing-dependencies.txt', *sorted((output / 'steam-logs').glob('*.txt'))]:
         if path.is_file():
             print(f'\n{path.name}:\n{path.read_text(errors="replace")[-16000:]}')
 if not success:

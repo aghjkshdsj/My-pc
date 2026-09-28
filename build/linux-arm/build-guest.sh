@@ -25,7 +25,7 @@ sudo chroot "$root" /usr/bin/env DEBIAN_FRONTEND=noninteractive apt-get install 
     libxrandr2 libxinerama1 libxcursor1 libxcomposite1 libxdamage1 libxtst6 \
     libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
     libgtk-3-0t64 libgtk2.0-0t64 libsdl2-2.0-0 libgbm1 libdrm2 libibus-1.0-5 libnm0 libopenal1 \
-    libpipewire-0.3-0t64 libpulse0
+    libpipewire-0.3-0t64 libpulse0 libva2
 sudo install -d "$root/usr/local/lib/my-pc"
 sudo install -d "$root/usr/local/lib/my-pc/steam-bin"
 sudo install -m 755 "$repo_root/build/linux-arm/steam-bin/taskset" "$root/usr/local/lib/my-pc/steam-bin/taskset"

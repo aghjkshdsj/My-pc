@@ -102,3 +102,16 @@ Its IPA embeds the compressed Linux disk,
 with an atomic **Set up Steam ARM64** action in the fixed Library entry. The
 existing disk is never overwritten. Apple graphics acceleration, audio,
 Proton/FEX game execution, and real iPhone testing remain separate open gates.
+
+2026-09-28: Valve's updater now finishes, restarts once, and passes its integrity
+check without modifying vendor files. GTK2/SDL2 and VA-API loader dependencies
+were added after actual native startup failures. The exact-text X11 keyboard
+test passes on Linux; the Apple test is being rebuilt after a transient source
+download failure. No full Steam window or new IPA has passed the gates yet.
+
+An isolated Metal experiment lives in `build/linux-arm-gpu` and
+`.github/workflows/steam-arm-gpu.yml`. It builds pinned UTM ANGLE/libepoxy/virgl,
+adds Apple's EGL initialization to QEMU's existing headless readback backend,
+and requires an actual ANGLE Metal renderer in a macOS context test. It does
+not alter the release runtime. Guest 3D rendering and iPhone testing are still
+required before integrating this backend. Vulkan/Proton are later stages.

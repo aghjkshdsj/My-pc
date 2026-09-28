@@ -1,0 +1,46 @@
+name: Experimental ARM Linux Metal graphics
+on:
+  push:
+    branches: [codex/steam-arm-linux]
+    paths: [build/linux-arm-gpu/**, .github/workflows/steam-arm-gpu.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: arm-gpu-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    name: ANGLE virgl (${{ matrix.platform }})
+    runs-on: macos-26
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, macos]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          brew install bison pkg-config gettext glib meson ninja
+          echo "$(brew --prefix bison)/bin:$(brew --prefix gettext)/bin:$(brew --prefix glib)/bin" >> "$GITHUB_PATH"
+          python3 -m venv build/gpu-venv
+          build/gpu-venv/bin/pip install six pyparsing pyyaml setuptools distlib mako packaging
+          echo "$PWD/build/gpu-venv/bin" >> "$GITHUB_PATH"
+      - name: Compile experimental Metal graphics framework
+        run: bash build/linux-arm-gpu/build.sh '${{ matrix.platform }}'
+      - name: Require actual ANGLE Metal context
+        if: matrix.platform == 'macos'
+        run: python3 build/linux-arm-gpu/probe-metal.py build/linux-arm-gpu/output/macos
+      - uses: actions/upload-artifact@v4
+        with:
+          name: experimental-gpu-${{ matrix.platform }}
+          path: build/linux-arm-gpu/output/experimental-gpu-${{ matrix.platform }}.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: experimental-gpu-logs-${{ matrix.platform }}
+          path: |
+            build/linux-arm-gpu/work-${{ matrix.platform }}/build.log
+            build/linux-arm-gpu/work-${{ matrix.platform }}/utm/build-*/**/meson-logs/meson-log.txt
+            build/linux-arm-gpu/output/${{ matrix.platform }}/metal-probe.log
