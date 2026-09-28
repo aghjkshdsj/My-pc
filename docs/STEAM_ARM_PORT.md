@@ -82,6 +82,10 @@ The iPhone UI, US keyboard, QMP controls, and streaming/sparse runtime installer
 pass compilation and regression tests. The desktop boot test has produced
 `MYPC_DESKTOP_READY`, `MYPC_DESKTOP_MOUSE_OK`, `MYPC_DESKTOP_KEYBOARD_OK`, and
 `MYPC_DESKTOP_INPUT_OK`. The QMP shutdown gate now passes too.
+The same boot, framebuffer, networking, persistence, desktop input and shutdown
+tests pass through the embedded Apple framework on macOS (run 36360364471).
+Display updates are coalesced to one copy per 33 ms refresh, and idle frames
+are skipped. This lowers avoidable memory traffic; it is not a device benchmark.
 
 Valve's actual Steam and steamwebhelper executables pass ELF64/AArch64 checks.
 The native client starts its updater and installs its full package set. The

@@ -9,18 +9,13 @@ static void *my_pc_frame_opaque;
 static DisplaySurface *my_pc_surface;
 static pixman_image_t *my_pc_pixels;
 static bool my_pc_display_registered;
+static bool my_pc_frame_dirty;
 
 static void my_pc_frame_update(DisplayChangeListener *dcl, int x, int y, int w, int h)
 {
-    if (!my_pc_frame_callback || !my_pc_surface || !my_pc_pixels) {
-        return;
-    }
-    int width = surface_width(my_pc_surface);
-    int height = surface_height(my_pc_surface);
-    pixman_image_composite32(PIXMAN_OP_SRC, my_pc_surface->image, NULL,
-                            my_pc_pixels, 0, 0, 0, 0, 0, 0, width, height);
-    my_pc_frame_callback(my_pc_frame_opaque, pixman_image_get_data(my_pc_pixels),
-                        width, height, pixman_image_get_stride(my_pc_pixels));
+    /* A guest repaint can issue hundreds of small dirty rectangles. Copying
+     * the whole screen for each one wastes CPU and memory bandwidth. */
+    my_pc_frame_dirty = true;
 }
 
 static void my_pc_frame_switch(DisplayChangeListener *dcl, DisplaySurface *surface)
@@ -30,6 +25,7 @@ static void my_pc_frame_switch(DisplayChangeListener *dcl, DisplaySurface *surfa
         my_pc_pixels = NULL;
     }
     my_pc_surface = surface;
+    my_pc_frame_dirty = true;
     int width = surface_width(surface);
     int height = surface_height(surface);
     if (width > 0 && height > 0 && width <= 4096 && height <= 4096) {
@@ -41,6 +37,16 @@ static void my_pc_frame_switch(DisplayChangeListener *dcl, DisplaySurface *surfa
 static void my_pc_frame_refresh(DisplayChangeListener *dcl)
 {
     graphic_hw_update(dcl->con);
+    if (!my_pc_frame_dirty || !my_pc_frame_callback || !my_pc_surface || !my_pc_pixels) {
+        return;
+    }
+    my_pc_frame_dirty = false;
+    int width = surface_width(my_pc_surface);
+    int height = surface_height(my_pc_surface);
+    pixman_image_composite32(PIXMAN_OP_SRC, my_pc_surface->image, NULL,
+                            my_pc_pixels, 0, 0, 0, 0, 0, 0, width, height);
+    my_pc_frame_callback(my_pc_frame_opaque, pixman_image_get_data(my_pc_pixels),
+                        width, height, pixman_image_get_stride(my_pc_pixels));
 }
 
 static const DisplayChangeListenerOps my_pc_display_ops = {
@@ -81,6 +87,7 @@ void my_pc_display_stop(void)
     my_pc_frame_callback = NULL;
     my_pc_frame_opaque = NULL;
     my_pc_surface = NULL;
+    my_pc_frame_dirty = false;
     if (my_pc_pixels) {
         pixman_image_unref(my_pc_pixels);
         my_pc_pixels = NULL;
