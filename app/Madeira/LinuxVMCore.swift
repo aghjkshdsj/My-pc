@@ -41,7 +41,10 @@ struct LinuxVMConfiguration {
         let storage = try json(["driver": "file", "filename": files[2].path, "node-name": "linux-file"])
         let raw = try json(["driver": "raw", "file": "linux-file", "node-name": "linux-root"])
         var arguments = ["qemu-system-aarch64", "-no-user-config", "-nodefaults",
-                "-machine", "virt-10.0,highmem=off", "-cpu", "cortex-a72",
+                // Steam's current ARM client faults on the older Cortex-A72
+                // instruction set. TCG supplies newer scalar/NEON features;
+                // disable scalable vectors to avoid unused emulation overhead.
+                "-machine", "virt-10.0,highmem=off", "-cpu", "max,sve=off,sme=off",
                 "-accel", "tcg,thread=multi,tb-size=128,split-wx=on",
                 "-smp", String(cpuCount), "-m", String(memoryMiB),
                 "-kernel", files[0].path, "-initrd", files[1].path,

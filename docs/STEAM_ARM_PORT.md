@@ -1,6 +1,7 @@
 # ARM64 Linux Steam on iPhone: implementation record
 
-Status: ARM64 Linux boots in CI. The owner has made the repository public;
+Status: the full ARM64 Steam login interface passes its native Linux CI test.
+ARM64 Linux boot and desktop input tests also pass. The owner has made the repository public;
 standard hosted runners are working again after the private-repo minutes were
 exhausted. No ARM Steam IPA has been validated or released.
 The Windows Steam implementation and build 45 remain available.
@@ -170,3 +171,20 @@ are rendered correctly on native ARM Linux. CDP confirms the visible form is an
 `about:blank` popup titled `Sign in to Steam`, populated by `SharedJSContext`.
 The probe now selects that popup instead of only the background steamloopback
 page. This is visual evidence on native Linux, not an iPhone or TCG guest pass.
+
+Run 36472203528 (commit `f640152f58f56ae34aaeef916d5a63147f54835f`)
+passed the automated native Steam test: `Sign in to Steam` stayed mapped for
+ten seconds, and the live CEF page reported `readyState: complete` with a visible
+password input. The official packages passed checksum and AArch64 ELF checks.
+The same run passed bridge/JIT, runtime installer and framework checks, plus
+Linux boot/network/persistence/shutdown and exact X11 keyboard/mouse tests.
+The Apple framework then passed boot, networking, persistence, framebuffer,
+exact keyboard/mouse input and shutdown on the same commit.
+
+The first full Steam-in-TCG test downloaded and verified the ARM client but
+stopped immediately with SIGILL (exit 132) on the Cortex-A72 CPU model, before
+the updater or CEF could start. The VM and all boot tests now use QEMU's
+`max,sve=off,sme=off` model to expose newer scalar/NEON instructions without
+scalable-vector state. [QEMU documents this CPU configuration](https://www.qemu.org/docs/master/system/arm/cpu-features.html#sve-cpu-property-examples).
+This correction needs the full guest test to pass; the precise faulting
+instruction has not been identified. IPA packaging remains gated on that test.
