@@ -34,6 +34,7 @@ sudo install -m 755 "$repo_root/build/linux-arm/steam-session.sh" "$root/usr/loc
 sudo install -m 755 "$repo_root/build/linux-arm/desktop-session.sh" "$root/usr/local/bin/my-pc-desktop"
 sudo install -m 755 "$repo_root/build/linux-arm/desktop-test.py" "$root/usr/local/lib/my-pc/"
 sudo install -m 755 "$repo_root/build/linux-arm/probe-steam.py" "$root/usr/local/lib/my-pc/"
+sudo install -m 644 "$repo_root/build/linux-arm/steam_window.py" "$root/usr/local/lib/my-pc/"
 sudo chroot "$root" useradd --create-home --shell /bin/bash --groups audio,video,render,input,dialout steam
 sudo install -d "$root/etc/systemd/system/getty@tty1.service.d"
 sudo tee "$root/etc/systemd/system/getty@tty1.service.d/steam.conf" >/dev/null <<'EOF'

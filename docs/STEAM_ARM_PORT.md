@@ -1,6 +1,7 @@
 # ARM64 Linux Steam on iPhone: implementation record
 
-Status: ARM64 Linux boots in CI; no ARM Steam IPA has been validated or released.
+Status: ARM64 Linux boots in CI; new CI jobs are blocked by the account's used-up
+Actions minutes. No ARM Steam IPA has been validated or released.
 The Windows Steam implementation and build 45 remain available.
 
 ## Objective
@@ -106,8 +107,19 @@ Proton/FEX game execution, and real iPhone testing remain separate open gates.
 2026-09-28: Valve's updater now finishes, restarts once, and passes its integrity
 check without modifying vendor files. GTK2/SDL2 and VA-API loader dependencies
 were added after actual native startup failures. The exact-text X11 keyboard
-test passes on Linux; the Apple test is being rebuilt after a transient source
-download failure. No full Steam window or new IPA has passed the gates yet.
+test passes on Linux. The Apple framework rebuild passed after a transient
+source download failure, but the updated Apple boot test could not acquire a
+runner because of the account limit. No full Steam window or new IPA has passed
+the gates yet.
+
+Native client run 36380641308 now completes the updater and loads CEF and the
+login interface. CEF logs report a mapped 700x440 `DesktopLoginWindow` titled
+`Sign in to`; the old test only matched `Steam` or `Sign in to Steam` and timed
+out. The revised test recognizes this title, requires a mapped full-size X11
+window and a live CEF renderer for ten seconds, and prints window/process data
+on failure. Five recognition tests pass locally. The complete client probe
+still needs a CI rerun; its diagnostic screenshot was not retrievable through
+the connector, so visual success is not claimed. No account login was attempted.
 
 An isolated Metal experiment lives in `build/linux-arm-gpu` and
 `.github/workflows/steam-arm-gpu.yml`. It builds pinned UTM ANGLE/libepoxy/virgl,
@@ -115,3 +127,21 @@ adds Apple's EGL initialization to QEMU's existing headless readback backend,
 and requires an actual ANGLE Metal renderer in a macOS context test. It does
 not alter the release runtime. Guest 3D rendering and iPhone testing are still
 required before integrating this backend. Vulkan/Proton are later stages.
+
+GPU run 36380641380 compiled both iOS and macOS frameworks. The macOS context
+reported `ANGLE (Apple Inc., Apple Software Renderer, OpenGL 4.1 APPLE-23.1.1)`
+and correctly failed the Metal gate. The experiment now explicitly requests
+`EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE`, using the extension in the pinned ANGLE
+and libepoxy sources, instead of accepting the default display backend. It also
+records host display hardware. This correction has not been compiled or run
+yet; a Mac with available Metal hardware is still required to pass the gate.
+
+Billing checkpoint: the owner reports 2,000/2,000 included Actions minutes used,
+0.2/0.5 GB artifact storage used, with the minutes resetting in three days.
+Run 36380641594 and its retry failed before runner assignment. Do not keep
+retrying until quota or billing is resolved. The standalone client workflow no
+longer duplicates the main workflow's reusable client jobs, and the separate GPU
+experiment is manual-only. This checkpoint uses `[skip ci]`; after quota is
+available, dispatch the main runtime workflow on `codex/steam-arm-linux` at the
+latest commit. Rerunning an older run would test the older code. Resume the
+experimental graphics workflow separately when its host requirements are met.

@@ -1,8 +1,6 @@
 name: Verify Valve ARM64 Steam client
 on:
-  push:
-    branches: [codex/steam-arm-linux]
-    paths: [build/linux-arm/steam-*, build/linux-arm/probe-steam.py, build/linux-arm/build-guest.sh, .github/workflows/steam-arm-client.yml]
+  # The main runtime workflow calls this on push. Do not launch a duplicate run.
   workflow_call:
   workflow_dispatch:
 permissions:
@@ -17,6 +15,7 @@ jobs:
         run: |
           python3 build/linux-arm/test-steam-fetch.py
           python3 build/linux-arm/test-steam-session.py
+          python3 build/linux-arm/test-steam-window.py
       - name: Verify official package checksum and ARM64 executable
         run: python3 build/linux-arm/steam-arm-fetch.py --audit --destination build/linux-arm/output/steam-audit
       - name: Preserve architecture and checksum report

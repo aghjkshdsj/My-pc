@@ -1,8 +1,6 @@
 name: Experimental ARM Linux Metal graphics
 on:
-  push:
-    branches: [codex/steam-arm-linux]
-    paths: [build/linux-arm-gpu/**, .github/workflows/steam-arm-gpu.yml]
+  # Two native framework builds are expensive; run the experiment explicitly.
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,6 +31,7 @@ jobs:
         if: matrix.platform == 'macos'
         run: python3 build/linux-arm-gpu/probe-metal.py build/linux-arm-gpu/output/macos
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: experimental-gpu-${{ matrix.platform }}
           path: build/linux-arm-gpu/output/experimental-gpu-${{ matrix.platform }}.tar.gz
@@ -44,3 +43,4 @@ jobs:
             build/linux-arm-gpu/work-${{ matrix.platform }}/build.log
             build/linux-arm-gpu/work-${{ matrix.platform }}/utm/build-*/**/meson-logs/meson-log.txt
             build/linux-arm-gpu/output/${{ matrix.platform }}/metal-probe.log
+            build/linux-arm-gpu/output/${{ matrix.platform }}/host-displays.log

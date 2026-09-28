@@ -5,6 +5,7 @@ This proves only a running CEF renderer and a visible client window on Linux.
 It does not prove login, downloads, GPU acceleration or iPhone performance.
 """
 import argparse
+import json
 import os
 import pathlib
 import shutil
@@ -12,6 +13,7 @@ import signal
 import subprocess
 import sys
 import time
+from steam_window import client_window
 
 parser = argparse.ArgumentParser()
 parser.add_argument('output', type=pathlib.Path)
@@ -49,18 +51,25 @@ with (output / 'launch.log').open('w') as log:
                                stdout=log, stderr=subprocess.STDOUT, env=environment, start_new_session=True)
     try:
         deadline = time.monotonic() + args.timeout
+        stable_window = None
+        stable_since = None
         while time.monotonic() < deadline:
             time.sleep(5)
             windows = subprocess.run(['xwininfo', '-root', '-tree'], capture_output=True, text=True, check=True).stdout
             processes = subprocess.run(['ps', '-eo', 'args'], capture_output=True, text=True, check=True).stdout
             (output / 'windows.txt').write_text(windows)
             (output / 'processes.txt').write_text(processes)
-            renderer = any('steamwebhelper' in line and '--type=renderer' in line for line in processes.splitlines())
-            if renderer and any('"Steam"' in line or '"Sign in to Steam"' in line for line in windows.splitlines()):
-                success = True
-                time.sleep(10)
-                break
+            window = client_window(windows, processes)
+            (output / 'client-window.json').write_text(json.dumps(window, indent=2) + '\n')
             if process.poll() is not None:
+                break
+            if window is None:
+                stable_window = stable_since = None
+            elif window['id'] != stable_window:
+                stable_window, stable_since = window['id'], time.monotonic()
+            elif time.monotonic() - stable_since >= 10:
+                success = True
+                print(f'Client window remained mapped with a CEF renderer: {window["title"]!r}', flush=True)
                 break
         if success and args.guest:
             dependencies()
@@ -84,7 +93,10 @@ with (output / 'launch.log').open('w') as log:
         if (steam / 'arm64-verification.json').is_file():
             shutil.copy2(steam / 'arm64-verification.json', output / 'arm64-verification.json')
 if not success:
-    for path in [output / 'launch.log', output / 'missing-dependencies.txt', *sorted((output / 'steam-logs').glob('*.txt'))]:
+    diagnostics = [output / name for name in ['launch.log', 'windows.txt', 'processes.txt',
+                                             'client-window.json', 'missing-dependencies.txt']]
+    diagnostics += sorted(path for path in (output / 'steam-logs').glob('*') if path.suffix in {'.txt', '.log'})
+    for path in diagnostics:
         if path.is_file():
             print(f'\n{path.name}:\n{path.read_text(errors="replace")[-16000:]}')
 if not success:
