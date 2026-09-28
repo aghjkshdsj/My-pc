@@ -109,9 +109,36 @@ jobs:
           path: |
             build/linux-arm/output/guest/boot-*.log
             build/linux-arm/output/guest/desktop.ppm
+  steam-guest:
+    name: Full Steam in the actual TCG Linux guest
+    needs: [guest, client]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-guest
+          path: build/linux-arm/output
+      - name: Prepare isolated guest test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-arm
+          mkdir -p build/linux-arm/output/steam-guest
+          tar -xzf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm/output/steam-guest
+          (cd build/linux-arm/output/steam-guest && sha256sum -c SHA256SUMS)
+      - name: Verify client window with the same RAM and display as iPhone
+        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/steam-guest --steam --expect-existing
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-arm-steam-guest-logs
+          path: |
+            build/linux-arm/output/steam-guest/boot-4.log
+            build/linux-arm/output/steam-guest/steam.ppm
   ipa:
     name: Build and publish experimental IPA
-    needs: [apple-boot, client]
+    needs: [apple-boot, client, steam-guest]
     permissions:
       contents: write
       actions: read

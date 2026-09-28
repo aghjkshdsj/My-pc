@@ -17,7 +17,7 @@ curl --fail --max-time 45 http://10.0.2.2:18080/probe.txt | grep -qx my-pc-netwo
 echo 'MYPC_LINUX_NETWORK_OK'
 sync
 echo 'MYPC_LINUX_SMOKE_OK'
-if grep -qw my_pc_desktop_test=1 /proc/cmdline; then
+if grep -Eq 'my_pc_(desktop|steam)_test=1' /proc/cmdline; then
     # Let multi-user.target finish. The host verifies actual X11 input and
     # then uses the same QMP power button command as the iPhone app.
     exit 0

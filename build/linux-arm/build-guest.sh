@@ -18,8 +18,8 @@ sudo chmod 755 "$root/usr/sbin/policy-rc.d"
 sudo chroot "$root" /usr/bin/env DEBIAN_FRONTEND=noninteractive apt-get update
 sudo chroot "$root" /usr/bin/env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     linux-image-arm64 initramfs-tools systemd-sysv systemd-resolved libpam-systemd \
-    iproute2 iputils-ping curl ca-certificates kmod dbus-x11 python3 python3-xlib \
-    xserver-xorg-core xserver-xorg-input-libinput xinit xauth x11-xserver-utils \
+    iproute2 iputils-ping curl ca-certificates kmod dbus-x11 python3 python3-xlib procps \
+    xserver-xorg-core xserver-xorg-input-libinput xinit xauth x11-xserver-utils x11-utils scrot \
     openbox xterm fonts-dejavu-core pulseaudio libasound2-plugins \
     libgl1-mesa-dri libglx-mesa0 libegl-mesa0 libegl1 mesa-vulkan-drivers libvulkan1 \
     libxrandr2 libxinerama1 libxcursor1 libxcomposite1 libxdamage1 libxtst6 \
@@ -33,6 +33,7 @@ sudo install -m 755 "$repo_root/build/linux-arm/steam-arm-fetch.py" "$root/usr/l
 sudo install -m 755 "$repo_root/build/linux-arm/steam-session.sh" "$root/usr/local/bin/my-pc-steam"
 sudo install -m 755 "$repo_root/build/linux-arm/desktop-session.sh" "$root/usr/local/bin/my-pc-desktop"
 sudo install -m 755 "$repo_root/build/linux-arm/desktop-test.py" "$root/usr/local/lib/my-pc/"
+sudo install -m 755 "$repo_root/build/linux-arm/probe-steam.py" "$root/usr/local/lib/my-pc/"
 sudo chroot "$root" useradd --create-home --shell /bin/bash --groups audio,video,render,input,dialout steam
 sudo install -d "$root/etc/systemd/system/getty@tty1.service.d"
 sudo tee "$root/etc/systemd/system/getty@tty1.service.d/steam.conf" >/dev/null <<'EOF'
@@ -63,6 +64,7 @@ After=network-online.target
 Wants=network-online.target
 ConditionKernelCommandLine=|my_pc_smoke=1
 ConditionKernelCommandLine=|my_pc_desktop_test=1
+ConditionKernelCommandLine=|my_pc_steam_test=1
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/my-pc-smoke

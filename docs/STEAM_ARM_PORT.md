@@ -96,6 +96,9 @@ CEF client-window startup is still under test. No account login was attempted.
 
 The release workflow is gated on guest tests, Apple display/boot tests, and
 native Steam client-window startup. Its IPA embeds the compressed Linux disk,
+An additional release gate launches Steam inside the actual 2 GiB TCG guest,
+with the iPhone's initial display dimensions, using a separate disposable disk.
+Its IPA embeds the compressed Linux disk,
 with an atomic **Set up Steam ARM64** action in the fixed Library entry. The
 existing disk is never overwritten. Apple graphics acceleration, audio,
 Proton/FEX game execution, and real iPhone testing remain separate open gates.
