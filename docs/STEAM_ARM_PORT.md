@@ -1,7 +1,8 @@
 # ARM64 Linux Steam on iPhone: implementation record
 
-Status: ARM64 Linux boots in CI; new CI jobs are blocked by the account's used-up
-Actions minutes. No ARM Steam IPA has been validated or released.
+Status: ARM64 Linux boots in CI. The owner has made the repository public;
+standard hosted runner availability is being rechecked after the private-repo
+minutes were exhausted. No ARM Steam IPA has been validated or released.
 The Windows Steam implementation and build 45 remain available.
 
 ## Objective
@@ -145,3 +146,11 @@ experiment is manual-only. This checkpoint uses `[skip ci]`; after quota is
 available, dispatch the main runtime workflow on `codex/steam-arm-linux` at the
 latest commit. Rerunning an older run would test the older code. Resume the
 experimental graphics workflow separately when its host requirements are met.
+
+Public-repository resume: GitHub's API now reports `private: false`. Standard
+`macos-26` and `ubuntu-24.04-arm` runners can supply the build machines without
+requiring the owner to have a Mac. New runtime builds first require the native
+Steam probe to pass; QEMU also waits for the bridge checks. This avoids building
+full runtime artifacts when an earlier prerequisite is already failing. The
+Metal experiment remains separate because compiling on a hosted Mac does not
+prove hardware graphics acceleration is available.
