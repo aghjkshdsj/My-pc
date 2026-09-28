@@ -1,8 +1,8 @@
 # ARM64 Linux Steam on iPhone: implementation record
 
 Status: ARM64 Linux boots in CI. The owner has made the repository public;
-standard hosted runner availability is being rechecked after the private-repo
-minutes were exhausted. No ARM Steam IPA has been validated or released.
+standard hosted runners are working again after the private-repo minutes were
+exhausted. No ARM Steam IPA has been validated or released.
 The Windows Steam implementation and build 45 remain available.
 
 ## Objective
@@ -154,3 +154,12 @@ Steam probe to pass; QEMU also waits for the bridge checks. This avoids building
 full runtime artifacts when an earlier prerequisite is already failing. The
 Metal experiment remains separate because compiling on a hosted Mac does not
 prove hardware graphics acceleration is available.
+
+Run 36436023097 confirms the public repository can start both Mac and Linux
+jobs. Bridge/JIT checks and Valve package verification passed. Native Steam
+reported a real X11 `Sign in to Steam` window, but its renderer retained the
+zygote command line, so the process-name predicate still rejected it. The probe
+now enables loopback-only CEF debugging in disposable tests, reads the actual
+login page's ready state and visible password-field geometry, and requires that
+live response alongside the mapped window for ten seconds. Normal Steam launches
+do not enable this debugging endpoint. No credentials are entered or inspected.

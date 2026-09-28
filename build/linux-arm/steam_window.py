@@ -13,14 +13,10 @@ def inspect_window(window_id):
     return result.stdout if result.returncode == 0 else ''
 
 
-def client_window(windows, processes, inspect=inspect_window):
-    renderer = False
-    for line in processes.splitlines():
-        words = line.split()
-        if words and words[0].rsplit('/', 1)[-1] == 'steamwebhelper' and '--type=renderer' in words:
-            renderer = True
-            break
-    if not renderer:
+def client_window(windows, renderer_ready, inspect=inspect_window):
+    # CEF's forked renderer can retain --type=zygote in /proc/cmdline.
+    # Readiness comes from a live response from the login page instead.
+    if not renderer_ready:
         return None
     for line in windows.splitlines():
         match = re.match(r'\s*(0x[0-9a-fA-F]+)\s+"([^"]*)"', line)

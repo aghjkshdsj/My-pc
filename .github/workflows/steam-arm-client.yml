@@ -32,7 +32,7 @@ jobs:
       - name: Install desktop dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xauth x11-utils scrot dbus-x11 \
+          sudo apt-get install -y --no-install-recommends xvfb xauth x11-utils scrot dbus-x11 python3-websocket \
             libgl1-mesa-dri libglx-mesa0 libegl-mesa0 libegl1 mesa-vulkan-drivers libvulkan1 \
             libxrandr2 libxinerama1 libxcursor1 libxcomposite1 libxdamage1 libxtst6 \
             libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \

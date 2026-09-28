@@ -5,6 +5,7 @@ This proves only a running CEF renderer and a visible client window on Linux.
 It does not prove login, downloads, GPU acceleration or iPhone performance.
 """
 import argparse
+import base64
 import json
 import os
 import pathlib
@@ -14,6 +15,7 @@ import subprocess
 import sys
 import time
 from steam_window import client_window
+from steam_cdp import login_interface
 
 parser = argparse.ArgumentParser()
 parser.add_argument('output', type=pathlib.Path)
@@ -47,7 +49,8 @@ def dependencies():
 success = False
 with (output / 'launch.log').open('w') as log:
     launcher = '/usr/local/bin/my-pc-steam' if args.guest else str(pathlib.Path(__file__).with_name('steam-session.sh'))
-    process = subprocess.Popen(['bash', launcher],
+    # Valve's ARM64 steamclient adds --remote-debugging-address=127.0.0.1.
+    process = subprocess.Popen(['bash', launcher, '-cef-enable-debugging', '-devtools-port', '8080'],
                                stdout=log, stderr=subprocess.STDOUT, env=environment, start_new_session=True)
     try:
         deadline = time.monotonic() + args.timeout
@@ -56,10 +59,11 @@ with (output / 'launch.log').open('w') as log:
         while time.monotonic() < deadline:
             time.sleep(5)
             windows = subprocess.run(['xwininfo', '-root', '-tree'], capture_output=True, text=True, check=True).stdout
-            processes = subprocess.run(['ps', '-eo', 'args'], capture_output=True, text=True, check=True).stdout
+            processes = subprocess.run(['ps', '-eww', '-o', 'pid,ppid,comm,args'], capture_output=True, text=True, check=True).stdout
             (output / 'windows.txt').write_text(windows)
             (output / 'processes.txt').write_text(processes)
-            window = client_window(windows, processes)
+            readiness = login_interface(output)
+            window = client_window(windows, readiness is not None)
             (output / 'client-window.json').write_text(json.dumps(window, indent=2) + '\n')
             if process.poll() is not None:
                 break
@@ -69,7 +73,8 @@ with (output / 'launch.log').open('w') as log:
                 stable_window, stable_since = window['id'], time.monotonic()
             elif time.monotonic() - stable_since >= 10:
                 success = True
-                print(f'Client window remained mapped with a CEF renderer: {window["title"]!r}', flush=True)
+                print(f'Client window remained mapped with a responsive login renderer: {window["title"]!r}', flush=True)
+                print(json.dumps(readiness), flush=True)
                 break
         if success and args.guest:
             dependencies()
@@ -79,6 +84,10 @@ with (output / 'launch.log').open('w') as log:
                 time.sleep(1)
     finally:
         subprocess.run(['scrot', str(output / 'desktop.png')], check=False)
+        screenshot = output / 'desktop.png'
+        if not args.guest and screenshot.is_file() and screenshot.stat().st_size <= 250_000:
+            # Keep a small viewable diagnostic available when artifact delivery fails.
+            print('MYPC_STEAM_SCREENSHOT_BASE64=' + base64.b64encode(screenshot.read_bytes()).decode(), flush=True)
         if process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)
             try:
@@ -94,7 +103,8 @@ with (output / 'launch.log').open('w') as log:
             shutil.copy2(steam / 'arm64-verification.json', output / 'arm64-verification.json')
 if not success:
     diagnostics = [output / name for name in ['launch.log', 'windows.txt', 'processes.txt',
-                                             'client-window.json', 'missing-dependencies.txt']]
+                                             'client-window.json', 'cef-targets.json', 'cef-readiness.json',
+                                             'missing-dependencies.txt']]
     diagnostics += sorted(path for path in (output / 'steam-logs').glob('*') if path.suffix in {'.txt', '.log'})
     for path in diagnostics:
         if path.is_file():

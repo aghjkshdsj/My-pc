@@ -2,9 +2,10 @@
 """Prevent false startup failures and hidden/updater-window false positives."""
 import unittest
 from steam_window import client_window
+from steam_cdp import ready_login
 
 
-RENDERER = '/home/steam/.local/share/Steam/steamrtarm64/steamwebhelper --type=renderer --lang=en-US'
+RENDERER = True
 VIEWABLE = '  Width: 700\n  Height: 440\n  Map State: IsViewable\n'
 
 
@@ -19,9 +20,17 @@ class WindowTests(unittest.TestCase):
                 self.assertIsNotNone(client_window(f'  0x200001 "{title}": ()', RENDERER, lambda _: VIEWABLE))
 
     def test_renderer_required(self):
-        for process in ['', '/path/steamwebhelper --type=gpu-process', 'echo steamwebhelper --type=renderer']:
-            with self.subTest(process=process):
-                self.assertIsNone(client_window('0x20 "Steam": ()', process, lambda _: VIEWABLE))
+        self.assertIsNone(client_window('0x20 "Steam": ()', False, lambda _: VIEWABLE))
+
+    def test_loaded_login_page_is_ready(self):
+        self.assertTrue(ready_login({'hostname': 'steamloopback.host', 'readyState': 'complete', 'passwordVisible': True}))
+
+    def test_loading_blank_or_unrelated_page_is_not_ready(self):
+        for state in [None, {}, {'hostname': 'example.com', 'readyState': 'complete', 'passwordVisible': True},
+                      {'hostname': 'steamloopback.host', 'readyState': 'loading', 'passwordVisible': True},
+                      {'hostname': 'steamloopback.host', 'readyState': 'complete', 'passwordVisible': False}]:
+            with self.subTest(state=state):
+                self.assertFalse(ready_login(state))
 
     def test_hidden_tiny_or_disappeared_window_rejected(self):
         for details in ['', VIEWABLE.replace('IsViewable', 'IsUnMapped'), VIEWABLE.replace('700', '1')]:
