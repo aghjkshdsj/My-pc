@@ -22,9 +22,11 @@ var config = LinuxVMConfiguration(directory: guest, log: root.appendingPathCompo
 let argv = try config.arguments()
 #if MYPC_INTERPRETER
 check(!LinuxExecutionMode.requiresJIT, "Interpreter must not request JIT")
+check(LinuxExecutionMode.defaultCPUSelection == 2, "Interpreter retains the tested two-core default")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=off"), "Interpreter translation storage must not be executable")
 #else
 check(LinuxExecutionMode.requiresJIT, "Sideload build must retain JIT preflight")
+check(LinuxExecutionMode.defaultCPUSelection == 0, "JIT defaults to all available cores")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=on"), "JIT must require split W/X")
 #endif
 let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: String]
@@ -43,6 +45,18 @@ rejects { _ = try config.arguments() }
 config.cpuCount = 0
 rejects { _ = try config.arguments() }
 config.cpuCount = 6
+config.graphics = .metal
+rejects { _ = try config.arguments() }
+config.graphicsInitrd = guest.appendingPathComponent("initrd.img")
+#if MYPC_INTERPRETER
+rejects { _ = try config.arguments() }
+#else
+let metalArguments = try config.arguments()
+check(metalArguments.contains("virtio-gpu-gl-pci,xres=1280,yres=800"), "Metal must use the accelerated virtio GPU")
+check(metalArguments.contains("egl-headless,gl=es"), "Metal must select the tested GLES display backend")
+check(metalArguments[metalArguments.firstIndex(of: "-append")! + 1].contains("my_pc_graphics=virgl"), "Metal must update existing guest startup scripts")
+#endif
+config.graphics = .software
 config.memoryMiB = 8192
 rejects { _ = try config.arguments() }
 config.memoryMiB = 2048

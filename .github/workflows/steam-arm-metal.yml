@@ -1,0 +1,159 @@
+name: iPhone Steam ARM64 Metal development preview
+on:
+  push:
+    branches: [codex/steam-arm-metal]
+    paths: [app/Madeira/Linux*, build/linux-arm/**, build/linux-arm-gpu/**, .github/workflows/steam-arm-metal.yml, .github/workflows/steam-arm-ipa.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: arm-metal-release-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ui:
+    runs-on: macos-26
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require safe launch policies and actual iPhone UI
+        run: |
+          cp build/linux-arm/core-tests.swift "$RUNNER_TEMP/main.swift"
+          swiftc app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/jit-tests"
+          "$RUNNER_TEMP/jit-tests"
+          swiftc -D MYPC_INTERPRETER app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/tcti-tests"
+          "$RUNNER_TEMP/tcti-tests"
+          xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -D MYPC_INTERPRETER -target arm64-apple-ios17.0 \
+            -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -import-objc-header app/Madeira/LinuxVMBridge.h \
+            app/Madeira/LinuxVMCore.swift app/Madeira/LinuxVMSession.swift app/Madeira/LinuxVMView.swift \
+            app/Madeira/LinuxRuntimeInstaller.swift app/Madeira/GameLibraryCore.swift app/Madeira/StoreCore.swift
+  guest:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare a bare production runtime and validate preservation on the older disk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-arm initramfs-tools-core
+          python3 -m py_compile build/linux-arm-gpu/*.py
+          python3 build/linux-arm-gpu/test-boot-update.py
+          python3 build/linux-arm-gpu/test-steam-gpu.py
+          bash -n build/linux-arm-gpu/graphics-update.sh
+          test "$(gh run view 36631484989 --json headSha --jq .headSha)" = 9399ce0c1b445bd56e3a5820f04cf4b307f303ef
+          test "$(gh run view 36631484989 --json conclusion --jq .conclusion)" = success
+          gh run download 36631484989 --name linux-arm-guest --dir build/linux-arm/output
+          mkdir -p build/linux-arm/output/guest
+          tar -xzf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm/output/guest
+          (cd build/linux-arm/output/guest && sha256sum -c SHA256SUMS)
+          unmkinitramfs build/linux-arm/output/guest/initrd.img build/linux-arm-gpu/inspect-initrd
+          order=$(find build/linux-arm-gpu/inspect-initrd -type f -path '*/scripts/local-bottom/ORDER' | head -n1)
+          test -n "$order"
+          python3 build/linux-arm-gpu/prepare-boot-update.py build/linux-arm/output/guest "$order"
+          (cd build/linux-arm/output/guest && sha256sum -c SHA256SUMS)
+          busybox=$(find build/linux-arm-gpu/inspect-initrd -type f -name busybox | head -n1)
+          test -n "$busybox"
+          "$busybox" sha256sum </dev/null
+          test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
+          gh run download 36586450467 --name linux-arm-guest --dir build/linux-arm-gpu/legacy-download
+          mkdir -p build/linux-arm-gpu/legacy-guest
+          tar -xzf build/linux-arm-gpu/legacy-download/linux-arm-guest.tar.gz -C build/linux-arm-gpu/legacy-guest
+          (cd build/linux-arm-gpu/legacy-guest && sha256sum -c SHA256SUMS)
+          cmp build/linux-arm-gpu/legacy-guest/Image build/linux-arm/output/guest/Image
+          cp build/linux-arm/output/guest/graphics-initrd.img build/linux-arm/output/guest/graphics.json build/linux-arm-gpu/legacy-guest/
+          mkdir -p build/linux-arm-gpu/legacy-mount
+          sudo mount -o loop build/linux-arm-gpu/legacy-guest/rootfs.raw build/linux-arm-gpu/legacy-mount
+          sudo mkdir -p build/linux-arm-gpu/legacy-mount/home/steam/.steam build/linux-arm-gpu/legacy-mount/home/steam/.local/share/Steam/steamapps/common/MyPCPreserveTest
+          printf '%s\n' 'my-pc-ci-existing-login-and-game-sentinel' > build/linux-arm-gpu/preserve-sentinel
+          sudo cp build/linux-arm-gpu/preserve-sentinel build/linux-arm-gpu/legacy-mount/home/steam/.steam/my-pc-preserve-test
+          sudo cp build/linux-arm-gpu/preserve-sentinel build/linux-arm-gpu/legacy-mount/home/steam/.local/share/Steam/steamapps/common/MyPCPreserveTest/data
+          sudo umount build/linux-arm-gpu/legacy-mount
+          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm-gpu/legacy-guest /tmp --legacy
+          sudo mount -o loop build/linux-arm-gpu/legacy-guest/rootfs.raw build/linux-arm-gpu/legacy-mount
+          cmp build/linux-arm-gpu/preserve-sentinel build/linux-arm-gpu/legacy-mount/home/steam/.steam/my-pc-preserve-test
+          cmp build/linux-arm-gpu/preserve-sentinel build/linux-arm-gpu/legacy-mount/home/steam/.local/share/Steam/steamapps/common/MyPCPreserveTest/data
+          sudo python3 - <<'PY'
+          import hashlib, json, pathlib
+          metadata = json.loads(pathlib.Path('build/linux-arm/output/guest/graphics.json').read_text())
+          root = pathlib.Path('build/linux-arm-gpu/legacy-mount')
+          for name, expected in metadata['launcherSHA256'].items():
+              assert hashlib.sha256((root / name).read_bytes()).hexdigest() == expected
+              assert (root / (name + '.my-pc-before-metal')).is_file()
+          print('MYPC_LEGACY_GRAPHICS_UPDATE_AND_DATA_PRESERVATION_OK')
+          PY
+          sudo umount build/linux-arm-gpu/legacy-mount
+          tar -Sczf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm/output/guest Image initrd.img rootfs.raw packages.tsv runtime.json SHA256SUMS graphics-initrd.img graphics.json
+          mkdir -p build/linux-arm-gpu/output/steam-guest
+          tar -xzf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm-gpu/output/steam-guest
+          bash build/linux-arm-gpu/prepare-steam-guest.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm-guest
+          path: build/linux-arm/output/linux-arm-guest.tar.gz
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: metal-steam-test-guest
+          path: build/linux-arm-gpu/output/steam-gpu-guest.tar.gz
+          retention-days: 1
+  qemu:
+    runs-on: macos-26
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, macos]
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore exactly the framework that passed Metal rendering
+        run: |
+          test "$(gh run view 36629999384 --json headSha --jq .headSha)" = 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2
+          test "$(gh run view 36629999384 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 36633968100 --json headSha --jq .headSha)" = 8179d3dbd180b9c0eb3871f2a2f26ec9a15947d1
+          test "$(gh run view 36633968100 --json conclusion --jq .conclusion)" = success
+          git fetch --depth=1 origin 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2
+          git diff --exit-code 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2 HEAD -- build/linux-arm-gpu/build.sh build/linux-arm-gpu/prepare-gpu.py build/linux-arm-gpu/patch-qemu.py build/linux-arm/prepare-utm.py build/linux-arm/qemu-display.inc.c build/linux-arm/host-launcher.c app/Madeira/LinuxVMBridge.c app/Madeira/LinuxVMBridge.h
+          gh run download 36629999384 --name 'experimental-gpu-${{ matrix.platform }}' --dir build/linux-arm/output
+          mkdir -p 'build/linux-arm/output/${{ matrix.platform }}'
+          tar -xzf 'build/linux-arm/output/experimental-gpu-${{ matrix.platform }}.tar.gz' -C 'build/linux-arm/output/${{ matrix.platform }}'
+          tar -czf 'build/linux-arm/output/linux-arm-qemu-${{ matrix.platform }}.tar.gz' -C 'build/linux-arm/output/${{ matrix.platform }}' .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm-qemu-${{ matrix.platform }}
+          path: build/linux-arm/output/linux-arm-qemu-${{ matrix.platform }}.tar.gz
+          retention-days: 1
+  apple:
+    runs-on: macos-26
+    needs: [guest, qemu, ui]
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: build/linux-arm/metal-downloads
+      - name: Test both software fallback and the production Metal update
+        run: |
+          mkdir -p build/linux-arm/output/macos build/linux-arm/output/guest build/linux-arm/output/steam-guest
+          tar -xzf build/linux-arm/metal-downloads/linux-arm-qemu-macos/linux-arm-qemu-macos.tar.gz -C build/linux-arm/output/macos
+          tar -xzf build/linux-arm/metal-downloads/linux-arm-guest/linux-arm-guest.tar.gz -C build/linux-arm/output/guest
+          tar -xzf build/linux-arm/metal-downloads/metal-steam-test-guest/steam-gpu-guest.tar.gz -C build/linux-arm/output/steam-guest
+          cp build/linux-arm/output/guest/graphics-initrd.img build/linux-arm/output/guest/graphics.json build/linux-arm/output/steam-guest/
+          for directory in guest steam-guest; do (cd "build/linux-arm/output/$directory" && shasum -a 256 -c SHA256SUMS); done
+          chmod +x build/linux-arm/output/macos/host-launcher
+          for framework in build/linux-arm/output/macos/Frameworks/*.framework; do codesign --force --sign - "$framework"; done
+          python3 build/linux-arm-gpu/probe-metal.py build/linux-arm/output/macos
+          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --desktop --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/guest build/linux-arm/output/macos
+          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/steam-guest build/linux-arm/output/macos --steam
+  ipa:
+    needs: [apple, guest, qemu, ui]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/steam-arm-ipa.yml

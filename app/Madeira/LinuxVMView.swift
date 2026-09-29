@@ -70,6 +70,7 @@ struct LinuxVMView: View {
                             .foregroundStyle(.secondary).multilineTextAlignment(.center)
                         Spacer()
                         cpuPicker
+                        if LinuxVMSession.metalAvailable { graphicsPicker }
                         Text(session.status).font(.footnote).textSelection(.enabled)
                         if session.installing { ProgressView(value: session.installProgress) }
                         HStack {
@@ -123,7 +124,7 @@ struct LinuxVMView: View {
                         Text("This session has \(session.guestCPUCount) virtual CPU cores. iOS reports \(session.hostCPUCount) available host cores. CPU core settings apply at startup; iOS controls scheduling, power and thermal limits. More cores do not guarantee a faster interface.")
                         Text("Display FPS counts new guest frames shown each second, up to 30. An idle desktop can show 0 FPS. This is not a game's internal FPS.")
                         Text("Linux desktop: \(LinuxDesktopSize.width) × \(LinuxDesktopSize.height). Fit shows the whole guest desktop; Enlarge pans toward the pointer.")
-                        Text("Steam currently uses CPU software rendering. GPU utilization is unavailable in this build; no GPU percentage is estimated.")
+                        Text("Graphics selection: \(session.graphicsMode.title). Metal uses the experimental virgl/ANGLE backend; individual apps can still fall back to software. GPU utilization is unavailable; no percentage is estimated.")
                         Text("Device thermal state: \(session.thermalStatus). iOS decides CPU scheduling and thermal limits.")
                     }
                     .navigationTitle("Performance")
@@ -134,10 +135,14 @@ struct LinuxVMView: View {
                 NavigationStack {
                     Form {
                         cpuPicker
+                        if LinuxVMSession.metalAvailable {
+                            graphicsPicker
+                            Text("Metal is experimental and needs device testing. Choose Software if startup or rendering fails. The startup update preserves your installed Steam client, account and games.")
+                        }
                         Text("All available cores is the default. More virtual CPUs can help parallel work, but also add overhead. iOS controls scheduling and thermal limits.")
                         Text("Choose before starting Linux. After a session, shut down Linux and restart My-pc to change this setting. Your installed disk is preserved.")
                     }
-                    .navigationTitle("CPU cores")
+                    .navigationTitle("CPU & graphics")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { cpuSettings = false } } }
                 }.presentationDetents([.medium])
             }
@@ -199,7 +204,7 @@ struct LinuxVMView: View {
                 Button { performanceHelp = true } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("CPU \(session.cpuPercent.map { String(format: "%.0f%%", $0) } ?? "—") · RAM \(session.memoryMiB.map { String(format: "%.0f MiB", $0) } ?? "—")")
-                        Text(String(format: "Display %.1f FPS · GPU: software", session.displayFPS))
+                        Text(String(format: "Display %.1f FPS", session.displayFPS) + " · " + session.graphicsSummary)
                         Text("VM \(session.guestCPUCount) cores · \(image.width)×\(image.height)")
                     }
                     .font(.system(size: 11, design: .monospaced)).monospacedDigit()
@@ -225,7 +230,7 @@ struct LinuxVMView: View {
                     .accessibilityLabel(zoomed ? "Fit desktop to screen" : "Enlarge desktop")
                 Menu {
                     Text(session.status)
-                    Button("CPU cores (\(session.guestCPUCount))") { cpuSettings = true }
+                    Button("CPU & graphics (\(session.guestCPUCount) cores)") { cpuSettings = true }
                     Toggle("Touch as trackpad", isOn: $trackpad)
                     if trackpad {
                         Button(dragging ? "Release mouse drag" : "Hold mouse for dragging") {
@@ -257,6 +262,12 @@ struct LinuxVMView: View {
             ForEach(1...session.hostCPUCount, id: \.self) { count in
                 Text("\(count) \(count == 1 ? "core" : "cores")").tag(count)
             }
+        }.disabled(session.started || session.installing)
+    }
+
+    private var graphicsPicker: some View {
+        Picker("Graphics", selection: Binding(get: { session.graphicsMode }, set: { session.selectGraphics($0) })) {
+            ForEach(LinuxGraphicsMode.allCases, id: \.self) { mode in Text(mode.title).tag(mode) }
         }.disabled(session.started || session.installing)
     }
 

@@ -1,0 +1,9 @@
+Experimental ARM64 Steam **Metal** development preview for iPhone. Download the real **SomethingPC-SteamARM64.ipa** from Assets and sign it with your sideloading tool.
+
+Update the existing My-pc app, restart it, and open **Library → Apps → Steam ARM64**. Before startup choose **Graphics → Metal (experimental)**, enable JIT and open Steam. Software remains the default and recovery option. CPU cores default to all available, normally six on iPhone 15 Pro Max; the Linux desktop is 1280×800. The pointer, touch/trackpad controls and CPU/RAM/display-FPS monitor are included.
+
+This backend uses virgl → ANGLE → Metal. CI required actual guest GPU rendering, Steam CEF virgl compositing/WebGL, a responsive login form, display delivery, persistent storage and clean shutdown on a hosted Mac. The iPhone frameworks compiled and their dependency closure was verified. **Physical iPhone acceleration and performance are not yet verified.** The monitor labels the selected backend; it cannot measure GPU utilization or guarantee every application uses that GPU.
+
+A checksum-verified boot update changes only three reserved My-pc startup scripts, with backups. It preserves the existing Linux disk, downloaded Steam client, account and games. The installed kernel must match the update; a mismatch refuses Metal and leaves Software usable. If Metal startup fails, restart My-pc and choose Software. Do not reset the Linux installation.
+
+Steam still downloads directly from Valve. Existing Steam data should remain when updating the same signed app; deleting the app deletes its sandbox. New setup needs approximately 13 GB free. This is a JIT sideloading preview, not the separate JIT-free product or an App Store build. Audio, Windows-game translation/Vulkan and gaming performance remain unfinished. Corresponding runtime sources and IPA checksum are attached.

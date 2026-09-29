@@ -59,10 +59,14 @@ for name in ['Image', 'initrd.img', 'rootfs.raw']:
 (bundled / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 for name in ['packages.tsv', 'runtime.json']:
     shutil.copy2(guest / name, bundled / name)
+if (guest / 'graphics.json').exists():
+    for name in ['graphics.json', 'graphics-initrd.img']:
+        shutil.copy2(guest / name, bundled / name)
 (bundled / 'README.txt').write_text('ARM64 Linux experimental runtime for My-pc.\n'
     'QEMU v10.0.12-utm / UTM 7eadb056ae0f91d979059544d0ddcd2d5a40be92.\n'
     'Source and build instructions accompany the release. Guest package copyright notices are in /usr/share/doc.\n'
     'Steam is fetched directly from Valve at first launch; no Valve client binaries are bundled.\n'
-    'TCG JIT, two vCPUs, 2048 MiB guest RAM, software rendering. No iPhone performance result is implied.\n')
+    'TCG JIT, selectable/all-available vCPUs, 2048 MiB guest RAM. No iPhone performance result is implied.\n'
+    'Software is the default; Metal is offered only by builds with graphics.json and the verified boot update.\n')
 print('Embedded iOS framework closure:', ', '.join(sorted(done)))
 print(json.dumps(manifest, indent=2))

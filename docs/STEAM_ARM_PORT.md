@@ -188,6 +188,23 @@ diagnostics fail the gate. Raw Steam/CDP logs and the installed client disk are
 not exported. Device testing and persistent-disk migration remain necessary
 before this backend can be offered as a working GPU option.
 
+Run `36633968100` at `8179d3dbd180b9c0eb3871f2a2f26ec9a15947d1`
+passed the full account-free Steam GPU gate. CEF reported `ANGLE (Mesa, virgl)`
+with GPU compositing and WebGL enabled; WebGL pixel readback succeeded. A
+responsive login window reached the 1280x800 app display, with zero recorded
+segfaults or RGBA readback errors, followed by clean shutdown. This is a hosted
+Mac test, separate from physical iPhone acceleration/performance evidence.
+
+Branch `codex/steam-arm-metal` adds an optional Metal choice while keeping
+Software as default and recovery mode. It uses the compiled GPU framework only
+when its source inputs match the passed runtime. A checksummed initramfs update
+changes three reserved My-pc startup scripts with backups, preserves the user's
+disk/account/games and requires a matching installed kernel. Its independent
+release gates cover legacy-disk preservation, actual software recovery, Metal
+desktop/input, full Steam CEF acceleration and real iPhone packaging. This
+Metal IPA is not ready until those gates pass. The monitor reports the selected
+backend; it cannot measure GPU utilization or prove every application uses it.
+
 Billing checkpoint: the owner reports 2,000/2,000 included Actions minutes used,
 0.2/0.5 GB artifact storage used, with the minutes resetting in three days.
 Run 36380641594 and its retry failed before runner assignment. Do not keep

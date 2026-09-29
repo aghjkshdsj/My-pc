@@ -4,11 +4,13 @@ import Foundation
 enum LinuxExecutionMode {
     #if MYPC_INTERPRETER
     static let requiresJIT = false
+    static let defaultCPUSelection = 2
     static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=off"
     static let setupHelp = "Set up Linux, then open Steam. This version runs without JIT and may be very slow. The full ARM64 client downloads from Valve on its first launch."
     static let installedStatus = "Linux runtime installed. Open Steam to start."
     #else
     static let requiresJIT = true
+    static let defaultCPUSelection = 0
     static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=on"
     static let setupHelp = "Set up Linux, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. Graphics currently use CPU software rendering."
     static let installedStatus = "Linux runtime installed. Enable JIT, then open Steam."
@@ -37,6 +39,19 @@ enum LinuxDesktopSize {
     static let height = 800
 }
 
+enum LinuxGraphicsMode: String, CaseIterable {
+    case software, metal
+    var title: String { self == .metal ? "Metal (experimental)" : "Software" }
+}
+
+struct LinuxGraphicsManifest: Decodable {
+    let schema: Int
+    let backend: String
+    let kernelSHA256: String
+    let initrdSHA256: String
+    let initrdBytes: Int
+}
+
 /// Arguments passed directly to QEMU, never through a shell.
 struct LinuxVMConfiguration {
     let directory: URL
@@ -45,6 +60,8 @@ struct LinuxVMConfiguration {
     var memoryMiB = 2048
     var cpuCount = 2
     var resources: URL?
+    var graphics: LinuxGraphicsMode = .software
+    var graphicsInitrd: URL?
 
     func arguments() throws -> [String] {
         guard (512...3072).contains(memoryMiB), (1...LinuxCPUSelection.maximum).contains(cpuCount) else {
@@ -57,6 +74,20 @@ struct LinuxVMConfiguration {
             throw LinuxVMError.invalid("The Linux control or log path is invalid or too long.")
         }
         let files = try ["Image", "initrd.img", "rootfs.raw"].map { try asset($0) }
+        var initrd = files[1]
+        if graphics == .metal {
+            #if MYPC_INTERPRETER
+            throw LinuxVMError.invalid("This interpreter build supports software graphics only.")
+            #else
+            guard let override = graphicsInitrd,
+                  override.isFileURL,
+                  override.resolvingSymlinksInPath() == override.standardizedFileURL,
+                  try override.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else {
+                throw LinuxVMError.invalid("Metal requires the verified graphics boot update.")
+            }
+            initrd = override
+            #endif
+        }
         let kernel = try FileHandle(forReadingFrom: files[0])
         defer { try? kernel.close() }
         let header = try kernel.read(upToCount: 64) ?? Data()
@@ -79,14 +110,14 @@ struct LinuxVMConfiguration {
                 "-machine", "virt-10.0,highmem=off", "-cpu", "max,sve=off,sme=off",
                 "-accel", LinuxExecutionMode.accelerator,
                 "-smp", String(cpuCount), "-m", String(memoryMiB),
-                "-kernel", files[0].path, "-initrd", files[1].path,
-                "-append", "console=ttyAMA0 root=/dev/vda rw quiet loglevel=3",
+                "-kernel", files[0].path, "-initrd", initrd.path,
+                "-append", "console=ttyAMA0 root=/dev/vda rw quiet loglevel=3 my_pc_graphics=\(graphics == .metal ? "virgl" : "software")",
                 "-blockdev", storage, "-blockdev", raw,
                 "-device", "virtio-blk-pci,drive=linux-root",
                 "-netdev", "user,id=linux-net", "-device", "virtio-net-pci,netdev=linux-net,romfile=",
-                "-device", "virtio-gpu-pci,xres=\(LinuxDesktopSize.width),yres=\(LinuxDesktopSize.height)",
+                "-device", "\(graphics == .metal ? "virtio-gpu-gl-pci" : "virtio-gpu-pci"),xres=\(LinuxDesktopSize.width),yres=\(LinuxDesktopSize.height)",
                 "-device", "qemu-xhci", "-device", "usb-tablet", "-device", "usb-kbd",
-                "-display", "none", "-monitor", "none", "-no-reboot",
+                "-display", graphics == .metal ? "egl-headless,gl=es" : "none", "-monitor", "none", "-no-reboot",
                 "-chardev", "file,id=linux-serial,path=\(log.path)", "-serial", "chardev:linux-serial",
                 "-chardev", "socket,id=linux-control,path=\(control.path),server=on,wait=off",
                 "-mon", "chardev=linux-control,mode=control"]

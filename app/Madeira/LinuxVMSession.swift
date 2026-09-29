@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 import Darwin
 import CryptoKit
+import Metal
 
 /// A single serial owner for the local QMP socket. No listener is exposed on LAN.
 final class LinuxQMPConnection: @unchecked Sendable {
@@ -169,6 +170,10 @@ private enum LinuxProcessMetrics {
 
 @MainActor final class LinuxVMSession: ObservableObject {
     static let shared = LinuxVMSession()
+    private static var initialCPUSelection: Int {
+        UserDefaults.standard.object(forKey: "linuxCPUCount") == nil
+            ? LinuxExecutionMode.defaultCPUSelection : UserDefaults.standard.integer(forKey: "linuxCPUCount")
+    }
     static var framework: URL? {
         let file = Bundle.main.bundleURL.appendingPathComponent("Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu")
         return FileManager.default.fileExists(atPath: file.path) ? file : nil
@@ -177,6 +182,13 @@ private enum LinuxProcessMetrics {
     static var bundledRuntime: URL? {
         let folder = Bundle.main.bundleURL.appendingPathComponent("LinuxRuntime")
         return FileManager.default.fileExists(atPath: folder.appendingPathComponent("manifest.json").path) ? folder : nil
+    }
+    static var metalAvailable: Bool {
+        #if MYPC_INTERPRETER
+        return false
+        #else
+        return bundledRuntime.map { FileManager.default.fileExists(atPath: $0.appendingPathComponent("graphics.json").path) } ?? false
+        #endif
     }
     @Published private(set) var status = "Import the ARM64 Linux runtime folder to begin."
     @Published private(set) var running = false
@@ -189,11 +201,49 @@ private enum LinuxProcessMetrics {
     @Published private(set) var memoryMiB: Double?
     @Published private(set) var displayFPS = 0.0
     @Published private(set) var paused = false
-    @Published private(set) var cpuSelection = UserDefaults.standard.integer(forKey: "linuxCPUCount")
+    @Published private(set) var cpuSelection = LinuxVMSession.initialCPUSelection
+    @Published private(set) var graphicsMode: LinuxGraphicsMode = LinuxVMSession.metalAvailable
+        ? (LinuxGraphicsMode(rawValue: UserDefaults.standard.string(forKey: "linuxGraphicsMode") ?? "software") ?? .software) : .software
     @Published private(set) var guestCPUCount = LinuxCPUSelection.resolve(
-        UserDefaults.standard.integer(forKey: "linuxCPUCount"), hostCount: ProcessInfo.processInfo.activeProcessorCount)
+        LinuxVMSession.initialCPUSelection, hostCount: ProcessInfo.processInfo.activeProcessorCount)
     let guestMemoryMiB = 2048
     var hostCPUCount: Int { LinuxCPUSelection.available(ProcessInfo.processInfo.activeProcessorCount) }
+    var graphicsSummary: String { graphicsMode == .metal ? "GPU: Metal selected · use —" : "GPU: software · use —" }
+    func selectGraphics(_ mode: LinuxGraphicsMode) {
+        guard !started, mode == .software || Self.metalAvailable else { return }
+        graphicsMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: "linuxGraphicsMode")
+    }
+    private func verifiedGraphicsInitrd() throws -> URL? {
+        guard graphicsMode == .metal else { return nil }
+        guard Self.metalAvailable, MTLCreateSystemDefaultDevice() != nil, let source = Self.bundledRuntime else {
+            throw LinuxVMError.invalid("This build or device cannot start Metal graphics. Choose Software.")
+        }
+        let metadata = source.appendingPathComponent("graphics.json")
+        let data = try Data(contentsOf: metadata)
+        guard data.count <= 8192 else { throw LinuxVMError.invalid("Invalid graphics update metadata.") }
+        let manifest = try JSONDecoder().decode(LinuxGraphicsManifest.self, from: data)
+        let update = source.appendingPathComponent("graphics-initrd.img")
+        guard manifest.schema == 1, manifest.backend == "virgl-metal",
+              (1...268_435_456).contains(manifest.initrdBytes),
+              try update.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]).isRegularFile == true,
+              try update.resourceValues(forKeys: [.fileSizeKey]).fileSize == manifest.initrdBytes,
+              try StoreFiles.digest(update) == manifest.initrdSHA256 else {
+            throw LinuxVMError.invalid("The Metal boot update failed verification. Choose Software.")
+        }
+        guard try StoreFiles.digest(Self.directory.appendingPathComponent("Image")) == manifest.kernelSHA256 else {
+            throw LinuxVMError.invalid("This installed Linux kernel does not match the Metal update. Choose Software; your disk will be preserved.")
+        }
+        return update
+    }
+    private static func graphicsUpdateFailed(_ log: URL) -> Bool {
+        guard let handle = try? FileHandle(forReadingFrom: log) else { return false }
+        defer { try? handle.close() }
+        guard let length = try? handle.seekToEnd() else { return false }
+        try? handle.seek(toOffset: length > 65_536 ? length - 65_536 : 0)
+        let data = (try? handle.read(upToCount: 65_536)) ?? Data()
+        return String(decoding: data, as: UTF8.self).contains("MYPC_GRAPHICS_UPDATE_FAILED")
+    }
     func selectCPUCount(_ count: Int) {
         guard !started else { return }
         cpuSelection = count > 0 ? min(hostCPUCount, count) : 0
@@ -302,11 +352,12 @@ private enum LinuxProcessMetrics {
             guestCPUCount = LinuxCPUSelection.resolve(cpuSelection, hostCount: hostCPUCount)
             let arguments = try LinuxVMConfiguration(directory: Self.directory, log: log, control: control,
                 memoryMiB: guestMemoryMiB, cpuCount: guestCPUCount,
-                resources: Bundle.main.bundleURL.appendingPathComponent("QEMU")).arguments()
+                resources: Bundle.main.bundleURL.appendingPathComponent("QEMU"),
+                graphics: graphicsMode, graphicsInitrd: verifiedGraphicsInitrd()).arguments()
             #if !MYPC_INTERPRETER
             jit_install_trap_handler()
             #endif
-            started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores…"
+            started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores · \(graphicsMode.title)…"
             UIApplication.shared.isIdleTimerDisabled = true
             beginPerformanceSample()
             let frameTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { _ in
@@ -338,6 +389,9 @@ private enum LinuxProcessMetrics {
                     UIApplication.shared.isIdleTimerDisabled = false
                     self.status = code == 0 ? "Linux shut down. Restart My-pc for another session." : "Linux stopped: \(detail)"
                     if code != 0 { self.error = detail }
+                    if self.graphicsMode == .metal, Self.graphicsUpdateFailed(log) {
+                        self.error = "The Metal startup update failed. Restart My-pc and choose Software. Your Linux disk was preserved."
+                    }
                 }
             }
         } catch { self.error = error.localizedDescription }
