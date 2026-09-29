@@ -1,0 +1,26 @@
+name: ARM Linux iPhone UI and CPU policy checks
+on:
+  push:
+    branches: [codex/steam-arm-linux]
+    paths: [app/Madeira/Linux*, build/linux-arm/core-tests.swift, .github/workflows/steam-arm-ui.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify both CPU selection policies and the actual iPhone UI
+        run: |
+          cp build/linux-arm/core-tests.swift "$RUNNER_TEMP/main.swift"
+          swiftc app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/jit-core-tests"
+          "$RUNNER_TEMP/jit-core-tests"
+          swiftc -D MYPC_INTERPRETER app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/interpreter-core-tests"
+          "$RUNNER_TEMP/interpreter-core-tests"
+          xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -D MYPC_INTERPRETER -target arm64-apple-ios17.0 \
+            -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -import-objc-header app/Madeira/LinuxVMBridge.h \
+            app/Madeira/LinuxVMCore.swift app/Madeira/LinuxVMSession.swift app/Madeira/LinuxVMView.swift \
+            app/Madeira/LinuxRuntimeInstaller.swift app/Madeira/GameLibraryCore.swift app/Madeira/StoreCore.swift
+          echo 'PASS: both launch policies, automatic six-core selection and iPhone UI type-check'

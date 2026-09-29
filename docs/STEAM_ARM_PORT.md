@@ -319,6 +319,9 @@ verified and compared byte-for-byte before publication. Size: 679,745,211 bytes.
 SHA-256: `283d846c818583d85edeaedb7d843273ff6f905a5000d518a044ee02bd5acf5b`.
 The new controls and overlay still need device validation; preview 23's owner
 login report does not validate this updated UI or establish a speed improvement.
+The owner subsequently tested preview 24 and confirmed the larger desktop and
+pointer work. Right-click, dragging, metric accuracy and performance comparisons
+still need separate device checks; no speed improvement is claimed yet.
 
 The owner also requested all available CPU cores. The next build replaces the
 fixed two-core app launch with an automatic selection based on iOS's available
