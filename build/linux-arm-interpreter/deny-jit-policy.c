@@ -5,7 +5,6 @@
 #include <errno.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
-#include <mach-o/dyld-interposing.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -62,10 +61,17 @@ static kern_return_t policy_vm_protect(vm_map_t task, vm_address_t address,
     return vm_protect(task, address, size, maximum, protection);
 }
 
-DYLD_INTERPOSE(policy_mmap, mmap)
-DYLD_INTERPOSE(policy_mprotect, mprotect)
-DYLD_INTERPOSE(policy_mach_vm_protect, mach_vm_protect)
-DYLD_INTERPOSE(policy_vm_protect, vm_protect)
+/* The hosted SDK omits dyld-interposing.h. Emit its Mach-O tuple format
+ * directly, avoiding any private API calls or injected environment variables.
+ */
+#define MYPC_INTERPOSE(replacement, original) \
+    __attribute__((used, section("__DATA,__interpose"))) \
+    static const struct { const void *replace; const void *with; } \
+        mypc_interpose_##original = { (const void *)&replacement, (const void *)&original };
+MYPC_INTERPOSE(policy_mmap, mmap)
+MYPC_INTERPOSE(policy_mprotect, mprotect)
+MYPC_INTERPOSE(policy_mach_vm_protect, mach_vm_protect)
+MYPC_INTERPOSE(policy_vm_protect, vm_protect)
 
 __attribute__((constructor)) static void policy_started(void)
 {
