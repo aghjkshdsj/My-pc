@@ -22,7 +22,7 @@ import SwiftUI
                     }
                 }
                 .navigationTitle("Library")
-                .sheet(isPresented: $showingSteam) { LinuxVMView() }
+                .fullScreenCover(isPresented: $showingSteam) { LinuxVMView() }
             }
             .preferredColorScheme(.dark)
         }

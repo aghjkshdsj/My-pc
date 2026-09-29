@@ -75,6 +75,16 @@ final class LinuxQMPConnection: @unchecked Sendable {
         }
     }
 
+    func click(x: Double, y: Double, button: LinuxMouseButton) {
+        queue.async {
+            do {
+                try self.request("input-send-event", arguments: LinuxQMP.pointer(x: x, y: y, down: true, button: button))
+                Thread.sleep(forTimeInterval: 0.01)
+                try self.request("input-send-event", arguments: LinuxQMP.pointer(x: x, y: y, down: false, button: button))
+            } catch { /* A disconnected session cannot accept pointer input. */ }
+        }
+    }
+
     private func request(_ command: String, arguments: [String: Any]) throws {
         guard descriptor >= 0 else { throw LinuxVMError.invalid("Linux control is not connected.") }
         requestID += 1
@@ -136,6 +146,27 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
     LinuxFrameInbox.shared.push(pixels, width: Int(width), height: Int(height), stride: Int(stride))
 }
 
+private enum LinuxProcessMetrics {
+    static func cpuSeconds() -> Double? {
+        var usage = rusage()
+        guard getrusage(RUSAGE_SELF, &usage) == 0 else { return nil }
+        return Double(usage.ru_utime.tv_sec) + Double(usage.ru_utime.tv_usec) / 1_000_000
+            + Double(usage.ru_stime.tv_sec) + Double(usage.ru_stime.tv_usec) / 1_000_000
+    }
+
+    static func footprintMiB() -> Double? {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return nil }
+        return Double(info.phys_footprint) / 1_048_576
+    }
+}
+
 @MainActor final class LinuxVMSession: ObservableObject {
     static let shared = LinuxVMSession()
     static var framework: URL? {
@@ -154,8 +185,30 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
     @Published private(set) var installing = false
     @Published private(set) var installProgress = 0.0
     @Published private(set) var image: CGImage?
+    @Published private(set) var cpuPercent: Double?
+    @Published private(set) var memoryMiB: Double?
+    @Published private(set) var displayFPS = 0.0
+    @Published private(set) var paused = false
+    let guestCPUCount = 2
+    let guestMemoryMiB = 2048
+    var hostCPUCount: Int { ProcessInfo.processInfo.activeProcessorCount }
+    var thermalStatus: String {
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal: return "Normal"
+        case .fair: return "Warm"
+        case .serious: return "Hot"
+        case .critical: return "Critical"
+        @unknown default: return "Unknown"
+        }
+    }
     @Published var error: String?
     private var timer: Timer?
+    private var performance = LinuxPerformanceCounter()
+    private var sampleTime = 0.0
+    private var displayedFrames = 0
+    private var pointerDown = false
+    private var lastPointer = (x: 0.5, y: 0.5)
+    private var pendingPointer: (x: Double, y: Double, down: Bool)?
     private let qmp = LinuxQMPConnection()
     var installed: Bool { FileManager.default.fileExists(atPath: Self.directory.appendingPathComponent("rootfs.raw").path) }
     private var otherRuntimeStarted: Bool {
@@ -239,15 +292,19 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
             if FileManager.default.fileExists(atPath: control.path) { try FileManager.default.removeItem(at: control) }
             let log = Self.directory.appendingPathComponent("boot.log")
             let arguments = try LinuxVMConfiguration(directory: Self.directory, log: log, control: control,
+                memoryMiB: guestMemoryMiB, cpuCount: guestCPUCount,
                 resources: Bundle.main.bundleURL.appendingPathComponent("QEMU")).arguments()
             #if !MYPC_INTERPRETER
             jit_install_trap_handler()
             #endif
             started = true; running = true; status = "Booting ARM64 Linux…"
             UIApplication.shared.isIdleTimerDisabled = true
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { _ in
-                Task { @MainActor in if let image = LinuxFrameInbox.shared.take() { self.image = image } }
+            beginPerformanceSample()
+            let frameTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { _ in
+                Task { @MainActor in self.refreshDisplay() }
             }
+            RunLoop.main.add(frameTimer, forMode: .common)
+            timer = frameTimer
             qmp.connect(path: control.path) { result in
                 Task { @MainActor in
                     guard self.running else { return }
@@ -267,6 +324,8 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
                 Task { @MainActor in
                     self.qmp.close(); self.connected = false; self.running = false
                     self.timer?.invalidate(); self.timer = nil
+                    self.pendingPointer = nil; self.pointerDown = false
+                    self.displayFPS = 0; self.cpuPercent = nil; self.paused = false
                     UIApplication.shared.isIdleTimerDisabled = false
                     self.status = code == 0 ? "Linux shut down. Restart My-pc for another session." : "Linux stopped: \(detail)"
                     if code != 0 { self.error = detail }
@@ -284,11 +343,52 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
     }
     func pointer(x: Double, y: Double, down: Bool) {
         guard connected else { return }
-        qmp.send("input-send-event", arguments: LinuxQMP.pointer(x: x, y: y, down: down))
+        let x = x.isFinite ? min(1, max(0, x)) : 0
+        let y = y.isFinite ? min(1, max(0, y)) : 0
+        lastPointer = (x, y)
+        if down != pointerDown {
+            // Never coalesce away a press or release. Ordinary motion is
+            // limited to the display cadence instead of flooding the socket.
+            pendingPointer = nil; pointerDown = down
+            qmp.send("input-send-event", arguments: LinuxQMP.pointer(x: x, y: y, down: down))
+        } else { pendingPointer = (x, y, down) }
+    }
+    func click(x: Double, y: Double, button: LinuxMouseButton = .left) {
+        guard connected, !pointerDown else { return }
+        pendingPointer = nil
+        qmp.click(x: x, y: y, button: button)
     }
     func setBackground(_ background: Bool) {
         guard connected else { return }
+        paused = background
+        if background {
+            if pointerDown {
+                qmp.send("input-send-event", arguments: LinuxQMP.pointer(x: lastPointer.x, y: lastPointer.y, down: false))
+            }
+            pendingPointer = nil; pointerDown = false
+            cpuPercent = nil; displayFPS = 0
+        } else { beginPerformanceSample() }
         qmp.send(background ? "stop" : "cont")
+    }
+    private func beginPerformanceSample() {
+        performance = LinuxPerformanceCounter(); displayedFrames = 0
+        sampleTime = ProcessInfo.processInfo.systemUptime
+        _ = performance.sample(time: sampleTime, cpuSeconds: LinuxProcessMetrics.cpuSeconds(), frames: 0)
+    }
+    private func refreshDisplay() {
+        guard !paused else { return }
+        if let point = pendingPointer {
+            pendingPointer = nil
+            qmp.send("input-send-event", arguments: LinuxQMP.pointer(x: point.x, y: point.y, down: point.down))
+        }
+        if let image = LinuxFrameInbox.shared.take() { self.image = image; displayedFrames += 1 }
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - sampleTime >= 1 else { return }
+        if let rates = performance.sample(time: now, cpuSeconds: LinuxProcessMetrics.cpuSeconds(), frames: displayedFrames) {
+            cpuPercent = rates.cpuPercent; displayFPS = rates.displayFPS
+        }
+        memoryMiB = LinuxProcessMetrics.footprintMiB()
+        sampleTime = now; displayedFrames = 0
     }
     func type(_ text: String) {
         guard connected, !text.isEmpty else { return }

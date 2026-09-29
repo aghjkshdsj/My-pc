@@ -55,3 +55,22 @@ check(JSONSerialization.isValidJSONObject(typed), "Keyboard must form valid QMP 
 rejects { _ = try LinuxQMP.text("password🙂") }
 rejects { _ = try LinuxQMP.text(String(repeating: "a", count: 1025)) }
 print("PASS: Linux launch validation, disk paths, JIT options, control replies and input bounds")
+
+var meter = LinuxPerformanceCounter()
+check(meter.sample(time: 10, cpuSeconds: 4, frames: 0) == nil, "First sample must not invent a CPU rate")
+let busy = meter.sample(time: 12, cpuSeconds: 7, frames: 30)!
+check(busy.cpuPercent == 150, "CPU must include multiple cores and normalize by elapsed time")
+check(busy.displayFPS == 15, "FPS must count new frames rather than timer ticks")
+let idle = meter.sample(time: 14, cpuSeconds: 7, frames: 0)!
+check(idle.cpuPercent == 0 && idle.displayFPS == 0, "Idle screen must not report synthetic refresh FPS")
+let missing = meter.sample(time: 15, cpuSeconds: nil, frames: 1)!
+check(missing.cpuPercent == nil, "Failed CPU query must remain unavailable")
+let recovered = meter.sample(time: 16, cpuSeconds: 8, frames: 0)!
+check(recovered.cpuPercent == nil, "CPU requires two valid consecutive readings")
+let reset = meter.sample(time: 17, cpuSeconds: 1, frames: 0)!
+check(reset.cpuPercent == nil, "Counter reset must not report negative CPU use")
+check(meter.sample(time: 17, cpuSeconds: 1, frames: 0) == nil, "Zero-duration interval must not divide by zero")
+let right = LinuxQMP.pointer(x: 0.5, y: 0.5, down: true, button: .right)
+let rightEvents = right["events"] as! [[String: Any]]
+check((rightEvents[2]["data"] as! [String: Any])["button"] as? String == "right", "Context clicks must use the right mouse button")
+print("PASS: CPU accounting, display frame rates, missing metrics and right-click input")

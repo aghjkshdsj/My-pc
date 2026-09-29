@@ -10,6 +10,23 @@ steam = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(steam)
 
 class SteamARMTests(unittest.TestCase):
+    def test_extraction_progress_counts_streamed_data_and_preserves_content(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            staged = root / 'staged'
+            staged.mkdir()
+            archive = root / 'package.zip'
+            content = b'x' * (2 * 1024**2 + 37)
+            with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as package:
+                package.writestr('steamrtarm64/large.bin', content)
+                package.writestr('config/loginusers.vdf', 'preserve account data')
+            updates = []
+            steam.extract(archive, staged, progress=lambda done, total: updates.append((done, total)))
+            self.assertGreater(len(updates), 1)
+            self.assertEqual(updates[-1], (len(content), len(content)))
+            self.assertEqual((staged / 'steamrtarm64/large.bin').read_bytes(), content)
+            self.assertFalse((staged / 'config').exists())
+
     def test_native_client_keeps_browser_and_shared_ui(self):
         names = ["steamui_websrc_all", "public_all", "webkit_linuxarm64_linuxarm64", "bins_linuxarm64_linuxarm64", "sdl3_linuxarm64_linuxarm64", "bins_steamrt_linuxarm64", "bins_androidarm64_linuxarm64"]
         packages = [{"name": name, "file": name + ".zip." + "a" * 40} for name in names]

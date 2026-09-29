@@ -10,7 +10,7 @@ enum LinuxExecutionMode {
     #else
     static let requiresJIT = true
     static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=on"
-    static let setupHelp = "Set up Linux, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. This experimental build still needs iPhone testing."
+    static let setupHelp = "Set up Linux, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. Graphics currently use CPU software rendering."
     static let installedStatus = "Linux runtime installed. Enable JIT, then open Steam."
     #endif
 }
@@ -123,12 +123,12 @@ enum LinuxQMP {
         return true
     }
 
-    static func pointer(x: Double, y: Double, down: Bool) -> [String: Any] {
+    static func pointer(x: Double, y: Double, down: Bool, button: LinuxMouseButton = .left) -> [String: Any] {
         func coordinate(_ value: Double) -> Int { value.isFinite ? Int(min(1, max(0, value)) * 32767) : 0 }
         return ["events": [
             ["type": "abs", "data": ["axis": "x", "value": coordinate(x)]],
             ["type": "abs", "data": ["axis": "y", "value": coordinate(y)]],
-            ["type": "btn", "data": ["button": "left", "down": down]]
+            ["type": "btn", "data": ["button": button.rawValue, "down": down]]
         ]]
     }
 
@@ -166,5 +166,30 @@ enum LinuxQMP {
             if shift { events.append(key("shift", down: false)) }
         }
         return ["events": events]
+    }
+}
+
+enum LinuxMouseButton: String {
+    case left, right
+    case wheelUp = "wheel-up", wheelDown = "wheel-down"
+}
+
+/// Process CPU time is cumulative across all threads. 100% means one busy
+/// core; the value may exceed 100%. Frames count new guest images consumed by
+/// the display, not screen refreshes or a game's internal rendering rate.
+struct LinuxPerformanceCounter {
+    private var previousTime: Double?
+    private var previousCPU: Double?
+
+    mutating func sample(time: Double, cpuSeconds: Double?, frames: Int) -> (cpuPercent: Double?, displayFPS: Double)? {
+        defer { previousTime = time; previousCPU = cpuSeconds }
+        guard let previousTime, time.isFinite, time > previousTime else { return nil }
+        let elapsed = time - previousTime
+        var cpu: Double?
+        if let cpuSeconds, let previousCPU, cpuSeconds.isFinite,
+           previousCPU.isFinite, cpuSeconds >= previousCPU {
+            cpu = (cpuSeconds - previousCPU) / elapsed * 100
+        }
+        return (cpu, Double(max(0, frames)) / elapsed)
     }
 }
