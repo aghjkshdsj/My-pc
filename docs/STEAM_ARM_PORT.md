@@ -1,10 +1,11 @@
 # ARM64 Linux Steam on iPhone: implementation record
 
-Status: the full ARM64 Steam login interface passes its native Linux CI test.
-ARM64 Linux boot and desktop input tests also pass. The owner has made the repository public;
-standard hosted runners are working again after the private-repo minutes were
-exhausted. No ARM Steam IPA has been validated or released.
-The Windows Steam implementation and build 45 remain available.
+Status: the full ARM64 Steam login interface passes inside the actual Apple
+QEMU framework as well as native Linux. Linux boot, desktop input, iPhone
+compilation and IPA validation pass. The experimental
+[steam-arm-preview-23 release](https://github.com/aghjkshdsj/My-pc/releases/tag/steam-arm-preview-23)
+contains a real unsigned iPhone IPA. Physical iPhone execution, account login,
+downloads and gaming performance still need device testing.
 
 ## Objective
 
@@ -212,12 +213,12 @@ only fixed error counts and readiness booleans, without republishing raw logs.
 
 Run `36506270696`, commit `b3c1388dc2e789ebd4ab68ca638989446bc93dd5`,
 moves the full Steam guest gate from Ubuntu's QEMU 8.2 to the pinned QEMU 10.0.12
-Apple framework used by this port. Installation and CEF startup now have
+Apple framework used by this port. Installation and CEF startup have
 separate 30-minute and 10-minute limits, with bounded progress reports each
 minute; helper restarts do not renew the CEF budget. The guest still must show
 a stable mapped window and a live, complete login form. This run passed native
-Steam startup, bridge checks and both Apple framework builds; guest tests and
-IPA packaging are still pending.
+Steam startup, bridge checks and both Apple framework builds; the full guest
+test subsequently failed as recorded below.
 
 That Apple-framework Steam run subsequently failed after installation. CEF's
 background page was responsive and complete, but no login popup appeared.
@@ -234,7 +235,20 @@ from the live helper process instead of an optional shell-log message. Bounded
 process-state diagnostics record only fixed labels and numbers, never arguments
 or input values. Run `36586450467`, commit
 `ccab0ec62a875a80fa16570d0dcf88442c109194`, tests these corrections. Its native
-Steam and package/launcher checks passed; guest Steam and IPA remain pending.
+Steam and package/launcher checks passed. The corrected full guest Steam test
+then passed through QEMU 10.0.12's Apple framework: a stable mapped login window
+with a responsive, complete CEF login form, followed by clean shutdown. The
+first installation and startup took approximately 11 minutes on the CI Mac;
+this is not an iPhone performance measurement.
+
+The same run built and published **SomethingPC-SteamARM64.ipa** in release
+`steam-arm-preview-23`. The archive contains the ARM64 iPhone app, iOS framework
+dependency closure, kernel, initrd, compressed persistent-disk seed and JIT
+script. CI downloaded the uploaded release asset, checked its SHA-256 and
+compared it byte-for-byte with the built IPA before publishing the prerelease.
+Size: 679,723,864 bytes. SHA-256:
+`5275a0433c31d4a1dd228aae03f286cc395dee39079fd4b89cf06a8c8fb2b7e2`.
+Corresponding runtime source and the checksum file accompany the IPA.
 
 The owner's additional JIT-free request is being implemented separately in
 [draft PR #3](https://github.com/aghjkshdsj/My-pc/pull/3), branch
