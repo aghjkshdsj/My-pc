@@ -20,6 +20,23 @@ enum LinuxVMError: LocalizedError {
     var errorDescription: String? { if case .invalid(let message) = self { return message }; return nil }
 }
 
+/// Zero is automatic. Resolve against the cores iOS currently makes available,
+/// without pinning host threads or pretending to control iOS scheduling.
+enum LinuxCPUSelection {
+    static let maximum = 64
+    static func available(_ hostCount: Int) -> Int { min(maximum, max(1, hostCount)) }
+    static func resolve(_ selection: Int, hostCount: Int) -> Int {
+        let count = available(hostCount)
+        return selection > 0 ? min(count, selection) : count
+    }
+}
+
+enum LinuxDesktopSize {
+    // Steam's normal desktop window extends beyond the old 960x540 guest.
+    static let width = 1280
+    static let height = 800
+}
+
 /// Arguments passed directly to QEMU, never through a shell.
 struct LinuxVMConfiguration {
     let directory: URL
@@ -30,8 +47,8 @@ struct LinuxVMConfiguration {
     var resources: URL?
 
     func arguments() throws -> [String] {
-        guard (512...3072).contains(memoryMiB), (1...4).contains(cpuCount) else {
-            throw LinuxVMError.invalid("Linux requires 512–3072 MB RAM and 1–4 CPU cores.")
+        guard (512...3072).contains(memoryMiB), (1...LinuxCPUSelection.maximum).contains(cpuCount) else {
+            throw LinuxVMError.invalid("Linux requires 512–3072 MB RAM and 1–64 CPU cores.")
         }
         // QEMU's Unix socket chardev uses the platform sockaddr_un path limit.
         guard control.isFileURL, control.path.utf8.count < 100,
@@ -67,7 +84,7 @@ struct LinuxVMConfiguration {
                 "-blockdev", storage, "-blockdev", raw,
                 "-device", "virtio-blk-pci,drive=linux-root",
                 "-netdev", "user,id=linux-net", "-device", "virtio-net-pci,netdev=linux-net,romfile=",
-                "-device", "virtio-gpu-pci,xres=960,yres=540",
+                "-device", "virtio-gpu-pci,xres=\(LinuxDesktopSize.width),yres=\(LinuxDesktopSize.height)",
                 "-device", "qemu-xhci", "-device", "usb-tablet", "-device", "usb-kbd",
                 "-display", "none", "-monitor", "none", "-no-reboot",
                 "-chardev", "file,id=linux-serial,path=\(log.path)", "-serial", "chardev:linux-serial",

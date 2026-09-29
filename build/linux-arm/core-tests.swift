@@ -29,6 +29,20 @@ check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=on"), "JIT must requi
 #endif
 let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: String]
 check(block["filename"] == guest.appendingPathComponent("rootfs.raw").path, "Disk path must survive spaces and commas without option injection")
+check(LinuxCPUSelection.resolve(0, hostCount: 6) == 6, "Automatic mode must expose all six iPhone cores")
+check(LinuxCPUSelection.resolve(2, hostCount: 6) == 2, "A smaller manual selection must remain available")
+check(LinuxCPUSelection.resolve(8, hostCount: 6) == 6, "Stored preferences must not oversubscribe this phone")
+check(LinuxCPUSelection.resolve(-1, hostCount: 6) == 6, "Invalid automatic preference must be safe")
+check(LinuxCPUSelection.resolve(0, hostCount: 0) == 1, "At least one CPU must remain usable")
+config.cpuCount = LinuxCPUSelection.resolve(0, hostCount: 6)
+let sixCoreArguments = try config.arguments()
+check(sixCoreArguments[sixCoreArguments.firstIndex(of: "-smp")! + 1] == "6", "Launch must actually request six virtual CPUs")
+check(sixCoreArguments.contains("virtio-gpu-pci,xres=1280,yres=800"), "Guest desktop must fit the normal Steam window")
+config.cpuCount = 65
+rejects { _ = try config.arguments() }
+config.cpuCount = 0
+rejects { _ = try config.arguments() }
+config.cpuCount = 6
 config.memoryMiB = 8192
 rejects { _ = try config.arguments() }
 config.memoryMiB = 2048

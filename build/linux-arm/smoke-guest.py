@@ -24,7 +24,13 @@ parser.add_argument("--desktop", action="store_true")
 parser.add_argument("--steam", action="store_true", help="Launch full Steam in the actual Linux guest")
 parser.add_argument("--interpreter", action="store_true", help="Use non-executable translation storage and longer boot deadlines")
 parser.add_argument("--deny-jit-policy", action="store_true", help="Require the CI-only allocation guard and no attempts to generate executable host code")
+parser.add_argument("--cpus", type=int, default=2)
+parser.add_argument("--verify-cpu-count", action="store_true", help="Require the new guest's online CPU count marker")
+parser.add_argument("--resolution", choices=['960x540', '1280x800'], default='1280x800')
 args = parser.parse_args()
+display_width, display_height = map(int, args.resolution.split('x'))
+if not 1 <= args.cpus <= 64:
+    parser.error('--cpus must be between 1 and 64')
 if args.desktop and args.steam:
     parser.error('Choose one desktop test mode')
 if args.deny_jit_policy and (not args.interpreter or not args.launcher):
@@ -45,8 +51,9 @@ with tempfile.TemporaryDirectory() as directory:
             if args.interpreter:
                 command[command.index('-accel') + 1] += ',split-wx=off'
             environment = os.environ.copy()
+            command[command.index('-smp') + 1] = str(args.cpus)
             if args.display or args.desktop or args.steam:
-                command += ["-device", "virtio-gpu-pci,xres=960,yres=540"]
+                command += ["-device", f"virtio-gpu-pci,xres={display_width},yres={display_height}"]
             if args.display:
                 environment["MYPC_TEST_DISPLAY"] = "1"
             if args.desktop or args.steam:
@@ -55,6 +62,8 @@ with tempfile.TemporaryDirectory() as directory:
                 command[command.index("-append") + 1] = f"console=ttyAMA0 root=/dev/vda rw my_pc_{mode}_test=1 panic=-1"
                 control = pathlib.Path(directory, "qmp.sock")
                 command += ["-qmp", f"unix:{control},server=on,wait=off", "-device", "qemu-xhci", "-device", "usb-tablet", "-device", "usb-kbd"]
+            if args.verify_cpu_count:
+                command[command.index('-append') + 1] += f' my_pc_expected_cpus={args.cpus}'
             log = guest / f"boot-{boot}.log"
             with log.open("w") as output:
                 process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, env=environment)
@@ -102,6 +111,11 @@ with tempfile.TemporaryDirectory() as directory:
                                         return
                             request("qmp_capabilities")
                             request("screendump", {"filename": str(guest / ("steam.ppm" if args.steam else "desktop.ppm"))})
+                            screenshot = guest / ('steam.ppm' if args.steam else 'desktop.ppm')
+                            with screenshot.open('rb') as image:
+                                dimensions = re.match(rb'P6\s+(\d+)\s+(\d+)\s+255\s', image.read(128))
+                            assert dimensions and tuple(map(int, dimensions.groups())) == (display_width, display_height), 'Actual guest desktop does not match the requested resolution'
+                            print(f'MYPC_DESKTOP_SIZE_OK={display_width}x{display_height}', flush=True)
                             for down in (() if args.steam else (True, False)):
                                 request("input-send-event", {"events": [
                                     {"type": "abs", "data": {"axis": "x", "value": 16000}},
@@ -137,6 +151,8 @@ with tempfile.TemporaryDirectory() as directory:
             content = log.read_text(errors="replace")
             print(content[-6000:])
             required = ["MYPC_LINUX_ARM64_BOOTED", "MYPC_LINUX_NETWORK_OK", "MYPC_LINUX_SMOKE_OK", "MYPC_LINUX_PERSISTENCE_WRITTEN" if boot == 1 and not args.expect_existing else "MYPC_LINUX_PERSISTENCE_OK"]
+            if args.verify_cpu_count:
+                required.append(f'MYPC_LINUX_CPU_COUNT={args.cpus}')
             if args.display:
                 required.append("MYPC_APPLE_FRAMEBUFFER_OK")
             if args.deny_jit_policy:

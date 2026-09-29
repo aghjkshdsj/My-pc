@@ -79,8 +79,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      GUEST_RUN: '36586450467'
-      GUEST_SHA: ccab0ec62a875a80fa16570d0dcf88442c109194
+      GUEST_RUN: '36631484989'
+      GUEST_SHA: 9399ce0c1b445bd56e3a5820f04cf4b307f303ef
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -103,8 +103,8 @@ jobs:
         run: |
           bash build/linux-arm-interpreter/build-policy-host.sh build/linux-arm-interpreter/output/macos
           codesign -d --entitlements :- build/linux-arm-interpreter/output/macos/host-launcher
-          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --expect-existing --display --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
-          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --expect-existing --display --desktop --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --desktop --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -128,8 +128,8 @@ jobs:
           path: build/linux-arm-interpreter/output
       - name: Restore runtime and build iPhone app
         run: |
-          test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
-          gh run download 36586450467 --name linux-arm-guest --dir build/linux-arm-interpreter/output
+          test "$(gh run view 36631484989 --json headSha --jq .headSha)" = 9399ce0c1b445bd56e3a5820f04cf4b307f303ef
+          gh run download 36631484989 --name linux-arm-guest --dir build/linux-arm-interpreter/output
           mkdir -p build/linux-arm-interpreter/output/guest build/linux-arm-interpreter/output/ios
           tar -xzf build/linux-arm-interpreter/output/tcti-ios.tar.gz -C build/linux-arm-interpreter/output/ios
           tar -xzf build/linux-arm-interpreter/output/linux-arm-guest.tar.gz -C build/linux-arm-interpreter/output/guest

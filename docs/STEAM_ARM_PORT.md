@@ -1,10 +1,12 @@
 # ARM64 Linux Steam on iPhone: implementation record
 
-Status: the full ARM64 Steam login interface passes its native Linux CI test.
-ARM64 Linux boot and desktop input tests also pass. The owner has made the repository public;
-standard hosted runners are working again after the private-repo minutes were
-exhausted. No ARM Steam IPA has been validated or released.
-The Windows Steam implementation and build 45 remain available.
+Status: the full ARM64 Steam login interface passes inside the actual Apple
+QEMU framework as well as native Linux. Linux boot, desktop input, iPhone
+compilation and IPA validation pass. The experimental
+[steam-arm-preview-24 release](https://github.com/aghjkshdsj/My-pc/releases/tag/steam-arm-preview-24)
+contains a real unsigned iPhone IPA. The owner reports successful Steam launch
+and account login on the target iPhone. Downloads and gaming performance still
+need device testing; the owner reports a slow interface with software graphics.
 
 ## Objective
 
@@ -135,8 +137,56 @@ reported `ANGLE (Apple Inc., Apple Software Renderer, OpenGL 4.1 APPLE-23.1.1)`
 and correctly failed the Metal gate. The experiment now explicitly requests
 `EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE`, using the extension in the pinned ANGLE
 and libepoxy sources, instead of accepting the default display backend. It also
-records host display hardware. This correction has not been compiled or run
-yet; a Mac with available Metal hardware is still required to pass the gate.
+records host display hardware and tests the runner's public Metal device API.
+Run `36624577775`, commit `eb2629bc4198e442dd0ca9b7966545a773a844c5`,
+passed both framework builds and the Metal context gate. The host reports
+`ANGLE Metal Renderer: Apple Paravirtual device` and OpenGL ES 3.0. This proves
+the hosted Mac is using the Metal API/backend, not physical iPhone performance.
+A compile alone is not acceleration evidence.
+
+The next experiment also prepares a fresh, isolated copy of the verified Linux
+guest with Mesa's GLES utilities. It selects `virtio-gpu-gl-pci` and
+`egl-headless,gl=es`, removes the forced software renderer only in that test,
+requires the guest virgl renderer, compiles a GLES 3 triangle shader and checks
+its pixel readback. Animated gears must then produce two distinct frames with
+their primary colors through the same iPhone framebuffer callback. Blank,
+console, truncated and invalid callback buffers cannot pass that check.
+Networking, persistent-disk markers and clean shutdown remain required. This
+test uses no Steam credentials and does not alter the owner's Linux disk.
+The experiment remains outside the released IPA until the graphics gates pass.
+
+Run `36625838256` at `8833fed343edfedd9a4bc68acf0af5126d62f0a0`
+passed the host Metal context, guest virgl GLES shader and pixel-readback checks,
+but timed out waiting for animated primary-color frames through the app bridge.
+The GLX animation's output was discarded, so its cause is not established yet.
+The next test uses Mesa's GLES animation, keeps its diagnostic output and reports
+callback dimensions, primary-color counts and distinct frame hashes. It also
+summarizes the prior controlled, account-free result using fixed labels. GPU
+acceleration is not enabled in preview 24 on this incomplete evidence.
+
+The GLES animation run `36628806494` at
+`6963bdc20c4e7d7fb80bb86f8ffc68513aa7ad30` also passed the shader gate but
+received one unchanged 960x540 callback image with no primary-color pixels.
+The next experiment replaces desktop BGRA upload/readback combinations with
+core GLES RGBA allocation and readback, then converts RGBA to the app's BGRA
+format at the display boundary. It reports GL errors and framebuffer status.
+Run `36629999384` at `3f4549945b33002e2b50cfce0bc1e7c7e41b60f2`
+passed both Apple framework builds, the Metal context, guest GLES shader and
+two distinct animated primary-color frames through the iPhone display callback,
+then shut down cleanly. Core GLES RGBA readback and conversion to the app's BGRA
+format resolve the blank animation in this controlled test. The hosted Mac
+reports an Apple Paravirtual Metal device; this is not physical iPhone evidence.
+The released app still uses software graphics.
+
+The separate `steam-arm-gpu-client.yml` gate now uses that passed framework
+and an isolated, account-free six-core 1280x800 guest. Only My-pc's test scripts
+remove the software-forcing environment and GPU-disable option; Valve files
+remain intact. Steam must present a live login form, report virgl GPU
+compositing and WebGL through Chromium's SystemInfo API, and read back a real
+red WebGL pixel. SwiftShader, llvmpipe, disabled compositing and missing
+diagnostics fail the gate. Raw Steam/CDP logs and the installed client disk are
+not exported. Device testing and persistent-disk migration remain necessary
+before this backend can be offered as a working GPU option.
 
 Billing checkpoint: the owner reports 2,000/2,000 included Actions minutes used,
 0.2/0.5 GB artifact storage used, with the minutes resetting in three days.
@@ -188,3 +238,152 @@ the updater or CEF could start. The VM and all boot tests now use QEMU's
 scalable-vector state. [QEMU documents this CPU configuration](https://www.qemu.org/docs/master/system/arm/cpu-features.html#sve-cpu-property-examples).
 This correction needs the full guest test to pass; the precise faulting
 instruction has not been identified. IPA packaging remains gated on that test.
+
+Run 36474188567 (commit `454d221766e75043271cef168c2888a8b6ac193f`)
+passes native Steam startup, iPhone bridge/JIT and app integration checks, plus
+the Linux and Apple-framework boot, network, persistence, exact desktop input
+and shutdown tests with the updated CPU model. The owner cancelled the run
+while Steam startup inside that guest was still running, before the probe
+returned a result. The CPU change has not yet passed full guest Steam startup.
+The IPA job was skipped; no ARM IPA was built or published. The owner then
+explicitly requested restarting the Steam test and IPA pipeline. Only that job
+and its dependent release job were retried, reusing the passed prerequisites.
+Saved guest log artifact from the cancelled attempt:
+`linux-arm-steam-guest-logs`, ID `10994650532`.
+
+The explicitly requested retry completed the updater and started CEF without
+the previous illegal-instruction failure. It did not present a login window.
+First download/install used approximately 18 minutes of the 20-minute probe.
+The saved diagnostic report counted one segmentation fault, one CEF network
+service crash and a helper restart; no kernel OOM was detected. This is a failed
+full-guest Steam test, not merely a successful install. Artifact `10996207496`
+holds the failed attempt's log. The safe diagnostic run `36505459642` reports
+only fixed error counts and readiness booleans, without republishing raw logs.
+
+Run `36506270696`, commit `b3c1388dc2e789ebd4ab68ca638989446bc93dd5`,
+moves the full Steam guest gate from Ubuntu's QEMU 8.2 to the pinned QEMU 10.0.12
+Apple framework used by this port. Installation and CEF startup have
+separate 30-minute and 10-minute limits, with bounded progress reports each
+minute; helper restarts do not renew the CEF budget. The guest still must show
+a stable mapped window and a live, complete login form. This run passed native
+Steam startup, bridge checks and both Apple framework builds; the full guest
+test subsequently failed as recorded below.
+
+That Apple-framework Steam run subsequently failed after installation. CEF's
+background page was responsive and complete, but no login popup appeared.
+The safe diagnostic run `36586449947` counted 223 `lsof: not found` errors and
+65 rejected local WebUI connections. There were no recorded SIGILL, SIGSEGV,
+CEF network-service crashes, kernel OOMs, DNS errors or certificate errors in
+the inspected report. A broad renderer-crash regex initially matched a process
+argument; the corrected predicate reports zero renderer crashes.
+
+The guest now includes `lsof`, which Steam uses to identify its local helper
+connections. Debian also lists it as a Steam installer dependency. The launcher
+fails before downloading if it is missing. The probe now identifies CEF startup
+from the live helper process instead of an optional shell-log message. Bounded
+process-state diagnostics record only fixed labels and numbers, never arguments
+or input values. Run `36586450467`, commit
+`ccab0ec62a875a80fa16570d0dcf88442c109194`, tests these corrections. Its native
+Steam and package/launcher checks passed. The corrected full guest Steam test
+then passed through QEMU 10.0.12's Apple framework: a stable mapped login window
+with a responsive, complete CEF login form, followed by clean shutdown. The
+first installation and startup took approximately 11 minutes on the CI Mac;
+this is not an iPhone performance measurement.
+
+The same run built and published **SomethingPC-SteamARM64.ipa** in release
+`steam-arm-preview-23`. The archive contains the ARM64 iPhone app, iOS framework
+dependency closure, kernel, initrd, compressed persistent-disk seed and JIT
+script. CI downloaded the uploaded release asset, checked its SHA-256 and
+compared it byte-for-byte with the built IPA before publishing the prerelease.
+Size: 679,723,864 bytes. SHA-256:
+`5275a0433c31d4a1dd228aae03f286cc395dee39079fd4b89cf06a8c8fb2b7e2`.
+Corresponding runtime source and the checksum file accompany the IPA.
+
+The owner subsequently tested preview 23 on the target iPhone 15 Pro Max
+(previously reported iOS 27), supplied desktop screenshots and reported that
+Steam launched and account login succeeded. First-install verification appeared
+idle for approximately 7–10 minutes before continuing. This is owner-reported
+device evidence, separate from the automated Mac test. Downloads, games and
+performance measurements remain unverified; the owner reports slow interaction.
+The current configuration uses two virtual CPUs through QEMU TCG JIT and
+2048 MiB guest RAM. ARM64 client binaries still run inside the emulated Linux
+machine; they do not run directly against iOS. Steam graphics use the CPU,
+without guest GPU acceleration. Preview 24 removes the session
+navigation header, uses a compact bottom control bar and adds an enlarge/fit
+control. A visible local cursor follows direct touch, or relative trackpad
+motion with tap-to-click. Session options provide right-click, wheel scrolling
+and a held-button drag. Zoom switches to trackpad mode and follows the pointer
+so cropped desktop edges remain reachable. Ordinary motion is coalesced at the
+display cadence; presses and releases are preserved and click transitions have
+a 10 ms interval for the guest USB queue.
+
+An optional performance overlay samples the app's cumulative process CPU time
+and physical memory footprint once per second, and counts newly presented guest
+frames. CPU 100% means one busy host core and can exceed 100%; this is app CPU,
+not guest utilization. RAM is app footprint, not guest allocation or all system
+memory. Display FPS can be zero for a static desktop and is capped by the
+30 Hz display bridge; it is not a game's internal FPS. GPU is explicitly labeled
+software, with utilization unavailable rather than a fabricated percentage.
+Metric definitions and thermal state are available from the overlay.
+
+Run `36624109003` at `b94dd7d8d029f6aff3ce36b4e8a4ba6da3c89082`
+passed installer, native Steam, Linux boot/input, Apple framework display and
+full Steam login-interface gates, then built the updated iPhone app and published
+preview 24. The uploaded `SomethingPC-SteamARM64.ipa` was downloaded, checksum
+verified and compared byte-for-byte before publication. Size: 679,745,211 bytes.
+SHA-256: `283d846c818583d85edeaedb7d843273ff6f905a5000d518a044ee02bd5acf5b`.
+The new controls and overlay still need device validation; preview 23's owner
+login report does not validate this updated UI or establish a speed improvement.
+The owner subsequently tested preview 24 and confirmed the larger desktop and
+pointer work. Right-click, dragging, metric accuracy and performance comparisons
+still need separate device checks; no speed improvement is claimed yet.
+The owner also reports Steam itself remains cropped even with Fit enabled.
+The next app launch requests a 1280x800 Linux desktop instead of 960x540, so
+the normal Steam window fits inside the guest rather than being clipped before
+reaching iPhone. The overlay shows actual received frame dimensions. Desktop
+and full Steam CI tests now require that exact screenshot size, alongside the
+six online CPUs. This only changes the app's virtual display configuration;
+updating it preserves the existing persistent disk and account.
+
+The owner also requested all available CPU cores. The next build replaces the
+fixed two-core app launch with an automatic selection based on iOS's available
+processor count, normally six on iPhone 15 Pro Max. A persistent startup picker
+also permits fewer cores; preferences cannot oversubscribe the available host
+count. The monitor shows the actual selected virtual CPU count. QEMU retains
+multi-threaded TCG; this is still CPU emulation, not native iOS execution, CPU
+pinning or a guarantee of 100% utilization. Memory remains 2048 MiB. The release
+pipeline now boots a six-core guest and requires its online CPU count before
+boot/input and full Steam startup can pass. Device timing and thermals must be
+compared with two-core operation before claiming a speed improvement.
+
+Fresh guest installations also report download and extraction progress.
+Updating the app preserves the existing Linux disk and Steam account data;
+guest installer-script changes are included in newly installed runtime images.
+
+The owner's additional JIT-free request is being implemented separately in
+[draft PR #3](https://github.com/aghjkshdsj/My-pc/pull/3), branch
+`codex/steam-arm-interpreter`. It uses the pinned ARM64 threaded interpreter and
+an iPhone target with no Wine/FEX, StikDebug or JIT entitlements. The existing
+JIT build remains this branch's release path. App Store readiness and interpreter
+performance are separate, unverified milestones.
+
+## First device check after an IPA passes the release gates
+
+1. Sideload the release's `.ipa`. Open **Library → Apps → Steam ARM64** and
+   **Set up Steam ARM64** with approximately 13 GB free. Keep the app open
+   during installation.
+2. Enable JIT with the app's StikDebug action, then **Open Steam**. The first
+   start downloads the client from Valve and may restart its updater. The
+   keyboard button supplies text input; touch controls the guest mouse.
+3. First record whether the desktop and Steam login form appear on the target
+   iPhone. Then test account login, Steam Guard and a small owned download on
+   the device. No account credentials are needed in development logs or CI.
+4. Use **Shut down** before closing the session. Restart My-pc before another
+   Linux session or switching to Windows. Confirm that the downloaded content
+   is still present in Steam after the next boot.
+
+For a failed boot, the serial log is in the app's shared Documents folder at
+`LinuxARM/boot.log`, accessible through Files. Record the iPhone model, iOS
+version, build commit, and where startup stopped. A Mac CI pass does not
+substitute for this device check. GPU, audio and game execution require their
+own follow-up tests.
