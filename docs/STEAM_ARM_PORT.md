@@ -188,3 +188,61 @@ the updater or CEF could start. The VM and all boot tests now use QEMU's
 scalable-vector state. [QEMU documents this CPU configuration](https://www.qemu.org/docs/master/system/arm/cpu-features.html#sve-cpu-property-examples).
 This correction needs the full guest test to pass; the precise faulting
 instruction has not been identified. IPA packaging remains gated on that test.
+
+Run 36474188567 (commit `454d221766e75043271cef168c2888a8b6ac193f`)
+passes native Steam startup, iPhone bridge/JIT and app integration checks, plus
+the Linux and Apple-framework boot, network, persistence, exact desktop input
+and shutdown tests with the updated CPU model. The owner cancelled the run
+while Steam startup inside that guest was still running, before the probe
+returned a result. The CPU change has not yet passed full guest Steam startup.
+The IPA job was skipped; no ARM IPA was built or published. The owner then
+explicitly requested restarting the Steam test and IPA pipeline. Only that job
+and its dependent release job were retried, reusing the passed prerequisites.
+Saved guest log artifact from the cancelled attempt:
+`linux-arm-steam-guest-logs`, ID `10994650532`.
+
+The explicitly requested retry completed the updater and started CEF without
+the previous illegal-instruction failure. It did not present a login window.
+First download/install used approximately 18 minutes of the 20-minute probe.
+The saved diagnostic report counted one segmentation fault, one CEF network
+service crash and a helper restart; no kernel OOM was detected. This is a failed
+full-guest Steam test, not merely a successful install. Artifact `10996207496`
+holds the failed attempt's log. The safe diagnostic run `36505459642` reports
+only fixed error counts and readiness booleans, without republishing raw logs.
+
+Run `36506270696`, commit `b3c1388dc2e789ebd4ab68ca638989446bc93dd5`,
+moves the full Steam guest gate from Ubuntu's QEMU 8.2 to the pinned QEMU 10.0.12
+Apple framework used by this port. Installation and CEF startup now have
+separate 30-minute and 10-minute limits, with bounded progress reports each
+minute; helper restarts do not renew the CEF budget. The guest still must show
+a stable mapped window and a live, complete login form. This run passed native
+Steam startup, bridge checks and both Apple framework builds; guest tests and
+IPA packaging are still pending.
+
+The owner's additional JIT-free request is being implemented separately in
+[draft PR #3](https://github.com/aghjkshdsj/My-pc/pull/3), branch
+`codex/steam-arm-interpreter`. It uses the pinned ARM64 threaded interpreter and
+an iPhone target with no Wine/FEX, StikDebug or JIT entitlements. The existing
+JIT build remains this branch's release path. App Store readiness and interpreter
+performance are separate, unverified milestones.
+
+## First device check after an IPA passes the release gates
+
+1. Sideload the release's `.ipa`. Open **Library → Apps → Steam ARM64** and
+   **Set up Steam ARM64** with approximately 13 GB free. Keep the app open
+   during installation.
+2. Enable JIT with the app's StikDebug action, then **Open Steam**. The first
+   start downloads the client from Valve and may restart its updater. The
+   keyboard button supplies text input; touch controls the guest mouse.
+3. First record whether the desktop and Steam login form appear on the target
+   iPhone. Then test account login, Steam Guard and a small owned download on
+   the device. No account credentials are needed in development logs or CI.
+4. Use **Shut down** before closing the session. Restart My-pc before another
+   Linux session or switching to Windows. Confirm that the downloaded content
+   is still present in Steam after the next boot.
+
+For a failed boot, the serial log is in the app's shared Documents folder at
+`LinuxARM/boot.log`, accessible through Files. Record the iPhone model, iOS
+version, build commit, and where startup stopped. A Mac CI pass does not
+substitute for this device check. GPU, audio and game execution require their
+own follow-up tests.
