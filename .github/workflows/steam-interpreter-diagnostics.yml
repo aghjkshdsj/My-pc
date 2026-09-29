@@ -1,0 +1,23 @@
+name: Diagnose installed-client interpreter failure
+on:
+  push:
+    branches: [codex/steam-arm-interpreter]
+    paths: [.github/workflows/steam-interpreter-diagnostics.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Summarize the controlled account-free failure
+        run: |
+          test "$(gh run view 36627131232 --json headSha --jq .headSha)" = af151ae1b34794e2bb89d93ceb5cf0327654365c
+          gh run download 36627131232 --name interpreter-warm-start-results --dir build/linux-arm-interpreter/diagnostic
+          python3 build/linux-arm-interpreter/summarize-steam.py build/linux-arm-interpreter/diagnostic/boot-4.log

@@ -112,7 +112,7 @@ test budget, not a successful Steam interpreter test. The failed guest log
 artifact is `11060001906`. Do not use the separate JIT login pass to satisfy
 this gate, or publish the interpreter IPA as Steam-ready on this evidence.
 
-The next UI build, `d37357e69a24f3725b1473b6daf8b6fa39e92174` in run
+The updated UI build, `d37357e69a24f3725b1473b6daf8b6fa39e92174` in run
 `36624226244`, passed both launch-policy tests, CPU/FPS accounting checks,
 the iPhone source type-check, both runtime checks and the actual guest boot/input
 gate. Independent run `36624226237` also compiled and linked the updated ARM64
@@ -121,6 +121,22 @@ right-click, scrolling, mouse drag, zoom and an optional process CPU/app memory/
 desktop frame-rate overlay. GPU is explicitly software and no utilization
 percentage is fabricated. Device validation of the controls and a usable
 interpreter Steam startup remain outstanding.
+
+That run also completed IPA packaging successfully. Actions artifact
+`MyPC-SteamARM64-NoJIT-unsigned` (`11060197456`) contains the real interpreter
+IPA, checksum and corresponding sources. The artifact ZIP digest is not the
+IPA's checksum; this remains a development artifact rather than a Steam-ready
+release.
+
+The installed-client diagnostic `36627131232` at
+`af151ae1b34794e2bb89d93ceb5cf0327654365c` used a fresh, account-free test disk.
+JIT finished installation and reached the full login-interface gate, then shut
+down. Booting the same installed disk under guarded TCTI reached CEF startup,
+but the Steam launcher exited before a usable login interface passed. This is
+another failed interpreter client gate, not merely a slow cold extraction.
+The final health report counted five webhelper processes and no Steam process.
+The cause is still under investigation using fixed-label exit/signal/OOM and
+loopback diagnostics. This test disk is never included in the app or release.
 
 References: [pinned UTM build configuration](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/scripts/build_dependencies.sh),
 [pinned QEMU interpreter options](https://github.com/utmapp/qemu/blob/v10.0.12-utm/meson_options.txt),
