@@ -64,6 +64,14 @@ connections. The image must exist with the pinned commit and valid checksums
 before the interpreter boot/IPA jobs proceed. Full interpreter Steam startup
 remains unverified. No Valve binaries are bundled.
 
+The independent `.github/workflows/steam-interpreter-client.yml` uses the
+verified TCTI framework from run `36586713923` and the same corrected guest.
+It requires the full stable Steam login interface under the CI allocation
+policy, with no account credentials or input. The native Linux and TCG JIT
+passes cannot satisfy this gate. Its current first-install/CEF budgets are
+30/10 minutes, with a 45-minute host startup limit; a timeout is a failed test
+rather than a performance claim.
+
 ## Build evidence
 
 Run `36506821950` at `bd1d30249f57322b79d7ee976066f33ce9935dc4` passed
