@@ -157,6 +157,14 @@ Steam pass does not satisfy the interpreter Steam gate. No account or installed
 Valve client disk is included. The separate GDB run `36632105054` is in progress
 and publishes only bounded crash metadata, with no raw debugger log uploads.
 
+The first GDB run completed its diagnostic wrapper but returned no signal,
+stopped PC or stack frames. It therefore did not locate the crash. The next
+capture parses the complete local launch log inside the isolated guest before
+ordinary log tails can truncate large mapping tables, then publishes only
+bounded crash metadata. It also identifies normal inferior exit or ptrace
+denial using fixed fields; a diagnostic without a signal and PC cannot pass
+as a captured crash. Neither diagnostic satisfies the Steam startup gate.
+
 References: [pinned UTM build configuration](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/scripts/build_dependencies.sh),
 [pinned QEMU interpreter options](https://github.com/utmapp/qemu/blob/v10.0.12-utm/meson_options.txt),
 [Apple App Review Guidelines, sections 2.5 and 4.7](https://developer.apple.com/app-store/review/guidelines/).

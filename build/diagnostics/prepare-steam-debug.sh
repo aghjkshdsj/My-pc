@@ -15,6 +15,7 @@ sudo chroot "$root" /usr/bin/env DEBIAN_FRONTEND=noninteractive apt-get install 
 sudo chroot "$root" apt-get clean
 sudo rm "$root/etc/resolv.conf"
 sudo ln -s /run/systemd/resolve/stub-resolv.conf "$root/etc/resolv.conf"
+sudo install -m 644 build/diagnostics/read-steam-debug.py "$root/usr/local/lib/my-pc/steam_crash_summary.py"
 sudo python3 - "$root" <<'PY'
 import pathlib, sys
 path = pathlib.Path(sys.argv[1]) / 'usr/local/bin/my-pc-steam'
@@ -33,6 +34,16 @@ debug = '''    if grep -qw my_pc_steam_gdb=1 /proc/cmdline; then
     fi
 '''
 path.write_text(source.replace(anchor, debug + anchor))
+path = pathlib.Path(sys.argv[1]) / 'usr/local/lib/my-pc/probe-steam.py'
+source = path.read_text()
+anchor = 'if not success:\n    diagnostics ='
+assert source.count(anchor) == 1
+source = source.replace(anchor, '''if not success and args.guest and 'my_pc_steam_gdb=1' in pathlib.Path('/proc/cmdline').read_text():
+    from steam_crash_summary import summarize
+    # Parse before the ordinary diagnostic tail truncates large mapping tables.
+    print('MYPC_TCTI_GDB_RESULT ' + json.dumps(summarize((output / 'launch.log').read_text(errors='replace'))), flush=True)
+''' + anchor)
+path.write_text(source)
 PY
 sudo chroot "$root" dpkg-query -W > "$guest/packages.tsv"
 sync
