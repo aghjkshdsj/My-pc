@@ -10,7 +10,7 @@ if grep -qw my_pc_desktop_test=1 /proc/cmdline; then
 fi
 pulseaudio --start --exit-idle-time=-1 || true
 if grep -qw my_pc_steam_test=1 /proc/cmdline; then
-    exec python3 -u /usr/local/lib/my-pc/probe-steam.py "$HOME/steam-probe" --guest --timeout 1200 >/dev/ttyAMA0 2>&1
+    exec python3 -u /usr/local/lib/my-pc/probe-steam.py "$HOME/steam-probe" --guest --install-timeout 1800 --timeout 600 >/dev/ttyAMA0 2>&1
 fi
 while :; do
     xterm -T 'Steam ARM64' -fa 'DejaVu Sans Mono' -fs 11 -geometry 100x28+20+20 \

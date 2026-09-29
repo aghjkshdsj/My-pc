@@ -21,6 +21,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('output', type=pathlib.Path)
 parser.add_argument('--guest', action='store_true', help='Use the installed guest launcher and current home')
 parser.add_argument('--timeout', type=int, default=300)
+parser.add_argument('--install-timeout', type=int, default=0,
+                    help='Separate first-install budget before CEF starts; never renewed on helper restart')
 args = parser.parse_args()
 output = args.output.resolve()
 output.mkdir(parents=True, exist_ok=True)
@@ -53,7 +55,10 @@ with (output / 'launch.log').open('w') as log:
     process = subprocess.Popen(['bash', launcher, '-cef-enable-debugging', '-devtools-port', '8080'],
                                stdout=log, stderr=subprocess.STDOUT, env=environment, start_new_session=True)
     try:
-        deadline = time.monotonic() + args.timeout
+        started = time.monotonic()
+        deadline = started + (args.install_timeout or args.timeout)
+        cef_started = False
+        next_progress = started
         stable_window = None
         stable_since = None
         while time.monotonic() < deadline:
@@ -63,6 +68,23 @@ with (output / 'launch.log').open('w') as log:
             (output / 'windows.txt').write_text(windows)
             (output / 'processes.txt').write_text(processes)
             readiness = login_interface(output)
+            # An empty disk can spend many minutes in Valve's updater. Give
+            # CEF its own bounded startup budget, once only, after that phase.
+            with (output / 'launch.log').open('rb') as launch:
+                launch.seek(max(0, launch.seek(0, 2) - 1_048_576))
+                helper_seen = b'steamwebhelper.sh[' in launch.read()
+            if not cef_started and (helper_seen or readiness is not None):
+                cef_started = True
+                if args.install_timeout:
+                    deadline = time.monotonic() + args.timeout
+            if time.monotonic() >= next_progress:
+                print('MYPC_STEAM_PROGRESS ' + json.dumps({
+                    'elapsed_seconds': int(time.monotonic() - started),
+                    'phase': 'cef' if cef_started else 'install',
+                    'login_ready': readiness is not None,
+                    'launcher_running': process.poll() is None,
+                }), flush=True)
+                next_progress = time.monotonic() + 60
             window = client_window(windows, readiness is not None)
             (output / 'client-window.json').write_text(json.dumps(window, indent=2) + '\n')
             if process.poll() is not None:

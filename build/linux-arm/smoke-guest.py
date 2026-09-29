@@ -6,6 +6,7 @@ import http.server
 import json
 import os
 import pathlib
+import re
 import subprocess
 import socket
 import sys
@@ -21,6 +22,7 @@ parser.add_argument("--expect-existing", action="store_true")
 parser.add_argument("--display", action="store_true")
 parser.add_argument("--desktop", action="store_true")
 parser.add_argument("--steam", action="store_true", help="Launch full Steam in the actual Linux guest")
+parser.add_argument("--interpreter", action="store_true", help="Use non-executable translation storage and longer boot deadlines")
 args = parser.parse_args()
 if args.desktop and args.steam:
     parser.error('Choose one desktop test mode')
@@ -37,6 +39,8 @@ with tempfile.TemporaryDirectory() as directory:
                     raise SystemExit("--launcher requires --library")
                 command[:1] = [str(pathlib.Path(args.launcher).resolve()), str(pathlib.Path(args.library).resolve())]
                 command += ["-L", str(pathlib.Path(args.launcher).resolve().parent / "qemu")]
+            if args.interpreter:
+                command[command.index('-accel') + 1] += ',split-wx=off'
             environment = os.environ.copy()
             if args.display or args.desktop or args.steam:
                 command += ["-device", "virtio-gpu-pci,xres=960,yres=540"]
@@ -54,8 +58,24 @@ with tempfile.TemporaryDirectory() as directory:
                 try:
                     if args.desktop or args.steam:
                         marker = 'MYPC_GUEST_STEAM_WINDOW_OK' if args.steam else 'MYPC_DESKTOP_READY'
-                        deadline = time.monotonic() + (1500 if args.steam else 300)
+                        deadline = time.monotonic() + (2700 if args.steam else 1800 if args.interpreter else 300)
+                        reported = set()
                         while marker not in log.read_text(errors="replace"):
+                            # Only forward bounded, fixed-schema progress. Never
+                            # expose arbitrary guest log lines as heartbeat data.
+                            for item in re.findall(r'MYPC_STEAM_PROGRESS (\{[^\r\n]{1,256}\})', log.read_text(errors='replace')):
+                                if item in reported:
+                                    continue
+                                reported.add(item)
+                                try:
+                                    state = json.loads(item)
+                                except ValueError:
+                                    continue
+                                if (set(state) == {'elapsed_seconds', 'phase', 'login_ready', 'launcher_running'}
+                                        and type(state['elapsed_seconds']) is int and 0 <= state['elapsed_seconds'] <= 3600
+                                        and state['phase'] in ('install', 'cef')
+                                        and type(state['login_ready']) is bool and type(state['launcher_running']) is bool):
+                                    print('MYPC_STEAM_PROGRESS ' + json.dumps(state), flush=True)
                             if args.steam and 'MYPC_GUEST_STEAM_FAILED' in log.read_text(errors="replace"):
                                 raise RuntimeError('Steam in guest failed: ' + log.read_text(errors='replace')[-16000:])
                             if process.poll() is not None or time.monotonic() > deadline:
@@ -103,7 +123,7 @@ with tempfile.TemporaryDirectory() as directory:
                                 time.sleep(0.2)
                             request("system_powerdown")
                     try:
-                        process.wait(timeout=360)
+                        process.wait(timeout=1800 if args.interpreter else 360)
                     except subprocess.TimeoutExpired:
                         print(log.read_text(errors="replace")[-12000:])
                         raise
