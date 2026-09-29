@@ -23,9 +23,12 @@ parser.add_argument("--display", action="store_true")
 parser.add_argument("--desktop", action="store_true")
 parser.add_argument("--steam", action="store_true", help="Launch full Steam in the actual Linux guest")
 parser.add_argument("--interpreter", action="store_true", help="Use non-executable translation storage and longer boot deadlines")
+parser.add_argument("--deny-jit-policy", action="store_true", help="Require the CI-only allocation guard and no attempts to generate executable host code")
 args = parser.parse_args()
 if args.desktop and args.steam:
     parser.error('Choose one desktop test mode')
+if args.deny_jit_policy and (not args.interpreter or not args.launcher):
+    parser.error('--deny-jit-policy requires --interpreter and a guarded --launcher')
 guest = pathlib.Path(args.guest).resolve()
 with tempfile.TemporaryDirectory() as directory:
     pathlib.Path(directory, "probe.txt").write_text("my-pc-network-ok\n")
@@ -136,6 +139,10 @@ with tempfile.TemporaryDirectory() as directory:
             required = ["MYPC_LINUX_ARM64_BOOTED", "MYPC_LINUX_NETWORK_OK", "MYPC_LINUX_SMOKE_OK", "MYPC_LINUX_PERSISTENCE_WRITTEN" if boot == 1 and not args.expect_existing else "MYPC_LINUX_PERSISTENCE_OK"]
             if args.display:
                 required.append("MYPC_APPLE_FRAMEBUFFER_OK")
+            if args.deny_jit_policy:
+                required += ['MYPC_NOJIT_POLICY_ACTIVE', 'MYPC_NOJIT_POLICY_SUMMARY denied_requests=0']
+                if 'MYPC_NOJIT_POLICY_DENIED' in content:
+                    raise SystemExit('Interpreter attempted a prohibited executable allocation')
             if args.desktop:
                 required += ["MYPC_DESKTOP_MOUSE_OK", "MYPC_DESKTOP_KEYBOARD_OK", "MYPC_DESKTOP_INPUT_OK"]
             if args.steam:

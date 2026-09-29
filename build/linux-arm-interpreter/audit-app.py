@@ -16,6 +16,7 @@ manifest = json.loads((app / 'runtime-backend.json').read_text())
 assert manifest['backend'] == 'tcti' and manifest['requiresJIT'] is False
 for item in app.rglob('*'):
     assert not any(word in item.name.lower() for word in ('stik', 'wine', 'fex', 'madeira-jit')), item.name
+    assert item.name not in ('deny-jit', 'policy-probe.dylib', 'libmypc-nojit-policy.dylib'), 'CI tool bundled in app'
 binaries = [app / info['CFBundleExecutable']]
 for framework in (app / 'Frameworks').glob('*.framework'):
     binary_name = plistlib.loads((framework / 'Info.plist').read_bytes())['CFBundleExecutable']
@@ -26,6 +27,7 @@ for binary in binaries:
     assert any(line.strip() == 'platform IOS' for line in platform.splitlines()), binary.name
     dependencies = subprocess.check_output(['otool', '-L', str(binary)], text=True)
     assert '/PrivateFrameworks/' not in dependencies, binary.name
+    assert 'libmypc-nojit-policy' not in dependencies, 'CI policy linked into iPhone product'
     symbols = subprocess.check_output(['nm', '-a', str(binary)], text=True, stderr=subprocess.DEVNULL).lower()
     assert not any(name in symbols for name in ('jit_check_debugged', 'jit_install_trap_handler', 'stikjithelper', 'wine_process_', 'wineserver_', 'fexbridge')), binary.name
 print('PASS: interpreter iPhone product, empty entitlements, no Wine/FEX/StikDebug app code or private frameworks')

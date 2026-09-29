@@ -26,12 +26,17 @@ on the ARM Linux port. It is not an App Store submission or a claim of approval.
 1. Compile the shared launch tests in both modes and type-check the separate
    iPhone app. Audit the produced app for platform, unwanted runtime code,
    private framework dependencies and JIT-related entitlements.
-2. Compile both interpreter frameworks. On macOS, sign the host with hardened
-   runtime and no JIT/debugger entitlements. A separate negative-control program
-   must show that `MAP_JIT` is denied. Under those same restrictions, require
-   Linux boot, networking, persistence, display, keyboard/mouse and shutdown.
-   Disabling library validation is only for ad-hoc host CI frameworks; it is
-   absent from the iPhone app.
+2. Compile both interpreter frameworks. The CI host has a hardened ad-hoc
+   signature and no JIT/debugger entitlements, but the hosted Mac allowed a
+   `MAP_JIT` allocation despite that configuration. Do not claim its OS denies
+   JIT. A CI-only allocation policy now intercepts QEMU's mmap/mprotect and VM
+   protection APIs, denying MAP_JIT, anonymous executable allocations and
+   executable promotions while allowing signed file-backed frameworks. Negative
+   controls verify the denial in both an executable and a dlopened library.
+   Linux boot, network, persistence, display, input and shutdown must then pass
+   with zero prohibited allocation attempts. The policy library and probe are
+   never bundled in the iPhone app. Disabling library validation is only for
+   ad-hoc host CI frameworks; it is absent from the iPhone app.
 3. Produce **MyPC-SteamARM64-NoJIT.ipa** as an unsigned development artifact
    only after those checks pass. The current workflow does not publish an
    App Store release. Full Steam startup under the interpreter and physical
@@ -47,8 +52,8 @@ on the ARM Linux port. It is not an App Store submission or a claim of approval.
 
 The iPhone build can be signed without `allow-jit` or `get-task-allow`. The
 unsigned development IPA still needs signing to install. Testing on a hardened
-Mac is evidence about host execution permissions, not a replacement for iOS
-sandbox testing or App Review.
+Mac under the explicit CI allocation policy is evidence about the interpreter's
+allocation behavior, not a replacement for iOS sandbox testing or App Review.
 
 Build: `.github/workflows/steam-arm-interpreter.yml`. The next build uses the
 checksummed guest from run `36586450467`, commit
@@ -68,7 +73,11 @@ configure summary selected TCTI. The post-build check failed because Meson's
 boolean configuration uses a valueless `#define`, while the check required a
 literal `1`. The check now accepts both valid enabled forms, with regression
 tests that reject disabled, absent or conflicting interpreter/HVF settings.
-The corrected check and actual boot tests still need a new Actions run.
+Corrected run `36585373555` passed both framework builds and configuration
+verification. Run `36586713923` reused those checked frameworks successfully
+with the corrected guest. Both stopped before Linux boot because the hosted
+Mac permitted MAP_JIT in the original OS-permission negative control. The
+replacement policy test is pending; neither run produced a JIT-free IPA.
 
 Independent Xcode run `36507301434` at
 `63d85d83cd12ea57a755d7f940ba79ddfa6c79d1` compiled and linked the actual

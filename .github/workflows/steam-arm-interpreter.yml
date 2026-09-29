@@ -30,6 +30,7 @@ jobs:
           bash -n build/linux-arm-interpreter/*.sh
           python3 -m py_compile build/linux-arm-interpreter/*.py
           python3 build/linux-arm-interpreter/test-config.py
+          bash build/linux-arm-interpreter/build-policy-host.sh "$RUNNER_TEMP/nojit-policy"
   qemu:
     needs: [app-checks]
     runs-on: macos-26
@@ -71,7 +72,7 @@ jobs:
             build/linux-arm-interpreter/work-${{ matrix.platform }}/utm/build-*/**/meson-logs/meson-log.txt
             build/linux-arm-interpreter/work-${{ matrix.platform }}/utm/build-*/**/config-host.h
   boot:
-    name: Boot with JIT prohibited on the host
+    name: Boot under a verified CI memory allocation policy
     needs: [qemu]
     runs-on: macos-26
     timeout-minutes: 90
@@ -98,15 +99,12 @@ jobs:
             codesign --force --sign - "$framework"
             codesign --verify --strict "$framework"
           done
-      - name: Prove host restrictions and boot the actual interpreter
+      - name: Verify denied code generation and boot the actual interpreter
         run: |
-          clang -Wall -Wextra -Werror build/linux-arm-interpreter/deny-jit.c -o "$RUNNER_TEMP/deny-jit"
-          codesign --force --sign - --options runtime --entitlements build/linux-arm-interpreter/host.entitlements "$RUNNER_TEMP/deny-jit"
-          "$RUNNER_TEMP/deny-jit"
-          codesign --verify --strict build/linux-arm-interpreter/output/macos/host-launcher
+          bash build/linux-arm-interpreter/build-policy-host.sh build/linux-arm-interpreter/output/macos
           codesign -d --entitlements :- build/linux-arm-interpreter/output/macos/host-launcher
-          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --expect-existing --display --interpreter --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
-          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --expect-existing --display --desktop --interpreter --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --expect-existing --display --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --expect-existing --display --desktop --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
       - uses: actions/upload-artifact@v4
         if: always()
         with:
