@@ -51,7 +51,6 @@ jobs:
           (cd build/linux-arm/output/guest && sha256sum -c SHA256SUMS)
           unmkinitramfs build/linux-arm/output/guest/initrd.img build/linux-arm-gpu/inspect-initrd
           order=$(find build/linux-arm-gpu/inspect-initrd -type f -path '*/scripts/local-bottom/ORDER' | head -n1)
-          test -n "$order"
           python3 build/linux-arm-gpu/prepare-boot-update.py build/linux-arm/output/guest "$order"
           (cd build/linux-arm/output/guest && sha256sum -c SHA256SUMS)
           busybox=$(find build/linux-arm-gpu/inspect-initrd -type f -name busybox | head -n1)

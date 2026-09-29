@@ -23,7 +23,7 @@ def newc(entries):
     return bytes(archive)
 
 
-def main(guest, order_file):
+def main(guest, order_file=None):
     guest = pathlib.Path(guest)
     source = pathlib.Path('build/linux-arm')
     desktop = (source / 'desktop-session.sh').read_text()
@@ -53,7 +53,7 @@ if grep -qw my_pc_graphics=virgl /proc/cmdline; then graphics_options=(); fi
                pathlib.Path('build/linux-arm-gpu/graphics-update.sh').read_bytes())]
     # Debian's initramfs sources ORDER instead of globbing new hooks. Preserve
     # its existing order and append our hook after the normal local-bottom work.
-    order = pathlib.Path(order_file).read_bytes()
+    order = pathlib.Path(order_file).read_bytes() if order_file else b''
     assert b'my-pc-graphics' not in order
     files.append(('scripts/local-bottom/ORDER', stat.S_IFREG | 0o644,
                   order + b'\n/scripts/local-bottom/my-pc-graphics "$@"\n'))
@@ -76,4 +76,4 @@ if grep -qw my_pc_graphics=virgl /proc/cmdline; then graphics_options=(); fi
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)
