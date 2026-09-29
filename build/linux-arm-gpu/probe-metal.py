@@ -3,12 +3,35 @@
 import pathlib
 import subprocess
 import sys
+import tempfile
 
 root = pathlib.Path(sys.argv[1]).resolve()
 devices = subprocess.run(['system_profiler', 'SPDisplaysDataType'], capture_output=True,
                          text=True, timeout=30)
 (root / 'host-displays.log').write_text(devices.stdout + devices.stderr)
 print(devices.stdout + devices.stderr)
+with tempfile.TemporaryDirectory(prefix='my-pc-metal-capability-') as temporary:
+    folder = pathlib.Path(temporary)
+    source = folder / 'capability.m'
+    source.write_text('''#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
+#include <stdio.h>
+int main(void) {
+    @autoreleasepool {
+        id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+        printf("MYPC_HOST_METAL_AVAILABLE=%d\\n", device != nil);
+        if (device) { printf("MYPC_HOST_METAL_DEVICE=%s\\n", device.name.UTF8String); }
+    }
+    return 0;
+}
+''')
+    subprocess.run(['xcrun', 'clang', '-fobjc-arc', '-framework', 'Foundation',
+                    '-framework', 'Metal', str(source), '-o', str(folder / 'capability')],
+                   check=True, timeout=30)
+    capability = subprocess.run([str(folder / 'capability')], text=True,
+                                capture_output=True, check=True, timeout=30)
+    (root / 'host-metal.log').write_text(capability.stdout + capability.stderr)
+    print(capability.stdout + capability.stderr)
 command = [str(root / 'host-launcher'),
            str(root / 'Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu'),
            '-machine', 'none', '-nodefaults', '-S', '-display', 'egl-headless,gl=es',
