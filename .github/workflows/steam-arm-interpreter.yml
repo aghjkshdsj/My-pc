@@ -78,8 +78,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      GUEST_RUN: '36474188567'
-      GUEST_SHA: 454d221766e75043271cef168c2888a8b6ac193f
+      GUEST_RUN: '36586450467'
+      GUEST_SHA: ccab0ec62a875a80fa16570d0dcf88442c109194
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -130,7 +130,8 @@ jobs:
           path: build/linux-arm-interpreter/output
       - name: Restore runtime and build iPhone app
         run: |
-          gh run download 36474188567 --name linux-arm-guest --dir build/linux-arm-interpreter/output
+          test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
+          gh run download 36586450467 --name linux-arm-guest --dir build/linux-arm-interpreter/output
           mkdir -p build/linux-arm-interpreter/output/guest build/linux-arm-interpreter/output/ios
           tar -xzf build/linux-arm-interpreter/output/tcti-ios.tar.gz -C build/linux-arm-interpreter/output/ios
           tar -xzf build/linux-arm-interpreter/output/linux-arm-guest.tar.gz -C build/linux-arm-interpreter/output/guest

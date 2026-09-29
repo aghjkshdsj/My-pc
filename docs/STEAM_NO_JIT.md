@@ -50,11 +50,14 @@ unsigned development IPA still needs signing to install. Testing on a hardened
 Mac is evidence about host execution permissions, not a replacement for iOS
 sandbox testing or App Review.
 
-Build: `.github/workflows/steam-arm-interpreter.yml`. It uses the checksummed
-guest from run `36474188567`, commit
-`454d221766e75043271cef168c2888a8b6ac193f`, whose basic Linux and Apple-framework
-boot/input gates passed. That run failed full Steam startup; no Steam success
-is inferred from reusing its base guest. No Valve binaries are bundled.
+Build: `.github/workflows/steam-arm-interpreter.yml`. The next build uses the
+checksummed guest from run `36586450467`, commit
+`ccab0ec62a875a80fa16570d0dcf88442c109194`. This adds the missing `lsof`
+dependency used by Steam to identify its loopback helper connections. The Apple
+guest's previous run recorded 223 missing-lsof errors and 65 rejected local
+connections. The image must exist with the pinned commit and valid checksums
+before the interpreter boot/IPA jobs proceed. Full interpreter Steam startup
+remains unverified. No Valve binaries are bundled.
 
 ## Build evidence
 

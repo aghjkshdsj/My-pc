@@ -12,6 +12,15 @@ HERE = pathlib.Path(__file__).resolve().parent
 
 @unittest.skipUnless(os.name == 'posix' and pathlib.Path('/usr/bin/taskset').exists(), 'Linux taskset required')
 class SessionTests(unittest.TestCase):
+    def test_missing_lsof_fails_before_downloading(self):
+        with tempfile.TemporaryDirectory() as folder:
+            result = subprocess.run(['/bin/bash', str(HERE / 'steam-session.sh')],
+                                    env=dict(os.environ, PATH=folder, HOME=folder),
+                                    capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('requires lsof', result.stderr)
+            self.assertEqual(list(pathlib.Path(folder).iterdir()), [])
+
     def test_update_restart_preserves_vendor_files_and_arguments(self):
         with tempfile.TemporaryDirectory(prefix='steam session ') as folder:
             home = pathlib.Path(folder)

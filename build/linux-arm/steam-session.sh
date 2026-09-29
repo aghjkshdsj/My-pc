@@ -2,6 +2,9 @@
 # Full ARM64 Linux client, following winlator-contents' steamdeck-steam route.
 # CPU affinity and graphics settings are specific to this Linux VM on iPhone.
 set -euo pipefail
+# Steam authenticates its web UI's loopback connections using this utility.
+# A minimal guest without it repeatedly rejects its own helper connection.
+command -v lsof >/dev/null || { echo 'Steam requires lsof in the Linux runtime. Install the updated runtime.' >&2; exit 2; }
 steam_root="${XDG_DATA_HOME:-$HOME/.local/share}/Steam"
 mkdir -p "$steam_root" "$HOME/.steam"
 exec 9>"$HOME/.steam/my-pc-bootstrap.lock"
