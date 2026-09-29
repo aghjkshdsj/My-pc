@@ -29,6 +29,7 @@ jobs:
             app/Madeira/LinuxVMView.swift app/Madeira/LinuxRuntimeInstaller.swift app/Madeira/GameLibraryCore.swift app/Madeira/StoreCore.swift
           bash -n build/linux-arm-interpreter/*.sh
           python3 -m py_compile build/linux-arm-interpreter/*.py
+          python3 build/linux-arm-interpreter/test-config.py
   qemu:
     needs: [app-checks]
     runs-on: macos-26
@@ -68,6 +69,7 @@ jobs:
           path: |
             build/linux-arm-interpreter/work-${{ matrix.platform }}/build.log
             build/linux-arm-interpreter/work-${{ matrix.platform }}/utm/build-*/**/meson-logs/meson-log.txt
+            build/linux-arm-interpreter/work-${{ matrix.platform }}/utm/build-*/**/config-host.h
   boot:
     name: Boot with JIT prohibited on the host
     needs: [qemu]
@@ -135,14 +137,17 @@ jobs:
           (cd build/linux-arm-interpreter/output/guest && shasum -a 256 -c SHA256SUMS)
           brew install xcodegen
           bash build/linux-arm-interpreter/package-ipa.sh
+          python3 build/linux-arm/package-sources.py
       - uses: actions/upload-artifact@v4
         with:
           name: MyPC-SteamARM64-NoJIT-unsigned
           path: |
             build/linux-arm-interpreter/output/IPA/*.ipa
             build/linux-arm-interpreter/output/IPA/*.sha256
+            build/linux-arm/LinuxRuntime-Sources.tar.gz
           compression-level: 0
           if-no-files-found: error
+          retention-days: 3
       - uses: actions/upload-artifact@v4
         if: always()
         with:

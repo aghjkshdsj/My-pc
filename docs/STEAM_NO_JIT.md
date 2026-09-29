@@ -56,6 +56,24 @@ guest from run `36474188567`, commit
 boot/input gates passed. That run failed full Steam startup; no Steam success
 is inferred from reusing its base guest. No Valve binaries are bundled.
 
+## Build evidence
+
+Run `36506821950` at `bd1d30249f57322b79d7ee976066f33ce9935dc4` passed
+launch validation in both compile modes and type-checked the separate iPhone
+app. Both interpreter frameworks subsequently compiled successfully and QEMU's
+configure summary selected TCTI. The post-build check failed because Meson's
+boolean configuration uses a valueless `#define`, while the check required a
+literal `1`. The check now accepts both valid enabled forms, with regression
+tests that reject disabled, absent or conflicting interpreter/HVF settings.
+The corrected check and actual boot tests still need a new Actions run.
+
+Independent Xcode run `36507301434` at
+`63d85d83cd12ea57a755d7f940ba79ddfa6c79d1` compiled and linked the actual
+ARM64 iPhone executable successfully. Its symbol audit found no references to
+the excluded JIT, Wine or FEX app bridges. That build does not include a runtime
+or prove Linux/Steam execution. The independent app-build workflow catches
+project/linker issues without waiting for the emulator build.
+
 References: [pinned UTM build configuration](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/scripts/build_dependencies.sh),
 [pinned QEMU interpreter options](https://github.com/utmapp/qemu/blob/v10.0.12-utm/meson_options.txt),
 [Apple App Review Guidelines, sections 2.5 and 4.7](https://developer.apple.com/app-store/review/guidelines/).

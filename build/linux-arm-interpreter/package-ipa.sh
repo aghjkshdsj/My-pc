@@ -32,3 +32,20 @@ python3 build/linux-arm-interpreter/audit-app.py "$app"
 mkdir -p "$output/IPA/Payload"
 ditto "$app" "$output/IPA/Payload/MyPCInterpreter.app"
 (cd "$output/IPA" && zip -qry MyPC-SteamARM64-NoJIT.ipa Payload && unzip -t MyPC-SteamARM64-NoJIT.ipa > archive-check.txt && shasum -a 256 MyPC-SteamARM64-NoJIT.ipa > MyPC-SteamARM64-NoJIT.ipa.sha256)
+python3 - "$output/IPA/MyPC-SteamARM64-NoJIT.ipa" <<'PY'
+import json, pathlib, plistlib, sys, zipfile
+path = pathlib.Path(sys.argv[1])
+assert 1_000_000 < path.stat().st_size < 2_000_000_000
+with zipfile.ZipFile(path) as ipa:
+    base = 'Payload/MyPCInterpreter.app/'
+    info = plistlib.loads(ipa.read(base + 'Info.plist'))
+    assert info['CFBundleIdentifier'] == 'com.aghjkshdsj.MyPC.Interpreter'
+    assert ipa.getinfo(base + info['CFBundleExecutable']).file_size > 0
+    backend = json.loads(ipa.read(base + 'runtime-backend.json'))
+    assert backend['backend'] == 'tcti' and backend['requiresJIT'] is False
+    runtime = json.loads(ipa.read(base + 'LinuxRuntime/manifest.json'))
+    assert runtime['architecture'] == 'aarch64'
+    for asset in runtime['files']:
+        assert ipa.getinfo(base + 'LinuxRuntime/' + asset['name'] + ('.gz' if asset['gzip'] else '')).file_size > 0
+print('PASS: actual .ipa ZIP contains the interpreter iPhone app and complete Linux runtime')
+PY
