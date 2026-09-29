@@ -15,6 +15,7 @@ import shutil
 import stat
 import struct
 import tempfile
+import time
 import urllib.request
 import zipfile
 
@@ -80,7 +81,18 @@ def parse_manifest(text):
         raise ValueError("Native ARM64 client package missing")
     return client["version"], packages
 
-def fetch(url, output, limit, expected_hash=None, expected_size=None):
+def progress_reporter(label):
+    next_report = 0.0
+    def report(completed, total):
+        nonlocal next_report
+        now = time.monotonic()
+        if now >= next_report or completed == total:
+            percent = completed * 100 // max(1, total)
+            print(f"{label}: {percent}% ({completed / 1024**2:.1f}/{total / 1024**2:.1f} MiB)", flush=True)
+            next_report = now + 5
+    return report
+
+def fetch(url, output, limit, expected_hash=None, expected_size=None, progress=None):
     digest = hashlib.sha256()
     size = 0
     request = urllib.request.Request(url, headers={"User-Agent": "My-pc ARM Linux bootstrap"})
@@ -93,17 +105,24 @@ def fetch(url, output, limit, expected_hash=None, expected_size=None):
                 raise ValueError("Steam download exceeds declared size")
             digest.update(chunk)
             stream.write(chunk)
+            if progress:
+                progress(size, expected_size or limit)
     if expected_size is not None and size != expected_size:
         raise ValueError("Steam download size mismatch")
     if expected_hash and digest.hexdigest() != expected_hash:
         raise ValueError("Steam download SHA-256 mismatch")
 
-def extract(archive, destination):
+def extract(archive, destination, progress=None):
     links = []
     with zipfile.ZipFile(archive) as package:
         files = package.infolist()
         if len(files) > 100000 or sum(info.file_size for info in files) > 8 * 1024**3:
             raise ValueError("Steam ZIP exceeds extraction limits")
+        total = sum(info.file_size for info in files if not info.is_dir()
+                    and not stat.S_ISLNK(info.external_attr >> 16)
+                    and info.orig_filename.replace("\\", "/").split("/", 1)[0].lower()
+                    not in ("steamapps", "userdata", "config"))
+        completed = 0
         for info in files:
             raw_name = info.orig_filename.replace("\\", "/")
             name = pathlib.PurePosixPath(raw_name)
@@ -128,7 +147,11 @@ def extract(archive, destination):
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             with package.open(info) as source, target.open("wb") as output:
-                shutil.copyfileobj(source, output, 1024 * 1024)
+                while chunk := source.read(1024 * 1024):
+                    output.write(chunk)
+                    completed += len(chunk)
+                    if progress:
+                        progress(completed, total)
             with target.open("rb") as binary:
                 magic = binary.read(4)
             target.chmod(0o755 if mode & 0o111 or magic == b"\x7fELF" or magic.startswith(b"#!") else 0o644)
@@ -201,8 +224,10 @@ def main():
         for package in packages:
             print(f"Verifying {package['name']} ({package['size']} bytes)", flush=True)
             archive = temporary / package["file"]
-            fetch(CDN + package["file"], archive, package["size"], package["sha256"], package["size"])
-            links.extend(extract(archive, staged))
+            fetch(CDN + package["file"], archive, package["size"], package["sha256"], package["size"],
+                  progress=progress_reporter("Downloading " + package['name']))
+            links.extend(extract(archive, staged, progress=progress_reporter("Extracting " + package['name'])))
+        print("Finishing verified Steam packages…", flush=True)
         install_links(links, staged)
         steam = staged / "steamrtarm64/steam"
         verify_arm64(steam)
@@ -210,7 +235,8 @@ def main():
         report = {"manifest": CDN + MANIFEST, "version": version, "architecture": "ELF64 AArch64 (EM_AARCH64=183)", "packages": packages, "steam_sha256": hashlib.sha256(steam.read_bytes()).hexdigest(), "launched": False}
         if not args.audit:
             # Preserve account state and games. Only commit verified package files.
-            for source in staged.rglob("*"):
+            next_report = time.monotonic() + 5
+            for index, source in enumerate(staged.rglob("*"), 1):
                 relative = source.relative_to(staged)
                 target = destination / relative
                 # Existing links may be replaced, but their parent must remain
@@ -224,10 +250,14 @@ def main():
                 else:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(source, target)
+                if time.monotonic() >= next_report:
+                    print(f"Applying verified Steam files: {index} entries processed", flush=True)
+                    next_report = time.monotonic() + 5
             (destination / "package").mkdir(exist_ok=True)
             (destination / "package/beta").write_text("publicbeta\n")
             (destination / "steamrtarm64/steam").chmod(0o755)
         (destination / "arm64-verification.json").write_text(json.dumps(report, indent=2) + "\n")
+        print("ARM64 Steam package verification complete.", flush=True)
         print(json.dumps(report, indent=2))
 
 if __name__ == "__main__":

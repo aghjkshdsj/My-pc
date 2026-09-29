@@ -4,8 +4,9 @@ Status: the full ARM64 Steam login interface passes inside the actual Apple
 QEMU framework as well as native Linux. Linux boot, desktop input, iPhone
 compilation and IPA validation pass. The experimental
 [steam-arm-preview-23 release](https://github.com/aghjkshdsj/My-pc/releases/tag/steam-arm-preview-23)
-contains a real unsigned iPhone IPA. Physical iPhone execution, account login,
-downloads and gaming performance still need device testing.
+contains a real unsigned iPhone IPA. The owner reports successful Steam launch
+and account login on the target iPhone. Downloads and gaming performance still
+need device testing; the owner reports a slow interface with software graphics.
 
 ## Objective
 
@@ -249,6 +250,37 @@ compared it byte-for-byte with the built IPA before publishing the prerelease.
 Size: 679,723,864 bytes. SHA-256:
 `5275a0433c31d4a1dd228aae03f286cc395dee39079fd4b89cf06a8c8fb2b7e2`.
 Corresponding runtime source and the checksum file accompany the IPA.
+
+The owner subsequently tested preview 23 on the target iPhone 15 Pro Max
+(previously reported iOS 27), supplied desktop screenshots and reported that
+Steam launched and account login succeeded. First-install verification appeared
+idle for approximately 7–10 minutes before continuing. This is owner-reported
+device evidence, separate from the automated Mac test. Downloads, games and
+performance measurements remain unverified; the owner reports slow interaction.
+The current configuration uses two virtual CPUs through QEMU TCG JIT and
+2048 MiB guest RAM. ARM64 client binaries still run inside the emulated Linux
+machine; they do not run directly against iOS. Steam graphics use the CPU,
+without guest GPU acceleration. The next build removes the session
+navigation header, uses a compact bottom control bar and adds an enlarge/fit
+control. A visible local cursor follows direct touch, or relative trackpad
+motion with tap-to-click. Session options provide right-click, wheel scrolling
+and a held-button drag. Zoom switches to trackpad mode and follows the pointer
+so cropped desktop edges remain reachable. Ordinary motion is coalesced at the
+display cadence; presses and releases are preserved and click transitions have
+a 10 ms interval for the guest USB queue.
+
+An optional performance overlay samples the app's cumulative process CPU time
+and physical memory footprint once per second, and counts newly presented guest
+frames. CPU 100% means one busy host core and can exceed 100%; this is app CPU,
+not guest utilization. RAM is app footprint, not guest allocation or all system
+memory. Display FPS can be zero for a static desktop and is capped by the
+30 Hz display bridge; it is not a game's internal FPS. GPU is explicitly labeled
+software, with utilization unavailable rather than a fabricated percentage.
+Metric definitions and thermal state are available from the overlay.
+
+Fresh guest installations also report download and extraction progress.
+Updating the app preserves the existing Linux disk and Steam account data;
+guest installer-script changes are included in newly installed runtime images.
 
 The owner's additional JIT-free request is being implemented separately in
 [draft PR #3](https://github.com/aghjkshdsj/My-pc/pull/3), branch
