@@ -138,6 +138,14 @@ The final health report counted five webhelper processes and no Steam process.
 The cause is still under investigation using fixed-label exit/signal/OOM and
 loopback diagnostics. This test disk is never included in the app or release.
 
+Diagnostic run `36630385679` identified launcher status 139 and one segmentation
+fault, with zero recorded OOM events, illegal instructions, loopback rejections,
+missing-lsof errors, affinity errors, kernel panics or prohibited host allocation
+attempts in the guest log. A Linux GDB test is being added on a fresh disposable
+CI disk to capture the stopped client PC and a bounded stack trace. The debugger
+and diagnostic launcher are never bundled in the iPhone app. Completing a crash
+diagnostic is not a successful Steam gate or a cold interpreter install pass.
+
 References: [pinned UTM build configuration](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/scripts/build_dependencies.sh),
 [pinned QEMU interpreter options](https://github.com/utmapp/qemu/blob/v10.0.12-utm/meson_options.txt),
 [Apple App Review Guidelines, sections 2.5 and 4.7](https://developer.apple.com/app-store/review/guidelines/).
