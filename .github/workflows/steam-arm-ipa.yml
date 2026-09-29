@@ -82,9 +82,11 @@ jobs:
 
           In My-pc, open **Library → Apps → Steam ARM64**, tap **Set up Steam ARM64**, enable JIT with the bundled madeira-jit.js/StikDebug setup, then tap **Open Steam**. Setup needs approximately 13 GB free. Linux and Steam downloads remain in the app's persistent disk. Steam downloads directly from Valve on first launch. Allow its updater to finish and restart. Use the keyboard button to type.
 
-          Includes a real ARM64 Linux kernel and Valve's full ARM64 client bootstrap, following winlator-contents' Linux Steam route. QEMU TCG uses JIT with a 2 GiB guest, two virtual CPUs and a 128 MiB translation cache. The first graphics path uses software rendering.
+          Includes a real ARM64 Linux kernel and Valve's full ARM64 client bootstrap, following winlator-contents' Linux Steam route. QEMU TCG uses JIT with a 2 GiB guest and a 128 MiB translation cache. **CPU cores defaults to All available**, normally six on iPhone 15 Pro Max. Choose a smaller count before startup if needed. iOS controls scheduling and thermal limits; more cores do not guarantee better performance. Graphics remain CPU-rendered.
 
-          Automated checks cover Linux boot, networking, persistent storage, desktop input, Apple framework display and native Linux Steam startup. **iPhone 15 Pro Max/iOS 27 execution, Steam login and games have not been device-validated. GPU acceleration, audio output and Windows-game compatibility are unfinished. This is a development preview, not a gaming-performance release.**
+          The desktop fills the available screen and supports fit/zoom, a visible pointer, direct touch or trackpad controls, right-click, scrolling and mouse drag. The optional monitor reports app CPU (100% is one core), app physical memory, new desktop frames per second and the active virtual CPU count. Display FPS is not a game's internal FPS; GPU utilization is unavailable.
+
+          Automated checks cover six-core Linux boot, online core count, networking, persistent storage, desktop input, Apple framework display and full ARM64 Steam login-interface startup. The owner reported Steam launch and account login on iPhone 15 Pro Max using preview 23, but slow interaction. **The updated UI and all-core configuration still need device performance testing. GPU acceleration, audio output, downloads/games and Windows-game compatibility are unfinished. This is a development preview, not a gaming-performance release.**
 
           The existing Windows Steam/Wine option remains available. Restart My-pc before switching runtimes. Source material for the new QEMU runtime is attached; exact build code and test logs are linked by this release commit and Actions run.
           NOTES

@@ -311,6 +311,17 @@ SHA-256: `283d846c818583d85edeaedb7d843273ff6f905a5000d518a044ee02bd5acf5b`.
 The new controls and overlay still need device validation; preview 23's owner
 login report does not validate this updated UI or establish a speed improvement.
 
+The owner also requested all available CPU cores. The next build replaces the
+fixed two-core app launch with an automatic selection based on iOS's available
+processor count, normally six on iPhone 15 Pro Max. A persistent startup picker
+also permits fewer cores; preferences cannot oversubscribe the available host
+count. The monitor shows the actual selected virtual CPU count. QEMU retains
+multi-threaded TCG; this is still CPU emulation, not native iOS execution, CPU
+pinning or a guarantee of 100% utilization. Memory remains 2048 MiB. The release
+pipeline now boots a six-core guest and requires its online CPU count before
+boot/input and full Steam startup can pass. Device timing and thermals must be
+compared with two-core operation before claiming a speed improvement.
+
 Fresh guest installations also report download and extraction progress.
 Updating the app preserves the existing Linux disk and Steam account data;
 guest installer-script changes are included in newly installed runtime images.

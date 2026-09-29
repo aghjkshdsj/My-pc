@@ -4,6 +4,16 @@ exec >/dev/ttyAMA0 2>&1
 fail() { echo "MYPC_LINUX_FAIL:$*"; sync; poweroff -f; exit 1; }
 test "$(uname -m)" = aarch64 || fail architecture
 echo 'MYPC_LINUX_ARM64_BOOTED'
+online_cpus=$(nproc)
+echo "MYPC_LINUX_CPU_COUNT=$online_cpus"
+for argument in $(cat /proc/cmdline); do
+    case "$argument" in
+        my_pc_expected_cpus=*)
+            expected_cpus=${argument#*=}
+            test "$online_cpus" = "$expected_cpus" || fail cpu_count
+            ;;
+    esac
+done
 test -w /var/lib || fail root_read_only
 if test -f /var/lib/my-pc-persistence; then
     test "$(cat /var/lib/my-pc-persistence)" = my-pc-arm-linux || fail persistence_content

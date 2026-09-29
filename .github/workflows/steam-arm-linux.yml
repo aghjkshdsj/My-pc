@@ -92,9 +92,9 @@ jobs:
       - name: Build Debian guest
         run: bash build/linux-arm/build-guest.sh
       - name: Verify boot, network, persistence and shutdown
-        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest
+        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count
       - name: Verify real X11 desktop, mouse and keyboard
-        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --desktop --expect-existing
+        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --desktop --expect-existing
       - name: Package test runtime
         run: |
           cd build/linux-arm/output/guest
@@ -139,7 +139,7 @@ jobs:
             codesign --verify --strict "$framework"
           done
       - name: Verify client window with the same RAM and display as iPhone
-        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/steam-guest --steam --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/steam-guest --cpus 6 --verify-cpu-count --steam --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -183,8 +183,8 @@ jobs:
           done
       - name: Verify actual dylib boot and framebuffer
         run: |
-          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
-          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --expect-existing --display --desktop --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --desktop --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
       - uses: actions/upload-artifact@v4
         if: always()
         with:

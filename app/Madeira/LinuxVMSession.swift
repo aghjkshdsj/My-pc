@@ -189,9 +189,17 @@ private enum LinuxProcessMetrics {
     @Published private(set) var memoryMiB: Double?
     @Published private(set) var displayFPS = 0.0
     @Published private(set) var paused = false
-    let guestCPUCount = 2
+    @Published private(set) var cpuSelection = UserDefaults.standard.integer(forKey: "linuxCPUCount")
+    @Published private(set) var guestCPUCount = LinuxCPUSelection.resolve(
+        UserDefaults.standard.integer(forKey: "linuxCPUCount"), hostCount: ProcessInfo.processInfo.activeProcessorCount)
     let guestMemoryMiB = 2048
-    var hostCPUCount: Int { ProcessInfo.processInfo.activeProcessorCount }
+    var hostCPUCount: Int { LinuxCPUSelection.available(ProcessInfo.processInfo.activeProcessorCount) }
+    func selectCPUCount(_ count: Int) {
+        guard !started else { return }
+        cpuSelection = count > 0 ? min(hostCPUCount, count) : 0
+        UserDefaults.standard.set(cpuSelection, forKey: "linuxCPUCount")
+        guestCPUCount = LinuxCPUSelection.resolve(cpuSelection, hostCount: hostCPUCount)
+    }
     var thermalStatus: String {
         switch ProcessInfo.processInfo.thermalState {
         case .nominal: return "Normal"
@@ -291,13 +299,14 @@ private enum LinuxProcessMetrics {
             let control = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("linux-qmp")
             if FileManager.default.fileExists(atPath: control.path) { try FileManager.default.removeItem(at: control) }
             let log = Self.directory.appendingPathComponent("boot.log")
+            guestCPUCount = LinuxCPUSelection.resolve(cpuSelection, hostCount: hostCPUCount)
             let arguments = try LinuxVMConfiguration(directory: Self.directory, log: log, control: control,
                 memoryMiB: guestMemoryMiB, cpuCount: guestCPUCount,
                 resources: Bundle.main.bundleURL.appendingPathComponent("QEMU")).arguments()
             #if !MYPC_INTERPRETER
             jit_install_trap_handler()
             #endif
-            started = true; running = true; status = "Booting ARM64 Linux…"
+            started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores…"
             UIApplication.shared.isIdleTimerDisabled = true
             beginPerformanceSample()
             let frameTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { _ in
@@ -309,7 +318,7 @@ private enum LinuxProcessMetrics {
                 Task { @MainActor in
                     guard self.running else { return }
                     switch result {
-                    case .success: self.connected = true; self.status = "Linux is running."
+                    case .success: self.connected = true; self.status = "Linux is running with \(self.guestCPUCount) virtual CPU cores."
                     case .failure(let error): self.error = error.localizedDescription
                     }
                 }
