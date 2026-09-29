@@ -85,7 +85,8 @@ Corrected run `36585373555` passed both framework builds and configuration
 verification. Run `36586713923` reused those checked frameworks successfully
 with the corrected guest. Both stopped before Linux boot because the hosted
 Mac permitted MAP_JIT in the original OS-permission negative control. The
-replacement policy test is pending; neither run produced a JIT-free IPA.
+replacement policy test subsequently passed as recorded below; neither of
+those earlier runs produced a JIT-free IPA.
 
 Independent Xcode run `36507301434` at
 `63d85d83cd12ea57a755d7f940ba79ddfa6c79d1` compiled and linked the actual
@@ -93,6 +94,33 @@ ARM64 iPhone executable successfully. Its symbol audit found no references to
 the excluded JIT, Wine or FEX app bridges. That build does not include a runtime
 or prove Linux/Steam execution. The independent app-build workflow catches
 project/linker issues without waiting for the emulator build.
+
+Run `36621003476`, commit `186582c90d084467146a6c98a6159658e587bb59`,
+passed the corrected negative controls, both interpreter framework checks,
+two actual Linux boots and the X11 input test under the CI allocation policy.
+Each guest run completed with `denied_requests=0`, networking, persistence,
+display and clean shutdown. The iPhone app audit and real
+`MyPC-SteamARM64-NoJIT.ipa` packaging also passed. This is an Actions development
+artifact, not a published Steam-ready release.
+
+The full Steam test in run `36621522724` at
+`f8519c6ff4ac45d11f7568c9f0afe385e753629f` failed its 30-minute first-install
+budget. Steam's updater completed its approximately 666 MB download and was
+still extracting when the test ended; no CEF helper or login window had
+appeared. This establishes a startup/performance failure under the present
+test budget, not a successful Steam interpreter test. The failed guest log
+artifact is `11060001906`. Do not use the separate JIT login pass to satisfy
+this gate, or publish the interpreter IPA as Steam-ready on this evidence.
+
+The next UI build, `d37357e69a24f3725b1473b6daf8b6fa39e92174` in run
+`36624226244`, passed both launch-policy tests, CPU/FPS accounting checks,
+the iPhone source type-check, both runtime checks and the actual guest boot/input
+gate. Independent run `36624226237` also compiled and linked the updated ARM64
+iPhone app. It adds a full-screen session, visible direct-touch/trackpad cursor,
+right-click, scrolling, mouse drag, zoom and an optional process CPU/app memory/
+desktop frame-rate overlay. GPU is explicitly software and no utilization
+percentage is fabricated. Device validation of the controls and a usable
+interpreter Steam startup remain outstanding.
 
 References: [pinned UTM build configuration](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/scripts/build_dependencies.sh),
 [pinned QEMU interpreter options](https://github.com/utmapp/qemu/blob/v10.0.12-utm/meson_options.txt),
