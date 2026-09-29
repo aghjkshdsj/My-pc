@@ -137,8 +137,21 @@ reported `ANGLE (Apple Inc., Apple Software Renderer, OpenGL 4.1 APPLE-23.1.1)`
 and correctly failed the Metal gate. The experiment now explicitly requests
 `EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE`, using the extension in the pinned ANGLE
 and libepoxy sources, instead of accepting the default display backend. It also
-records host display hardware. This correction has not been compiled or run
-yet; a Mac with available Metal hardware is still required to pass the gate.
+records host display hardware and tests the runner's public Metal device API.
+Run `36624577775`, commit `eb2629bc4198e442dd0ca9b7966545a773a844c5`,
+is compiling that correction. A Mac with available Metal hardware is required
+to pass the context gate; a compile alone is not acceleration evidence.
+
+The next experiment also prepares a fresh, isolated copy of the verified Linux
+guest with Mesa's GLES utilities. It selects `virtio-gpu-gl-pci` and
+`egl-headless,gl=es`, removes the forced software renderer only in that test,
+requires the guest virgl renderer, compiles a GLES 3 triangle shader and checks
+its pixel readback. Animated gears must then produce two distinct frames with
+their primary colors through the same iPhone framebuffer callback. Blank,
+console, truncated and invalid callback buffers cannot pass that check.
+Networking, persistent-disk markers and clean shutdown remain required. This
+test uses no Steam credentials and does not alter the owner's Linux disk.
+The experiment remains outside the released IPA until the graphics gates pass.
 
 Billing checkpoint: the owner reports 2,000/2,000 included Actions minutes used,
 0.2/0.5 GB artifact storage used, with the minutes resetting in three days.

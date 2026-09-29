@@ -6,10 +6,38 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: arm-gpu-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  guest:
+    name: Prepare isolated virgl test guest
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the GPU test harness
+        run: |
+          python3 -m py_compile build/linux-arm-gpu/*.py
+          python3 build/linux-arm-gpu/test-readback.py
+          bash -n build/linux-arm-gpu/prepare-guest.sh
+      - name: Restore a fresh copy of the verified guest
+        run: |
+          test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
+          gh run download 36586450467 --name linux-arm-guest --dir build/linux-arm-gpu/output
+          mkdir -p build/linux-arm-gpu/output/guest
+          tar -xzf build/linux-arm-gpu/output/linux-arm-guest.tar.gz -C build/linux-arm-gpu/output/guest
+          (cd build/linux-arm-gpu/output/guest && sha256sum -c SHA256SUMS)
+          bash build/linux-arm-gpu/prepare-guest.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gpu-test-guest
+          path: build/linux-arm-gpu/output/gpu-test-guest.tar.gz
+          retention-days: 3
   build:
     name: ANGLE virgl (${{ matrix.platform }})
     runs-on: macos-26
@@ -63,3 +91,47 @@ jobs:
             build/linux-arm-gpu/output/${{ matrix.platform }}/metal-probe.log
             build/linux-arm-gpu/output/${{ matrix.platform }}/host-displays.log
             build/linux-arm-gpu/output/${{ matrix.platform }}/host-metal.log
+  guest-gpu:
+    name: Verify virgl shaders and iPhone display readback
+    needs: [build, guest]
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: experimental-gpu-macos
+          path: build/linux-arm-gpu/output
+      - uses: actions/download-artifact@v4
+        with:
+          name: gpu-test-guest
+          path: build/linux-arm-gpu/output
+      - name: Prepare frameworks and the same iPhone bridge
+        run: |
+          mkdir -p build/linux-arm-gpu/output/macos build/linux-arm-gpu/output/guest
+          tar -xzf build/linux-arm-gpu/output/experimental-gpu-macos.tar.gz -C build/linux-arm-gpu/output/macos
+          tar -xzf build/linux-arm-gpu/output/gpu-test-guest.tar.gz -C build/linux-arm-gpu/output/guest
+          (cd build/linux-arm-gpu/output/guest && shasum -a 256 -c SHA256SUMS)
+          clang -std=c11 -Wall -Wextra -Werror build/linux-arm-gpu/gpu-host-launcher.c app/Madeira/LinuxVMBridge.c \
+            -Wl,-rpath,@executable_path/Frameworks -o build/linux-arm-gpu/output/macos/gpu-host-launcher
+          for framework in build/linux-arm-gpu/output/macos/Frameworks/*.framework; do
+            codesign --force --sign - "$framework"
+            codesign --verify --strict "$framework"
+          done
+          codesign --force --sign - build/linux-arm-gpu/output/macos/gpu-host-launcher
+      - name: Require a Metal context and actual accelerated guest pixels
+        run: |
+          python3 build/linux-arm-gpu/probe-metal.py build/linux-arm-gpu/output/macos
+          python3 build/linux-arm-gpu/probe-guest.py build/linux-arm-gpu/output/guest build/linux-arm-gpu/output/macos
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gpu-guest-test-results
+          path: |
+            build/linux-arm-gpu/output/guest/gpu-boot.log
+            build/linux-arm-gpu/output/guest/gpu-desktop.ppm
+            build/linux-arm-gpu/output/guest/gpu-frame.bgra
+            build/linux-arm-gpu/output/macos/metal-probe.log
+            build/linux-arm-gpu/output/macos/host-displays.log
+            build/linux-arm-gpu/output/macos/host-metal.log
+          retention-days: 3
