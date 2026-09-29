@@ -164,6 +164,15 @@ callback dimensions, primary-color counts and distinct frame hashes. It also
 summarizes the prior controlled, account-free result using fixed labels. GPU
 acceleration is not enabled in preview 24 on this incomplete evidence.
 
+The GLES animation run `36628806494` at
+`6963bdc20c4e7d7fb80bb86f8ffc68513aa7ad30` also passed the shader gate but
+received one unchanged 960x540 callback image with no primary-color pixels.
+The next experiment replaces desktop BGRA upload/readback combinations with
+core GLES RGBA allocation and readback, then converts RGBA to the app's BGRA
+format at the display boundary. It reports GL errors and framebuffer status.
+The format calls are a suspected cause, not a confirmed diagnosis; changing
+pixels, clean shutdown and later Steam/device tests remain required.
+
 Billing checkpoint: the owner reports 2,000/2,000 included Actions minutes used,
 0.2/0.5 GB artifact storage used, with the minutes resetting in three days.
 Run 36380641594 and its retry failed before runner assignment. Do not keep

@@ -1,5 +1,5 @@
 name: Experimental ARM Linux Metal graphics
-run-name: Metal GLES animation and display callback (${{ github.run_number }})
+run-name: Metal GLES RGBA display readback (${{ github.run_number }})
 on:
   push:
     branches: [codex/steam-arm-linux]
