@@ -20,7 +20,13 @@ disk.replaceSubrange(1080..<1082, with: [0x53, 0xef])
 try disk.write(to: guest.appendingPathComponent("rootfs.raw"))
 var config = LinuxVMConfiguration(directory: guest, log: root.appendingPathComponent("serial.log"), control: root.appendingPathComponent("q.sock"))
 let argv = try config.arguments()
+#if MYPC_INTERPRETER
+check(!LinuxExecutionMode.requiresJIT, "Interpreter must not request JIT")
+check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=off"), "Interpreter translation storage must not be executable")
+#else
+check(LinuxExecutionMode.requiresJIT, "Sideload build must retain JIT preflight")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=on"), "JIT must require split W/X")
+#endif
 let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: String]
 check(block["filename"] == guest.appendingPathComponent("rootfs.raw").path, "Disk path must survive spaces and commas without option injection")
 config.memoryMiB = 8192

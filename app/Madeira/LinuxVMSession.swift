@@ -158,9 +158,16 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
     private var timer: Timer?
     private let qmp = LinuxQMPConnection()
     var installed: Bool { FileManager.default.fileExists(atPath: Self.directory.appendingPathComponent("rootfs.raw").path) }
+    private var otherRuntimeStarted: Bool {
+        #if MYPC_INTERPRETER
+        return false
+        #else
+        return GameLibrary.shared.sessionStarted || wine_process_is_running() != 0 || wineserver_is_running() != 0
+        #endif
+    }
 
     func installBundledRuntime() {
-        guard !started, !installing, !GameLibrary.shared.sessionStarted, let source = Self.bundledRuntime else { return }
+        guard !started, !installing, !otherRuntimeStarted, let source = Self.bundledRuntime else { return }
         installing = true; installProgress = 0
         status = "Installing Linux runtime… Keep My-pc open."
         let destination = Self.directory
@@ -171,14 +178,14 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
                         Task { @MainActor in self.installProgress = fraction }
                     }
                 }.value
-                status = "Linux runtime installed. Enable JIT, then open Steam."
+                status = LinuxExecutionMode.installedStatus
             } catch { self.error = error.localizedDescription; status = "Linux installation failed." }
             installing = false
         }
     }
 
     func importRuntime(_ source: URL) {
-        guard !started, !installing, !GameLibrary.shared.sessionStarted else { error = "Restart My-pc before importing a Linux runtime."; return }
+        guard !started, !installing, !otherRuntimeStarted else { error = "Restart My-pc before importing a Linux runtime."; return }
         guard !installed else { error = "A Linux disk already exists. Import does not overwrite your installed games or account."; return }
         installing = true
         status = "Verifying and copying Linux runtime…"
@@ -208,24 +215,34 @@ private let linuxFrameCallback: @convention(c) (UnsafeMutableRawPointer?, Unsafe
                     _ = try config.arguments()
                     try fm.moveItem(at: stage, to: destination)
                 }.value
-                status = "Linux runtime installed. Enable JIT, then boot Linux."
+                status = LinuxExecutionMode.installedStatus
             } catch { self.error = error.localizedDescription; status = "Runtime import failed." }
             installing = false
         }
     }
 
     func start() {
-        guard !started, !installing, !GameLibrary.shared.sessionStarted,
-              wine_process_is_running() == 0, wineserver_is_running() == 0 else { error = "Restart My-pc before switching between Windows and Linux."; return }
+        guard !started, !installing, !otherRuntimeStarted else { error = "Restart My-pc before starting another runtime."; return }
         guard let framework = Self.framework else { error = "This build does not contain the Linux framework."; return }
+        #if !MYPC_INTERPRETER
         guard jit_check_debugged() else { error = "Enable JIT with StikDebug before starting Linux."; return }
+        #endif
         do {
+            #if MYPC_INTERPRETER
+            let manifestURL = Bundle.main.bundleURL.appendingPathComponent("runtime-backend.json")
+            let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
+            guard manifest?["backend"] as? String == "tcti", manifest?["requiresJIT"] as? Bool == false else {
+                throw LinuxVMError.invalid("This app requires the bundled interpreter runtime. Reinstall the correct build.")
+            }
+            #endif
             let control = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("linux-qmp")
             if FileManager.default.fileExists(atPath: control.path) { try FileManager.default.removeItem(at: control) }
             let log = Self.directory.appendingPathComponent("boot.log")
             let arguments = try LinuxVMConfiguration(directory: Self.directory, log: log, control: control,
                 resources: Bundle.main.bundleURL.appendingPathComponent("QEMU")).arguments()
+            #if !MYPC_INTERPRETER
             jit_install_trap_handler()
+            #endif
             started = true; running = true; status = "Booting ARM64 Linux…"
             UIApplication.shared.isIdleTimerDisabled = true
             timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { _ in

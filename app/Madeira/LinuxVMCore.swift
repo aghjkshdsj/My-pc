@@ -1,5 +1,20 @@
 import Foundation
 
+/// A build-time choice: the interpreter app never falls back to native JIT.
+enum LinuxExecutionMode {
+    #if MYPC_INTERPRETER
+    static let requiresJIT = false
+    static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=off"
+    static let setupHelp = "Set up Linux, then open Steam. This version runs without JIT and may be very slow. The full ARM64 client downloads from Valve on its first launch."
+    static let installedStatus = "Linux runtime installed. Open Steam to start."
+    #else
+    static let requiresJIT = true
+    static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=on"
+    static let setupHelp = "Set up Linux, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. This experimental build still needs iPhone testing."
+    static let installedStatus = "Linux runtime installed. Enable JIT, then open Steam."
+    #endif
+}
+
 enum LinuxVMError: LocalizedError {
     case invalid(String)
     var errorDescription: String? { if case .invalid(let message) = self { return message }; return nil }
@@ -45,7 +60,7 @@ struct LinuxVMConfiguration {
                 // instruction set. TCG supplies newer scalar/NEON features;
                 // disable scalable vectors to avoid unused emulation overhead.
                 "-machine", "virt-10.0,highmem=off", "-cpu", "max,sve=off,sme=off",
-                "-accel", "tcg,thread=multi,tb-size=128,split-wx=on",
+                "-accel", LinuxExecutionMode.accelerator,
                 "-smp", String(cpuCount), "-m", String(memoryMiB),
                 "-kernel", files[0].path, "-initrd", files[1].path,
                 "-append", "console=ttyAMA0 root=/dev/vda rw quiet loglevel=3",

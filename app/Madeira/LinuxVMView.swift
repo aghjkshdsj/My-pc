@@ -54,7 +54,7 @@ struct LinuxVMView: View {
                 } else {
                     Image(systemName: "desktopcomputer").font(.system(size: 64)).foregroundStyle(.secondary)
                     Text("Steam ARM64 preview").font(.title2.bold())
-                    Text("Set up Linux, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. This experimental build still needs iPhone testing.")
+                    Text(LinuxExecutionMode.setupHelp)
                         .foregroundStyle(.secondary).multilineTextAlignment(.center)
                     Spacer()
                 }
@@ -78,11 +78,13 @@ struct LinuxVMView: View {
                         }
                         Button("Import runtime folder") { importing = true }.disabled(session.installing)
                     } else if !session.started {
+                        #if !MYPC_INTERPRETER
                         Button("Enable JIT") {
                             StikJITHelper.enableJIT { success in
                                 if !success { session.error = "StikDebug could not enable JIT. Check its connection and retry." }
                             }
                         }
+                        #endif
                         Button("Open Steam") { session.start() }.buttonStyle(.borderedProminent)
                     }
                     if session.running { Button("Shut down") { session.shutdown() }.disabled(!session.connected) }
