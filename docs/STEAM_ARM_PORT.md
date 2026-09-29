@@ -305,7 +305,7 @@ Steam launched and account login succeeded. First-install verification appeared
 idle for approximately 7–10 minutes before continuing. This is owner-reported
 device evidence, separate from the automated Mac test. Downloads, games and
 performance measurements remain unverified; the owner reports slow interaction.
-The current configuration uses two virtual CPUs through QEMU TCG JIT and
+Previews 23 and 24 used two virtual CPUs through QEMU TCG JIT and
 2048 MiB guest RAM. ARM64 client binaries still run inside the emulated Linux
 machine; they do not run directly against iOS. Steam graphics use the CPU,
 without guest GPU acceleration. Preview 24 removes the session
@@ -338,14 +338,14 @@ The owner subsequently tested preview 24 and confirmed the larger desktop and
 pointer work. Right-click, dragging, metric accuracy and performance comparisons
 still need separate device checks; no speed improvement is claimed yet.
 The owner also reports Steam itself remains cropped even with Fit enabled.
-The next app launch requests a 1280x800 Linux desktop instead of 960x540, so
+Preview 27 requests a 1280x800 Linux desktop instead of 960x540, so
 the normal Steam window fits inside the guest rather than being clipped before
 reaching iPhone. The overlay shows actual received frame dimensions. Desktop
 and full Steam CI tests now require that exact screenshot size, alongside the
 six online CPUs. This only changes the app's virtual display configuration;
 updating it preserves the existing persistent disk and account.
 
-The owner also requested all available CPU cores. The next build replaces the
+The owner also requested all available CPU cores. Preview 27 replaces the
 fixed two-core app launch with an automatic selection based on iOS's available
 processor count, normally six on iPhone 15 Pro Max. A persistent startup picker
 also permits fewer cores; preferences cannot oversubscribe the available host
@@ -355,6 +355,18 @@ pinning or a guarantee of 100% utilization. Memory remains 2048 MiB. The release
 pipeline now boots a six-core guest and requires its online CPU count before
 boot/input and full Steam startup can pass. Device timing and thermals must be
 compared with two-core operation before claiming a speed improvement.
+
+Run `36631484989` at `9399ce0c1b445bd56e3a5820f04cf4b307f303ef`
+passed every release gate with six online guest CPUs and the exact 1280x800
+screenshot size. Full Steam presented a responsive login interface through the
+Apple framework, then shut down cleanly. The iPhone app compiled and packaged
+successfully. Release `steam-arm-preview-27` contains the real
+`SomethingPC-SteamARM64.ipa` (679,774,976 bytes), checksum and corresponding
+runtime source. CI downloaded the uploaded IPA, checked SHA-256 and compared
+it byte-for-byte before publishing. IPA SHA-256:
+`944816aa9dfb5a376e16796836bbab26ee7f221a2a529ab904fbdb4a5549cdac`.
+The existing user disk is preserved; Steam cropping and all-core performance
+still require the owner's device check. This release uses software graphics.
 
 Fresh guest installations also report download and extraction progress.
 Updating the app preserves the existing Linux disk and Steam account data;
