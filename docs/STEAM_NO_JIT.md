@@ -55,9 +55,9 @@ unsigned development IPA still needs signing to install. Testing on a hardened
 Mac under the explicit CI allocation policy is evidence about the interpreter's
 allocation behavior, not a replacement for iOS sandbox testing or App Review.
 
-Build: `.github/workflows/steam-arm-interpreter.yml`. The next build uses the
-checksummed guest from run `36586450467`, commit
-`ccab0ec62a875a80fa16570d0dcf88442c109194`. This adds the missing `lsof`
+Build: `.github/workflows/steam-arm-interpreter.yml`. Earlier tested builds used
+the checksummed guest from run `36586450467`, commit
+`ccab0ec62a875a80fa16570d0dcf88442c109194`. That added the missing `lsof`
 dependency used by Steam to identify its loopback helper connections. The Apple
 guest's previous run recorded 223 missing-lsof errors and 65 rejected local
 connections. The image must exist with the pinned commit and valid checksums
@@ -145,6 +145,17 @@ attempts in the guest log. A Linux GDB test is being added on a fresh disposable
 CI disk to capture the stopped client PC and a bounded stack trace. The debugger
 and diagnostic launcher are never bundled in the iPhone app. Completing a crash
 diagnostic is not a successful Steam gate or a cold interpreter install pass.
+
+The all-core/1280x800 update at `5879c98406fbf2bcdce8d7b988698e57f1dd9431`
+uses the shared CPU picker and actual frame dimensions without changing the
+`MYPC_INTERPRETER` execution policy. Run `36634273275` has passed the two pure
+launch-policy tests, CPU-selection checks, iPhone source type-check and policy
+negative controls. Six-core guest boot/input and IPA packaging are pending.
+Its bare Linux seed is pinned to the verified six-core JIT boot/input run
+`36631484989` / `9399ce0c1b445bd56e3a5820f04cf4b307f303ef`; that guest's JIT
+Steam pass does not satisfy the interpreter Steam gate. No account or installed
+Valve client disk is included. The separate GDB run `36632105054` is in progress
+and publishes only bounded crash metadata, with no raw debugger log uploads.
 
 References: [pinned UTM build configuration](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/scripts/build_dependencies.sh),
 [pinned QEMU interpreter options](https://github.com/utmapp/qemu/blob/v10.0.12-utm/meson_options.txt),
