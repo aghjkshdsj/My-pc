@@ -1,4 +1,5 @@
 name: Experimental ARM Linux Metal graphics
+run-name: Metal GLES animation and display callback (${{ github.run_number }})
 on:
   push:
     branches: [codex/steam-arm-linux]
@@ -11,6 +12,20 @@ concurrency:
   group: arm-gpu-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  previous-result:
+    name: Summarize the first shader/readback result
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read controlled GPU diagnostics using fixed labels
+        run: |
+          test "$(gh run view 36625838256 --json headSha --jq .headSha)" = 8833fed343edfedd9a4bc68acf0af5126d62f0a0
+          gh run download 36625838256 --name gpu-guest-test-results --dir build/linux-arm-gpu/previous-result
+          python3 build/linux-arm-gpu/summarize-readback.py build/linux-arm-gpu/previous-result
   guest:
     name: Prepare isolated virgl test guest
     runs-on: ubuntu-24.04-arm

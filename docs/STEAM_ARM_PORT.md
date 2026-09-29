@@ -3,7 +3,7 @@
 Status: the full ARM64 Steam login interface passes inside the actual Apple
 QEMU framework as well as native Linux. Linux boot, desktop input, iPhone
 compilation and IPA validation pass. The experimental
-[steam-arm-preview-23 release](https://github.com/aghjkshdsj/My-pc/releases/tag/steam-arm-preview-23)
+[steam-arm-preview-24 release](https://github.com/aghjkshdsj/My-pc/releases/tag/steam-arm-preview-24)
 contains a real unsigned iPhone IPA. The owner reports successful Steam launch
 and account login on the target iPhone. Downloads and gaming performance still
 need device testing; the owner reports a slow interface with software graphics.
@@ -139,8 +139,10 @@ and correctly failed the Metal gate. The experiment now explicitly requests
 and libepoxy sources, instead of accepting the default display backend. It also
 records host display hardware and tests the runner's public Metal device API.
 Run `36624577775`, commit `eb2629bc4198e442dd0ca9b7966545a773a844c5`,
-is compiling that correction. A Mac with available Metal hardware is required
-to pass the context gate; a compile alone is not acceleration evidence.
+passed both framework builds and the Metal context gate. The host reports
+`ANGLE Metal Renderer: Apple Paravirtual device` and OpenGL ES 3.0. This proves
+the hosted Mac is using the Metal API/backend, not physical iPhone performance.
+A compile alone is not acceleration evidence.
 
 The next experiment also prepares a fresh, isolated copy of the verified Linux
 guest with Mesa's GLES utilities. It selects `virtio-gpu-gl-pci` and
@@ -152,6 +154,15 @@ console, truncated and invalid callback buffers cannot pass that check.
 Networking, persistent-disk markers and clean shutdown remain required. This
 test uses no Steam credentials and does not alter the owner's Linux disk.
 The experiment remains outside the released IPA until the graphics gates pass.
+
+Run `36625838256` at `8833fed343edfedd9a4bc68acf0af5126d62f0a0`
+passed the host Metal context, guest virgl GLES shader and pixel-readback checks,
+but timed out waiting for animated primary-color frames through the app bridge.
+The GLX animation's output was discarded, so its cause is not established yet.
+The next test uses Mesa's GLES animation, keeps its diagnostic output and reports
+callback dimensions, primary-color counts and distinct frame hashes. It also
+summarizes the prior controlled, account-free result using fixed labels. GPU
+acceleration is not enabled in preview 24 on this incomplete evidence.
 
 Billing checkpoint: the owner reports 2,000/2,000 included Actions minutes used,
 0.2/0.5 GB artifact storage used, with the minutes resetting in three days.
@@ -273,7 +284,7 @@ performance measurements remain unverified; the owner reports slow interaction.
 The current configuration uses two virtual CPUs through QEMU TCG JIT and
 2048 MiB guest RAM. ARM64 client binaries still run inside the emulated Linux
 machine; they do not run directly against iOS. Steam graphics use the CPU,
-without guest GPU acceleration. The next build removes the session
+without guest GPU acceleration. Preview 24 removes the session
 navigation header, uses a compact bottom control bar and adds an enlarge/fit
 control. A visible local cursor follows direct touch, or relative trackpad
 motion with tap-to-click. Session options provide right-click, wheel scrolling
@@ -290,6 +301,15 @@ memory. Display FPS can be zero for a static desktop and is capped by the
 30 Hz display bridge; it is not a game's internal FPS. GPU is explicitly labeled
 software, with utilization unavailable rather than a fabricated percentage.
 Metric definitions and thermal state are available from the overlay.
+
+Run `36624109003` at `b94dd7d8d029f6aff3ce36b4e8a4ba6da3c89082`
+passed installer, native Steam, Linux boot/input, Apple framework display and
+full Steam login-interface gates, then built the updated iPhone app and published
+preview 24. The uploaded `SomethingPC-SteamARM64.ipa` was downloaded, checksum
+verified and compared byte-for-byte before publication. Size: 679,745,211 bytes.
+SHA-256: `283d846c818583d85edeaedb7d843273ff6f905a5000d518a044ee02bd5acf5b`.
+The new controls and overlay still need device validation; preview 23's owner
+login report does not validate this updated UI or establish a speed improvement.
 
 Fresh guest installations also report download and extraction progress.
 Updating the app preserves the existing Linux disk and Steam account data;

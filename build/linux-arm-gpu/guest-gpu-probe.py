@@ -108,12 +108,15 @@ try:
     read_pixels(8, 8, 1, 1, 0x1908, 0x1401, pixel)
     assert get_error() == 0 and list(pixel) == [255, 0, 0, 255], 'GPU shader/readback mismatch'
     delete_program(program); delete_shader(vertex); delete_shader(fragment)
-    subprocess.Popen(['glxgears', '-geometry', '400x300+20+20'],
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print('MYPC_GUEST_GPU_SHADER_OK', flush=True)
+    # The host exposes GLES through ANGLE. A legacy GLX compatibility demo can
+    # fail even when the GLES shader passed; exercise an actual GLES window.
+    animation = subprocess.Popen(['es2gears_x11'])
+    print('MYPC_GUEST_GPU_ANIMATION_STARTED', flush=True)
     # Keep X11 alive so the host can capture the desktop through its existing
     # readback listener, then power down through the app's QMP power button.
     while True:
+        assert animation.poll() is None, 'Guest GLES animation exited before host readback'
         time.sleep(1)
 finally:
     make_current(display, None, None, None)

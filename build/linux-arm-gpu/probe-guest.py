@@ -15,7 +15,7 @@ import threading
 import time
 
 
-def frame_digest(path):
+def frame_stats(path):
     if not path.exists():
         return None
     data = path.read_bytes()
@@ -36,9 +36,16 @@ def frame_digest(path):
             red += r > 150 and g < 80 and b < 80
             green += g > 150 and r < 80 and b < 80
             blue += b > 150 and r < 80 and g < 80
-    if min(red, green, blue) < 128:
+    return {'width': width, 'height': height, 'stride': stride,
+            'red': red, 'green': green, 'blue': blue,
+            'sha256': hashlib.sha256(data).hexdigest()}
+
+
+def frame_digest(path):
+    stats = frame_stats(path)
+    if stats is None or min(stats['red'], stats['green'], stats['blue']) < 128:
         return None
-    return hashlib.sha256(data).hexdigest()
+    return stats['sha256']
 
 
 def main():
@@ -87,15 +94,18 @@ def main():
                 content = log.read_text(errors='replace')
                 assert 'MYPC_HOST_GL_RENDERER=ANGLE' in content and 'Metal' in content
                 assert 'MYPC_LINUX_NETWORK_OK' in content and 'MYPC_LINUX_PERSISTENCE_OK' in content
-                hashes, deadline = set(), time.monotonic() + 120
+                print('MYPC_GUEST_GPU_SHADER_OK', flush=True)
+                hashes, deadline, report = set(), time.monotonic() + 120, 0
                 while len(hashes) < 2:
                     digest = frame_digest(frame)
                     if digest:
                         hashes.add(digest)
+                    if time.monotonic() > report:
+                        print('MYPC_GPU_CALLBACK ' + json.dumps(frame_stats(frame)), flush=True)
+                        report = time.monotonic() + 20
                     assert process.poll() is None, 'GPU guest exited before display readback'
                     assert time.monotonic() < deadline, 'Moving gear pixels did not reach the iPhone display callback'
                     time.sleep(1)
-                print('MYPC_GUEST_GPU_SHADER_OK', flush=True)
                 print('MYPC_GPU_BRIDGE_MOVING_PIXELS_OK', flush=True)
                 with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
                     client.settimeout(10); client.connect(str(control))
