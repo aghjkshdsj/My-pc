@@ -1,0 +1,56 @@
+name: Full ARM Steam under the JIT-free interpreter
+on:
+  push:
+    branches: [codex/steam-arm-interpreter]
+    paths: [.github/workflows/steam-interpreter-client.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: interpreter-steam-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  steam:
+    name: Verify the full Steam login interface under TCTI
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore verified interpreter and Linux guest
+        run: |
+          test "$(gh run view 36586713923 --json headSha --jq .headSha)" = 2bf7f432f3f11f1239a2d6663e19527fed51edfc
+          test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
+          gh run download 36586713923 --name tcti-macos --dir build/linux-arm-interpreter/output
+          gh run download 36586450467 --name linux-arm-guest --dir build/linux-arm-interpreter/output
+          mkdir -p build/linux-arm-interpreter/output/steam-guest build/linux-arm-interpreter/output/macos
+          tar -xzf build/linux-arm-interpreter/output/tcti-macos.tar.gz -C build/linux-arm-interpreter/output/macos
+          tar -xzf build/linux-arm-interpreter/output/linux-arm-guest.tar.gz -C build/linux-arm-interpreter/output/steam-guest
+          (cd build/linux-arm-interpreter/output/steam-guest && shasum -a 256 -c SHA256SUMS)
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          root = pathlib.Path('build/linux-arm-interpreter/output/macos')
+          backend = json.loads((root / 'runtime-backend.json').read_text())
+          assert backend['backend'] == 'tcti' and backend['requiresJIT'] is False
+          binary = root / 'Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu'
+          assert hashlib.sha256(binary.read_bytes()).hexdigest() == backend['binarySHA256']
+          PY
+          for framework in build/linux-arm-interpreter/output/macos/Frameworks/*.framework; do
+            codesign --force --sign - "$framework"
+            codesign --verify --strict "$framework"
+          done
+      - name: Require working denial controls and full guest login form
+        run: |
+          bash build/linux-arm-interpreter/build-policy-host.sh build/linux-arm-interpreter/output/macos
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/steam-guest --steam --expect-existing --display --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interpreter-steam-test
+          path: |
+            build/linux-arm-interpreter/output/steam-guest/boot-4.log
+            build/linux-arm-interpreter/output/steam-guest/steam.ppm
+          retention-days: 7

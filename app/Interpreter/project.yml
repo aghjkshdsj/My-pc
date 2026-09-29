@@ -1,0 +1,46 @@
+name: MyPCInterpreter
+options:
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  MyPCInterpreter:
+    type: application
+    platform: iOS
+    sources:
+      - path: InterpreterApp.swift
+      - path: ../Madeira/LinuxVMCore.swift
+      - path: ../Madeira/LinuxVMSession.swift
+      - path: ../Madeira/LinuxVMView.swift
+      - path: ../Madeira/LinuxRuntimeInstaller.swift
+      - path: ../Madeira/LinuxVMBridge.c
+      - path: ../Madeira/GameLibraryCore.swift
+      - path: ../Madeira/StoreCore.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aghjkshdsj.MyPC.Interpreter
+        PRODUCT_NAME: MyPCInterpreter
+        SWIFT_VERSION: "5.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) MYPC_INTERPRETER
+        SWIFT_OBJC_BRIDGING_HEADER: Bridging-Header.h
+        CODE_SIGN_ENTITLEMENTS: Interpreter.entitlements
+        TARGETED_DEVICE_FAMILY: "1,2"
+        OTHER_LDFLAGS: $(inherited) -lz
+        LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks
+    info:
+      path: GeneratedInfo.plist
+      properties:
+        CFBundleDisplayName: My-pc Interpreter
+        CFBundleShortVersionString: "0.1"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight

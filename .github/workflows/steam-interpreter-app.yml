@@ -1,0 +1,37 @@
+name: Compile the JIT-free iPhone app
+on:
+  push:
+    branches: [codex/steam-arm-interpreter]
+    paths: [.github/workflows/steam-interpreter-app.yml, app/Interpreter/**]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  app:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and link the separate interpreter app
+        run: |
+          brew install xcodegen
+          xcodegen generate --spec app/Interpreter/project.yml
+          set -o pipefail
+          xcodebuild -project app/Interpreter/MyPCInterpreter.xcodeproj -scheme MyPCInterpreter \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/InterpreterDerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build/interpreter-app-build.log
+          binary=build/InterpreterDerivedData/Build/Products/Release-iphoneos/MyPCInterpreter.app/MyPCInterpreter
+          xcrun lipo "$binary" -verify_arch arm64
+          nm -a "$binary" > build/interpreter-app-symbols.txt
+          if grep -Ei 'jit_check_debugged|jit_install_trap_handler|StikJITHelper|wine_process_|wineserver_|FEXBridge' build/interpreter-app-symbols.txt; then
+            echo 'Unexpected JIT or Windows runtime code in interpreter app' >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interpreter-app-build-diagnostics
+          path: build/interpreter-app-build.log
+          retention-days: 3

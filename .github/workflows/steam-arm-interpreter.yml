@@ -1,0 +1,154 @@
+name: JIT-free ARM Linux interpreter
+on:
+  push:
+    branches: [codex/steam-arm-interpreter]
+    paths: [build/linux-arm-interpreter/**, build/linux-arm/**, app/Interpreter/**, app/Madeira/Linux*, .github/workflows/steam-arm-interpreter.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: arm-interpreter-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  app-checks:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check both execution policies and the interpreter app
+        run: |
+          cp build/linux-arm/core-tests.swift "$RUNNER_TEMP/main.swift"
+          swiftc app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/jit-tests"
+          "$RUNNER_TEMP/jit-tests"
+          swiftc -D MYPC_INTERPRETER app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/interpreter-tests"
+          "$RUNNER_TEMP/interpreter-tests"
+          xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -D MYPC_INTERPRETER -target arm64-apple-ios17.0 \
+            -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -import-objc-header app/Interpreter/Bridging-Header.h \
+            app/Interpreter/InterpreterApp.swift app/Madeira/LinuxVMCore.swift app/Madeira/LinuxVMSession.swift \
+            app/Madeira/LinuxVMView.swift app/Madeira/LinuxRuntimeInstaller.swift app/Madeira/GameLibraryCore.swift app/Madeira/StoreCore.swift
+          bash -n build/linux-arm-interpreter/*.sh
+          python3 -m py_compile build/linux-arm-interpreter/*.py
+          python3 build/linux-arm-interpreter/test-config.py
+          bash build/linux-arm-interpreter/build-policy-host.sh "$RUNNER_TEMP/nojit-policy"
+  qemu:
+    needs: [app-checks]
+    runs-on: macos-26
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, macos]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: build/linux-arm-interpreter/output/${{ matrix.platform }}
+          key: arm-tcti-v1-${{ matrix.platform }}-${{ hashFiles('build/linux-arm-interpreter/build-qemu.sh', 'build/linux-arm-interpreter/prepare-utm.py', 'build/linux-arm-interpreter/verify-config.py', 'build/linux-arm-interpreter/host.entitlements', 'build/linux-arm/prepare-utm.py', 'build/linux-arm/qemu-display.inc.c', 'build/linux-arm/host-launcher.c', 'app/Madeira/LinuxVMBridge.*') }}
+      - name: Install build tools
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          brew install bison pkg-config gettext glib meson ninja
+          echo "$(brew --prefix bison)/bin:$(brew --prefix gettext)/bin:$(brew --prefix glib)/bin" >> "$GITHUB_PATH"
+          python3 -m venv build/linux-arm-interpreter/venv
+          build/linux-arm-interpreter/venv/bin/pip install six pyparsing pyyaml setuptools distlib mako packaging
+          echo "$PWD/build/linux-arm-interpreter/venv/bin" >> "$GITHUB_PATH"
+      - name: Compile threaded interpreter
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: bash build/linux-arm-interpreter/build-qemu.sh '${{ matrix.platform }}'
+      - name: Preserve framework layout
+        run: tar -czf 'build/linux-arm-interpreter/output/tcti-${{ matrix.platform }}.tar.gz' -C 'build/linux-arm-interpreter/output/${{ matrix.platform }}' .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tcti-${{ matrix.platform }}
+          path: build/linux-arm-interpreter/output/tcti-${{ matrix.platform }}.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tcti-build-logs-${{ matrix.platform }}
+          path: |
+            build/linux-arm-interpreter/work-${{ matrix.platform }}/build.log
+            build/linux-arm-interpreter/work-${{ matrix.platform }}/utm/build-*/**/meson-logs/meson-log.txt
+            build/linux-arm-interpreter/work-${{ matrix.platform }}/utm/build-*/**/config-host.h
+  boot:
+    name: Boot under a verified CI memory allocation policy
+    needs: [qemu]
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      GUEST_RUN: '36631484989'
+      GUEST_SHA: 9399ce0c1b445bd56e3a5820f04cf4b307f303ef
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: tcti-macos
+          path: build/linux-arm-interpreter/output
+      - name: Restore the previously boot-tested guest
+        run: |
+          test "$(gh run view "$GUEST_RUN" --json headSha --jq .headSha)" = "$GUEST_SHA"
+          gh run download "$GUEST_RUN" --name linux-arm-guest --dir build/linux-arm-interpreter/output
+          mkdir -p build/linux-arm-interpreter/output/guest build/linux-arm-interpreter/output/macos
+          tar -xzf build/linux-arm-interpreter/output/tcti-macos.tar.gz -C build/linux-arm-interpreter/output/macos
+          tar -xzf build/linux-arm-interpreter/output/linux-arm-guest.tar.gz -C build/linux-arm-interpreter/output/guest
+          (cd build/linux-arm-interpreter/output/guest && shasum -a 256 -c SHA256SUMS)
+          for framework in build/linux-arm-interpreter/output/macos/Frameworks/*.framework; do
+            codesign --force --sign - "$framework"
+            codesign --verify --strict "$framework"
+          done
+      - name: Verify denied code generation and boot the actual interpreter
+        run: |
+          bash build/linux-arm-interpreter/build-policy-host.sh build/linux-arm-interpreter/output/macos
+          codesign -d --entitlements :- build/linux-arm-interpreter/output/macos/host-launcher
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --desktop --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tcti-boot-logs
+          path: |
+            build/linux-arm-interpreter/output/guest/boot-*.log
+            build/linux-arm-interpreter/output/guest/desktop.ppm
+  ipa:
+    name: Build separate interpreter iPhone IPA
+    needs: [boot, app-checks, qemu]
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: tcti-ios
+          path: build/linux-arm-interpreter/output
+      - name: Restore runtime and build iPhone app
+        run: |
+          test "$(gh run view 36631484989 --json headSha --jq .headSha)" = 9399ce0c1b445bd56e3a5820f04cf4b307f303ef
+          gh run download 36631484989 --name linux-arm-guest --dir build/linux-arm-interpreter/output
+          mkdir -p build/linux-arm-interpreter/output/guest build/linux-arm-interpreter/output/ios
+          tar -xzf build/linux-arm-interpreter/output/tcti-ios.tar.gz -C build/linux-arm-interpreter/output/ios
+          tar -xzf build/linux-arm-interpreter/output/linux-arm-guest.tar.gz -C build/linux-arm-interpreter/output/guest
+          (cd build/linux-arm-interpreter/output/guest && shasum -a 256 -c SHA256SUMS)
+          brew install xcodegen
+          bash build/linux-arm-interpreter/package-ipa.sh
+          python3 build/linux-arm/package-sources.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyPC-SteamARM64-NoJIT-unsigned
+          path: |
+            build/linux-arm-interpreter/output/IPA/*.ipa
+            build/linux-arm-interpreter/output/IPA/*.sha256
+            build/linux-arm/LinuxRuntime-Sources.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tcti-ipa-logs
+          path: build/linux-arm-interpreter/output/xcodebuild.log

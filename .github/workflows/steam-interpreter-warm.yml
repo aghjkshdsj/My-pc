@@ -1,0 +1,75 @@
+name: Isolate interpreter Steam startup after installation
+run-name: TCTI installed-client diagnostic (${{ github.run_number }})
+on:
+  push:
+    branches: [codex/steam-arm-interpreter]
+    paths: [.github/workflows/steam-interpreter-warm.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: interpreter-warm-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  warm-start:
+    name: Separate installer overhead from TCTI client startup
+    runs-on: macos-26
+    timeout-minutes: 80
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore checksummed frameworks and isolated guest
+        run: |
+          test "$(gh run view 36586713923 --json headSha --jq .headSha)" = 2bf7f432f3f11f1239a2d6663e19527fed51edfc
+          test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
+          gh run download 36586713923 --name tcti-macos --dir build/linux-arm-interpreter/output
+          gh run download 36586450467 --name linux-arm-qemu-macos --dir build/linux-arm-interpreter/output
+          gh run download 36586450467 --name linux-arm-guest --dir build/linux-arm-interpreter/output
+          mkdir -p build/linux-arm-interpreter/output/warm-guest build/linux-arm-interpreter/output/macos build/linux-arm-interpreter/output/jit-macos
+          tar -xzf build/linux-arm-interpreter/output/tcti-macos.tar.gz -C build/linux-arm-interpreter/output/macos
+          tar -xzf build/linux-arm-interpreter/output/linux-arm-qemu-macos.tar.gz -C build/linux-arm-interpreter/output/jit-macos
+          tar -xzf build/linux-arm-interpreter/output/linux-arm-guest.tar.gz -C build/linux-arm-interpreter/output/warm-guest
+          (cd build/linux-arm-interpreter/output/warm-guest && shasum -a 256 -c SHA256SUMS)
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          root = pathlib.Path('build/linux-arm-interpreter/output/macos')
+          backend = json.loads((root / 'runtime-backend.json').read_text())
+          assert backend['backend'] == 'tcti' and backend['requiresJIT'] is False
+          binary = root / 'Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu'
+          assert hashlib.sha256(binary.read_bytes()).hexdigest() == backend['binarySHA256']
+          PY
+          for runtime in macos jit-macos; do
+            chmod +x "build/linux-arm-interpreter/output/$runtime/host-launcher"
+            for framework in "build/linux-arm-interpreter/output/$runtime/Frameworks/"*.framework; do
+              codesign --force --sign - "$framework"
+              codesign --verify --strict "$framework"
+            done
+          done
+      - name: Prepare installed state only in the CI test disk
+        run: |
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/warm-guest --steam --expect-existing --display \
+            --launcher build/linux-arm-interpreter/output/jit-macos/host-launcher \
+            --library build/linux-arm-interpreter/output/jit-macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          mv build/linux-arm-interpreter/output/warm-guest/boot-4.log build/linux-arm-interpreter/output/warm-guest/installed-with-jit.log
+          mv build/linux-arm-interpreter/output/warm-guest/steam.ppm build/linux-arm-interpreter/output/warm-guest/installed-with-jit.ppm
+          echo 'This preparatory JIT run is not a no-JIT installation pass. The resulting test disk is never bundled in the IPA.'
+      - name: Require full client startup under the guarded interpreter
+        run: |
+          bash build/linux-arm-interpreter/build-policy-host.sh build/linux-arm-interpreter/output/macos
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/warm-guest --steam --expect-existing --display --interpreter --deny-jit-policy \
+            --launcher build/linux-arm-interpreter/output/macos/host-launcher \
+            --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          echo 'PASS: installed Steam startup under TCTI. Cold interpreter installation remains a separate failed gate.'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interpreter-warm-start-results
+          path: |
+            build/linux-arm-interpreter/output/warm-guest/installed-with-jit.log
+            build/linux-arm-interpreter/output/warm-guest/installed-with-jit.ppm
+            build/linux-arm-interpreter/output/warm-guest/boot-4.log
+            build/linux-arm-interpreter/output/warm-guest/steam.ppm
+          retention-days: 3

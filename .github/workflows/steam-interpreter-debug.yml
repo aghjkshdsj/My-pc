@@ -1,0 +1,97 @@
+name: Trace the interpreter Steam client segfault
+run-name: Complete local GDB summary (${{ github.run_number }})
+on:
+  push:
+    branches: [codex/steam-arm-interpreter]
+    paths: [.github/workflows/steam-interpreter-debug.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  guest:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare an isolated account-free debugger guest
+        run: |
+          test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
+          gh run download 36586450467 --name linux-arm-guest --dir build/diagnostics/output
+          mkdir -p build/diagnostics/output/guest
+          tar -xzf build/diagnostics/output/linux-arm-guest.tar.gz -C build/diagnostics/output/guest
+          (cd build/diagnostics/output/guest && sha256sum -c SHA256SUMS)
+          bash -n build/diagnostics/prepare-steam-debug.sh
+          python3 -m py_compile build/diagnostics/read-steam-debug.py
+          python3 build/diagnostics/test-steam-debug.py
+          bash build/diagnostics/prepare-steam-debug.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: isolated-steam-debug-guest
+          path: build/diagnostics/output/steam-debug-guest.tar.gz
+          retention-days: 3
+  trace:
+    needs: [guest]
+    runs-on: macos-26
+    timeout-minutes: 80
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: isolated-steam-debug-guest
+          path: build/diagnostics/output
+      - name: Restore the verified JIT and TCTI frameworks
+        run: |
+          test "$(gh run view 36586713923 --json headSha --jq .headSha)" = 2bf7f432f3f11f1239a2d6663e19527fed51edfc
+          test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
+          gh run download 36586713923 --name tcti-macos --dir build/diagnostics/output
+          gh run download 36586450467 --name linux-arm-qemu-macos --dir build/diagnostics/output
+          mkdir -p build/diagnostics/output/guest build/diagnostics/output/macos build/diagnostics/output/jit
+          tar -xzf build/diagnostics/output/steam-debug-guest.tar.gz -C build/diagnostics/output/guest
+          (cd build/diagnostics/output/guest && shasum -a 256 -c SHA256SUMS)
+          tar -xzf build/diagnostics/output/tcti-macos.tar.gz -C build/diagnostics/output/macos
+          tar -xzf build/diagnostics/output/linux-arm-qemu-macos.tar.gz -C build/diagnostics/output/jit
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          root = pathlib.Path('build/diagnostics/output/macos')
+          metadata = json.loads((root / 'runtime-backend.json').read_text())
+          assert metadata['backend'] == 'tcti' and metadata['requiresJIT'] is False
+          binary = root / 'Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu'
+          assert hashlib.sha256(binary.read_bytes()).hexdigest() == metadata['binarySHA256']
+          PY
+          for runtime in macos jit; do
+            chmod +x "build/diagnostics/output/$runtime/host-launcher"
+            for framework in "build/diagnostics/output/$runtime/Frameworks/"*.framework; do codesign --force --sign - "$framework"; done
+          done
+      - name: Complete installation only on the disposable test disk
+        run: |
+          python3 build/linux-arm/smoke-guest.py build/diagnostics/output/guest --steam --expect-existing --display \
+            --launcher build/diagnostics/output/jit/host-launcher \
+            --library build/diagnostics/output/jit/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          mv build/diagnostics/output/guest/boot-4.log build/diagnostics/output/guest/jit-install.log
+      - name: Trace the installed client under TCTI and the allocation policy
+        run: |
+          bash build/linux-arm-interpreter/build-policy-host.sh build/diagnostics/output/macos
+          python3 - <<'PY'
+          import os, pathlib
+          source = pathlib.Path('build/linux-arm/smoke-guest.py').read_text()
+          anchor = 'my_pc_{mode}_test=1 panic=-1'
+          assert source.count(anchor) == 1
+          source = source.replace(anchor, anchor + ' my_pc_steam_gdb=1')
+          pathlib.Path(os.environ['RUNNER_TEMP'], 'trace-steam.py').write_text(source)
+          PY
+          set +e
+          python3 "$RUNNER_TEMP/trace-steam.py" build/diagnostics/output/guest --steam --expect-existing --display --interpreter --deny-jit-policy \
+            --launcher build/diagnostics/output/macos/host-launcher \
+            --library build/diagnostics/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu > build/diagnostics/output/host-trace.log 2>&1
+          result=$?
+          set -e
+          test "$result" -ne 0
+          python3 build/diagnostics/read-steam-debug.py build/diagnostics/output/guest/boot-4.log
+          echo 'Diagnostic only: this expected client failure is not a Steam startup or no-JIT installation pass.'
