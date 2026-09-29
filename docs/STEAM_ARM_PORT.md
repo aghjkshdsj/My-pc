@@ -322,6 +322,13 @@ login report does not validate this updated UI or establish a speed improvement.
 The owner subsequently tested preview 24 and confirmed the larger desktop and
 pointer work. Right-click, dragging, metric accuracy and performance comparisons
 still need separate device checks; no speed improvement is claimed yet.
+The owner also reports Steam itself remains cropped even with Fit enabled.
+The next app launch requests a 1280x800 Linux desktop instead of 960x540, so
+the normal Steam window fits inside the guest rather than being clipped before
+reaching iPhone. The overlay shows actual received frame dimensions. Desktop
+and full Steam CI tests now require that exact screenshot size, alongside the
+six online CPUs. This only changes the app's virtual display configuration;
+updating it preserves the existing persistent disk and account.
 
 The owner also requested all available CPU cores. The next build replaces the
 fixed two-core app launch with an automatic selection based on iOS's available

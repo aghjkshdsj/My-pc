@@ -122,6 +122,7 @@ struct LinuxVMView: View {
                         Text("RAM is this app's physical memory footprint, including QEMU and the display. Linux has \(session.guestMemoryMiB) MiB allocated and \(session.guestCPUCount) virtual CPUs. Allocation is not memory usage.")
                         Text("This session has \(session.guestCPUCount) virtual CPU cores. iOS reports \(session.hostCPUCount) available host cores. CPU core settings apply at startup; iOS controls scheduling, power and thermal limits. More cores do not guarantee a faster interface.")
                         Text("Display FPS counts new guest frames shown each second, up to 30. An idle desktop can show 0 FPS. This is not a game's internal FPS.")
+                        Text("Linux desktop: \(LinuxDesktopSize.width) × \(LinuxDesktopSize.height). Fit shows the whole guest desktop; Enlarge pans toward the pointer.")
                         Text("Steam currently uses CPU software rendering. GPU utilization is unavailable in this build; no GPU percentage is estimated.")
                         Text("Device thermal state: \(session.thermalStatus). iOS decides CPU scheduling and thermal limits.")
                     }
@@ -199,7 +200,7 @@ struct LinuxVMView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("CPU \(session.cpuPercent.map { String(format: "%.0f%%", $0) } ?? "—") · RAM \(session.memoryMiB.map { String(format: "%.0f MiB", $0) } ?? "—")")
                         Text(String(format: "Display %.1f FPS · GPU: software", session.displayFPS))
-                        Text("VM \(session.guestCPUCount) cores")
+                        Text("VM \(session.guestCPUCount) cores · \(image.width)×\(image.height)")
                     }
                     .font(.system(size: 11, design: .monospaced)).monospacedDigit()
                     .foregroundStyle(.white).padding(6)

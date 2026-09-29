@@ -31,6 +31,12 @@ enum LinuxCPUSelection {
     }
 }
 
+enum LinuxDesktopSize {
+    // Steam's normal desktop window extends beyond the old 960x540 guest.
+    static let width = 1280
+    static let height = 800
+}
+
 /// Arguments passed directly to QEMU, never through a shell.
 struct LinuxVMConfiguration {
     let directory: URL
@@ -78,7 +84,7 @@ struct LinuxVMConfiguration {
                 "-blockdev", storage, "-blockdev", raw,
                 "-device", "virtio-blk-pci,drive=linux-root",
                 "-netdev", "user,id=linux-net", "-device", "virtio-net-pci,netdev=linux-net,romfile=",
-                "-device", "virtio-gpu-pci,xres=960,yres=540",
+                "-device", "virtio-gpu-pci,xres=\(LinuxDesktopSize.width),yres=\(LinuxDesktopSize.height)",
                 "-device", "qemu-xhci", "-device", "usb-tablet", "-device", "usb-kbd",
                 "-display", "none", "-monitor", "none", "-no-reboot",
                 "-chardev", "file,id=linux-serial,path=\(log.path)", "-serial", "chardev:linux-serial",

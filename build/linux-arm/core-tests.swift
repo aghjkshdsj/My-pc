@@ -37,6 +37,7 @@ check(LinuxCPUSelection.resolve(0, hostCount: 0) == 1, "At least one CPU must re
 config.cpuCount = LinuxCPUSelection.resolve(0, hostCount: 6)
 let sixCoreArguments = try config.arguments()
 check(sixCoreArguments[sixCoreArguments.firstIndex(of: "-smp")! + 1] == "6", "Launch must actually request six virtual CPUs")
+check(sixCoreArguments.contains("virtio-gpu-pci,xres=1280,yres=800"), "Guest desktop must fit the normal Steam window")
 config.cpuCount = 65
 rejects { _ = try config.arguments() }
 config.cpuCount = 0
