@@ -9,14 +9,61 @@ permissions:
 jobs:
   logs:
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
     steps:
-      - name: Read saved boot and client diagnostics
+      - name: Read saved Steam guest diagnostics
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh run download 36319559959 --name linux-arm-boot-logs --dir guest
-          gh run download 36320095396 --name valve-arm64-client-probe --dir client
-          tail -n 160 guest/boot-3.log
-          cat client/launch.log client/dependencies.txt
-          find client/steam-logs -name '*.txt' -exec tail -n 100 {} \;
+          gh api "repos/$GH_REPO/actions/artifacts/10996207496/zip" > guest.zip
+          python3 - <<'PY'
+          import json, re, zipfile
+          log = zipfile.ZipFile('guest.zip').read('boot-4.log').decode(errors='replace')
+          # Never publish raw log lines, URLs, arguments, values or arbitrary
+          # error messages. The report contains only fixed labels and numbers.
+          patterns = {
+              'kernel_oom': r'Out of memory: Killed process|oom-kill:',
+              'illegal_instruction': r'Illegal instruction|SIGILL',
+              'segmentation_fault': r'Segmentation fault|SIGSEGV|Received signal 11',
+              'cef_fatal': r'FATAL:',
+              'cef_check_failed': r'Check failed:',
+              'cef_network_service_crash': r'Network service crashed',
+              'cef_gpu_process_crash': r'GPU process exited unexpectedly',
+              'cef_renderer_crash': r'renderer.*crash|Render process.*crash',
+              'cef_not_responding': r'webhelper.*not responding|webhelper.*unresponsive',
+              'mutex_failure': r'LockMgrMutex failed to acquire SysMgrMutex',
+              'login_title_present': r'Sign in to Steam',
+              'guest_success': r'MYPC_GUEST_STEAM_WINDOW_OK',
+              'guest_failure': r'MYPC_GUEST_STEAM_FAILED',
+          }
+          report = {'counts': {key: len(re.findall(pattern, log, re.I)) for key, pattern in patterns.items()}}
+          def section_json(name):
+              try:
+                  section = log.split('\n' + name + ':', 1)[1].lstrip()
+                  return json.JSONDecoder().raw_decode(section)[0]
+              except (IndexError, ValueError):
+                  return None
+          readiness = section_json('cef-readiness.json')
+          if isinstance(readiness, list):
+              observations = []
+              for entry in readiness[:32]:
+                  state = entry.get('state') or {}
+                  error = str(entry.get('error', ''))
+                  observations.append({
+                      'has_state': bool(state),
+                      'document_complete': state.get('readyState') == 'complete',
+                      'password_visible': state.get('passwordVisible') is True,
+                      'timeout': 'timed out' in error.lower(),
+                      'connection_refused': 'connection refused' in error.lower(),
+                  })
+              report['readiness'] = observations
+          targets = section_json('cef-targets.json')
+          if isinstance(targets, list):
+              report['target_count'] = len(targets)
+              report['login_target_count'] = sum(target.get('title') in
+                  {'Steam', 'Sign in to', 'Sign in to Steam', 'Steam Sign In'} for target in targets)
+          window = section_json('client-window.json')
+          report['mapped_client_detected'] = isinstance(window, dict)
+          print(json.dumps(report, indent=2))
+          PY
