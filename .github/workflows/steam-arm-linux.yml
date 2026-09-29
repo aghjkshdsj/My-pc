@@ -8,7 +8,7 @@ permissions:
   contents: read
 concurrency:
   group: arm-linux-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   client:
     uses: ./.github/workflows/steam-arm-client.yml
