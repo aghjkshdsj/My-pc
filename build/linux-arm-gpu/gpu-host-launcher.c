@@ -7,12 +7,18 @@
 #include <time.h>
 
 static double previous;
+static int announced;
 static void frame(void *opaque, const void *pixels, int width, int height, int stride)
 {
     (void)opaque;
     const char *path = getenv("MYPC_GPU_FRAME_PATH");
     if (!path || !pixels || width <= 0 || height <= 0 || width > 4096 ||
         height > 4096 || stride < width * 4 || stride > 4096 * 4) return;
+    if (!announced) {
+        announced = 1;
+        fprintf(stderr, "MYPC_APPLE_FRAMEBUFFER_OK %dx%d\n", width, height);
+        fflush(stderr);
+    }
     struct timespec now;
     if (clock_gettime(CLOCK_MONOTONIC, &now)) return;
     double seconds = now.tv_sec + now.tv_nsec / 1e9;

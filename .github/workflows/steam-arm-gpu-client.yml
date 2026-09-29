@@ -1,0 +1,72 @@
+name: Full Steam ARM64 Metal renderer test
+on:
+  push:
+    branches: [codex/steam-arm-linux]
+    paths: [.github/workflows/steam-arm-gpu-client.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: steam-gpu-client-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  guest:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare an isolated guest without an account or Valve files
+        run: |
+          python3 -m py_compile build/linux-arm-gpu/steam_gpu.py build/linux-arm-gpu/probe-steam-host.py
+          python3 build/linux-arm-gpu/test-steam-gpu.py
+          bash -n build/linux-arm-gpu/prepare-steam-guest.sh
+          test "$(gh run view 36631484989 --json headSha --jq .headSha)" = 9399ce0c1b445bd56e3a5820f04cf4b307f303ef
+          test "$(gh api 'repos/${{ github.repository }}/actions/jobs/109622267807' --jq .conclusion)" = success
+          gh run download 36631484989 --name linux-arm-guest --dir build/linux-arm-gpu/output
+          mkdir -p build/linux-arm-gpu/output/steam-guest
+          tar -xzf build/linux-arm-gpu/output/linux-arm-guest.tar.gz -C build/linux-arm-gpu/output/steam-guest
+          (cd build/linux-arm-gpu/output/steam-guest && sha256sum -c SHA256SUMS)
+          bash build/linux-arm-gpu/prepare-steam-guest.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bare-steam-gpu-test-guest
+          path: build/linux-arm-gpu/output/steam-gpu-guest.tar.gz
+          retention-days: 3
+  client:
+    needs: [guest]
+    runs-on: macos-26
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: bare-steam-gpu-test-guest
+          path: build/linux-arm-gpu/output
+      - name: Restore the framework that passed animated Metal display readback
+        run: |
+          test "$(gh run view 36629999384 --json headSha --jq .headSha)" = 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2
+          test "$(gh run view 36629999384 --json conclusion --jq .conclusion)" = success
+          gh run download 36629999384 --name experimental-gpu-macos --dir build/linux-arm-gpu/output
+          mkdir -p build/linux-arm-gpu/output/macos build/linux-arm-gpu/output/steam-guest
+          tar -xzf build/linux-arm-gpu/output/experimental-gpu-macos.tar.gz -C build/linux-arm-gpu/output/macos
+          tar -xzf build/linux-arm-gpu/output/steam-gpu-guest.tar.gz -C build/linux-arm-gpu/output/steam-guest
+          (cd build/linux-arm-gpu/output/steam-guest && shasum -a 256 -c SHA256SUMS)
+          clang -std=c11 -Wall -Wextra -Werror build/linux-arm-gpu/gpu-host-launcher.c app/Madeira/LinuxVMBridge.c \
+            -Wl,-rpath,@executable_path/Frameworks -o build/linux-arm-gpu/output/macos/gpu-host-launcher
+          for framework in build/linux-arm-gpu/output/macos/Frameworks/*.framework; do
+            codesign --force --sign - "$framework"
+            codesign --verify --strict "$framework"
+          done
+          codesign --force --sign - build/linux-arm-gpu/output/macos/gpu-host-launcher
+      - name: Require Steam login, actual virgl CEF rendering and a Metal display
+        run: |
+          python3 build/linux-arm-gpu/probe-metal.py build/linux-arm-gpu/output/macos
+          python3 build/linux-arm-gpu/probe-steam-host.py build/linux-arm-gpu/output/steam-guest build/linux-arm-gpu/output/macos
+          echo 'Experimental CI evidence only; no iPhone performance claim and no GPU IPA publication.'

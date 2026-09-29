@@ -170,8 +170,23 @@ received one unchanged 960x540 callback image with no primary-color pixels.
 The next experiment replaces desktop BGRA upload/readback combinations with
 core GLES RGBA allocation and readback, then converts RGBA to the app's BGRA
 format at the display boundary. It reports GL errors and framebuffer status.
-The format calls are a suspected cause, not a confirmed diagnosis; changing
-pixels, clean shutdown and later Steam/device tests remain required.
+Run `36629999384` at `3f4549945b33002e2b50cfce0bc1e7c7e41b60f2`
+passed both Apple framework builds, the Metal context, guest GLES shader and
+two distinct animated primary-color frames through the iPhone display callback,
+then shut down cleanly. Core GLES RGBA readback and conversion to the app's BGRA
+format resolve the blank animation in this controlled test. The hosted Mac
+reports an Apple Paravirtual Metal device; this is not physical iPhone evidence.
+The released app still uses software graphics.
+
+The separate `steam-arm-gpu-client.yml` gate now uses that passed framework
+and an isolated, account-free six-core 1280x800 guest. Only My-pc's test scripts
+remove the software-forcing environment and GPU-disable option; Valve files
+remain intact. Steam must present a live login form, report virgl GPU
+compositing and WebGL through Chromium's SystemInfo API, and read back a real
+red WebGL pixel. SwiftShader, llvmpipe, disabled compositing and missing
+diagnostics fail the gate. Raw Steam/CDP logs and the installed client disk are
+not exported. Device testing and persistent-disk migration remain necessary
+before this backend can be offered as a working GPU option.
 
 Billing checkpoint: the owner reports 2,000/2,000 included Actions minutes used,
 0.2/0.5 GB artifact storage used, with the minutes resetting in three days.
