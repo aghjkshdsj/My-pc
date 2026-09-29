@@ -219,6 +219,23 @@ a stable mapped window and a live, complete login form. This run passed native
 Steam startup, bridge checks and both Apple framework builds; guest tests and
 IPA packaging are still pending.
 
+That Apple-framework Steam run subsequently failed after installation. CEF's
+background page was responsive and complete, but no login popup appeared.
+The safe diagnostic run `36586449947` counted 223 `lsof: not found` errors and
+65 rejected local WebUI connections. There were no recorded SIGILL, SIGSEGV,
+CEF network-service crashes, kernel OOMs, DNS errors or certificate errors in
+the inspected report. A broad renderer-crash regex initially matched a process
+argument; the corrected predicate reports zero renderer crashes.
+
+The guest now includes `lsof`, which Steam uses to identify its local helper
+connections. Debian also lists it as a Steam installer dependency. The launcher
+fails before downloading if it is missing. The probe now identifies CEF startup
+from the live helper process instead of an optional shell-log message. Bounded
+process-state diagnostics record only fixed labels and numbers, never arguments
+or input values. Run `36586450467`, commit
+`ccab0ec62a875a80fa16570d0dcf88442c109194`, tests these corrections. Its native
+Steam and package/launcher checks passed; guest Steam and IPA remain pending.
+
 The owner's additional JIT-free request is being implemented separately in
 [draft PR #3](https://github.com/aghjkshdsj/My-pc/pull/3), branch
 `codex/steam-arm-interpreter`. It uses the pinned ARM64 threaded interpreter and
