@@ -16,6 +16,7 @@ import sys
 import time
 from steam_window import client_window
 from steam_cdp import login_interface
+from steam_health import helper_started, process_health
 
 parser = argparse.ArgumentParser()
 parser.add_argument('output', type=pathlib.Path)
@@ -70,14 +71,13 @@ with (output / 'launch.log').open('w') as log:
             readiness = login_interface(output)
             # An empty disk can spend many minutes in Valve's updater. Give
             # CEF its own bounded startup budget, once only, after that phase.
-            with (output / 'launch.log').open('rb') as launch:
-                launch.seek(max(0, launch.seek(0, 2) - 1_048_576))
-                helper_seen = b'steamwebhelper.sh[' in launch.read()
+            helper_seen = helper_started(processes)
             if not cef_started and (helper_seen or readiness is not None):
                 cef_started = True
                 if args.install_timeout:
                     deadline = time.monotonic() + args.timeout
             if time.monotonic() >= next_progress:
+                (output / 'steam-health.json').write_text(json.dumps(process_health(), indent=2) + '\n')
                 print('MYPC_STEAM_PROGRESS ' + json.dumps({
                     'elapsed_seconds': int(time.monotonic() - started),
                     'phase': 'cef' if cef_started else 'install',
@@ -105,6 +105,7 @@ with (output / 'launch.log').open('w') as log:
             while True:
                 time.sleep(1)
     finally:
+        (output / 'steam-health.json').write_text(json.dumps(process_health(), indent=2) + '\n')
         subprocess.run(['scrot', str(output / 'desktop.png')], check=False)
         screenshot = output / 'desktop.png'
         if not args.guest and screenshot.is_file() and screenshot.stat().st_size <= 250_000:
@@ -132,6 +133,7 @@ if not success:
         if path.is_file():
             print(f'\n{path.name}:\n{path.read_text(errors="replace")[-16000:]}')
 if not success:
+    print('MYPC_STEAM_HEALTH ' + (output / 'steam-health.json').read_text().strip(), flush=True)
     if args.guest:
         print('MYPC_GUEST_STEAM_FAILED', flush=True)
     raise SystemExit('ARM Steam did not present a client window with a CEF renderer. Inspect launch/dependency/Steam logs.')

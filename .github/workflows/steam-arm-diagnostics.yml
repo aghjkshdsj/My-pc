@@ -56,6 +56,7 @@ jobs:
               'kernel_random_initialized': r'random: crng init done',
               'interactive_prompt': r'Press (enter|return|any key)|press Enter',
               'command_missing': r'command not found|: not found',
+              'missing_lsof': r'lsof: (?:command )?not found',
           }
           report = {'counts': {key: len(re.findall(pattern, log, re.I)) for key, pattern in patterns.items()}}
           def section_json(name):
