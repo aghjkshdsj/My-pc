@@ -134,7 +134,7 @@ struct LinuxVMView: View {
                 NavigationStack {
                     Form {
                         cpuPicker
-                        Text("All available cores is the default. More virtual CPUs can help parallel work, but also add overhead. iOS controls scheduling and thermal limits.")
+                        Text(LinuxExecutionMode.requiresJIT ? "All available cores is the default. iOS controls scheduling and thermal limits." : "Two cores is the tested interpreter default. Larger selections can be much slower and have not passed this build’s boot checks.")
                         Text("Choose before starting Linux. After a session, shut down Linux and restart My-pc to change this setting. Your installed disk is preserved.")
                     }
                     .navigationTitle("CPU cores")

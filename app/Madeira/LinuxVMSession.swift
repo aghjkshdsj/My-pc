@@ -169,6 +169,10 @@ private enum LinuxProcessMetrics {
 
 @MainActor final class LinuxVMSession: ObservableObject {
     static let shared = LinuxVMSession()
+    private static var initialCPUSelection: Int {
+        UserDefaults.standard.object(forKey: "linuxCPUCount") == nil
+            ? LinuxExecutionMode.defaultCPUSelection : UserDefaults.standard.integer(forKey: "linuxCPUCount")
+    }
     static var framework: URL? {
         let file = Bundle.main.bundleURL.appendingPathComponent("Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu")
         return FileManager.default.fileExists(atPath: file.path) ? file : nil
@@ -189,9 +193,9 @@ private enum LinuxProcessMetrics {
     @Published private(set) var memoryMiB: Double?
     @Published private(set) var displayFPS = 0.0
     @Published private(set) var paused = false
-    @Published private(set) var cpuSelection = UserDefaults.standard.integer(forKey: "linuxCPUCount")
+    @Published private(set) var cpuSelection = LinuxVMSession.initialCPUSelection
     @Published private(set) var guestCPUCount = LinuxCPUSelection.resolve(
-        UserDefaults.standard.integer(forKey: "linuxCPUCount"), hostCount: ProcessInfo.processInfo.activeProcessorCount)
+        LinuxVMSession.initialCPUSelection, hostCount: ProcessInfo.processInfo.activeProcessorCount)
     let guestMemoryMiB = 2048
     var hostCPUCount: Int { LinuxCPUSelection.available(ProcessInfo.processInfo.activeProcessorCount) }
     func selectCPUCount(_ count: Int) {

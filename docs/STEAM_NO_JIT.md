@@ -150,7 +150,7 @@ The all-core/1280x800 update at `5879c98406fbf2bcdce8d7b988698e57f1dd9431`
 uses the shared CPU picker and actual frame dimensions without changing the
 `MYPC_INTERPRETER` execution policy. Run `36634273275` has passed the two pure
 launch-policy tests, CPU-selection checks, iPhone source type-check and policy
-negative controls. Six-core guest boot/input and IPA packaging are pending.
+negative controls. The six-core guest boot subsequently timed out; IPA packaging was skipped.
 Its bare Linux seed is pinned to the verified six-core JIT boot/input run
 `36631484989` / `9399ce0c1b445bd56e3a5820f04cf4b307f303ef`; that guest's JIT
 Steam pass does not satisfy the interpreter Steam gate. No account or installed
@@ -164,6 +164,15 @@ ordinary log tails can truncate large mapping tables, then publishes only
 bounded crash metadata. It also identifies normal inferior exit or ptrace
 denial using fixed fields; a diagnostic without a signal and PC cannot pass
 as a captured crash. Neither diagnostic satisfies the Steam startup gate.
+
+The six-core interpreter boot in run `36634273275` reached Linux and reported
+six online CPUs and the persistence marker, but timed out after 30 minutes
+before the network/shutdown gate completed. This is a failed functional test,
+not a performance improvement. The interpreter now defaults to its previously
+tested two-core selection; explicit larger selections remain experimental. Its
+next boot/input gate requires two actual online CPUs and the 1280x800 display.
+The JIT product retains automatic all-core selection and its passed six-core
+Steam release. Full interpreter Steam startup remains unresolved.
 
 References: [pinned UTM build configuration](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/scripts/build_dependencies.sh),
 [pinned QEMU interpreter options](https://github.com/utmapp/qemu/blob/v10.0.12-utm/meson_options.txt),

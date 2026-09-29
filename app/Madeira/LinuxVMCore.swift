@@ -4,11 +4,13 @@ import Foundation
 enum LinuxExecutionMode {
     #if MYPC_INTERPRETER
     static let requiresJIT = false
+    static let defaultCPUSelection = 2
     static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=off"
     static let setupHelp = "Set up Linux, then open Steam. This version runs without JIT and may be very slow. The full ARM64 client downloads from Valve on its first launch."
     static let installedStatus = "Linux runtime installed. Open Steam to start."
     #else
     static let requiresJIT = true
+    static let defaultCPUSelection = 0
     static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=on"
     static let setupHelp = "Set up Linux, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. Graphics currently use CPU software rendering."
     static let installedStatus = "Linux runtime installed. Enable JIT, then open Steam."

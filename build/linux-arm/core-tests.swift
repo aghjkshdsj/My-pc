@@ -22,9 +22,11 @@ var config = LinuxVMConfiguration(directory: guest, log: root.appendingPathCompo
 let argv = try config.arguments()
 #if MYPC_INTERPRETER
 check(!LinuxExecutionMode.requiresJIT, "Interpreter must not request JIT")
+check(LinuxExecutionMode.defaultCPUSelection == 2, "Interpreter retains its tested two-core default")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=off"), "Interpreter translation storage must not be executable")
 #else
 check(LinuxExecutionMode.requiresJIT, "Sideload build must retain JIT preflight")
+check(LinuxExecutionMode.defaultCPUSelection == 0, "JIT retains automatic all-core selection")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=on"), "JIT must require split W/X")
 #endif
 let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: String]

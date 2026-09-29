@@ -103,8 +103,8 @@ jobs:
         run: |
           bash build/linux-arm-interpreter/build-policy-host.sh build/linux-arm-interpreter/output/macos
           codesign -d --entitlements :- build/linux-arm-interpreter/output/macos/host-launcher
-          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
-          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --desktop --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --cpus 2 --verify-cpu-count --expect-existing --display --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm-interpreter/output/guest --cpus 2 --verify-cpu-count --expect-existing --display --desktop --interpreter --deny-jit-policy --launcher build/linux-arm-interpreter/output/macos/host-launcher --library build/linux-arm-interpreter/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
       - uses: actions/upload-artifact@v4
         if: always()
         with:
