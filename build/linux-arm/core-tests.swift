@@ -28,8 +28,9 @@ check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=off"), "Interpreter t
 #else
 check(LinuxExecutionMode.requiresJIT, "Sideload build must retain JIT preflight")
 check(LinuxExecutionMode.defaultCPUSelection == 0, "JIT defaults to all available cores")
-check(LinuxGraphicsMode.initial(metalAvailable: true, saved: nil) == .metal, "GPU preview should start with Metal by default")
-check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "invalid") == .metal, "Invalid stored choice should use the available GPU")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: nil) == .software, "GPU preview retains Software until device validation")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "invalid") == .software, "Invalid stored choice should allow software recovery")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "metal") == .metal, "An explicit Metal choice must be preserved")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=on"), "JIT must require split W/X")
 #endif
 let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: String]

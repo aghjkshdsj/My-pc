@@ -4,44 +4,19 @@ import gzip
 import hashlib
 import json
 import pathlib
-import plistlib
 import shutil
-import subprocess
 import sys
+import importlib.util
 
 guest, runtime, app = map(pathlib.Path, sys.argv[1:])
 frameworks = runtime / 'Frameworks'
 embedded = app / 'Frameworks'
 embedded.mkdir(exist_ok=True)
-pending = ['qemu-aarch64-softmmu.framework']
-done = set()
-while pending:
-    name = pending.pop()
-    if name in done:
-        continue
-    source = frameworks / name
-    info = plistlib.loads((source / 'Info.plist').read_bytes())
-    binary = source / info['CFBundleExecutable']
-    subprocess.run(['xcrun', 'lipo', str(binary), '-verify_arch', 'arm64'], check=True)
-    platform = subprocess.check_output(['xcrun', 'vtool', '-show-build', str(binary)], text=True)
-    if not any(line.strip() == 'platform IOS' for line in platform.splitlines()):
-        raise SystemExit(f'Not an iPhone framework: {name}')
-    dependencies = subprocess.check_output(['otool', '-L', str(binary)], text=True)
-    for line in dependencies.splitlines()[1:]:
-        dependency = line.strip().split(' (', 1)[0]
-        if dependency.startswith(('/usr/lib/', '/System/Library/')):
-            continue
-        if dependency.startswith('@rpath/') and '.framework/' in dependency:
-            framework = dependency.split('/')[1]
-            if '/' in framework or not (frameworks / framework).is_dir():
-                raise SystemExit(f'Missing dependency: {dependency}')
-            pending.append(framework)
-        else:
-            raise SystemExit(f'Host library leaked into iPhone framework: {dependency}')
-    shutil.copytree(source, embedded / name, symlinks=True, dirs_exist_ok=True)
-    # The IPA is unsigned; the user's sideloading tool signs its frameworks.
-    subprocess.run(['codesign', '--remove-signature', str(embedded / name / info['CFBundleExecutable'])], check=True)
-    done.add(name)
+spec = importlib.util.spec_from_file_location('framework_closure', pathlib.Path(__file__).with_name('framework-closure.py'))
+closure = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(closure)
+metal = (guest / 'graphics.json').is_file()
+done = closure.copy_frameworks(frameworks, embedded, metal=metal, platform='IOS')
 shutil.copytree(runtime / 'qemu', app / 'QEMU', dirs_exist_ok=True)
 bundled = app / 'LinuxRuntime'
 bundled.mkdir(exist_ok=True)
@@ -67,7 +42,7 @@ if (guest / 'graphics.json').exists():
     'Source and build instructions accompany the release. Guest package copyright notices are in /usr/share/doc.\n'
     'Steam is fetched directly from Valve at first launch; no Valve client binaries are bundled.\n'
     'TCG JIT, selectable/all-available vCPUs, 2048 MiB guest RAM. No iPhone performance result is implied.\n'
-    'Builds with graphics.json default to Metal unless Software was explicitly chosen. Other builds use software.\n'
+    'Metal is experimental and must be selected before startup. Software remains the default and recovery option.\n'
     'The monitor distinguishes selection from the actual guest renderer/pixel-readback check. GPU utilization and Steam CEF acceleration on a physical phone are not implied.\n')
 print('Embedded iOS framework closure:', ', '.join(sorted(done)))
 print(json.dumps(manifest, indent=2))

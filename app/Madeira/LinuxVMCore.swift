@@ -12,7 +12,7 @@ enum LinuxExecutionMode {
     static let requiresJIT = true
     static let defaultCPUSelection = 0
     static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=on"
-    static let setupHelp = "Set up Linux, enable JIT, then open Steam. The ARM64 client downloads from Valve on its first launch. GPU previews default to Metal; Software is the recovery option."
+    static let setupHelp = "Set up Linux, enable JIT, then open Steam. The ARM64 client downloads from Valve on its first launch. Select Metal before startup to test experimental GPU graphics; Software is the recovery option."
     static let installedStatus = "Linux runtime installed. Enable JIT, then open Steam."
     #endif
 }
@@ -44,7 +44,7 @@ enum LinuxGraphicsMode: String, CaseIterable {
     var title: String { self == .metal ? "Metal (experimental)" : "Software" }
     static func initial(metalAvailable: Bool, saved: String?) -> Self {
         guard LinuxExecutionMode.requiresJIT, metalAvailable else { return .software }
-        return saved.flatMap(Self.init(rawValue:)) ?? .metal
+        return saved.flatMap(Self.init(rawValue:)) ?? .software
     }
 }
 

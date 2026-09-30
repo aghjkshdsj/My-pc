@@ -114,10 +114,20 @@ jobs:
           test "$(gh run view 36633968100 --json headSha --jq .headSha)" = 8179d3dbd180b9c0eb3871f2a2f26ec9a15947d1
           test "$(gh run view 36633968100 --json conclusion --jq .conclusion)" = success
           git fetch --depth=1 origin 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2
-          git diff --exit-code 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2 HEAD -- build/linux-arm-gpu/build.sh build/linux-arm-gpu/prepare-gpu.py build/linux-arm-gpu/patch-qemu.py build/linux-arm/prepare-utm.py build/linux-arm/qemu-display.inc.c build/linux-arm/host-launcher.c app/Madeira/LinuxVMBridge.c app/Madeira/LinuxVMBridge.h
+          git diff --exit-code 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2 HEAD -- build/linux-arm-gpu/build.sh build/linux-arm-gpu/prepare-gpu.py build/linux-arm-gpu/patch-qemu.py build/linux-arm/prepare-utm.py build/linux-arm/qemu-display.inc.c build/linux-arm/host-launcher.c app/Madeira/LinuxVMBridge.h
           gh run download 36629999384 --name 'experimental-gpu-${{ matrix.platform }}' --dir build/linux-arm/output
           mkdir -p 'build/linux-arm/output/${{ matrix.platform }}'
           tar -xzf 'build/linux-arm/output/experimental-gpu-${{ matrix.platform }}.tar.gz' -C 'build/linux-arm/output/${{ matrix.platform }}'
+          if [ '${{ matrix.platform }}' = macos ]; then
+            clang -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter \
+              build/linux-arm/host-launcher.c app/Madeira/LinuxVMBridge.c \
+              -Wl,-rpath,@executable_path/Frameworks -o build/linux-arm/output/macos/host-launcher
+            codesign --force --sign - build/linux-arm/output/macos/host-launcher
+          else
+            xcrun --sdk iphoneos clang -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter \
+              -target arm64-apple-ios17.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+              -fsyntax-only app/Madeira/LinuxVMBridge.c
+          fi
           tar -czf 'build/linux-arm/output/linux-arm-qemu-${{ matrix.platform }}.tar.gz' -C 'build/linux-arm/output/${{ matrix.platform }}' .
       - uses: actions/upload-artifact@v4
         with:
@@ -141,12 +151,13 @@ jobs:
           tar -xzf build/linux-arm/metal-downloads/metal-steam-test-guest/steam-gpu-guest.tar.gz -C build/linux-arm/output/steam-guest
           cp build/linux-arm/output/guest/graphics-initrd.img build/linux-arm/output/guest/graphics.json build/linux-arm/output/steam-guest/
           for directory in guest steam-guest; do (cd "build/linux-arm/output/$directory" && shasum -a 256 -c SHA256SUMS); done
-          chmod +x build/linux-arm/output/macos/host-launcher
-          for framework in build/linux-arm/output/macos/Frameworks/*.framework; do codesign --force --sign - "$framework"; done
-          python3 build/linux-arm-gpu/probe-metal.py build/linux-arm/output/macos
-          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --desktop --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
-          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/guest build/linux-arm/output/macos
-          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/steam-guest build/linux-arm/output/macos --steam
+          python3 build/linux-arm-gpu/package-test-runtime.py build/linux-arm/output/macos build/linux-arm/output/packaged-macos
+          chmod +x build/linux-arm/output/packaged-macos/host-launcher
+          for framework in build/linux-arm/output/packaged-macos/Frameworks/*.framework; do codesign --force --sign - "$framework"; done
+          python3 build/linux-arm-gpu/probe-metal.py build/linux-arm/output/packaged-macos
+          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --desktop --display --launcher build/linux-arm/output/packaged-macos/host-launcher --library build/linux-arm/output/packaged-macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/guest build/linux-arm/output/packaged-macos
+          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/steam-guest build/linux-arm/output/packaged-macos --steam
   ipa:
     needs: [apple, guest, qemu, ui]
     permissions:

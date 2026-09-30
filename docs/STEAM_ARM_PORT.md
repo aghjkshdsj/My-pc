@@ -20,9 +20,18 @@ The owner reports that its overlay says **GPU: software**, which in this build
 means the app selected software at launch. Preview 7 intentionally defaulted
 to Software; this report is not evidence of a tested Metal context falling back.
 
-The next GPU candidate defaults to Metal when it is available and no explicit
-preference exists, preserves a saved Software recovery choice, and offers a
-Use Metal button. It queries the real guest OpenGL renderer and renders/reads
+The owner then selected Metal and reported an app crash. The private MetricKit
+report identifies SIGABRT in libepoxy on preview 7, not an out-of-memory kill.
+Its IPA framework closure omitted ANGLE EGL/GLESv2, which epoxy opens dynamically;
+previous hosted Mac tests had the full build folder and did not catch this.
+The next candidate explicitly packages those providers and all resources,
+checks their iPhone platform/exports, preflights their load paths before QEMU,
+and tests only the framework set destined for the app. Removing either provider
+must produce a recoverable error instead of aborting. This is a likely cause
+supported by the crash and packaging, not yet a verified fix on the owner's phone.
+
+Software remains the default; the candidate preserves explicit choices and offers
+a Use Metal button. It queries the real guest OpenGL renderer and renders/reads
 one pixel before launching Steam. The overlay distinguishes requested Metal,
 verified guest virgl, software selection and software fallback/readback failure.
 The diagnostics share sheet contains only build, requested backend, guest driver,

@@ -24,6 +24,13 @@ with zipfile.ZipFile(archive) as ipa:
     assert ipa.getinfo(base + info['CFBundleExecutable']).file_size > 1_000_000
     assert ipa.getinfo(base + 'Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu').file_size > 1_000_000
     manifest = json.loads(ipa.read(base + 'LinuxRuntime/manifest.json'))
+    if base + 'LinuxRuntime/graphics.json' in ipa.namelist():
+        for name in ['EGL', 'GLESv2']:
+            provider = base + f'Frameworks/{name}.framework/'
+            assert ipa.getinfo(provider + name).file_size > 100_000, 'Metal IPA is missing an ANGLE provider'
+            assert plistlib.loads(ipa.read(provider + 'Info.plist'))['CFBundleExecutable'] == name
+        assert info['SomethingPCBuildCommit'], 'Metal IPA is missing its source commit'
+        print('MYPC_IPA_DYNAMIC_ANGLE_PROVIDERS_OK')
     assert manifest['architecture'] == 'aarch64'
     for asset in manifest['files']:
         assert ipa.getinfo(base + 'LinuxRuntime/' + asset['name'] + ('.gz' if asset['gzip'] else '')).file_size > 0
