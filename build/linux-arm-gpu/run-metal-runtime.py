@@ -53,6 +53,10 @@ with tempfile.TemporaryDirectory() as temporary:
             print('MYPC_STEAM_GPU_INFO ' + json.dumps(state), flush=True)
     summary = {'host_success': result.returncode == 0,
                'hook_seen': 'MYPC_GRAPHICS_HOOK_SEEN=1' in content,
+               'update_phases': re.findall(r'MYPC_GRAPHICS_UPDATE_PHASE=(shell-ready|validate-root|verify-payload|replace-launcher|sync)', content)[-8:],
+               'tool_not_found': bool(re.search(r'(?:my-pc-graphics|ld-linux)[^\r\n]*not found', content)),
+               'shell_trap_error': bool(re.search(r'(?:bad trap|invalid signal specification)', content)),
+               'unset_parameter': 'parameter not set' in content or 'unbound variable' in content,
                'update_ok': 'MYPC_GRAPHICS_UPDATE_OK=1' in content,
                'update_failed': 'MYPC_GRAPHICS_UPDATE_FAILED' in content,
                'cpu_count_verified': 'MYPC_LINUX_CPU_COUNT=6' in content,
