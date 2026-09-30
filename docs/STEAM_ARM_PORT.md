@@ -3,7 +3,7 @@
 Status: the full ARM64 Steam login interface passes inside the actual Apple
 QEMU framework as well as native Linux. Linux boot, desktop input, iPhone
 compilation and IPA validation pass. The experimental
-[steam-arm-preview-24 release](https://github.com/aghjkshdsj/My-pc/releases/tag/steam-arm-preview-24)
+[steam-arm-preview-27 release](https://github.com/aghjkshdsj/My-pc/releases/tag/steam-arm-preview-27)
 contains a real unsigned iPhone IPA. The owner reports successful Steam launch
 and account login on the target iPhone. Downloads and gaming performance still
 need device testing; the owner reports a slow interface with software graphics.
@@ -28,6 +28,18 @@ Do not run both at once. Linux owns a persistent ext4 disk; no Windows prefix
 conversion or destructive migration. Start with software display, then evaluate
 UTM's virgl/ANGLE/Metal and Venus/Neptune paths. Booting Linux or uploading an IPA
 does not prove Steam works or that graphics are accelerated.
+
+The guest is a minimal Debian ARM64 system with a small X11 desktop, rather
+than Ubuntu or a complete SteamOS image. Valve documents an ARM64, Arch-based
+SteamOS on Steam Frame:
+https://partner.steamgames.com/doc/steamhardware/steamframe/compatibility.
+That system runs on its supported Snapdragon hardware. Replacing Debian with
+SteamOS would not supply iOS hardware virtualization or an Apple GPU driver.
+Our current bottlenecks are the emulated CPU and software graphics. Keep the
+working guest while validating the virgl/ANGLE/Metal bridge, then evaluate a
+SteamOS guest separately against measured compatibility and performance gates.
+The client downloaded from Valve is already ARM64 Linux Steam; using Debian
+does not turn it into Windows or x86 Steam.
 
 ## Milestones and acceptance gates
 
@@ -187,6 +199,23 @@ red WebGL pixel. SwiftShader, llvmpipe, disabled compositing and missing
 diagnostics fail the gate. Raw Steam/CDP logs and the installed client disk are
 not exported. Device testing and persistent-disk migration remain necessary
 before this backend can be offered as a working GPU option.
+
+Run `36633968100` at `8179d3dbd180b9c0eb3871f2a2f26ec9a15947d1`
+passed the full account-free Steam GPU gate. CEF reported `ANGLE (Mesa, virgl)`
+with GPU compositing and WebGL enabled; WebGL pixel readback succeeded. A
+responsive login window reached the 1280x800 app display, with zero recorded
+segfaults or RGBA readback errors, followed by clean shutdown. This is a hosted
+Mac test, separate from physical iPhone acceleration/performance evidence.
+
+Branch `codex/steam-arm-metal` adds an optional Metal choice while keeping
+Software as default and recovery mode. It uses the compiled GPU framework only
+when its source inputs match the passed runtime. A checksummed initramfs update
+changes three reserved My-pc startup scripts with backups, preserves the user's
+disk/account/games and requires a matching installed kernel. Its independent
+release gates cover legacy-disk preservation, actual software recovery, Metal
+desktop/input, full Steam CEF acceleration and real iPhone packaging. This
+Metal IPA is not ready until those gates pass. The monitor reports the selected
+backend; it cannot measure GPU utilization or prove every application uses it.
 
 Billing checkpoint: the owner reports 2,000/2,000 included Actions minutes used,
 0.2/0.5 GB artifact storage used, with the minutes resetting in three days.
@@ -365,8 +394,10 @@ successfully. Release `steam-arm-preview-27` contains the real
 runtime source. CI downloaded the uploaded IPA, checked SHA-256 and compared
 it byte-for-byte before publishing. IPA SHA-256:
 `944816aa9dfb5a376e16796836bbab26ee7f221a2a529ab904fbdb4a5549cdac`.
-The existing user disk is preserved; Steam cropping and all-core performance
-still require the owner's device check. This release uses software graphics.
+The existing user disk is preserved. The owner subsequently confirmed that
+Steam is no longer cropped on the target iPhone. This is a device report, not
+a new automated test. All-core performance still needs device measurements.
+This release uses software graphics.
 
 Fresh guest installations also report download and extraction progress.
 Updating the app preserves the existing Linux disk and Steam account data;
