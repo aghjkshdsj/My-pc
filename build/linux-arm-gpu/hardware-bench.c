@@ -91,11 +91,9 @@ DECL(EDisplay, eglGetDisplay, void *);
 DECL(U, eglInitialize, EDisplay, I *, I *);
 DECL(U, eglBindAPI, U);
 DECL(U, eglChooseConfig, EDisplay, const I *, Config *, I, I *);
-DECL(U, eglGetConfigAttrib, EDisplay, Config, I, I *);
 DECL(Surface, eglCreateWindowSurface, EDisplay, Config, Window, const I *);
 DECL(Context, eglCreateContext, EDisplay, Config, Context, const I *);
 DECL(U, eglMakeCurrent, EDisplay, Surface, Surface, Context);
-DECL(U, eglSwapInterval, EDisplay, I);
 DECL(U, eglSwapBuffers, EDisplay, Surface);
 DECL(U, eglDestroyContext, EDisplay, Context);
 DECL(U, eglDestroySurface, EDisplay, Surface);
@@ -123,7 +121,7 @@ DECL(void, glDrawArrays, U, I, I);
 DECL(void, glReadPixels, I, I, I, I, U, U, void *);
 DECL(void, glFinish, void);
 DECL(U, glGetError, void);
-#define LOAD(lib, name) do { *(void **)(&name) = dlsym(lib, #name); if (!name) goto failed; } while (0)
+#define LOAD(lib, name) do { *(void **)(&name) = dlsym(lib, #name); if (!name) { stage = #name; goto failed; } } while (0)
 #define GL(name) do { *(void **)(&name) = eglGetProcAddress(#name); if (!name) goto failed; } while (0)
 
 static U shader(U type, const char *source) {
@@ -146,28 +144,34 @@ static int gpu(void) {
     Window window = 0; Surface surface = NULL; Context context = NULL;
     U program = 0, vertex = 0, fragment = 0;
     int status = 4;
-    if (!x11 || !egl) goto failed;
+    if (!x11 || !egl) {
+        const char *error = dlerror();
+        if (error) fprintf(stderr, "MYPC_BENCH_LIBRARY_ERROR %.512s\n", error);
+        goto failed;
+    }
     LOAD(x11, XOpenDisplay); LOAD(x11, XDefaultRootWindow); LOAD(x11, XDefaultScreen);
     LOAD(x11, XDefaultVisual); LOAD(x11, XVisualIDFromVisual); LOAD(x11, XCreateSimpleWindow);
     LOAD(x11, XStoreName); LOAD(x11, XMapWindow); LOAD(x11, XSync);
     LOAD(x11, XDestroyWindow); LOAD(x11, XCloseDisplay);
     LOAD(egl, eglGetDisplay); LOAD(egl, eglInitialize); LOAD(egl, eglBindAPI);
-    LOAD(egl, eglChooseConfig); LOAD(egl, eglGetConfigAttrib); LOAD(egl, eglCreateWindowSurface);
-    LOAD(egl, eglCreateContext); LOAD(egl, eglMakeCurrent); LOAD(egl, eglSwapInterval);
+    LOAD(egl, eglChooseConfig); LOAD(egl, eglCreateWindowSurface);
+    LOAD(egl, eglCreateContext); LOAD(egl, eglMakeCurrent);
     LOAD(egl, eglSwapBuffers); LOAD(egl, eglDestroyContext); LOAD(egl, eglDestroySurface);
     LOAD(egl, eglTerminate); LOAD(egl, eglGetProcAddress);
     stage = "X11"; display = XOpenDisplay(NULL); if (!display) goto failed;
-    stage = "EGL"; ed = eglGetDisplay(display);
+    /* Let the native EGL implementation own its Display instead of handing
+     * it an x86 Xlib structure containing foreign function pointers. Window
+     * IDs are shared across connections to the same X11 server. */
+    stage = "EGL"; ed = eglGetDisplay(NULL);
     if (!ed || !eglInitialize(ed, NULL, NULL) || !eglBindAPI(0x30A0)) goto failed;
     /* EGL window / ES2 / RGB8, same visual as the X11 default window. */
-    I attributes[] = {0x3033, 4, 0x3040, 4, 0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3038};
-    Config configs[64], config = NULL; I count = 0;
-    if (!eglChooseConfig(ed, attributes, configs, 64, &count)) goto failed;
-    unsigned long visual = XVisualIDFromVisual(XDefaultVisual(display, XDefaultScreen(display)));
-    for (I i = 0; i < count; ++i) {
-        I id = 0; if (eglGetConfigAttrib(ed, configs[i], 0x302E, &id) && (unsigned long)id == visual)
-            { config = configs[i]; break; }
-    }
+    /* The pinned EGL forwarding library has no eglGetConfigAttrib or
+     * eglSwapInterval exports. Use the first RGB8/no-alpha window config on
+     * both paths and retain the same default swap policy. Creation/readback
+     * failures remain hard failures, never a fabricated accelerated result. */
+    I attributes[] = {0x3033, 4, 0x3040, 4, 0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3021, 0, 0x3038};
+    Config config = NULL; I count = 0;
+    if (!eglChooseConfig(ed, attributes, &config, 1, &count) || count != 1) goto failed;
     stage = "window"; if (!config) goto failed;
     window = XCreateSimpleWindow(display, XDefaultRootWindow(display), 40, 40, 800, 500, 0, 0, 0);
     XStoreName(display, window, "My-pc GPU test: " ARCH); XMapWindow(display, window); XSync(display, 0);
@@ -176,7 +180,6 @@ static int gpu(void) {
     context = eglCreateContext(ed, config, NULL, context_args);
     stage = "context";
     if (!surface || !context || !eglMakeCurrent(ed, surface, surface, context)) goto failed;
-    eglSwapInterval(ed, 0);
     GL(glGetString); GL(glCreateShader); GL(glShaderSource); GL(glCompileShader); GL(glGetShaderiv);
     GL(glDeleteShader); GL(glCreateProgram); GL(glAttachShader); GL(glBindAttribLocation);
     GL(glLinkProgram); GL(glGetProgramiv); GL(glUseProgram); GL(glDeleteProgram);

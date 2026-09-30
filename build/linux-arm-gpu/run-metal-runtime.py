@@ -44,6 +44,10 @@ source = source.replace(anchor, '''            command[command.index('-append') 
 ''' + anchor, 1)
 if args.hardware:
     source = source.replace(" my_pc_graphics=virgl'", " my_pc_graphics=virgl my_pc_hardware_ci=1'")
+    anchor = "                            if args.steam and 'MYPC_GUEST_STEAM_FAILED' in log.read_text(errors=\"replace\"):\n"
+    assert source.count(anchor) == 1
+    source = source.replace(anchor, "                            if 'MYPC_HARDWARE_RUNTIME_FAILED=1' in log.read_text(errors=\"replace\"):\n"
+        "                                raise RuntimeError('Hardware diagnostic failed: ' + log.read_text(errors=\"replace\")[-12000:])\n" + anchor)
 if not args.legacy:
     anchor = 'f"virtio-gpu-pci,xres={display_width},yres={display_height}"'
     assert source.count(anchor) == 1
