@@ -24,7 +24,12 @@ def copy_frameworks(source, destination, *, metal, platform):
         if name in done:
             continue
         framework = source / name
-        info = plistlib.loads((framework / 'Info.plist').read_bytes())
+        # macOS versioned frameworks put their plist in Resources; iPhone
+        # frameworks are flat. Keep the actual bundle layout when copying.
+        plist = framework / 'Info.plist'
+        if platform == 'MACOS' and not plist.is_file():
+            plist = framework / 'Resources/Info.plist'
+        info = plistlib.loads(plist.read_bytes())
         executable = info['CFBundleExecutable']
         if pathlib.Path(executable).name != executable:
             raise ValueError(f'Invalid framework executable: {name}')
