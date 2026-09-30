@@ -70,7 +70,14 @@ struct LinuxVMView: View {
                             .foregroundStyle(.secondary).multilineTextAlignment(.center)
                         Spacer()
                         cpuPicker
-                        if LinuxVMSession.metalAvailable { graphicsPicker }
+                        if LinuxVMSession.metalAvailable {
+                            graphicsPicker
+                            if session.graphicsMode == .software && !session.started {
+                                Text("Software rendering is selected. Use Metal to enable the GPU backend.")
+                                    .font(.footnote).foregroundStyle(.orange)
+                                Button("Use Metal graphics") { session.selectGraphics(.metal) }.disabled(session.installing)
+                            }
+                        }
                         Text(session.status).font(.footnote).textSelection(.enabled)
                         if session.installing { ProgressView(value: session.installProgress) }
                         HStack {
@@ -125,6 +132,12 @@ struct LinuxVMView: View {
                         Text("Display FPS counts new guest frames shown each second, up to 30. An idle desktop can show 0 FPS. This is not a game's internal FPS.")
                         Text("Linux desktop: \(LinuxDesktopSize.width) × \(LinuxDesktopSize.height). Fit shows the whole guest desktop; Enlarge pans toward the pointer.")
                         Text("Graphics selection: \(session.graphicsMode.title). Metal uses the experimental virgl/ANGLE backend; individual apps can still fall back to software. GPU utilization is unavailable; no percentage is estimated.")
+                        Text(session.graphicsSummary)
+                        if let observation = session.guestGraphics {
+                            Text("Guest renderer: \(observation.renderer.isEmpty ? "unavailable" : observation.renderer)")
+                            Text("Render/readback check: \(observation.readbackOK ? "passed" : "failed or unavailable"). This verifies the guest driver; Steam CEF can still choose a different renderer.")
+                        }
+                        ShareLink("Share graphics report", item: session.graphicsReport)
                         Text("Device thermal state: \(session.thermalStatus). iOS decides CPU scheduling and thermal limits.")
                     }
                     .navigationTitle("Performance")
@@ -137,7 +150,7 @@ struct LinuxVMView: View {
                         cpuPicker
                         if LinuxVMSession.metalAvailable {
                             graphicsPicker
-                            Text("Metal is experimental and needs device testing. Choose Software if startup or rendering fails. The startup update preserves your installed Steam client, account and games.")
+                            Text("Metal is the default in GPU previews unless you explicitly choose Software. It is experimental and needs device testing. Choose Software if startup or rendering fails. The startup update preserves your installed Steam client, account and games.")
                         }
                         Text("All available cores is the default. More virtual CPUs can help parallel work, but also add overhead. iOS controls scheduling and thermal limits.")
                         Text("Choose before starting Linux. After a session, shut down Linux and restart My-pc to change this setting. Your installed disk is preserved.")

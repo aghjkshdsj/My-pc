@@ -23,13 +23,24 @@ let argv = try config.arguments()
 #if MYPC_INTERPRETER
 check(!LinuxExecutionMode.requiresJIT, "Interpreter must not request JIT")
 check(LinuxExecutionMode.defaultCPUSelection == 2, "Interpreter retains the tested two-core default")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: nil) == .software, "Interpreter cannot enable Metal")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=off"), "Interpreter translation storage must not be executable")
 #else
 check(LinuxExecutionMode.requiresJIT, "Sideload build must retain JIT preflight")
 check(LinuxExecutionMode.defaultCPUSelection == 0, "JIT defaults to all available cores")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: nil) == .metal, "GPU preview should start with Metal by default")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "invalid") == .metal, "Invalid stored choice should use the available GPU")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=on"), "JIT must require split W/X")
 #endif
 let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: String]
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "software") == .software, "Explicit software recovery must be preserved")
+check(LinuxGraphicsMode.initial(metalAvailable: false, saved: "metal") == .software, "A software-only runtime cannot request Metal")
+let graphicsLine = #"MYPC_GUEST_GRAPHICS {"schema":1,"renderer":"virgl","readback_ok":true,"accelerated":true}"#
+check(LinuxGuestGraphics.observation(in: graphicsLine)?.verifiedVirgl == true, "Actual virgl pixel readback should verify the guest driver")
+check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "virgl", with: "virgl llvmpipe"))?.verifiedVirgl == false, "Software fallback must not be reported as accelerated")
+check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "\"readback_ok\":true", with: "\"readback_ok\":false"))?.verifiedVirgl == false, "A renderer name alone cannot pass")
+check(LinuxGuestGraphics.observation(in: "MYPC_GUEST_GRAPHICS invalid") == nil, "Malformed graphics report stays unverified")
+check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "\"schema\":1", with: "\"schema\":2")) == nil, "Unknown graphics schemas cannot verify acceleration")
 check(block["filename"] == guest.appendingPathComponent("rootfs.raw").path, "Disk path must survive spaces and commas without option injection")
 check(LinuxCPUSelection.resolve(0, hostCount: 6) == 6, "Automatic mode must expose all six iPhone cores")
 check(LinuxCPUSelection.resolve(2, hostCount: 6) == 2, "A smaller manual selection must remain available")

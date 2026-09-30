@@ -67,6 +67,7 @@ if (guest / 'graphics.json').exists():
     'Source and build instructions accompany the release. Guest package copyright notices are in /usr/share/doc.\n'
     'Steam is fetched directly from Valve at first launch; no Valve client binaries are bundled.\n'
     'TCG JIT, selectable/all-available vCPUs, 2048 MiB guest RAM. No iPhone performance result is implied.\n'
-    'Software is the default; Metal is offered only by builds with graphics.json and the verified boot update.\n')
+    'Builds with graphics.json default to Metal unless Software was explicitly chosen. Other builds use software.\n'
+    'The monitor distinguishes selection from the actual guest renderer/pixel-readback check. GPU utilization and Steam CEF acceleration on a physical phone are not implied.\n')
 print('Embedded iOS framework closure:', ', '.join(sorted(done)))
 print(json.dumps(manifest, indent=2))

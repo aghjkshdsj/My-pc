@@ -202,13 +202,31 @@ private enum LinuxProcessMetrics {
     @Published private(set) var displayFPS = 0.0
     @Published private(set) var paused = false
     @Published private(set) var cpuSelection = LinuxVMSession.initialCPUSelection
-    @Published private(set) var graphicsMode: LinuxGraphicsMode = LinuxVMSession.metalAvailable
-        ? (LinuxGraphicsMode(rawValue: UserDefaults.standard.string(forKey: "linuxGraphicsMode") ?? "software") ?? .software) : .software
+    @Published private(set) var graphicsMode = LinuxGraphicsMode.initial(metalAvailable: LinuxVMSession.metalAvailable,
+        saved: UserDefaults.standard.string(forKey: "linuxGraphicsMode"))
+    @Published private(set) var guestGraphics: LinuxGuestGraphics?
     @Published private(set) var guestCPUCount = LinuxCPUSelection.resolve(
         LinuxVMSession.initialCPUSelection, hostCount: ProcessInfo.processInfo.activeProcessorCount)
     let guestMemoryMiB = 2048
     var hostCPUCount: Int { LinuxCPUSelection.available(ProcessInfo.processInfo.activeProcessorCount) }
-    var graphicsSummary: String { graphicsMode == .metal ? "GPU: Metal selected · use —" : "GPU: software · use —" }
+    var graphicsSummary: String {
+        guard graphicsMode == .metal else { return "GPU: software selected" }
+        guard let observed = guestGraphics, !observed.renderer.isEmpty else { return "GPU: Metal requested · unverified" }
+        return observed.verifiedVirgl ? "GPU: virgl → Metal verified · use —" : "GPU: software fallback or failed readback"
+    }
+    var graphicsReport: String {
+        let report: [String: Any] = ["build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
+            "commit": Bundle.main.object(forInfoDictionaryKey: "SomethingPCBuildCommit") as? String ?? "unknown",
+            "selected_backend": graphicsMode.rawValue,
+            "guest_renderer": guestGraphics?.renderer ?? "unverified",
+            "guest_readback_ok": guestGraphics?.readbackOK ?? false,
+            "guest_virgl_verified": guestGraphics?.verifiedVirgl ?? false,
+            "steam_cef_renderer": "unverified",
+            "metal_device": MTLCreateSystemDefaultDevice()?.name ?? "unavailable",
+            "virtual_cpus": guestCPUCount, "guest_memory_mib": guestMemoryMiB]
+        return (try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys, .prettyPrinted]))
+            .map { String(decoding: $0, as: UTF8.self) } ?? "Graphics report unavailable."
+    }
     func selectGraphics(_ mode: LinuxGraphicsMode) {
         guard !started, mode == .software || Self.metalAvailable else { return }
         graphicsMode = mode
@@ -357,6 +375,7 @@ private enum LinuxProcessMetrics {
             #if !MYPC_INTERPRETER
             jit_install_trap_handler()
             #endif
+            guestGraphics = nil
             started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores · \(graphicsMode.title)…"
             UIApplication.shared.isIdleTimerDisabled = true
             beginPerformanceSample()
@@ -451,6 +470,18 @@ private enum LinuxProcessMetrics {
             cpuPercent = rates.cpuPercent; displayFPS = rates.displayFPS
         }
         memoryMiB = LinuxProcessMetrics.footprintMiB()
+        if guestGraphics == nil {
+            let log = Self.directory.appendingPathComponent("boot.log")
+            if let handle = try? FileHandle(forReadingFrom: log) {
+                defer { try? handle.close() }
+                if let length = try? handle.seekToEnd() {
+                    try? handle.seek(toOffset: length > 65_536 ? length - 65_536 : 0)
+                    if let bytes = try? handle.read(upToCount: 65_536) {
+                        guestGraphics = LinuxGuestGraphics.observation(in: String(decoding: bytes, as: UTF8.self))
+                    }
+                }
+            }
+        }
         sampleTime = now; displayedFrames = 0
     }
     func type(_ text: String) {

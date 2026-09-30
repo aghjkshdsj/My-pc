@@ -12,7 +12,7 @@ enum LinuxExecutionMode {
     static let requiresJIT = true
     static let defaultCPUSelection = 0
     static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=on"
-    static let setupHelp = "Set up Linux, enable JIT, then open Steam. The full ARM64 client downloads from Valve on its first launch. Graphics currently use CPU software rendering."
+    static let setupHelp = "Set up Linux, enable JIT, then open Steam. The ARM64 client downloads from Valve on its first launch. GPU previews default to Metal; Software is the recovery option."
     static let installedStatus = "Linux runtime installed. Enable JIT, then open Steam."
     #endif
 }
@@ -42,6 +42,36 @@ enum LinuxDesktopSize {
 enum LinuxGraphicsMode: String, CaseIterable {
     case software, metal
     var title: String { self == .metal ? "Metal (experimental)" : "Software" }
+    static func initial(metalAvailable: Bool, saved: String?) -> Self {
+        guard LinuxExecutionMode.requiresJIT, metalAvailable else { return .software }
+        return saved.flatMap(Self.init(rawValue:)) ?? .metal
+    }
+}
+
+struct LinuxGuestGraphics: Decodable {
+    let schema: Int
+    let renderer: String
+    let readbackOK: Bool
+    let accelerated: Bool
+    enum CodingKeys: String, CodingKey {
+        case schema, renderer, accelerated
+        case readbackOK = "readback_ok"
+    }
+    var verifiedVirgl: Bool {
+        let name = renderer.lowercased()
+        return readbackOK && accelerated && name.contains("virgl") &&
+            !["llvmpipe", "softpipe", "swiftshader", "software"].contains(where: name.contains)
+    }
+    static func observation(in text: String) -> Self? {
+        for line in text.split(separator: "\n").reversed() {
+            guard let marker = line.range(of: "MYPC_GUEST_GRAPHICS ") else { continue }
+            let payload = line[marker.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard payload.utf8.count <= 1024, let value = try? JSONDecoder().decode(Self.self, from: Data(payload.utf8)),
+                  value.schema == 1, value.renderer.utf8.count <= 1024 else { continue }
+            return value
+        }
+        return nil
+    }
 }
 
 struct LinuxGraphicsManifest: Decodable {

@@ -51,6 +51,12 @@ with tempfile.TemporaryDirectory() as temporary:
         state = json.loads(item)
         if set(state) == {'renderer', 'compositing', 'webgl_status', 'webgl_renderer', 'shader_readback_ok', 'accelerated'}:
             print('MYPC_STEAM_GPU_INFO ' + json.dumps(state), flush=True)
+    guest_graphics = None
+    for item in re.findall(r'MYPC_GUEST_GRAPHICS (\{[^\r\n]{1,1024}\})', content):
+        state = json.loads(item)
+        if state.get('schema') == 1:
+            guest_graphics = state
+            print('MYPC_GUEST_GRAPHICS ' + json.dumps(state), flush=True)
     summary = {'host_success': result.returncode == 0,
                'hook_seen': 'MYPC_GRAPHICS_HOOK_SEEN=1' in content,
                'update_phases': re.findall(r'MYPC_GRAPHICS_UPDATE_PHASE=(shell-ready|validate-root|verify-payload|replace-launcher|sync)', content)[-8:],
@@ -62,11 +68,13 @@ with tempfile.TemporaryDirectory() as temporary:
                'cpu_count_verified': 'MYPC_LINUX_CPU_COUNT=6' in content,
                'metal': 'ANGLE Metal Renderer' in content,
                'cef_gpu': 'MYPC_STEAM_GPU_CEF_OK' in content,
+               'guest_graphics_verified': bool(guest_graphics and guest_graphics.get('accelerated') is True and guest_graphics.get('readback_ok') is True),
                'legacy_migration_only': args.legacy}
     print('MYPC_METAL_RUNTIME_RESULT ' + json.dumps(summary), flush=True)
     assert summary['host_success'] and summary['update_ok'] and not summary['update_failed']
     if not args.legacy:
         assert summary['metal'] and summary['cpu_count_verified']
+        assert summary['guest_graphics_verified'], 'The actual guest driver/readback check must pass'
     if args.steam:
         assert summary['cef_gpu'], 'Steam GPU fallback cannot pass the release gate'
 print('PASS: reserved launcher update, desktop/input or full Steam gate, persistence and clean shutdown')
