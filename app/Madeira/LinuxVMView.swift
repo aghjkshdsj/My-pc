@@ -56,6 +56,7 @@ struct LinuxVMView: View {
     @State private var showPerformance = true
     @State private var performanceHelp = false
     @State private var cpuSettings = false
+    @State private var hardwareTests = false
 
     var body: some View {
         NavigationStack {
@@ -141,6 +142,7 @@ struct LinuxVMView: View {
                             Text("Render/readback check: \(observation.readbackOK ? "passed" : "failed or unavailable"). This verifies the guest driver; Steam CEF can still choose a different renderer.")
                         }
                         ShareLink("Share graphics report", item: session.graphicsReport)
+                        Button("CPU & FEX GPU tests") { performanceHelp = false; hardwareTests = true }
                         Text("Device thermal state: \(session.thermalStatus). iOS decides CPU scheduling and thermal limits.")
                     }
                     .navigationTitle("Performance")
@@ -161,6 +163,45 @@ struct LinuxVMView: View {
                     .navigationTitle("CPU & graphics")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { cpuSettings = false } } }
                 }.presentationDetents([.medium])
+            }
+            .sheet(isPresented: $hardwareTests) {
+                NavigationStack {
+                    List {
+                        Text("Pause downloads and close games first. Leave Steam open to measure its idle CPU load. Tests use a separate bundled FEX runtime and preserve Steam's files and settings.")
+                        Text(session.hardwareTestStatus).textSelection(.enabled)
+                        Button("Run CPU comparison") { session.runHardwareTest(.cpu) }
+                            .disabled(!session.hardwareTestsReady || !session.connected || session.paused || session.hardwareTestBusy)
+                        Button("Run FEX GPU comparison") { session.runHardwareTest(.gpu) }
+                            .disabled(!session.hardwareTestsReady || !session.connected || session.paused || session.hardwareTestBusy)
+                        if session.hardwareTestBusy {
+                            Button("Stop test") { session.cancelHardwareTest() }
+                            ProgressView()
+                        }
+                        if let time = session.nativeCPUMilliseconds {
+                            Text(String(format: "Native iOS CPU: %.2f ms for one million iterations, one worker.", time))
+                        }
+                        if let observation = session.cpuObservation {
+                            ForEach(Array(observation.results.enumerated()), id: \.offset) { _, row in Text(row.summary) }
+                        }
+                        if let observation = session.gpuObservation {
+                            ForEach(Array(observation.results.enumerated()), id: \.offset) { _, row in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(row.summary)
+                                    if let renderer = row.renderer { Text(renderer).font(.caption).foregroundStyle(.secondary) }
+                                    if let submit = row.submitMedianMs, let finish = row.finishMedianMs, let swap = row.swapMedianMs {
+                                        Text(String(format: "Median: submit %.1f · finish %.1f · swap %.1f ms", submit, finish, swap)).font(.caption)
+                                    }
+                                }
+                            }
+                        }
+                        Text("CPU tests run the same integer workload with one worker and all guest cores, then verify its checksum. The native iOS version uses Swift; the guest versions use C. The report includes guest core load, Steam helper load, available RAM, swap, thermal state and Low Power Mode.")
+                        Text("The GPU test draws 60 frames at 800 × 500 through ARM64 Mesa, then through x86-64 FEX with EGL/GL forwarding. It checks actual shader pixels and separates CPU submission, GPU completion and swap delays. Render FPS is for this test; it is not game FPS or GPU utilization. Vulkan, DirectX and Proton game compatibility are separate checks.")
+                        ShareLink("Share CPU & GPU test report", item: session.hardwareReport)
+                        Text("The test window closes when finished; results remain here. Tests time out if a workload stalls.")
+                    }
+                    .navigationTitle("Hardware tests")
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { hardwareTests = false } } }
+                }.presentationDetents([.large])
             }
         }
         .interactiveDismissDisabled(session.running || session.installing)
@@ -260,6 +301,7 @@ struct LinuxVMView: View {
                     Button("Scroll down") { session.click(x: mousePoint.x, y: mousePoint.y, button: .wheelDown) }.disabled(!session.connected || dragging)
                     Toggle("Performance monitor", isOn: $showPerformance)
                     Button("Performance details") { performanceHelp = true }
+                    Button("CPU & FEX GPU tests") { hardwareTests = true }
                     Button("Up arrow") { session.press("up") }.disabled(!session.connected)
                     Button("Down arrow") { session.press("down") }.disabled(!session.connected)
                     Button("Shut down Linux", role: .destructive) { session.shutdown() }.disabled(!session.running || !session.connected)

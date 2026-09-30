@@ -51,7 +51,10 @@ jobs:
           python3 -m py_compile build/linux-arm-gpu/*.py
           python3 build/linux-arm-gpu/test-boot-update.py
           python3 build/linux-arm-gpu/test-steam-gpu.py
+          python3 build/linux-arm-gpu/test-hardware-test.py
           bash -n build/linux-arm-gpu/graphics-update.sh
+          bash -n build/linux-arm-gpu/build-hardware-tests.sh
+          bash build/linux-arm-gpu/build-hardware-tests.sh
           test "$(gh run view 36631484989 --json headSha --jq .headSha)" = 9399ce0c1b445bd56e3a5820f04cf4b307f303ef
           test "$(gh run view 36631484989 --json conclusion --jq .conclusion)" = success
           gh run download 36631484989 --name linux-arm-guest --dir build/linux-arm/output
@@ -205,7 +208,7 @@ jobs:
           codesign --force --sign - build/linux-arm/output/packaged-macos/gpu-host-launcher
           python3 build/linux-arm-gpu/probe-guest.py build/linux-arm/output/pixel-guest build/linux-arm/output/packaged-macos
           python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --desktop --display --launcher build/linux-arm/output/packaged-macos/host-launcher --library build/linux-arm/output/packaged-macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
-          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/guest build/linux-arm/output/packaged-macos
+          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/guest build/linux-arm/output/packaged-macos --hardware
           python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/steam-guest build/linux-arm/output/packaged-macos --steam
   ipa:
     needs: [apple, guest, qemu, ui]

@@ -84,6 +84,96 @@ struct LinuxGraphicsManifest: Decodable {
     let initrdBytes: Int
 }
 
+enum LinuxHardwareTestKind: String, CaseIterable, Decodable {
+    case cpu, gpu
+    var title: String { self == .cpu ? "CPU comparison" : "FEX GPU comparison" }
+    var key: String { self == .cpu ? "f8" : "f9" }
+    static func shortcut(_ key: String) -> [[String: Any]] {
+        [LinuxQMP.key("ctrl", down: true), LinuxQMP.key("shift", down: true),
+         LinuxQMP.key(key, down: true), LinuxQMP.key(key, down: false),
+         LinuxQMP.key("shift", down: false), LinuxQMP.key("ctrl", down: false)]
+    }
+}
+
+struct LinuxHardwareResult: Decodable {
+    let mode: String
+    let kind: String
+    let status: String
+    let workers: Int?
+    let wallMedianMs: Double?
+    let millionIterationsS: Double?
+    let renderFps: Double?
+    let renderer: String?
+    let readbackOk: Bool?
+    let accelerated: Bool?
+    let submitMedianMs: Double?
+    let finishMedianMs: Double?
+    let swapMedianMs: Double?
+    let stage: String?
+    var summary: String {
+        let name = mode == "fex" ? "x86-64 through FEX" : "ARM64 inside Linux"
+        guard status == "passed" else { return "\(name): \(status)\(stage.map { " (\($0))" } ?? "")" }
+        if kind == "cpu", let rate = millionIterationsS, let workers {
+            return String(format: "%@: %d workers · %.2f M iterations/s", name, workers, rate)
+        }
+        return String(format: "%@: %.1f render FPS · %@", name, renderFps ?? 0,
+                      accelerated == true ? "virgl pixel check passed" : "software or unverified")
+    }
+}
+
+struct LinuxHardwareObservation: Decodable {
+    let schema: Int
+    let run: String
+    let kind: LinuxHardwareTestKind
+    let status: String
+    let stage: String
+    let results: [LinuxHardwareResult]
+    static func observation(in text: String) -> (Self, String)? {
+        for line in text.split(separator: "\n").reversed() {
+            guard let marker = line.range(of: "MYPC_HARDWARE_TEST ") else { continue }
+            let json = line[marker.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard json.utf8.count <= 16_384 else { continue }
+            let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+            guard let value = try? decoder.decode(Self.self, from: Data(json.utf8)),
+                  value.schema == 1, UUID(uuidString: value.run) != nil,
+                  ["running", "complete", "failed", "cancelled"].contains(value.status),
+                  value.stage.utf8.count <= 64, value.results.count <= 4,
+                  value.results.allSatisfy({ ["arm64", "fex"].contains($0.mode) &&
+                      $0.kind == value.kind.rawValue && ["passed", "failed", "timeout"].contains($0.status) &&
+                      ($0.renderer?.utf8.count ?? 0) <= 256 && ($0.stage?.utf8.count ?? 0) <= 32 }) else { continue }
+            return (value, json)
+        }
+        return nil
+    }
+}
+
+/// Same dependent-integer workload as hardware-bench.c, outside the Linux VM.
+/// A compiler/language comparison as well as an emulation comparison; timings
+/// are recorded under the current Steam load, never claimed as a CPU clock.
+enum LinuxNativeCPUBenchmark {
+    static let iterations = 1_000_000
+    @inline(never) static func checksum(seed: UInt64, iterations: Int) -> UInt64 {
+        var value = seed
+        for _ in 0..<iterations {
+            value ^= value >> 12; value ^= value << 25; value ^= value >> 27
+            value = value &* 2_685_821_657_736_338_717
+        }
+        return value
+    }
+    static func run() -> (milliseconds: Double, checksum: String) {
+        _ = checksum(seed: 1, iterations: 5_000)
+        var times = [Double](); var results = [UInt64]()
+        // Different seeds and observable results keep an optimizing compiler
+        // from reusing one pure function result for all timed samples.
+        for sample in 1...3 {
+            let start = ProcessInfo.processInfo.systemUptime
+            results.append(checksum(seed: UInt64(sample), iterations: iterations))
+            times.append((ProcessInfo.processInfo.systemUptime - start) * 1_000)
+        }
+        return (times.sorted()[1], results.map { String(format: "%016llx", $0) }.joined(separator: ","))
+    }
+}
+
 /// Arguments passed directly to QEMU, never through a shell.
 struct LinuxVMConfiguration {
     let directory: URL

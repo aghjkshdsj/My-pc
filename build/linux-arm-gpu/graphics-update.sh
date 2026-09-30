@@ -48,6 +48,13 @@ for file in usr/local/bin/my-pc-desktop usr/local/bin/my-pc-steam usr/local/lib/
     root_command chmod 755 "$destination.my-pc-metal-new"
     root_command mv -f "$destination.my-pc-metal-new" "$destination"
 done
+echo 'MYPC_GRAPHICS_UPDATE_PHASE=install-diagnostics' >/dev/console
+# Only this reserved test directory is added. Never install global FEX files,
+# touch the owner's home, or change Steam's downloaded compatibility tools.
+destination="$rootmnt/usr/local/lib/my-pc/hardware-tests"
+test ! -L "$destination"
+root_command mkdir -p "$destination"
+root_command cp -a hardware-tests/. "$destination/"
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=sync' >/dev/console
 root_command sync
 echo 'MYPC_GRAPHICS_UPDATE_OK=1' >/dev/console

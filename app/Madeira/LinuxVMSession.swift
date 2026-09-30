@@ -231,6 +231,60 @@ private enum LinuxProcessMetrics {
     @Published private(set) var memoryMiB: Double?
     @Published private(set) var displayFPS = 0.0
     @Published private(set) var inputMilliseconds: Double?
+    @Published private(set) var hardwareTestsReady = false
+    @Published private(set) var hardwareTestWaiting = false
+    @Published private(set) var hardwareObservation: LinuxHardwareObservation?
+    @Published private(set) var cpuObservation: LinuxHardwareObservation?
+    @Published private(set) var gpuObservation: LinuxHardwareObservation?
+    @Published private(set) var nativeCPUMilliseconds: Double?
+    @Published private(set) var nativeCPUChecksum: String?
+    private var cpuReportJSON: String?
+    private var gpuReportJSON: String?
+    private var previousHardwareRun: String?
+    private var hardwareRequestTime = 0.0
+    var hardwareTestBusy: Bool { hardwareTestWaiting || hardwareObservation?.status == "running" }
+    var hardwareTestStatus: String {
+        if hardwareTestWaiting { return "Waiting for the Linux diagnostic launcher…" }
+        guard let result = hardwareObservation else { return hardwareTestsReady ? "Ready to test." : "Tests become available after the Metal startup update and desktop boot." }
+        return "\(result.kind.title): \(result.stage) · \(result.status)"
+    }
+    var hardwareReport: String {
+        var report: [String: Any] = ["schema": 1,
+            "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
+            "commit": Bundle.main.object(forInfoDictionaryKey: "SomethingPCBuildCommit") as? String ?? "unknown",
+            "graphics": graphicsMode.rawValue, "virtual_cpus": guestCPUCount,
+            "host_available_cpus": hostCPUCount, "guest_memory_mib": guestMemoryMiB,
+            "thermal_state": thermalStatus, "low_power_mode": ProcessInfo.processInfo.isLowPowerModeEnabled,
+            "host_app_cpu_percent": cpuPercent.map { $0 as Any } ?? NSNull(),
+            "host_app_memory_mib": memoryMiB.map { $0 as Any } ?? NSNull(),
+            "display_fps": displayFPS, "input_ack_ms": inputMilliseconds.map { $0 as Any } ?? NSNull(),
+            "native_ios_single_worker_ms": nativeCPUMilliseconds.map { $0 as Any } ?? NSNull(),
+            "native_ios_checksum": nativeCPUChecksum.map { $0 as Any } ?? NSNull(),
+            "native_ios_iterations": LinuxNativeCPUBenchmark.iterations]
+        for (key, json) in [("cpu_test", cpuReportJSON), ("gpu_test", gpuReportJSON)] {
+            if let json, let value = try? JSONSerialization.jsonObject(with: Data(json.utf8)) { report[key] = value }
+        }
+        return (try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys, .prettyPrinted]))
+            .map { String(decoding: $0, as: UTF8.self) } ?? "Hardware report unavailable."
+    }
+    func runHardwareTest(_ kind: LinuxHardwareTestKind) {
+        guard running, connected, !paused, hardwareTestsReady, !hardwareTestBusy else { return }
+        hardwareTestWaiting = true
+        previousHardwareRun = hardwareObservation?.run
+        hardwareRequestTime = ProcessInfo.processInfo.systemUptime
+        Task {
+            if kind == .cpu {
+                let result = await Task.detached(priority: .userInitiated) { LinuxNativeCPUBenchmark.run() }.value
+                nativeCPUMilliseconds = result.milliseconds; nativeCPUChecksum = result.checksum
+            }
+            qmp.discardMotion()
+            sendKeyboard(LinuxHardwareTestKind.shortcut(kind.key))
+        }
+    }
+    func cancelHardwareTest() {
+        guard connected, hardwareTestBusy else { return }
+        sendKeyboard(LinuxHardwareTestKind.shortcut("f10"))
+    }
     @Published private(set) var paused = false
     @Published private(set) var cpuSelection = LinuxVMSession.initialCPUSelection
     @Published private(set) var graphicsMode = LinuxGraphicsMode.initial(metalAvailable: LinuxVMSession.metalAvailable,
@@ -409,6 +463,9 @@ private enum LinuxProcessMetrics {
             jit_install_trap_handler()
             #endif
             guestGraphics = nil
+            hardwareTestsReady = false; hardwareTestWaiting = false; hardwareObservation = nil
+            cpuObservation = nil; gpuObservation = nil; cpuReportJSON = nil; gpuReportJSON = nil
+            nativeCPUMilliseconds = nil; nativeCPUChecksum = nil
             started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores · \(graphicsMode.title)…"
             UIApplication.shared.isIdleTimerDisabled = true
             beginPerformanceSample()
@@ -438,6 +495,7 @@ private enum LinuxProcessMetrics {
                     self.timer?.invalidate(); self.timer = nil
                     self.pendingPointer = nil; self.pointerDown = false
                     self.displayFPS = 0; self.cpuPercent = nil; self.paused = false
+                    self.hardwareTestsReady = false; self.hardwareTestWaiting = false
                     UIApplication.shared.isIdleTimerDisabled = false
                     self.status = code == 0 ? "Linux shut down. Restart My-pc for another session." : "Linux stopped: \(detail)"
                     if code != 0 { self.error = detail }
@@ -506,17 +564,31 @@ private enum LinuxProcessMetrics {
         }
         memoryMiB = LinuxProcessMetrics.footprintMiB()
         inputMilliseconds = qmp.inputMilliseconds
-        if guestGraphics == nil {
+        // Read bounded diagnostic records once a second, never Steam logs or
+        // account files. A running test retains only its latest small result.
+        do {
             let log = Self.directory.appendingPathComponent("boot.log")
             if let handle = try? FileHandle(forReadingFrom: log) {
                 defer { try? handle.close() }
                 if let length = try? handle.seekToEnd() {
                     try? handle.seek(toOffset: length > 65_536 ? length - 65_536 : 0)
                     if let bytes = try? handle.read(upToCount: 65_536) {
-                        guestGraphics = LinuxGuestGraphics.observation(in: String(decoding: bytes, as: UTF8.self))
+                        let text = String(decoding: bytes, as: UTF8.self)
+                        if guestGraphics == nil { guestGraphics = LinuxGuestGraphics.observation(in: text) }
+                        if text.contains("MYPC_HARDWARE_TEST_READY=1") { hardwareTestsReady = true }
+                        if let (observation, json) = LinuxHardwareObservation.observation(in: text),
+                           !hardwareTestWaiting || observation.run != previousHardwareRun {
+                            hardwareTestWaiting = false; hardwareObservation = observation
+                            if observation.kind == .cpu { cpuObservation = observation; cpuReportJSON = json }
+                            else { gpuObservation = observation; gpuReportJSON = json }
+                        }
                     }
                 }
             }
+        }
+        if hardwareTestWaiting && now - hardwareRequestTime > 150 {
+            hardwareTestWaiting = false
+            error = "Linux has not started the diagnostic test. Close a finished test window and retry; the existing session is preserved."
         }
         sampleTime = now; displayedFrames = 0
     }

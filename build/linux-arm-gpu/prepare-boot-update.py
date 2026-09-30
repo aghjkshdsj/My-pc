@@ -48,6 +48,22 @@ if grep -qw my_pc_graphics=virgl /proc/cmdline; then graphics_options=(); fi
     }
     checksums = ''.join(hashlib.sha256(data).hexdigest() + '  ' + name + '\n' for name, data in payload.items()).encode()
     files = [(f'my-pc-graphics/{name}', stat.S_IFREG | 0o755, data) for name, data in payload.items()]
+    diagnostics = pathlib.Path('build/linux-arm-gpu/output/hardware-tests')
+    assert diagnostics.is_dir(), 'Build the hardware diagnostic payload before preparing the boot update'
+    diagnostic_checksums = []
+    for path in sorted(diagnostics.rglob('*')):
+        name = 'my-pc-graphics/hardware-tests/' + path.relative_to(diagnostics).as_posix()
+        if path.is_symlink():
+            files.append((name, stat.S_IFLNK | 0o777, path.readlink().as_posix().encode()))
+        elif path.is_file():
+            body = path.read_bytes()
+            files.append((name, stat.S_IFREG | (path.stat().st_mode & 0o777), body))
+            diagnostic_checksums.append(hashlib.sha256(body).hexdigest() + '  ' + name.removeprefix('my-pc-graphics/') + '\n')
+    files.append(('my-pc-graphics/hardware-tests/SHA256SUMS', stat.S_IFREG | 0o644,
+                  ''.join(diagnostic_checksums).encode()))
+    # The source kernel/initrd and Steam's disk remain unchanged. Append the
+    # self-contained test payload only to the verified Metal startup update.
+    checksums += ''.join(diagnostic_checksums).encode()
     files += [('my-pc-graphics/SHA256SUMS', stat.S_IFREG | 0o644, checksums),
               ('scripts/local-bottom/my-pc-graphics', stat.S_IFREG | 0o755,
                pathlib.Path('build/linux-arm-gpu/graphics-update.sh').read_bytes())]

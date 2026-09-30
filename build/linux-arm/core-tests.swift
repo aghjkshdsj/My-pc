@@ -136,3 +136,19 @@ check(mailbox.offer(.init(x: 2, y: 2, down: false)), "Motion after release resta
 check(mailbox.take()?.down == false, "Release state must survive motion coalescing")
 check(!mailbox.finish(), "No empty drain spin")
 print("PASS: 10,000 motions during a stalled request retain one latest position")
+check(LinuxNativeCPUBenchmark.checksum(seed: 1, iterations: 1_000_000) == 0x1d250c45a7bbc87e,
+      "Native iOS integer kernel must match the independent C/Python reference")
+let nativeCPU = LinuxNativeCPUBenchmark.run()
+check(nativeCPU.milliseconds > 0 && nativeCPU.checksum.split(separator: ",").count == 3,
+      "CPU timing must retain all three observable workloads")
+let hardwareLine = #"MYPC_HARDWARE_TEST {"schema":1,"run":"F898533A-6F4A-47B9-824F-9A76574D0847","kind":"gpu","status":"complete","stage":"finished","results":[{"mode":"fex","kind":"gpu","status":"passed","renderer":"virgl","render_fps":12.5,"accelerated":true,"readback_ok":true}]}"#
+check(LinuxHardwareObservation.observation(in: hardwareLine)?.0.results.first?.renderFps == 12.5,
+      "FEX graphics records must decode their actual measured FPS")
+check(LinuxHardwareObservation.observation(in: hardwareLine.replacingOccurrences(of: "\"schema\":1", with: "\"schema\":2")) == nil,
+      "Unknown diagnostic schemas cannot pass")
+check(LinuxHardwareObservation.observation(in: hardwareLine.replacingOccurrences(of: "\"kind\":\"gpu\"", with: "\"kind\":\"other\"")) == nil,
+      "Unknown diagnostic commands cannot enter the report")
+let shortcut = LinuxHardwareTestKind.shortcut("f9")
+check(shortcut.count == 6 && shortcut.last?["data"] as? [String: Any] != nil,
+      "Diagnostic shortcut must include modifier releases")
+print("PASS: diagnostic schema, native workload checksum and fixed shortcut transitions")

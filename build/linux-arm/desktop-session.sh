@@ -5,6 +5,9 @@ export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
 xset s off -dpms
 xsetroot -solid '#162334'
 openbox &
+if [ -f /usr/local/lib/my-pc/hardware-tests/hardware-keys.py ]; then
+    python3 -u /usr/local/lib/my-pc/hardware-tests/hardware-keys.py >/dev/ttyAMA0 2>&1 &
+fi
 # Query the actual guest GL driver and render/read back one pixel. Report
 # only hardware diagnostics: no Steam account, URLs, or process arguments.
 timeout 20s python3 -u - <<'PY' >/dev/ttyAMA0 2>&1 || echo MYPC_GUEST_GRAPHICS_UNAVAILABLE >/dev/ttyAMA0
@@ -62,6 +65,9 @@ finally:
         except Exception: pass
 print('MYPC_GUEST_GRAPHICS ' + json.dumps(state), flush=True)
 PY
+if grep -qw my_pc_hardware_ci=1 /proc/cmdline; then
+    exec python3 -u /usr/local/lib/my-pc/hardware-tests/hardware-test-ci.py >/dev/ttyAMA0 2>&1
+fi
 if grep -qw my_pc_desktop_test=1 /proc/cmdline; then
     exec python3 /usr/local/lib/my-pc/desktop-test.py
 fi

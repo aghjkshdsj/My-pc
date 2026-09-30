@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('guest', type=pathlib.Path)
 parser.add_argument('runtime', type=pathlib.Path)
 parser.add_argument('--steam', action='store_true')
+parser.add_argument('--hardware', action='store_true')
 parser.add_argument('--legacy', action='store_true', help='Migration/input only on Linux QEMU, without a Metal host')
 args = parser.parse_args()
 guest, runtime = args.guest.resolve(), args.runtime.resolve()
@@ -41,6 +42,8 @@ anchor = '            if args.verify_cpu_count:\n'
 assert source.count(anchor) == 2
 source = source.replace(anchor, '''            command[command.index('-append') + 1] += ' my_pc_graphics=virgl'
 ''' + anchor, 1)
+if args.hardware:
+    source = source.replace(" my_pc_graphics=virgl'", " my_pc_graphics=virgl my_pc_hardware_ci=1'")
 if not args.legacy:
     anchor = 'f"virtio-gpu-pci,xres={display_width},yres={display_height}"'
     assert source.count(anchor) == 1
@@ -59,6 +62,11 @@ with tempfile.TemporaryDirectory() as temporary:
     with (guest / 'metal-host.log').open('w') as output:
         result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
     content = (guest / ('boot-4.log' if args.steam else 'boot-3.log')).read_text(errors='replace')
+    if args.hardware:
+        for line in content.splitlines():
+            if line.startswith('MYPC_HARDWARE_RUNTIME_CHECK ') or line.startswith('MYPC_HARDWARE_CI_FAILURE '):
+                print(line[:8192],flush=True)
+        assert 'MYPC_HARDWARE_RUNTIME_OK=1' in content, 'Production ARM/FEX diagnostics did not pass'
     for item in re.findall(r'MYPC_STEAM_INPUT_LATENCY (\{[^\r\n]{1,256}\})', content):
         state = json.loads(item)
         if set(state) == {'samples', 'median_ms', 'p95_ms'}:
