@@ -52,6 +52,7 @@ with tempfile.TemporaryDirectory() as temporary:
         if set(state) == {'renderer', 'compositing', 'webgl_status', 'webgl_renderer', 'shader_readback_ok', 'accelerated'}:
             print('MYPC_STEAM_GPU_INFO ' + json.dumps(state), flush=True)
     summary = {'host_success': result.returncode == 0,
+               'hook_seen': 'MYPC_GRAPHICS_HOOK_SEEN=1' in content,
                'update_ok': 'MYPC_GRAPHICS_UPDATE_OK=1' in content,
                'update_failed': 'MYPC_GRAPHICS_UPDATE_FAILED' in content,
                'cpu_count_verified': 'MYPC_LINUX_CPU_COUNT=6' in content,

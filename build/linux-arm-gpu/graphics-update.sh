@@ -3,7 +3,10 @@
 PREREQ=""
 prereqs() { echo "$PREREQ"; }
 case "${1:-}" in prereqs) prereqs; exit 0;; esac
-grep -qw my_pc_graphics=virgl /proc/cmdline || exit 0
+# The minimal initrd need not contain grep or BusyBox. Use shell built-ins.
+read -r command_line </proc/cmdline
+case " $command_line " in *" my_pc_graphics=virgl "*) ;; *) exit 0;; esac
+echo 'MYPC_GRAPHICS_HOOK_SEEN=1' >/dev/console
 set -eu
 root_command() {
     command=$1
