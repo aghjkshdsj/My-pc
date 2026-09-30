@@ -29,6 +29,7 @@ replace_once('    meson_darwin_build $SLIRP_SRC\n    meson_build $LIBUCONTEXT_RE
     meson_darwin_build $VIRGLRENDERER_REPO -Dtests=false -Dvtest=false -Dplatforms=egl -Dcheck-gl-errors=true -Dvenus=false -Dneptune=false -Drender-server-mode=thread -Drender-server-worker=thread''')
 replace_once('--enable-pixman --enable-vnc', '--enable-pixman --enable-vnc --enable-opengl --enable-virglrenderer')
 patch = shlex.quote(str(pathlib.Path(__file__).with_name('patch-qemu.py').resolve()))
-replace_once('MYPC_CROSS_PY\n', 'MYPC_CROSS_PY\n    python3 ' + patch + ' "$BUILD_DIR/qemu-10.0.12-utm"\n')
+test = shlex.quote(str(pathlib.Path(__file__).with_name('test-presentation.py').resolve()))
+replace_once('MYPC_CROSS_PY\n', 'MYPC_CROSS_PY\n    python3 ' + patch + ' "$BUILD_DIR/qemu-10.0.12-utm"\n    python3 ' + test + ' "$BUILD_DIR/qemu-10.0.12-utm"\n')
 script.write_text(source)
 print('Prepared experimental ANGLE/virgl Metal backend; release backend unchanged')

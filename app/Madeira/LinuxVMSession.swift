@@ -7,9 +7,29 @@ import Metal
 
 /// A single serial owner for the local QMP socket. No listener is exposed on LAN.
 final class LinuxQMPConnection: @unchecked Sendable {
-    private let queue = DispatchQueue(label: "my-pc.linux.qmp")
+    private let queue = DispatchQueue(label: "my-pc.linux.qmp", qos: .userInteractive)
     private var descriptor: Int32 = -1
     private var requestID = 0
+    private let motion = LinuxPointerMailbox()
+    private let metricsLock = NSLock()
+    private var lastInputMilliseconds: Double?
+    var inputMilliseconds: Double? {
+        metricsLock.lock(); defer { metricsLock.unlock() }
+        return lastInputMilliseconds
+    }
+
+    func move(x: Double, y: Double, down: Bool) {
+        if motion.offer(.init(x: x, y: y, down: down)) { scheduleMotion() }
+    }
+    func discardMotion() { motion.discard() }
+    private func scheduleMotion() {
+        queue.async {
+            if let point = self.motion.take() {
+                try? self.request("input-send-event", arguments: LinuxQMP.pointer(x: point.x, y: point.y, down: point.down))
+            }
+            if self.motion.finish() { self.scheduleMotion() }
+        }
+    }
 
     func connect(path: String, completion: @escaping (Result<Void, Error>) -> Void) {
         queue.async {
@@ -57,6 +77,7 @@ final class LinuxQMPConnection: @unchecked Sendable {
     }
 
     func close() {
+        motion.discard()
         queue.async {
             if self.descriptor >= 0 { Darwin.close(self.descriptor); self.descriptor = -1 }
         }
@@ -77,6 +98,7 @@ final class LinuxQMPConnection: @unchecked Sendable {
     }
 
     func click(x: Double, y: Double, button: LinuxMouseButton) {
+        motion.discard()
         queue.async {
             do {
                 try self.request("input-send-event", arguments: LinuxQMP.pointer(x: x, y: y, down: true, button: button))
@@ -87,6 +109,7 @@ final class LinuxQMPConnection: @unchecked Sendable {
     }
 
     private func request(_ command: String, arguments: [String: Any]) throws {
+        let started = ProcessInfo.processInfo.systemUptime
         guard descriptor >= 0 else { throw LinuxVMError.invalid("Linux control is not connected.") }
         requestID += 1
         let data = try LinuxQMP.command(command, id: requestID, arguments: arguments)
@@ -101,7 +124,14 @@ final class LinuxQMPConnection: @unchecked Sendable {
         }
         let deadline = Date().addingTimeInterval(5)
         while Date() < deadline {
-            if try LinuxQMP.reply(line(), id: requestID) { return }
+            if try LinuxQMP.reply(line(), id: requestID) {
+                if command == "input-send-event" {
+                    metricsLock.lock()
+                    lastInputMilliseconds = (ProcessInfo.processInfo.systemUptime - started) * 1000
+                    metricsLock.unlock()
+                }
+                return
+            }
         }
         throw LinuxVMError.invalid("Linux control reply timed out.")
     }
@@ -200,6 +230,7 @@ private enum LinuxProcessMetrics {
     @Published private(set) var cpuPercent: Double?
     @Published private(set) var memoryMiB: Double?
     @Published private(set) var displayFPS = 0.0
+    @Published private(set) var inputMilliseconds: Double?
     @Published private(set) var paused = false
     @Published private(set) var cpuSelection = LinuxVMSession.initialCPUSelection
     @Published private(set) var graphicsMode = LinuxGraphicsMode.initial(metalAvailable: LinuxVMSession.metalAvailable,
@@ -223,7 +254,9 @@ private enum LinuxProcessMetrics {
             "guest_virgl_verified": guestGraphics?.verifiedVirgl ?? false,
             "steam_cef_renderer": "unverified",
             "metal_device": MTLCreateSystemDefaultDevice()?.name ?? "unavailable",
-            "virtual_cpus": guestCPUCount, "guest_memory_mib": guestMemoryMiB]
+            "virtual_cpus": guestCPUCount, "guest_memory_mib": guestMemoryMiB,
+            "input_ack_ms": inputMilliseconds.map { $0 as Any } ?? NSNull(),
+            "thermal_state": thermalStatus, "translation_cache_mib": LinuxExecutionMode.requiresJIT ? 256 : 128]
         return (try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys, .prettyPrinted]))
             .map { String(decoding: $0, as: UTF8.self) } ?? "Graphics report unavailable."
     }
@@ -432,6 +465,7 @@ private enum LinuxProcessMetrics {
             // Never coalesce away a press or release. Ordinary motion is
             // limited to the display cadence instead of flooding the socket.
             pendingPointer = nil; pointerDown = down
+            qmp.discardMotion()
             qmp.send("input-send-event", arguments: LinuxQMP.pointer(x: x, y: y, down: down))
         } else { pendingPointer = (x, y, down) }
     }
@@ -448,6 +482,7 @@ private enum LinuxProcessMetrics {
                 qmp.send("input-send-event", arguments: LinuxQMP.pointer(x: lastPointer.x, y: lastPointer.y, down: false))
             }
             pendingPointer = nil; pointerDown = false
+            qmp.discardMotion()
             cpuPercent = nil; displayFPS = 0
         } else { beginPerformanceSample() }
         qmp.send(background ? "stop" : "cont")
@@ -461,7 +496,7 @@ private enum LinuxProcessMetrics {
         guard !paused else { return }
         if let point = pendingPointer {
             pendingPointer = nil
-            qmp.send("input-send-event", arguments: LinuxQMP.pointer(x: point.x, y: point.y, down: point.down))
+            qmp.move(x: point.x, y: point.y, down: point.down)
         }
         if let image = LinuxFrameInbox.shared.take() { self.image = image; displayedFrames += 1 }
         let now = ProcessInfo.processInfo.systemUptime
@@ -470,6 +505,7 @@ private enum LinuxProcessMetrics {
             cpuPercent = rates.cpuPercent; displayFPS = rates.displayFPS
         }
         memoryMiB = LinuxProcessMetrics.footprintMiB()
+        inputMilliseconds = qmp.inputMilliseconds
         if guestGraphics == nil {
             let log = Self.directory.appendingPathComponent("boot.log")
             if let handle = try? FileHandle(forReadingFrom: log) {

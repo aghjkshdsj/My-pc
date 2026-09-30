@@ -11,7 +11,9 @@ enum LinuxExecutionMode {
     #else
     static let requiresJIT = true
     static let defaultCPUSelection = 0
-    static let accelerator = "tcg,thread=multi,tb-size=128,split-wx=on"
+    // Six emulated CPUs and Chromium share this cache. Avoid repeatedly
+    // discarding translated code while keeping a bounded phone memory budget.
+    static let accelerator = "tcg,thread=multi,tb-size=256,split-wx=on"
     static let setupHelp = "Set up Linux, enable JIT, then open Steam. The ARM64 client downloads from Valve on its first launch. Select Metal before startup to test experimental GPU graphics; Software is the recovery option."
     static let installedStatus = "Linux runtime installed. Enable JIT, then open Steam."
     #endif
@@ -131,7 +133,8 @@ struct LinuxVMConfiguration {
         guard try disk.read(upToCount: 2) == Data([0x53, 0xef]) else {
             throw LinuxVMError.invalid("The Linux disk is not a raw ext4 filesystem.")
         }
-        let storage = try json(["driver": "file", "filename": files[2].path, "node-name": "linux-file"])
+        // Preserve guest flushes; never use cache=unsafe to speed up downloads.
+        let storage = try json(["driver": "file", "filename": files[2].path, "node-name": "linux-file", "aio": "threads", "cache": ["direct": false, "no-flush": false]])
         let raw = try json(["driver": "raw", "file": "linux-file", "node-name": "linux-root"])
         var arguments = ["qemu-system-aarch64", "-no-user-config", "-nodefaults",
                 // Steam's current ARM client faults on the older Cortex-A72
@@ -142,8 +145,9 @@ struct LinuxVMConfiguration {
                 "-smp", String(cpuCount), "-m", String(memoryMiB),
                 "-kernel", files[0].path, "-initrd", initrd.path,
                 "-append", "console=ttyAMA0 root=/dev/vda rw quiet loglevel=3 my_pc_graphics=\(graphics == .metal ? "virgl" : "software")",
+                "-object", "iothread,id=linux-disk-io,poll-max-ns=0",
                 "-blockdev", storage, "-blockdev", raw,
-                "-device", "virtio-blk-pci,drive=linux-root",
+                "-device", "virtio-blk-pci,drive=linux-root,iothread=linux-disk-io",
                 "-netdev", "user,id=linux-net", "-device", "virtio-net-pci,netdev=linux-net,romfile=",
                 "-device", "\(graphics == .metal ? "virtio-gpu-gl-pci" : "virtio-gpu-pci"),xres=\(LinuxDesktopSize.width),yres=\(LinuxDesktopSize.height)",
                 "-device", "qemu-xhci", "-device", "usb-tablet", "-device", "usb-kbd",
@@ -169,8 +173,39 @@ struct LinuxVMConfiguration {
         return file
     }
 
-    private func json(_ object: [String: String]) throws -> String {
+    private func json(_ object: [String: Any]) throws -> String {
         String(decoding: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]), as: UTF8.self)
+    }
+}
+
+/// One pending motion plus one in-flight request, even if the VM is stalled.
+/// Button transitions use the serial control queue separately and are never
+/// replaced. The owner yields to queued clicks after each motion request.
+final class LinuxPointerMailbox: @unchecked Sendable {
+    struct Position { let x: Double; let y: Double; let down: Bool }
+    private let lock = NSLock()
+    private var pending: Position?
+    private var scheduled = false
+    func offer(_ value: Position) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        pending = value
+        guard !scheduled else { return false }
+        scheduled = true
+        return true
+    }
+    func take() -> Position? {
+        lock.lock(); defer { lock.unlock() }
+        let value = pending; pending = nil
+        return value
+    }
+    func finish() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if pending != nil { return true }
+        scheduled = false
+        return false
+    }
+    func discard() {
+        lock.lock(); pending = nil; lock.unlock()
     }
 }
 

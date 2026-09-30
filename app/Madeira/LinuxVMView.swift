@@ -130,6 +130,9 @@ struct LinuxVMView: View {
                         Text("RAM is this app's physical memory footprint, including QEMU and the display. Linux has \(session.guestMemoryMiB) MiB allocated and \(session.guestCPUCount) virtual CPUs. Allocation is not memory usage.")
                         Text("This session has \(session.guestCPUCount) virtual CPU cores. iOS reports \(session.hostCPUCount) available host cores. CPU core settings apply at startup; iOS controls scheduling, power and thermal limits. More cores do not guarantee a faster interface.")
                         Text("Display FPS counts new guest frames shown each second, up to 30. An idle desktop can show 0 FPS. This is not a game's internal FPS.")
+                        if let latency = session.inputMilliseconds {
+                            Text("Last input acknowledged by the VM: \(Int(latency.rounded())) ms. This measures control processing, not Steam's time to draw a response.")
+                        }
                         Text("Linux desktop: \(LinuxDesktopSize.width) × \(LinuxDesktopSize.height). Fit shows the whole guest desktop; Enlarge pans toward the pointer.")
                         Text("Graphics selection: \(session.graphicsMode.title). Metal uses the experimental virgl/ANGLE backend; individual apps can still fall back to software. GPU utilization is unavailable; no percentage is estimated.")
                         Text(session.graphicsSummary)

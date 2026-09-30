@@ -25,6 +25,18 @@ source = pathlib.Path('build/linux-arm/smoke-guest.py').read_text()
 anchor = 'str(guest / "initrd.img")'
 assert source.count(anchor) == 1
 source = source.replace(anchor, 'str(guest / "graphics-initrd.img")')
+anchor = '            if args.launcher:\n'
+assert source.count(anchor) == 1
+source = source.replace(anchor, '''            # Match the shipping disk path, cache size and six-core CPU model.
+            drive = command.index('-drive'); del command[drive:drive + 2]
+            command += ['-object', 'iothread,id=linux-disk-io,poll-max-ns=0',
+                '-blockdev', json.dumps({'driver': 'file', 'filename': str(guest / 'rootfs.raw'),
+                    'node-name': 'linux-file', 'aio': 'threads',
+                    'cache': {'direct': False, 'no-flush': False}}),
+                '-blockdev', json.dumps({'driver': 'raw', 'file': 'linux-file', 'node-name': 'linux-root'}),
+                '-device', 'virtio-blk-pci,drive=linux-root,iothread=linux-disk-io']
+            command[command.index('-accel') + 1] = 'tcg,thread=multi,tb-size=256'
+''' + anchor)
 anchor = '            if args.verify_cpu_count:\n'
 assert source.count(anchor) == 2
 source = source.replace(anchor, '''            command[command.index('-append') + 1] += ' my_pc_graphics=virgl'
@@ -47,6 +59,15 @@ with tempfile.TemporaryDirectory() as temporary:
     with (guest / 'metal-host.log').open('w') as output:
         result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
     content = (guest / ('boot-4.log' if args.steam else 'boot-3.log')).read_text(errors='replace')
+    for item in re.findall(r'MYPC_STEAM_INPUT_LATENCY (\{[^\r\n]{1,256}\})', content):
+        state = json.loads(item)
+        if set(state) == {'samples', 'median_ms', 'p95_ms'}:
+            print('MYPC_STEAM_INPUT_LATENCY ' + json.dumps(state), flush=True)
+    presentation = re.findall(r'MYPC_GPU_PRESENT flushes=(\d+) readbacks=(\d+) readback_us=(\d+)', content)
+    if presentation:
+        flushes, readbacks, microseconds = map(int, presentation[-1])
+        print('MYPC_GPU_PRESENT_RESULT ' + json.dumps({'flushes': flushes, 'readbacks': readbacks,
+            'mean_readback_ms': round(microseconds / max(1, readbacks) / 1000, 2)}), flush=True)
     for item in re.findall(r'MYPC_STEAM_GPU_INFO (\{[^\r\n]{1,1024}\})', content):
         state = json.loads(item)
         if set(state) == {'renderer', 'compositing', 'webgl_status', 'webgl_renderer', 'shader_readback_ok', 'accelerated'}:

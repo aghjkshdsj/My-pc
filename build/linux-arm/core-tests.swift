@@ -31,9 +31,12 @@ check(LinuxExecutionMode.defaultCPUSelection == 0, "JIT defaults to all availabl
 check(LinuxGraphicsMode.initial(metalAvailable: true, saved: nil) == .software, "GPU preview retains Software until device validation")
 check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "invalid") == .software, "Invalid stored choice should allow software recovery")
 check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "metal") == .metal, "An explicit Metal choice must be preserved")
-check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=on"), "JIT must require split W/X")
+check(argv.contains("tcg,thread=multi,tb-size=256,split-wx=on"), "JIT must require split W/X")
 #endif
-let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: String]
+let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: Any]
+let cache = block["cache"] as! [String: Bool]
+check(cache["no-flush"] == false, "Performance changes must preserve guest flushes")
+check(argv.contains("virtio-blk-pci,drive=linux-root,iothread=linux-disk-io"), "Disk processing must use its own IOThread")
 check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "software") == .software, "Explicit software recovery must be preserved")
 check(LinuxGraphicsMode.initial(metalAvailable: false, saved: "metal") == .software, "A software-only runtime cannot request Metal")
 let graphicsLine = #"MYPC_GUEST_GRAPHICS {"schema":1,"renderer":"virgl","readback_ok":true,"accelerated":true}"#
@@ -42,7 +45,7 @@ check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "
 check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "\"readback_ok\":true", with: "\"readback_ok\":false"))?.verifiedVirgl == false, "A renderer name alone cannot pass")
 check(LinuxGuestGraphics.observation(in: "MYPC_GUEST_GRAPHICS invalid") == nil, "Malformed graphics report stays unverified")
 check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "\"schema\":1", with: "\"schema\":2")) == nil, "Unknown graphics schemas cannot verify acceleration")
-check(block["filename"] == guest.appendingPathComponent("rootfs.raw").path, "Disk path must survive spaces and commas without option injection")
+check(block["filename"] as? String == guest.appendingPathComponent("rootfs.raw").path, "Disk path must survive spaces and commas without option injection")
 check(LinuxCPUSelection.resolve(0, hostCount: 6) == 6, "Automatic mode must expose all six iPhone cores")
 check(LinuxCPUSelection.resolve(2, hostCount: 6) == 2, "A smaller manual selection must remain available")
 check(LinuxCPUSelection.resolve(8, hostCount: 6) == 6, "Stored preferences must not oversubscribe this phone")
@@ -114,3 +117,22 @@ let right = LinuxQMP.pointer(x: 0.5, y: 0.5, down: true, button: .right)
 let rightEvents = right["events"] as! [[String: Any]]
 check((rightEvents[2]["data"] as! [String: Any])["button"] as? String == "right", "Context clicks must use the right mouse button")
 print("PASS: CPU accounting, display frame rates, missing metrics and right-click input")
+
+let mailbox = LinuxPointerMailbox()
+check(mailbox.offer(.init(x: 0, y: 0, down: false)), "First motion schedules one drain")
+let inflight = mailbox.take()!
+check(inflight.x == 0, "First request is in flight")
+for index in 1...10_000 {
+    check(!mailbox.offer(.init(x: Double(index), y: 1, down: false)), "Stalled control must not queue another drain for each movement")
+}
+check(mailbox.finish(), "Latest motion needs one more turn after the click queue")
+check(mailbox.take()?.x == 10_000, "Drop stale movements rather than playing them back")
+check(!mailbox.finish(), "Drain becomes idle after the latest position")
+check(mailbox.offer(.init(x: 1, y: 1, down: true)), "Motion after idle restarts drain")
+mailbox.discard()
+check(mailbox.take() == nil, "Press/release cancels any older pending motion")
+check(!mailbox.finish(), "Cancelled drain must become idle")
+check(mailbox.offer(.init(x: 2, y: 2, down: false)), "Motion after release restarts safely")
+check(mailbox.take()?.down == false, "Release state must survive motion coalescing")
+check(!mailbox.finish(), "No empty drain spin")
+print("PASS: 10,000 motions during a stalled request retain one latest position")

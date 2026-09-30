@@ -106,7 +106,7 @@ jobs:
           retention-days: 1
   qemu:
     runs-on: macos-26
-    timeout-minutes: 15
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -116,22 +116,37 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
-      - name: Restore exactly the framework that passed Metal rendering
+      - uses: actions/cache/restore@v4
+        id: gpu-cache
+        with:
+          path: build/linux-arm-gpu/output/${{ matrix.platform }}
+          key: arm-metal-perf-v1-${{ matrix.platform }}-${{ hashFiles('build/linux-arm-gpu/prepare-gpu.py', 'build/linux-arm-gpu/patch-qemu.py', 'build/linux-arm-gpu/build.sh', 'build/linux-arm/prepare-utm.py', 'build/linux-arm/qemu-display.inc.c', 'build/linux-arm/host-launcher.c', 'app/Madeira/LinuxVMBridge.*') }}
+      - name: Install build tools
+        if: steps.gpu-cache.outputs.cache-hit != 'true'
         run: |
-          test "$(gh run view 36629999384 --json headSha --jq .headSha)" = 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2
-          test "$(gh run view 36629999384 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 36633968100 --json headSha --jq .headSha)" = 8179d3dbd180b9c0eb3871f2a2f26ec9a15947d1
-          test "$(gh run view 36633968100 --json conclusion --jq .conclusion)" = success
-          git fetch --depth=1 origin 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2
-          git diff --exit-code 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2 HEAD -- build/linux-arm-gpu/build.sh build/linux-arm-gpu/prepare-gpu.py build/linux-arm-gpu/patch-qemu.py build/linux-arm/prepare-utm.py build/linux-arm/qemu-display.inc.c build/linux-arm/host-launcher.c app/Madeira/LinuxVMBridge.h
-          gh run download 36629999384 --name 'experimental-gpu-${{ matrix.platform }}' --dir build/linux-arm/output
+          brew install bison pkg-config gettext glib meson ninja
+          echo "$(brew --prefix bison)/bin:$(brew --prefix gettext)/bin:$(brew --prefix glib)/bin" >> "$GITHUB_PATH"
+          python3 -m venv build/gpu-venv
+          build/gpu-venv/bin/pip install six pyparsing pyyaml setuptools distlib mako packaging
+          echo "$PWD/build/gpu-venv/bin" >> "$GITHUB_PATH"
+      - name: Build the changed QEMU presentation path and test coalescing
+        if: steps.gpu-cache.outputs.cache-hit != 'true'
+        run: bash build/linux-arm-gpu/build.sh '${{ matrix.platform }}'
+      - uses: actions/cache/save@v4
+        if: steps.gpu-cache.outputs.cache-hit != 'true'
+        with:
+          path: build/linux-arm-gpu/output/${{ matrix.platform }}
+          key: ${{ steps.gpu-cache.outputs.cache-primary-key }}
+      - name: Package current runtime
+        run: |
           mkdir -p 'build/linux-arm/output/${{ matrix.platform }}'
-          tar -xzf 'build/linux-arm/output/experimental-gpu-${{ matrix.platform }}.tar.gz' -C 'build/linux-arm/output/${{ matrix.platform }}'
+          ditto 'build/linux-arm-gpu/output/${{ matrix.platform }}' 'build/linux-arm/output/${{ matrix.platform }}'
           if [ '${{ matrix.platform }}' = macos ]; then
             clang -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter \
               build/linux-arm/host-launcher.c app/Madeira/LinuxVMBridge.c \
               -Wl,-rpath,@executable_path/Frameworks -o build/linux-arm/output/macos/host-launcher
             codesign --force --sign - build/linux-arm/output/macos/host-launcher
+            python3 build/linux-arm-gpu/probe-metal.py build/linux-arm/output/macos
           else
             xcrun --sdk iphoneos clang -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter \
               -target arm64-apple-ios17.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
@@ -142,6 +157,12 @@ jobs:
         with:
           name: linux-arm-qemu-${{ matrix.platform }}
           path: build/linux-arm/output/linux-arm-qemu-${{ matrix.platform }}.tar.gz
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metal-build-logs-${{ matrix.platform }}
+          path: build/linux-arm-gpu/work-${{ matrix.platform }}/build.log
           retention-days: 1
   apple:
     runs-on: macos-26

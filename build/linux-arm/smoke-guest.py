@@ -110,6 +110,18 @@ with tempfile.TemporaryDirectory() as directory:
                                         assert "return" in reply, reply
                                         return
                             request("qmp_capabilities")
+                            latencies = []
+                            for sample in range(16):
+                                started = time.monotonic()
+                                request('input-send-event', {'events': [
+                                    {'type': 'abs', 'data': {'axis': 'x', 'value': 8000 + sample * 64}},
+                                    {'type': 'abs', 'data': {'axis': 'y', 'value': 8000}}]})
+                                latencies.append((time.monotonic() - started) * 1000)
+                            latencies.sort()
+                            print('MYPC_QMP_INPUT_LATENCY ' + json.dumps({'samples': len(latencies),
+                                'median_ms': round(latencies[len(latencies) // 2], 1),
+                                'p95_ms': round(latencies[-1], 1)}), flush=True)
+                            assert latencies[-1] < 2000, 'VM input processing exceeded two seconds after desktop readiness'
                             request("screendump", {"filename": str(guest / ("steam.ppm" if args.steam else "desktop.ppm"))})
                             screenshot = guest / ('steam.ppm' if args.steam else 'desktop.ppm')
                             with screenshot.open('rb') as image:
