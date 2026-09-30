@@ -20,14 +20,20 @@ data = urllib.request.urlopen(url, timeout=60).read()
 assert len(data) == 3284698
 assert hashlib.sha256(data).hexdigest() == 'c48d651e2ba1439f66ae9f69277237a90b66977f67609e63679b2eedfb049888'
 (out / 'fex.deb').write_bytes(data)
+key = urllib.request.urlopen('https://ftp-master.debian.org/keys/archive-key-13.asc', timeout=60).read()
+assert hashlib.sha256(key).hexdigest() == '6f1d277429dd7ffedcc6f8688a7ad9a458859b1139ffa026d1eeaadcbffb0da7'
+(out / 'debian-key.asc').write_bytes(key)
 PY
+gpg --batch --yes --dearmor --output "$output/debian-keyring.gpg" "$output/debian-key.asc"
 dpkg-deb -x "$output/fex.deb" "$output/fex"
 rm "$output/fex.deb"
 # Only headless tools needed for these tests. All retained files are unchanged.
 for name in FEXConfig FEXRootFSFetcher FEXGetConfig FEXBash; do rm "$output/fex/usr/bin/$name"; done
 # No binfmt handler, apt sources, system packages or global FEX config changed.
 sudo mmdebstrap --variant=extract --architectures=amd64 \
+    --keyring="$PWD/$output/debian-keyring.gpg" \
     --include=libc6,libstdc++6,libx11-6 trixie "$output/rootfs" https://deb.debian.org/debian
+rm "$output/debian-key.asc" "$output/debian-keyring.gpg"
 sudo chown -R "$(id -u):$(id -g)" "$output/rootfs"
 mkdir -p "$output/rootfs/usr/lib/x86_64-linux-gnu"
 # Private diagnostic root only: directly load the supplied x86 thunk binaries.
