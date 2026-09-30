@@ -27,6 +27,8 @@ debug = '''    if grep -qw my_pc_steam_gdb=1 /proc/cmdline; then
             -ex 'set pagination off' -ex 'set print thread-events off' \\
             -ex run -ex 'printf "MYPC_TCTI_GDB_PC=%p\\n", $pc' \\
             -ex 'bt 12' -ex 'info proc mappings' \\
+            -ex 'printf "MYPC_TCTI_GDB_CODE_BEGIN\\n"' -ex 'x/4wx $pc' \\
+            -ex 'printf "MYPC_TCTI_GDB_CODE_END\\n"' \\
             --args "$steam_root/steamrtarm64/steam" -clientbeta publicbeta \\
             -no-cef-sandbox -cef-disable-gpu -cef-ozone-platform=x11 "$@" || true
         echo MYPC_TCTI_GDB_FINISHED

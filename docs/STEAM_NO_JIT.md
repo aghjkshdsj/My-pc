@@ -148,14 +148,16 @@ diagnostic is not a successful Steam gate or a cold interpreter install pass.
 
 The all-core/1280x800 update at `5879c98406fbf2bcdce8d7b988698e57f1dd9431`
 uses the shared CPU picker and actual frame dimensions without changing the
-`MYPC_INTERPRETER` execution policy. Run `36634273275` has passed the two pure
+`MYPC_INTERPRETER` execution policy. Run `36634273275` passed the two pure
 launch-policy tests, CPU-selection checks, iPhone source type-check and policy
-negative controls. The six-core guest boot subsequently timed out; IPA packaging was skipped.
+negative controls. It reached six online guest CPUs and persistence, but did
+not complete networking/shutdown within the 30-minute boot test. IPA packaging
+was skipped. This is a failed six-core interpreter boot gate.
 Its bare Linux seed is pinned to the verified six-core JIT boot/input run
 `36631484989` / `9399ce0c1b445bd56e3a5820f04cf4b307f303ef`; that guest's JIT
 Steam pass does not satisfy the interpreter Steam gate. No account or installed
-Valve client disk is included. The separate GDB run `36632105054` is in progress
-and publishes only bounded crash metadata, with no raw debugger log uploads.
+Valve client disk is included. Larger interpreter CPU selections remain
+experimental; the default has been restored to the tested two-core policy.
 
 The first GDB run completed its diagnostic wrapper but returned no signal,
 stopped PC or stack frames. It therefore did not locate the crash. The next
@@ -165,14 +167,22 @@ bounded crash metadata. It also identifies normal inferior exit or ptrace
 denial using fixed fields; a diagnostic without a signal and PC cannot pass
 as a captured crash. Neither diagnostic satisfies the Steam startup gate.
 
-The six-core interpreter boot in run `36634273275` reached Linux and reported
-six online CPUs and the persistence marker, but timed out after 30 minutes
-before the network/shutdown gate completed. This is a failed functional test,
-not a performance improvement. The interpreter now defaults to its previously
-tested two-core selection; explicit larger selections remain experimental. Its
-next boot/input gate requires two actual online CPUs and the 1280x800 display.
-The JIT product retains automatic all-core selection and its passed six-core
-Steam release. Full interpreter Steam startup remains unresolved.
+Run `36635686442` captured SIGSEGV at `0xffffdb65cf6c`, with 12 stripped stack
+frames and file offset `0x5cf6c`. The original library allowlist classified the
+crashing module as `other`, so this does not identify the cause. The next capture
+retains validated versioned system/Steam library basenames and per-frame file
+offsets, plus four instruction words only from a recognized executable mapping.
+Paths, registers, stack/heap contents, raw debugger logs and the installed client
+disk are not exported. The debugger remains a CI-only diagnostic.
+
+Run `36638826736` at `d9b23946324ec5fb6edf3b55e95fe10c987cca10` passed the restored
+two-core policy with the updated 1280x800 display: both launch modes, iPhone UI
+type-check, both frameworks, allocation-policy negative controls, two actual
+Linux boots, networking, persistence, display/input and clean shutdown. It also
+compiled/audited the iPhone product and packaged the real
+`MyPC-SteamARM64-NoJIT.ipa`. Development artifact `11066391395` includes that
+IPA, checksum and corresponding source; its ZIP digest is not the IPA checksum.
+This is not a successful full Steam gate or physical iOS/App Review proof.
 
 References: [pinned UTM build configuration](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/scripts/build_dependencies.sh),
 [pinned QEMU interpreter options](https://github.com/utmapp/qemu/blob/v10.0.12-utm/meson_options.txt),

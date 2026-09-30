@@ -1,5 +1,5 @@
 name: Trace the interpreter Steam client segfault
-run-name: Complete local GDB summary (${{ github.run_number }})
+run-name: Identify interpreter crash module and instructions (${{ github.run_number }})
 on:
   push:
     branches: [codex/steam-arm-interpreter]
