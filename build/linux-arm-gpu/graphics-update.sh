@@ -22,9 +22,11 @@ fail() {
     poweroff -f || reboot -f || true
     exit 1
 }
-trap fail EXIT
+# klibc dash accepts numeric traps, but rejects the EXIT signal name.
+trap fail 0
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=validate-root' >/dev/console
-test -n "${rootmnt:-}" && test -d "$rootmnt/usr/local"
+test -n "${rootmnt:-}" || fail
+test -d "$rootmnt/usr/local" || fail
 cd /my-pc-graphics
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=verify-payload' >/dev/console
 root_command sha256sum -c SHA256SUMS >/dev/null
@@ -49,4 +51,4 @@ done
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=sync' >/dev/console
 root_command sync
 echo 'MYPC_GRAPHICS_UPDATE_OK=1' >/dev/console
-trap - EXIT
+trap - 0
