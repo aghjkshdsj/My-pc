@@ -30,6 +30,9 @@ def checksum(workers, iterations):
 
 def environment(folder, temporary):
     env = os.environ.copy()
+    # Retain the current desktop's X11 cookie location when giving FEX a
+    # private HOME. The cookie itself is never copied, read or reported here.
+    env.setdefault('XAUTHORITY', str(pathlib.Path(env.get('HOME', '/home/steam')) / '.Xauthority'))
     # Clean only test-child variables. Never edit the user's Steam/FEX config.
     for name in list(env):
         if name.startswith('FEX_') or name in ('LIBGL_ALWAYS_SOFTWARE', 'GALLIUM_DRIVER', 'LD_PRELOAD', 'LD_LIBRARY_PATH'):
@@ -64,11 +67,15 @@ def execute(folder, mode, kind, workers, env, iterations=ITERATIONS):
     try:
         stdout, stderr = child.communicate(timeout=180)
     except BaseException:
-        os.killpg(child.pid, signal.SIGTERM)
+        if child.poll() is None:
+            try: os.killpg(child.pid, signal.SIGTERM)
+            except ProcessLookupError: pass
         try:
             child.communicate(timeout=3)
         except subprocess.TimeoutExpired:
-            os.killpg(child.pid, signal.SIGKILL); child.communicate()
+            try: os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError: pass
+            child.communicate()
         raise
     total_ms = (time.monotonic() - started) * 1000
     # Do not relay FEX or X11 logs, environment, paths or arguments to reports.

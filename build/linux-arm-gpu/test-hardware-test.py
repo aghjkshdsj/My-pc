@@ -11,6 +11,24 @@ hardware = importlib.util.module_from_spec(spec); spec.loader.exec_module(hardwa
 
 
 class DiagnosticValidation(unittest.TestCase):
+    def test_timeout_terminates_only_the_test_group(self):
+        child = Mock(pid=42,returncode=None); child.poll.return_value = None
+        expired = hardware.subprocess.TimeoutExpired('test',180)
+        child.communicate.side_effect = [expired,expired,(b'',b'')]
+        with patch.object(hardware.subprocess,'Popen',return_value=child), \
+             patch.object(hardware.signal,'SIGKILL',9,create=True), \
+             patch.object(hardware.os,'killpg',create=True) as kill:
+            with self.assertRaises(hardware.subprocess.TimeoutExpired):
+                hardware.execute(pathlib.Path('/test'),'fex','cpu',1,{})
+        self.assertEqual([call.args for call in kill.call_args_list],
+                         [(42,hardware.signal.SIGTERM),(42,9)])
+
+    def test_private_home_keeps_original_x11_auth_location(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(hardware.os.environ,{'HOME':'/home/steam'},clear=True):
+            env = hardware.environment(pathlib.Path('/test'),temporary)
+        self.assertEqual(env['XAUTHORITY'],str(pathlib.Path('/home/steam')/'.Xauthority'))
+        self.assertNotEqual(env['HOME'],'/home/steam')
+
     def test_corrupt_fex_checksum_cannot_pass(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder = pathlib.Path(temporary)
