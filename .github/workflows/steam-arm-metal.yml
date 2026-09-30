@@ -192,6 +192,18 @@ jobs:
           chmod +x build/linux-arm/output/packaged-macos/host-launcher
           for framework in build/linux-arm/output/packaged-macos/Frameworks/*.framework; do codesign --force --sign - "$framework"; done
           python3 build/linux-arm-gpu/probe-metal.py build/linux-arm/output/packaged-macos
+          # Require actual moving primary-color pixels through the iPhone ABI,
+          # in addition to the shader/CEF renderer and input response checks.
+          test "$(gh run view 36629999384 --json headSha --jq .headSha)" = 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2
+          test "$(gh run view 36629999384 --json conclusion --jq .conclusion)" = success
+          gh run download 36629999384 --name gpu-test-guest --dir build/linux-arm/output/pixel-download
+          mkdir -p build/linux-arm/output/pixel-guest
+          tar -xzf build/linux-arm/output/pixel-download/gpu-test-guest.tar.gz -C build/linux-arm/output/pixel-guest
+          (cd build/linux-arm/output/pixel-guest && shasum -a 256 -c SHA256SUMS)
+          clang -std=c11 -Wall -Wextra -Werror build/linux-arm-gpu/gpu-host-launcher.c app/Madeira/LinuxVMBridge.c \
+            -Wl,-rpath,@executable_path/Frameworks -o build/linux-arm/output/packaged-macos/gpu-host-launcher
+          codesign --force --sign - build/linux-arm/output/packaged-macos/gpu-host-launcher
+          python3 build/linux-arm-gpu/probe-guest.py build/linux-arm/output/pixel-guest build/linux-arm/output/packaged-macos
           python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --desktop --display --launcher build/linux-arm/output/packaged-macos/host-launcher --library build/linux-arm/output/packaged-macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
           python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/guest build/linux-arm/output/packaged-macos
           python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/steam-guest build/linux-arm/output/packaged-macos --steam
