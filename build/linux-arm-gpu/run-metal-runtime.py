@@ -71,6 +71,13 @@ with tempfile.TemporaryDirectory() as temporary:
             if line.startswith('MYPC_HARDWARE_RUNTIME_CHECK ') or line.startswith('MYPC_HARDWARE_CI_FAILURE '):
                 print(line[:8192],flush=True)
         assert 'MYPC_HARDWARE_RUNTIME_OK=1' in content, 'Production ARM/FEX diagnostics did not pass'
+        assert 'MYPC_HARDWARE_IDLE_PROGRESS_AND_HEARTBEAT_OK=1' in content, 'On-device idle/progress path must pass'
+        for line in content.splitlines():
+            if line.startswith('MYPC_HARDWARE_TEST ') and len(line) <= 16384:
+                state = json.loads(line[len('MYPC_HARDWARE_TEST '):])
+                if state['status'] == 'complete':
+                    print('MYPC_HARDWARE_PROGRESS_RESULT '+json.dumps({key:state[key] for key in
+                        ('kind','status','progress_percent','heartbeat_seq','elapsed_s')}),flush=True)
     for item in re.findall(r'MYPC_STEAM_INPUT_LATENCY (\{[^\r\n]{1,256}\})', content):
         state = json.loads(item)
         if set(state) == {'samples', 'median_ms', 'p95_ms'}:

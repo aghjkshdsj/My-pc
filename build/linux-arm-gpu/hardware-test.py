@@ -7,12 +7,69 @@ import pathlib
 import signal
 import statistics
 import subprocess
+import sys
 import tempfile
 import time
 import uuid
 
 ITERATIONS = 1000000
 MASK = (1 << 64) - 1
+SNAPSHOT_TIMEOUT = 3
+CPU_TIMEOUT = 30
+GPU_TIMEOUT = 60
+PROCESS_GROUPS = os.name == 'posix'
+
+
+def stop_child(child):
+    """Terminate only our new process group; cleanup is itself bounded."""
+    if child.poll() is None:
+        try:
+            if PROCESS_GROUPS: os.killpg(child.pid, signal.SIGTERM)
+            else: child.terminate()
+        except ProcessLookupError: pass
+    try:
+        child.communicate(timeout=1)
+    except subprocess.TimeoutExpired:
+        try:
+            if PROCESS_GROUPS: os.killpg(child.pid, signal.SIGKILL)
+            else: child.kill()
+        except ProcessLookupError: pass
+        # A stuck procfs read must never make cleanup wait indefinitely.
+        try: child.communicate(timeout=1)
+        except subprocess.TimeoutExpired: pass
+
+
+def wait_child(child, timeout, tick=None):
+    started = time.monotonic()
+    try:
+        while True:
+            remaining = timeout - (time.monotonic() - started)
+            if remaining <= 0: raise subprocess.TimeoutExpired('diagnostic-child', timeout)
+            try:
+                stdout, stderr = child.communicate(timeout=min(0.5, remaining))
+                if tick: tick(stdout, time.monotonic() - started)
+                return stdout, stderr
+            except subprocess.TimeoutExpired as error:
+                # communicate retains partial output across timeouts. Only a
+                # bounded tail is examined for the last actual work counter.
+                if tick: tick(error.output or b'', time.monotonic() - started)
+    except BaseException:
+        stop_child(child)
+        raise
+
+
+def work_progress(output, mode, kind):
+    for line in output[-65536:].decode(errors='replace').splitlines()[::-1]:
+        if not line.startswith('MYPC_BENCH_PROGRESS ') or len(line) > 1024: continue
+        try:
+            row = json.loads(line[len('MYPC_BENCH_PROGRESS '):])
+            total = 3 if kind == 'cpu' else 60
+            if (row['kind'] == kind and row['arch'] == ('aarch64' if mode == 'arm64' else 'x86_64') and
+                type(row['done']) is int and type(row['total']) is int and row['total'] == total and
+                0 <= row['done'] <= total and row['stage'] in ('warmup','samples','libraries','EGL','shader','pixel','frames')):
+                return row
+        except (ValueError, KeyError, TypeError): pass
+    return None
 
 
 def checksum(workers, iterations):
@@ -55,7 +112,7 @@ def environment(folder, temporary):
     return env
 
 
-def execute(folder, mode, kind, workers, env, iterations=ITERATIONS):
+def execute(folder, mode, kind, workers, env, iterations=ITERATIONS, tick=None, timeout=None):
     binary = folder / 'bin' / ('hardware-bench-arm64' if mode == 'arm64' else 'hardware-bench-x86_64')
     command = [str(binary), kind]
     if kind == 'cpu':
@@ -64,19 +121,9 @@ def execute(folder, mode, kind, workers, env, iterations=ITERATIONS):
         command.insert(0, str(folder / 'fex/usr/bin/FEX'))
     started = time.monotonic()
     child = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
-    try:
-        stdout, stderr = child.communicate(timeout=180)
-    except BaseException:
-        if child.poll() is None:
-            try: os.killpg(child.pid, signal.SIGTERM)
-            except ProcessLookupError: pass
-        try:
-            child.communicate(timeout=3)
-        except subprocess.TimeoutExpired:
-            try: os.killpg(child.pid, signal.SIGKILL)
-            except ProcessLookupError: pass
-            child.communicate()
-        raise
+    def update(output, elapsed):
+        if tick: tick(work_progress(output, mode, kind), elapsed)
+    stdout, stderr = wait_child(child, timeout or (CPU_TIMEOUT if kind == 'cpu' else GPU_TIMEOUT), update)
     total_ms = (time.monotonic() - started) * 1000
     # Do not relay FEX or X11 logs, environment, paths or arguments to reports.
     records = []
@@ -114,7 +161,7 @@ def execute(folder, mode, kind, workers, env, iterations=ITERATIONS):
     return row
 
 
-def snapshot():
+def snapshot(include_processes=True):
     result = {'online_cpus': os.cpu_count(), 'cores': {}, 'processes': {}}
     try:
         for line in pathlib.Path('/proc/stat').read_text().splitlines():
@@ -126,13 +173,18 @@ def snapshot():
                    if len(parts := line.split()) >= 2)
         result.update(mem_available_mib=round(mem.get('MemAvailable', 0)/1024, 1),
                       swap_used_mib=round((mem.get('SwapTotal', 0)-mem.get('SwapFree', 0))/1024, 1))
-        for pid in pathlib.Path('/proc').iterdir():
+        # Process accounting is optional and is never on the benchmark's
+        # critical path. The caller bounds this entire helper process.
+        scan_started = time.monotonic()
+        for index, pid in enumerate(pathlib.Path('/proc').iterdir() if include_processes else []):
+            if index >= 1024 or time.monotonic() - scan_started > 1: break
             if not pid.name.isdecimal(): continue
             try:
                 text = (pid / 'stat').read_text(); name = text[text.index('(')+1:text.rindex(')')]
                 # Fixed labels only: no command lines, game names or accounts.
                 label = {'steam':'steam', 'steamwebhelper':'steam_webhelper', 'Xorg':'xorg',
-                         'FEX':'fex', 'FEXInterpreter':'fex', 'hardware-bench-':'test'}.get(name)
+                         'FEX':'fex', 'FEXInterpreter':'fex'}.get(name)
+                if name.startswith('hardware-bench-'): label = 'test'
                 if label:
                     fields = text[text.rindex(')')+2:].split()
                     result['processes'][label] = result['processes'].get(label, 0) + int(fields[11]) + int(fields[12])
@@ -141,7 +193,27 @@ def snapshot():
     return result
 
 
+def collect_snapshot(tick=None, include_processes=True):
+    command = [sys.executable, str(pathlib.Path(__file__).resolve()), '--snapshot']
+    if not include_processes: command.append('--no-processes')
+    child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    try:
+        output, _ = wait_child(child, SNAPSHOT_TIMEOUT, lambda _output, elapsed: tick(elapsed) if tick else None)
+        if child.returncode or len(output) > 65536: return {'status':'unavailable'}
+        value = json.loads(output)
+        if not isinstance(value.get('cores'), dict) or not value.get('cores'): return {'status':'unavailable'}
+        value['status'] = 'measured'
+        return value
+    except subprocess.TimeoutExpired:
+        return {'status':'timeout'}
+    except (ValueError, TypeError):
+        return {'status':'unavailable'}
+
+
 def pressure(before, after):
+    if not before.get('cores') or not after.get('cores'):
+        return {'status':'unavailable', 'reason':'sampling-timeout' if 'timeout' in
+                (before.get('status'),after.get('status')) else 'sampling-unavailable'}
     elapsed = after.get('uptime_s', 0)-before.get('uptime_s', 0)
     cpus = []
     for key, end in after['cores'].items():
@@ -154,37 +226,68 @@ def pressure(before, after):
     ticks = os.sysconf('SC_CLK_TCK')
     processes = {key: round(max(0, value-before['processes'].get(key, 0))/ticks/elapsed*100,1)
                  for key,value in after['processes'].items() if elapsed > 0 and key in before['processes']}
-    return {'online_cpus': after['online_cpus'], 'sample_seconds': round(max(0,elapsed),2),
+    return {'status':'measured', 'online_cpus': after['online_cpus'], 'sample_seconds': round(max(0,elapsed),2),
             'per_core': cpus, 'process_cpu_percent': processes,
             'mem_available_mib': after.get('mem_available_mib'), 'swap_used_mib': after.get('swap_used_mib')}
 
 
-def run(kind, folder=None, emit=None):
+def run(kind, folder=None, emit=None, iterations=ITERATIONS):
     folder = pathlib.Path(folder or __file__).resolve().parent if folder is None else pathlib.Path(folder).resolve()
     identifier = str(uuid.uuid4())
-    state = {'schema':1, 'run':identifier, 'kind':kind, 'status':'running', 'stage':'sampling-idle', 'results':[]}
-    def publish():
-        if emit: emit(state.copy())
+    started = time.monotonic()
+    stage_started = started
+    last_emit = 0
+    state = {'schema':1, 'run':identifier, 'kind':kind, 'status':'running', 'stage':'sampling-idle',
+             'progress_percent':0, 'heartbeat_seq':0, 'elapsed_s':0, 'stage_elapsed_s':0, 'results':[]}
+    def publish(force=True):
+        nonlocal last_emit
+        now = time.monotonic()
+        if not force and now - last_emit < 1: return
+        state.update(heartbeat_seq=state['heartbeat_seq']+1, elapsed_s=round(now-started,2),
+                     stage_elapsed_s=round(now-stage_started,2))
+        if emit: emit(json.loads(json.dumps(state)))
+        last_emit = now
+    def sample(include_processes=True):
+        return collect_snapshot(lambda _elapsed: publish(False), include_processes)
     # Signals cancel children through execute's finally path, then return a
     # structured cancelled result instead of leaving a test using the CPU.
     def cancelled(*_): raise InterruptedError()
     old = signal.signal(signal.SIGTERM, cancelled)
     try:
-        publish(); before = snapshot(); time.sleep(3); state['idle_guest'] = pressure(before, snapshot()); publish()
+        publish(); before = sample()
+        idle_start = time.monotonic()
+        while time.monotonic() - idle_start < 3:
+            state['progress_percent'] = min(8, round(2 + (time.monotonic()-idle_start)*2,1))
+            publish(False); time.sleep(0.25)
+        state['idle_guest'] = pressure(before, sample())
+        state['progress_percent'] = 10; publish()
         workers = min(64, max(1, os.cpu_count() or 1))
+        steps = [(mode,count) for mode in ('arm64','fex')
+                 for count in ([1] + ([workers] if workers > 1 else []) if kind == 'cpu' else [1])]
         with tempfile.TemporaryDirectory(prefix='my-pc-hardware-') as temporary:
             env = environment(folder, temporary)
-            for mode in ('arm64', 'fex'):
-                for count in ([1] + ([workers] if workers > 1 else []) if kind == 'cpu' else [1]):
-                    state['stage'] = f'{mode}-{kind}-{count}'; publish()
-                    before = snapshot()
-                    try: row = execute(folder, mode, kind, count, env)
-                    except subprocess.TimeoutExpired:
-                        row = {'mode':mode,'kind':kind,'workers':count,'status':'timeout'}
-                    row['guest_load'] = pressure(before, snapshot())
-                    state['results'].append(row); publish()
-        state['status'] = 'complete' if all(row['status']=='passed' for row in state['results']) else 'failed'
-        state['stage'] = 'finished'
+            for index,(mode,count) in enumerate(steps):
+                stage_started = time.monotonic()
+                base, span = 10 + 90*index/len(steps), 90/len(steps)
+                state.update(stage=f'{mode}-{kind}-{count}', progress_percent=round(base,1),
+                             work_done=0, work_total=3 if kind=='cpu' else 60,
+                             work_unit='samples' if kind=='cpu' else 'frames', work_stage='launching')
+                publish(); before = sample(False)
+                def tick(work, _elapsed):
+                    if work:
+                        state.update(work_done=work['done'],work_total=work['total'],work_stage=work['stage'])
+                        state['progress_percent'] = max(state['progress_percent'], round(base+span*0.95*work['done']/work['total'],1))
+                    publish(False)
+                try: row = execute(folder, mode, kind, count, env, iterations, tick=tick)
+                except subprocess.TimeoutExpired:
+                    row = {'mode':mode,'kind':kind,'workers':count,'status':'timeout', 'stage':'workload-timeout'}
+                row['guest_load'] = pressure(before, sample(False))
+                state['results'].append(row)
+                if row['status'] != 'passed': break
+                state['progress_percent'] = round(base+span,1); publish()
+        passed = len(state['results']) == len(steps) and all(row['status']=='passed' for row in state['results'])
+        state['status'] = 'complete' if passed else 'failed'
+        state['stage'] = 'finished' if passed else 'workload-failed'
     except InterruptedError:
         state.update(status='cancelled',stage='cancelled')
     except Exception:
@@ -194,7 +297,10 @@ def run(kind, folder=None, emit=None):
     publish(); return state
 
 
-if __name__ == '__main__':
+def main():
+    if '--snapshot' in sys.argv[1:]:
+        print(json.dumps(snapshot('--no-processes' not in sys.argv[1:]),separators=(',',':')))
+        return
     import fcntl
     parser = argparse.ArgumentParser(); parser.add_argument('kind', choices=['cpu','gpu']); args = parser.parse_args()
     lock = open('/tmp/my-pc-hardware-test.lock', 'a+')
@@ -206,7 +312,10 @@ if __name__ == '__main__':
         line = 'MYPC_HARDWARE_TEST ' + json.dumps(state,separators=(',',':'),allow_nan=False)
         assert len(line) <= 16384
         console.write(line+'\n')
-        print(f"{state['kind'].upper()}: {state['stage']} · {state['status']}",flush=True)
+        print(f"{state['kind'].upper()}: {state['progress_percent']:.0f}% · {state['stage']} · {state['elapsed_s']:.0f}s · {state['status']}",flush=True)
     state = run(args.kind, emit=emit)
     print(json.dumps(state,indent=2),flush=True)
     print('\nDone. Results are available in My-pc → Hardware tests.',flush=True)
+
+
+if __name__ == '__main__': main()

@@ -23,6 +23,14 @@ static double now(clockid_t clock) {
     return t.tv_sec + t.tv_nsec / 1e9;
 }
 
+/* Work counters are emitted outside the measured intervals. The UI must not
+ * invent completion based on elapsed time when a driver or worker stalls. */
+static void progress(const char *kind, const char *stage, int done, int total) {
+    printf("MYPC_BENCH_PROGRESS {\"kind\":\"%s\",\"arch\":\"%s\",\"stage\":\"%s\","
+           "\"done\":%d,\"total\":%d}\n", kind, ARCH, stage, done, total);
+    fflush(stdout);
+}
+
 /* Dependent integer operations prevent vectorization or dead-code removal.
  * Each worker has the same fixed work; throughput is iterations/wall second. */
 static uint64_t workload(uint64_t seed, uint64_t iterations) {
@@ -43,6 +51,7 @@ static void *run_worker(void *arg) {
 static int cpu(int workers, uint64_t iterations) {
     if (workers < 1 || workers > 64 || iterations < 1 || iterations > 1000000) return 2;
     struct worker work[64]; pthread_t threads[64];
+    progress("cpu", "warmup", 0, 3);
     /* Warm the loop in this process before timing steady-state work. */
     volatile uint64_t warm = workload(1, 5000); (void)warm;
     for (int sample = 0; sample < 3; ++sample) {
@@ -65,6 +74,7 @@ static int cpu(int workers, uint64_t iterations) {
                cpuseconds * 1000, iterations * workers / seconds / 1e6,
                (unsigned long long)checksum);
         fflush(stdout);
+        progress("cpu", "samples", sample + 1, 3);
     }
     return 0;
 }
@@ -138,6 +148,7 @@ static int compare_double(const void *a, const void *b) {
 
 static int gpu(void) {
     const char *stage = "libraries";
+    progress("gpu", stage, 0, 60);
     void *x11 = dlopen("libX11.so.6", RTLD_NOW | RTLD_LOCAL);
     void *egl = dlopen("libEGL.so.1", RTLD_NOW | RTLD_LOCAL);
     Display *display = NULL; EDisplay ed = NULL;
@@ -163,6 +174,7 @@ static int gpu(void) {
      * it an x86 Xlib structure containing foreign function pointers. Window
      * IDs are shared across connections to the same X11 server. */
     stage = "EGL"; ed = eglGetDisplay(NULL);
+    progress("gpu", stage, 0, 60);
     if (!ed || !eglInitialize(ed, NULL, NULL) || !eglBindAPI(0x30A0)) goto failed;
     /* EGL window / ES2 / RGB8, same visual as the X11 default window. */
     /* The pinned EGL forwarding library has no eglGetConfigAttrib or
@@ -186,6 +198,7 @@ static int gpu(void) {
     GL(glGetUniformLocation); GL(glUniform4f); GL(glViewport); GL(glVertexAttribPointer);
     GL(glEnableVertexAttribArray); GL(glDrawArrays); GL(glReadPixels); GL(glFinish); GL(glGetError);
     stage = "shader";
+    progress("gpu", stage, 0, 60);
     vertex = shader(0x8B31, "attribute vec2 position; void main(){gl_Position=vec4(position,0.,1.);}");
     fragment = shader(0x8B30, "precision mediump float; uniform vec4 tint; void main(){gl_FragColor=tint;}");
     if (!vertex || !fragment) goto failed;
@@ -198,6 +211,7 @@ static int gpu(void) {
     glEnableVertexAttribArray(0);
     unsigned char pixel[4] = {0};
     stage = "pixel";
+    progress("gpu", stage, 0, 60);
     /* A real shader draw and exact red/green/blue readbacks, not just a name. */
     for (int color = 0; color < 3; ++color) {
         glUniform4f(tint, color == 0, color == 1, color == 2, 1);
@@ -216,7 +230,7 @@ static int gpu(void) {
     /* Warm shaders, then 60 visible frames, 16 full-screen draws per frame.
      * Finish separates CPU submission from GPU completion/backpressure.
      * This is a deliberately synchronized test, not an in-game FPS estimate. */
-    stage = "frames"; double start = now(CLOCK_MONOTONIC);
+    stage = "frames"; double seconds = 0;
     for (int frame = 0; frame < 60; ++frame) {
         double a = now(CLOCK_MONOTONIC);
         for (int draw = 0; draw < 16; ++draw) {
@@ -227,8 +241,9 @@ static int gpu(void) {
         if (!eglSwapBuffers(ed, surface) || glGetError()) goto failed;
         double d = now(CLOCK_MONOTONIC);
         drawtime[frame] = (b-a)*1000; finishtime[frame] = (c-b)*1000; swaptime[frame] = (d-c)*1000;
+        seconds += d-a;
+        progress("gpu", stage, frame + 1, 60);
     }
-    double seconds = now(CLOCK_MONOTONIC) - start;
     qsort(drawtime, 60, sizeof(double), compare_double);
     qsort(finishtime, 60, sizeof(double), compare_double);
     qsort(swaptime, 60, sizeof(double), compare_double);

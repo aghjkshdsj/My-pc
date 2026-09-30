@@ -128,6 +128,36 @@ struct LinuxHardwareObservation: Decodable {
     let status: String
     let stage: String
     let results: [LinuxHardwareResult]
+    let progressPercent: Double?
+    let heartbeatSeq: Int?
+    let elapsedS: Double?
+    let stageElapsedS: Double?
+    let workDone: Int?
+    let workTotal: Int?
+    let workUnit: String?
+    let workStage: String?
+    var stageTitle: String {
+        if stage == "sampling-idle" { return "Checking Linux CPU activity" }
+        if stage == "finished" { return "Tests finished" }
+        if stage == "cancelled" { return "Test stopped" }
+        if stage.hasPrefix("arm64-cpu-") { return "ARM64 Linux CPU · \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
+        if stage.hasPrefix("fex-cpu-") { return "FEX CPU · \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
+        if stage.hasPrefix("arm64-gpu-") { return "ARM64 graphics" }
+        if stage.hasPrefix("fex-gpu-") { return "FEX graphics" }
+        return "Diagnostic test failed"
+    }
+    var workTitle: String? {
+        switch workStage {
+        case "libraries", "launching": return "Loading the test runtime"
+        case "EGL", "shader": return "Preparing graphics and shaders"
+        case "pixel": return "Checking rendered pixels"
+        case "warmup": return "Warming up the CPU workload"
+        case "frames", "samples":
+            if let workDone, let workTotal, let workUnit { return "\(workDone) of \(workTotal) \(workUnit) finished" }
+            return nil
+        default: return nil
+        }
+    }
     static func observation(in text: String) -> (Self, String)? {
         for line in text.split(separator: "\n").reversed() {
             guard let marker = line.range(of: "MYPC_HARDWARE_TEST ") else { continue }
@@ -137,6 +167,14 @@ struct LinuxHardwareObservation: Decodable {
             guard let value = try? decoder.decode(Self.self, from: Data(json.utf8)),
                   value.schema == 1, UUID(uuidString: value.run) != nil,
                   ["running", "complete", "failed", "cancelled"].contains(value.status),
+                  value.progressPercent.map({ $0.isFinite && (0...100).contains($0) }) ?? true,
+                  value.heartbeatSeq.map({ (0...10_000_000).contains($0) }) ?? true,
+                  value.elapsedS.map({ $0.isFinite && $0 >= 0 }) ?? true,
+                  value.stageElapsedS.map({ $0.isFinite && $0 >= 0 }) ?? true,
+                  value.workDone.map({ (0...60).contains($0) }) ?? true,
+                  value.workTotal.map({ (1...60).contains($0) }) ?? true,
+                  value.workUnit.map({ ["samples", "frames"].contains($0) }) ?? true,
+                  value.workStage.map({ $0.utf8.count <= 32 }) ?? true,
                   value.stage.utf8.count <= 64, value.results.count <= 4,
                   value.results.allSatisfy({ ["arm64", "fex"].contains($0.mode) &&
                       $0.kind == value.kind.rawValue && ["passed", "failed", "timeout"].contains($0.status) &&
@@ -144,6 +182,46 @@ struct LinuxHardwareObservation: Decodable {
             return (value, json)
         }
         return nil
+    }
+}
+
+/// Host time and fresh guest records are distinct from work completion. An
+/// unchanged serial record must not be treated as a fresh heartbeat.
+struct LinuxHardwareHeartbeat {
+    private(set) var startedAt: Double?
+    private(set) var updatedAt: Double?
+    private(set) var cancellationAt: Double?
+    private var lastJSON: String?
+    mutating func start(now: Double) {
+        startedAt = now; updatedAt = nil; cancellationAt = nil; lastJSON = nil
+    }
+    mutating func receive(_ json: String, now: Double) -> Bool {
+        guard json != lastJSON else { return false }
+        lastJSON = json; updatedAt = now
+        return true
+    }
+    func elapsed(now: Double) -> Double { max(0, now - (startedAt ?? now)) }
+    func age(now: Double) -> Double { max(0, now - (updatedAt ?? startedAt ?? now)) }
+    func needsCancellation(now: Double) -> Bool {
+        startedAt != nil && cancellationAt == nil && (age(now: now) >= 45 || elapsed(now: now) >= 180)
+    }
+    mutating func cancel(now: Double) { if cancellationAt == nil { cancellationAt = now } }
+    func unresponsive(now: Double) -> Bool { cancellationAt.map { now - $0 >= 15 } ?? false }
+    mutating func excludeBackgroundTime(_ seconds: Double) {
+        if let time = startedAt { startedAt = time + seconds }
+        if let time = updatedAt { updatedAt = time + seconds }
+        if let time = cancellationAt { cancellationAt = time + seconds }
+    }
+}
+
+enum LinuxAppVisibility { case active, inactive, background }
+enum LinuxPausePolicy {
+    static func change(for visibility: LinuxAppVisibility) -> Bool? {
+        switch visibility {
+        case .active: return false
+        case .background: return true
+        case .inactive: return nil // Temporary menus/system UI must not stop Linux.
+        }
     }
 }
 

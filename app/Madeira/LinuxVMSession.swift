@@ -238,15 +238,42 @@ private enum LinuxProcessMetrics {
     @Published private(set) var gpuObservation: LinuxHardwareObservation?
     @Published private(set) var nativeCPUMilliseconds: Double?
     @Published private(set) var nativeCPUChecksum: String?
+    @Published private(set) var hardwareElapsedSeconds = 0.0
+    @Published private(set) var hardwareHeartbeatAge = 0.0
+    @Published private(set) var hardwareCancellationRequested = false
+    @Published private(set) var hardwareTestUnresponsive = false
+    @Published private(set) var hardwareRequestedKind: LinuxHardwareTestKind?
+    private var hardwareHeartbeat = LinuxHardwareHeartbeat()
+    private var hardwareBackgroundTime: Double?
+    private var backgroundRequested = false
     private var cpuReportJSON: String?
     private var gpuReportJSON: String?
     private var previousHardwareRun: String?
     private var hardwareRequestTime = 0.0
     var hardwareTestBusy: Bool { hardwareTestWaiting || hardwareObservation?.status == "running" }
     var hardwareTestStatus: String {
+        if hardwareTestUnresponsive { return "Linux did not acknowledge stopping the test. Shut down Linux or restart My-pc before retrying." }
+        if hardwareCancellationRequested { return "Stopping the diagnostic test…" }
+        if paused && hardwareTestBusy { return "Test paused while My-pc is in the background." }
         if hardwareTestWaiting { return "Waiting for the Linux diagnostic launcher…" }
         guard let result = hardwareObservation else { return hardwareTestsReady ? "Ready to test." : "Tests become available after the Metal startup update and desktop boot." }
-        return "\(result.kind.title): \(result.stage) · \(result.status)"
+        return "\(result.stageTitle) · \(result.status)"
+    }
+    var hardwareProgress: Double {
+        guard let observation = hardwareObservation else {
+            return hardwareTestWaiting && nativeCPUMilliseconds != nil && hardwareRequestedKind == .cpu ? 0.05 : 0
+        }
+        if observation.status == "complete" { return 1 }
+        let percent = observation.progressPercent ?? 0
+        return (observation.kind == .cpu ? 5 + percent * 0.95 : percent) / 100
+    }
+    var hardwareHeartbeatStatus: String {
+        if !hardwareTestBusy { return "Results stay available below." }
+        if paused { return "Resume My-pc to continue the test." }
+        if hardwareTestUnresponsive { return "No response from Linux. The last percentage is retained." }
+        if hardwareHeartbeatAge >= 15 { return "No Linux heartbeat for \(Int(hardwareHeartbeatAge)) seconds." }
+        if hardwareTestWaiting { return "Waiting for the first Linux heartbeat." }
+        return "Linux heartbeat received \(Int(hardwareHeartbeatAge)) seconds ago."
     }
     var hardwareReport: String {
         var report: [String: Any] = ["schema": 1,
@@ -260,7 +287,11 @@ private enum LinuxProcessMetrics {
             "display_fps": displayFPS, "input_ack_ms": inputMilliseconds.map { $0 as Any } ?? NSNull(),
             "native_ios_single_worker_ms": nativeCPUMilliseconds.map { $0 as Any } ?? NSNull(),
             "native_ios_checksum": nativeCPUChecksum.map { $0 as Any } ?? NSNull(),
-            "native_ios_iterations": LinuxNativeCPUBenchmark.iterations]
+            "native_ios_iterations": LinuxNativeCPUBenchmark.iterations,
+            "vm_paused": paused, "vm_connected": connected,
+            "hardware_monitor": ["active_elapsed_s": hardwareElapsedSeconds,
+                "guest_heartbeat_age_s": hardwareHeartbeatAge, "cancellation_requested": hardwareCancellationRequested,
+                "unresponsive": hardwareTestUnresponsive]]
         for (key, json) in [("cpu_test", cpuReportJSON), ("gpu_test", gpuReportJSON)] {
             if let json, let value = try? JSONSerialization.jsonObject(with: Data(json.utf8)) { report[key] = value }
         }
@@ -268,21 +299,29 @@ private enum LinuxProcessMetrics {
             .map { String(decoding: $0, as: UTF8.self) } ?? "Hardware report unavailable."
     }
     func runHardwareTest(_ kind: LinuxHardwareTestKind) {
-        guard running, connected, !paused, hardwareTestsReady, !hardwareTestBusy else { return }
+        guard running, connected, !paused, hardwareTestsReady, !hardwareTestBusy, !hardwareTestUnresponsive else { return }
         hardwareTestWaiting = true
         previousHardwareRun = hardwareObservation?.run
+        hardwareObservation = nil
         hardwareRequestTime = ProcessInfo.processInfo.systemUptime
+        hardwareHeartbeat.start(now: hardwareRequestTime)
+        hardwareRequestedKind = kind
+        hardwareElapsedSeconds = 0; hardwareHeartbeatAge = 0
+        hardwareCancellationRequested = false; hardwareTestUnresponsive = false
         Task {
             if kind == .cpu {
                 let result = await Task.detached(priority: .userInitiated) { LinuxNativeCPUBenchmark.run() }.value
                 nativeCPUMilliseconds = result.milliseconds; nativeCPUChecksum = result.checksum
             }
+            guard running, connected, !hardwareCancellationRequested else { return }
             qmp.discardMotion()
             sendKeyboard(LinuxHardwareTestKind.shortcut(kind.key))
         }
     }
     func cancelHardwareTest() {
         guard connected, hardwareTestBusy else { return }
+        hardwareCancellationRequested = true
+        hardwareHeartbeat.cancel(now: ProcessInfo.processInfo.systemUptime)
         sendKeyboard(LinuxHardwareTestKind.shortcut("f10"))
     }
     @Published private(set) var paused = false
@@ -466,6 +505,9 @@ private enum LinuxProcessMetrics {
             hardwareTestsReady = false; hardwareTestWaiting = false; hardwareObservation = nil
             cpuObservation = nil; gpuObservation = nil; cpuReportJSON = nil; gpuReportJSON = nil
             nativeCPUMilliseconds = nil; nativeCPUChecksum = nil
+            hardwareHeartbeat = LinuxHardwareHeartbeat(); hardwareBackgroundTime = nil
+            hardwareElapsedSeconds = 0; hardwareHeartbeatAge = 0; hardwareRequestedKind = nil
+            hardwareCancellationRequested = false; hardwareTestUnresponsive = false
             started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores · \(graphicsMode.title)…"
             UIApplication.shared.isIdleTimerDisabled = true
             beginPerformanceSample()
@@ -478,7 +520,9 @@ private enum LinuxProcessMetrics {
                 Task { @MainActor in
                     guard self.running else { return }
                     switch result {
-                    case .success: self.connected = true; self.status = "Linux is running with \(self.guestCPUCount) virtual CPU cores."
+                    case .success:
+                        self.connected = true; self.status = "Linux is running with \(self.guestCPUCount) virtual CPU cores."
+                        self.setBackground(self.backgroundRequested)
                     case .failure(let error): self.error = error.localizedDescription
                     }
                 }
@@ -496,6 +540,7 @@ private enum LinuxProcessMetrics {
                     self.pendingPointer = nil; self.pointerDown = false
                     self.displayFPS = 0; self.cpuPercent = nil; self.paused = false
                     self.hardwareTestsReady = false; self.hardwareTestWaiting = false
+                    self.hardwareCancellationRequested = false
                     UIApplication.shared.isIdleTimerDisabled = false
                     self.status = code == 0 ? "Linux shut down. Restart My-pc for another session." : "Linux stopped: \(detail)"
                     if code != 0 { self.error = detail }
@@ -533,16 +578,25 @@ private enum LinuxProcessMetrics {
         qmp.click(x: x, y: y, button: button)
     }
     func setBackground(_ background: Bool) {
+        backgroundRequested = background
         guard connected else { return }
+        guard paused != background else { return }
         paused = background
         if background {
+            hardwareBackgroundTime = ProcessInfo.processInfo.systemUptime
             if pointerDown {
                 qmp.send("input-send-event", arguments: LinuxQMP.pointer(x: lastPointer.x, y: lastPointer.y, down: false))
             }
             pendingPointer = nil; pointerDown = false
             qmp.discardMotion()
             cpuPercent = nil; displayFPS = 0
-        } else { beginPerformanceSample() }
+        } else {
+            if let time = hardwareBackgroundTime {
+                hardwareHeartbeat.excludeBackgroundTime(max(0, ProcessInfo.processInfo.systemUptime - time))
+            }
+            hardwareBackgroundTime = nil
+            beginPerformanceSample()
+        }
         qmp.send(background ? "stop" : "cont")
     }
     private func beginPerformanceSample() {
@@ -577,8 +631,13 @@ private enum LinuxProcessMetrics {
                         if guestGraphics == nil { guestGraphics = LinuxGuestGraphics.observation(in: text) }
                         if text.contains("MYPC_HARDWARE_TEST_READY=1") { hardwareTestsReady = true }
                         if let (observation, json) = LinuxHardwareObservation.observation(in: text),
-                           !hardwareTestWaiting || observation.run != previousHardwareRun {
+                           observation.run != previousHardwareRun || !hardwareTestWaiting,
+                           hardwareHeartbeat.receive(json, now: now) {
                             hardwareTestWaiting = false; hardwareObservation = observation
+                            hardwareElapsedSeconds = hardwareHeartbeat.elapsed(now: now); hardwareHeartbeatAge = 0
+                            if observation.status != "running" {
+                                hardwareCancellationRequested = false; hardwareTestUnresponsive = false
+                            }
                             if observation.kind == .cpu { cpuObservation = observation; cpuReportJSON = json }
                             else { gpuObservation = observation; gpuReportJSON = json }
                         }
@@ -586,9 +645,11 @@ private enum LinuxProcessMetrics {
                 }
             }
         }
-        if hardwareTestWaiting && now - hardwareRequestTime > 150 {
-            hardwareTestWaiting = false
-            error = "Linux has not started the diagnostic test. Close a finished test window and retry; the existing session is preserved."
+        if hardwareTestBusy {
+            hardwareElapsedSeconds = hardwareHeartbeat.elapsed(now: now)
+            hardwareHeartbeatAge = hardwareHeartbeat.age(now: now)
+            if hardwareHeartbeat.needsCancellation(now: now) { cancelHardwareTest() }
+            hardwareTestUnresponsive = hardwareHeartbeat.unresponsive(now: now)
         }
         sampleTime = now; displayedFrames = 0
     }

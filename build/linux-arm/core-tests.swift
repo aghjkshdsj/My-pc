@@ -152,3 +152,27 @@ let shortcut = LinuxHardwareTestKind.shortcut("f9")
 check(shortcut.count == 6 && shortcut.last?["data"] as? [String: Any] != nil,
       "Diagnostic shortcut must include modifier releases")
 print("PASS: diagnostic schema, native workload checksum and fixed shortcut transitions")
+
+let progressLine = hardwareLine.replacingOccurrences(of: "\"stage\":\"finished\"", with:
+    "\"stage\":\"fex-gpu-1\",\"progress_percent\":55,\"heartbeat_seq\":7,\"elapsed_s\":4,\"work_done\":20,\"work_total\":60,\"work_unit\":\"frames\",\"work_stage\":\"frames\"")
+let progress = LinuxHardwareObservation.observation(in: progressLine)!.0
+check(progress.progressPercent == 55 && progress.workTitle == "20 of 60 frames finished", "Display actual work counters")
+check(LinuxHardwareObservation.observation(in: progressLine.replacingOccurrences(of: "\"progress_percent\":55", with: "\"progress_percent\":101")) == nil,
+      "Impossible completion must not enter progress UI")
+var heartbeat = LinuxHardwareHeartbeat()
+heartbeat.start(now: 10)
+check(heartbeat.receive(progressLine, now: 11), "First record establishes a heartbeat")
+check(!heartbeat.receive(progressLine, now: 30), "Rereading the same serial record is not a new heartbeat")
+check(heartbeat.age(now: 30) == 19 && !heartbeat.needsCancellation(now: 30), "Host elapsed time cannot manufacture guest activity")
+check(heartbeat.needsCancellation(now: 56), "No guest heartbeat for 45 seconds requests cancellation")
+heartbeat.cancel(now: 56)
+check(!heartbeat.needsCancellation(now: 57) && heartbeat.unresponsive(now: 71), "Send cancellation once and identify a missing response")
+heartbeat.excludeBackgroundTime(100)
+check(heartbeat.age(now: 156) == 45 && !heartbeat.unresponsive(now: 156), "Background time does not consume the active cancellation deadline")
+heartbeat.start(now: 1)
+_ = heartbeat.receive("fresh", now: 179)
+check(heartbeat.needsCancellation(now: 181), "A live heartbeat cannot keep a stalled workload running forever")
+check(LinuxPausePolicy.change(for: .inactive) == nil, "Temporary iOS interruptions must not stop the guest")
+check(LinuxPausePolicy.change(for: .background) == true && LinuxPausePolicy.change(for: .active) == false,
+      "Leaving and returning to the app must pause and resume Linux")
+print("PASS: real work progress, stale heartbeat detection, bounded cancellation and modal pause policy")
