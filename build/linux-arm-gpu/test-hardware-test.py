@@ -16,10 +16,24 @@ keys = importlib.util.module_from_spec(key_spec); key_spec.loader.exec_module(ke
 
 
 class DiagnosticValidation(unittest.TestCase):
+    def test_signal_cancellation_emits_a_final_result(self):
+        records = []
+        previous = hardware.signal.getsignal(hardware.signal.SIGTERM)
+        def emit(state):
+            records.append(state)
+            if state['status']=='running': hardware.signal.raise_signal(hardware.signal.SIGTERM)
+        with tempfile.TemporaryDirectory() as folder:
+            result = hardware.run('cpu',folder,emit)
+        self.assertEqual(result['status'],'cancelled')
+        self.assertEqual(records[-1]['status'],'cancelled')
+        self.assertEqual(records[-1]['progress_percent'],0)
+        self.assertEqual(hardware.signal.getsignal(hardware.signal.SIGTERM),previous)
+
     def test_stop_targets_only_the_launched_test_descendant(self):
         with tempfile.TemporaryDirectory() as temporary:
             proc = pathlib.Path(temporary)
-            for pid,children,argv in [(40,'41',b'xterm\0'),(41,'',b'python3\0-u\0'+str(keys.folder/'hardware-test.py').encode()+b'\0cpu\0'),
+            script = str(keys.folder/'hardware-test.py').encode()
+            for pid,children,argv in [(40,'41',b'xterm\0-e\0python3\0-u\0'+script+b'\0cpu\0'),(41,'',b'python3\0-u\0'+script+b'\0cpu\0'),
                                       (99,'',b'steam\0private-account\0')]:
                 entry = proc/str(pid); (entry/'task'/str(pid)).mkdir(parents=True)
                 (entry/'task'/str(pid)/'children').write_text(children)

@@ -20,7 +20,9 @@ def cancel_runner(xterm_pid, proc=pathlib.Path('/proc')):
             with (proc/str(pid)/'cmdline').open('rb') as stream: argv = stream.read(4096).split(b'\0')
             script = str(folder/'hardware-test.py').encode()
             index = argv.index(script) if script in argv else -1
-            if index >= 1 and len(argv)>index+1 and argv[index+1] in (b'cpu',b'gpu'):
+            executable = argv[0].rsplit(b'/',1)[-1] if argv else b''
+            is_python = executable == b'python3' or executable.startswith(b'python3.')
+            if is_python and index >= 1 and len(argv)>index+1 and argv[index+1] in (b'cpu',b'gpu'):
                 os.kill(pid,signal.SIGTERM)
                 return True
             with (proc/str(pid)/'task'/str(pid)/'children').open('rb') as stream:
