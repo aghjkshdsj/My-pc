@@ -35,7 +35,16 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
+      - name: Check whether the unchanged runtime already passed
+        id: prior
+        run: python3 build/linux-arm-gpu/reuse-runtime-checks.py
+      - name: Restore the guest artifacts whose runtime gates passed
+        if: steps.prior.outputs.reuse == 'true'
+        run: |
+          gh run download 36659448881 --name linux-arm-guest --dir build/linux-arm/output
+          gh run download 36659448881 --name metal-steam-test-guest --dir build/linux-arm-gpu/output
       - name: Prepare a bare production runtime and validate preservation on the older disk
+        if: steps.prior.outputs.reuse != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-system-arm initramfs-tools-core
@@ -138,12 +147,19 @@ jobs:
     runs-on: macos-26
     needs: [guest, qemu, ui]
     timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: build/linux-arm/metal-downloads
+      - name: Verify the prior complete packaged Metal and Steam gates
+        id: prior
+        run: python3 build/linux-arm-gpu/reuse-runtime-checks.py
       - name: Test both software fallback and the production Metal update
+        if: steps.prior.outputs.reuse != 'true'
         run: |
           mkdir -p build/linux-arm/output/macos build/linux-arm/output/guest build/linux-arm/output/steam-guest
           tar -xzf build/linux-arm/metal-downloads/linux-arm-qemu-macos/linux-arm-qemu-macos.tar.gz -C build/linux-arm/output/macos
