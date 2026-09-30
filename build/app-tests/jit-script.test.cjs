@@ -31,3 +31,24 @@ for (const [response, expected] of [['E35', 0n], ['E09', 0n], ['', 0n], ['OK', 0
     assert.equal(prepared.length, expected === 0n ? 0 : 1, `Prepared invalid address from ${response}`);
 }
 console.log('JIT allocation protocol tests passed');
+
+// QEMU's BRK #0x69 uses only x0/x1; x16 need not be in the stop packet.
+for (const size of [0n, 0x8000000n]) {
+    let continued = false;
+    const prepared = [];
+    const address = 0x120000000n;
+    const stop = `T05thread:1;00:${littleEndian(address)};01:${littleEndian(size)};20:${littleEndian(0x4000n)};`;
+    vm.runInNewContext(source, {
+        get_pid: () => 123,
+        log: () => {},
+        prepare_memory_region: (addr, length) => { prepared.push([addr, length]); return true; },
+        send_command: command => {
+            if (command.startsWith('vAttach')) return 'T11thread:1;';
+            if (command === 'c') { if (continued) return 'W00'; continued = true; return stop; }
+            if (command === 'm4000,4') return '200d20d4';
+            return 'OK';
+        }
+    }, { timeout: 1000 });
+    assert.deepEqual(prepared, size ? [[address, size]] : []);
+}
+console.log('QEMU JIT region protocol tests passed');

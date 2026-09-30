@@ -1,0 +1,96 @@
+name: ARM port diagnostic artifacts
+on:
+  push:
+    branches: [codex/steam-arm-linux]
+    paths: [.github/workflows/steam-arm-diagnostics.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  logs:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    steps:
+      - name: Read saved Steam guest diagnostics
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh api "repos/$GH_REPO/actions/artifacts/11008672019/zip" > guest.zip
+          python3 - <<'PY'
+          import json, re, zipfile
+          log = zipfile.ZipFile('guest.zip').read('boot-4.log').decode(errors='replace')
+          # Never publish raw log lines, URLs, arguments, values or arbitrary
+          # error messages. The report contains only fixed labels and numbers.
+          patterns = {
+              'kernel_oom': r'Out of memory: Killed process|oom-kill:',
+              'illegal_instruction': r'Illegal instruction|SIGILL',
+              'segmentation_fault': r'Segmentation fault|SIGSEGV|Received signal 11',
+              'cef_fatal': r'FATAL:',
+              'cef_check_failed': r'Check failed:',
+              'cef_network_service_crash': r'Network service crashed',
+              'cef_gpu_process_crash': r'GPU process exited unexpectedly',
+              'cef_renderer_crash': r'Renderer process crashed|Render process terminated|Render process gone',
+              'cef_not_responding': r'webhelper.*not responding|webhelper.*unresponsive',
+              'mutex_failure': r'LockMgrMutex failed to acquire SysMgrMutex',
+              'login_title_present': r'Sign in to Steam',
+              'guest_success': r'MYPC_GUEST_STEAM_WINDOW_OK',
+              'guest_failure': r'MYPC_GUEST_STEAM_FAILED',
+              'cef_helper_launch': r'steamwebhelper\.sh\[|Starting steamwebhelper',
+              'cef_debug_listening': r'DevTools listening on',
+              'dns_resolution_failure': r'ERR_NAME_NOT_RESOLVED|Name or service not known|Could not resolve host',
+              'connection_refused': r'ERR_CONNECTION_REFUSED|Connection refused',
+              'proxy_failure': r'ERR_PROXY_CONNECTION_FAILED|ERR_TUNNEL_CONNECTION_FAILED',
+              'websocket_disconnected': r'WebUITransportStore: Connection status: disconnected',
+              'websocket_connected': r'WebUITransportStore: Connection status: connected',
+              'network_timeout': r'ERR_CONNECTION_TIMED_OUT|ERR_TIMED_OUT',
+              'ssl_failure': r'ERR_CERT_|ERR_SSL_',
+              'update_complete': r'Update complete, launching|Update complete, restarting|Update complete',
+              'verification_complete': r'Verification complete',
+              'missing_library': r'=> not found|error while loading shared libraries',
+              'websocket_tcp_request': r'WebUITransport: TCP connection request',
+              'websocket_rejected': r'WebUITransport: Connection rejected',
+              'websocket_connection_failed': r'WebUITransport: Connection failed',
+              'websocket_local_connection': r'WebUITransport: Connection from: 127\.0\.0\.1',
+              'steam_ui_stalled': r'SteamUI thread frame stalled for:',
+              'kernel_random_initialized': r'random: crng init done',
+              'interactive_prompt': r'Press (enter|return|any key)|press Enter',
+              'command_missing': r'command not found|: not found',
+              'missing_lsof': r'lsof: (?:command )?not found',
+          }
+          report = {'counts': {key: len(re.findall(pattern, log, re.I)) for key, pattern in patterns.items()}}
+          def section_json(name):
+              try:
+                  section = log.split('\n' + name + ':', 1)[1].lstrip()
+                  return json.JSONDecoder().raw_decode(section)[0]
+              except (IndexError, ValueError):
+                  return None
+          readiness = section_json('cef-readiness.json')
+          if isinstance(readiness, list):
+              observations = []
+              for entry in readiness[:32]:
+                  state = entry.get('state') or {}
+                  error = str(entry.get('error', ''))
+                  observations.append({
+                      'has_state': bool(state),
+                      'document_complete': state.get('readyState') == 'complete',
+                      'password_visible': state.get('passwordVisible') is True,
+                      'timeout': 'timed out' in error.lower(),
+                      'connection_refused': 'connection refused' in error.lower(),
+                  })
+              report['readiness'] = observations
+          targets = section_json('cef-targets.json')
+          if isinstance(targets, list):
+              report['target_count'] = len(targets)
+              report['login_target_count'] = sum(target.get('title') in
+                  {'Steam', 'Sign in to', 'Sign in to Steam', 'Steam Sign In'} for target in targets)
+          window = section_json('client-window.json')
+          report['mapped_client_detected'] = isinstance(window, dict)
+          # Presence/counts only; never echo process arguments or window text.
+          processes = log.split('\nprocesses.txt:', 1)[-1].split('\nclient-window.json:', 1)[0] if '\nprocesses.txt:' in log else ''
+          report['steam_process_count'] = len(re.findall(r'^\s*\d+\s+\d+\s+steam\s', processes, re.M))
+          report['webhelper_process_count'] = len(re.findall(r'^\s*\d+\s+\d+\s+steamwebhelper\s', processes, re.M))
+          report['ui_stall_milliseconds'] = [int(value) for value in
+              re.findall(r'SteamUI thread frame stalled for: (\d{1,8}) ms', log)[:32]]
+          print(json.dumps(report, indent=2))
+          PY

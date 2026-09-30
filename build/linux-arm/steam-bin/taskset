@@ -1,0 +1,9 @@
+#!/bin/sh
+# Valve's ARM helper targets CPUs 2-6. Let it inherit the VM's available CPUs.
+# Only this exact Steam invocation changes; all other affinity requests retain
+# util-linux taskset behavior. This directory is on PATH only inside Steam.
+if [ "$#" -ge 2 ] && [ "$1" = "0x7c" ] && [ "${2##*/}" = "steamwebhelper" ]; then
+    shift
+    exec "$@"
+fi
+exec /usr/bin/taskset "$@"

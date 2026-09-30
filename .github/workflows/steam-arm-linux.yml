@@ -1,0 +1,194 @@
+name: ARM Linux runtime
+on:
+  push:
+    branches: [codex/steam-arm-linux]
+    paths: [build/linux-arm/**, app/**, .github/workflows/steam-arm-linux.yml, .github/workflows/steam-arm-client.yml, .github/workflows/steam-arm-ipa.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: arm-linux-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  client:
+    uses: ./.github/workflows/steam-arm-client.yml
+  bridge-checks:
+    name: iPhone bridge and JIT checks
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          xcrun --sdk iphoneos clang -target arm64-apple-ios17.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -std=c11 -Wall -Wextra -Werror -fsyntax-only app/Madeira/LinuxVMBridge.c
+          node --test build/app-tests/jit-script.test.cjs
+          python3 -m py_compile build/linux-arm/*.py
+          clang -std=c11 -Wall -Wextra -Werror -Wno-unused-parameter build/linux-arm/display-tests.c -o "$RUNNER_TEMP/display-tests"
+          "$RUNNER_TEMP/display-tests"
+          cp build/linux-arm/core-tests.swift "$RUNNER_TEMP/main.swift"
+          swiftc app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/linux-core-tests"
+          "$RUNNER_TEMP/linux-core-tests"
+          cp build/linux-arm/installer-tests.swift "$RUNNER_TEMP/main.swift"
+          swiftc app/Madeira/GameLibraryCore.swift app/Madeira/StoreCore.swift app/Madeira/LinuxVMCore.swift app/Madeira/LinuxRuntimeInstaller.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/linux-installer-tests"
+          "$RUNNER_TEMP/linux-installer-tests"
+  qemu:
+    name: QEMU ARM64 (${{ matrix.platform }})
+    needs: [client, bridge-checks]
+    runs-on: macos-26
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, macos]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: qemu-cache
+        with:
+          path: build/linux-arm/output/${{ matrix.platform }}
+          key: arm-qemu-v1-${{ matrix.platform }}-${{ hashFiles('build/linux-arm/build-qemu.sh', 'build/linux-arm/prepare-utm.py', 'build/linux-arm/qemu-display.inc.c', 'build/linux-arm/host-launcher.c', 'app/Madeira/LinuxVMBridge.*') }}
+      - name: Install build tools
+        if: steps.qemu-cache.outputs.cache-hit != 'true'
+        run: |
+          brew install bison pkg-config gettext glib meson ninja
+          echo "$(brew --prefix bison)/bin:$(brew --prefix gettext)/bin:$(brew --prefix glib)/bin" >> "$GITHUB_PATH"
+          python3 -m venv build/linux-arm/venv
+          build/linux-arm/venv/bin/pip install six pyparsing pyyaml setuptools distlib mako packaging
+          echo "$PWD/build/linux-arm/venv/bin" >> "$GITHUB_PATH"
+      - name: Build pinned QEMU framework
+        if: steps.qemu-cache.outputs.cache-hit != 'true'
+        run: bash build/linux-arm/build-qemu.sh '${{ matrix.platform }}'
+      - name: Verify exports and preserve framework layout
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          binary="build/linux-arm/output/$PLATFORM/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu"
+          nm -gU "$binary" > "build/linux-arm/output/$PLATFORM/exports.txt"
+          for symbol in qemu_init qemu_main_loop qemu_cleanup my_pc_display_start my_pc_display_stop; do
+            grep -Eq " _$symbol$" "build/linux-arm/output/$PLATFORM/exports.txt"
+          done
+          tar -czf "build/linux-arm/output/linux-arm-qemu-$PLATFORM.tar.gz" -C "build/linux-arm/output/$PLATFORM" .
+      - name: Upload framework
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm-qemu-${{ matrix.platform }}
+          path: build/linux-arm/output/linux-arm-qemu-${{ matrix.platform }}.tar.gz
+      - name: Preserve build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm-build-logs-${{ matrix.platform }}
+          path: |
+            build/linux-arm/work-${{ matrix.platform }}/build.log
+            build/linux-arm/work-${{ matrix.platform }}/utm/build-*/**/meson-logs/meson-log.txt
+  guest:
+    name: Boot ARM64 Linux twice
+    needs: [client]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y debootstrap qemu-system-arm e2fsprogs
+      - name: Build Debian guest
+        run: bash build/linux-arm/build-guest.sh
+      - name: Verify boot, network, persistence and shutdown
+        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count
+      - name: Verify real X11 desktop, mouse and keyboard
+        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --desktop --expect-existing
+      - name: Package test runtime
+        run: |
+          cd build/linux-arm/output/guest
+          sha256sum Image initrd.img rootfs.raw packages.tsv runtime.json > SHA256SUMS
+          tar -Sczf ../linux-arm-guest.tar.gz Image initrd.img rootfs.raw packages.tsv runtime.json SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm-guest
+          path: build/linux-arm/output/linux-arm-guest.tar.gz
+      - name: Preserve boot logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm-boot-logs
+          path: |
+            build/linux-arm/output/guest/boot-*.log
+            build/linux-arm/output/guest/desktop.ppm
+  steam-guest:
+    name: Full Steam through the Apple QEMU framework
+    needs: [guest, client, qemu, bridge-checks]
+    runs-on: macos-26
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-qemu-macos
+          path: build/linux-arm/output
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-guest
+          path: build/linux-arm/output
+      - name: Prepare isolated guest test
+        run: |
+          mkdir -p build/linux-arm/output/steam-guest build/linux-arm/output/macos
+          tar -xzf build/linux-arm/output/linux-arm-qemu-macos.tar.gz -C build/linux-arm/output/macos
+          tar -xzf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm/output/steam-guest
+          (cd build/linux-arm/output/steam-guest && shasum -a 256 -c SHA256SUMS)
+          chmod +x build/linux-arm/output/macos/host-launcher
+          for framework in build/linux-arm/output/macos/Frameworks/*.framework; do
+            codesign --force --sign - "$framework"
+            codesign --verify --strict "$framework"
+          done
+      - name: Verify client window with the same RAM and display as iPhone
+        run: python3 build/linux-arm/smoke-guest.py build/linux-arm/output/steam-guest --cpus 6 --verify-cpu-count --steam --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-arm-steam-guest-logs
+          path: |
+            build/linux-arm/output/steam-guest/boot-4.log
+            build/linux-arm/output/steam-guest/steam.ppm
+  ipa:
+    name: Build and publish experimental IPA
+    needs: [apple-boot, client, steam-guest]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/steam-arm-ipa.yml
+  apple-boot:
+    name: Boot Linux through Apple framework and display bridge
+    runs-on: macos-26
+    needs: [qemu, guest, bridge-checks]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-qemu-macos
+          path: build/linux-arm/output
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm-guest
+          path: build/linux-arm/output
+      - name: Prepare runtime
+        run: |
+          mkdir -p build/linux-arm/output/guest build/linux-arm/output/macos
+          tar -xzf build/linux-arm/output/linux-arm-qemu-macos.tar.gz -C build/linux-arm/output/macos
+          tar -xzf build/linux-arm/output/linux-arm-guest.tar.gz -C build/linux-arm/output/guest
+          cd build/linux-arm/output/guest
+          shasum -a 256 -c SHA256SUMS
+          chmod +x ../macos/host-launcher
+          for framework in ../macos/Frameworks/*.framework; do
+            codesign --force --sign - "$framework"
+            codesign --verify --strict "$framework"
+          done
+      - name: Verify actual dylib boot and framebuffer
+        run: |
+          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+          python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --display --desktop --launcher build/linux-arm/output/macos/host-launcher --library build/linux-arm/output/macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-arm-apple-boot-logs
+          path: |
+            build/linux-arm/output/guest/boot-*.log
+            build/linux-arm/output/guest/desktop.ppm
