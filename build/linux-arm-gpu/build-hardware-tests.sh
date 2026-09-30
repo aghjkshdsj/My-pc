@@ -7,7 +7,7 @@ output=build/linux-arm-gpu/output/hardware-tests
 test ! -e "$output"
 mkdir -p "$output/bin" "$output/fex" "$output/native" "$output/notices"
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends gcc gcc-x86-64-linux-gnu mmdebstrap zstd
+sudo apt-get install -y --no-install-recommends gcc gcc-x86-64-linux-gnu libc6-dev-amd64-cross mmdebstrap zstd
 gcc -O2 -Wall -Wextra -Werror -Wno-misleading-indentation -pthread \
     build/linux-arm-gpu/hardware-bench.c -ldl -o "$output/bin/hardware-bench-arm64"
 x86_64-linux-gnu-gcc -O2 -Wall -Wextra -Werror -Wno-misleading-indentation -pthread \
