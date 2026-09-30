@@ -36,7 +36,7 @@ def main():
     connection = display.Display()
     root = connection.screen().root
     codes = {connection.keysym_to_keycode(XK.string_to_keysym(name)): kind
-             for name,kind in [('F8','cpu'),('F9','gpu'),('F10','cancel')]}
+             for name,kind in [('F7','big-picture'),('F8','cpu'),('F9','gpu'),('F10','cancel')]}
     modifiers = X.ControlMask | X.ShiftMask
     for code in codes:
         for extra in (0, X.LockMask, X.Mod2Mask, X.LockMask|X.Mod2Mask):
@@ -48,6 +48,15 @@ def main():
         event = connection.next_event()
         if event.type != X.KeyPress or event.detail not in codes: continue
         kind = codes[event.detail]
+        if kind == 'big-picture':
+            steam_root = pathlib.Path(os.environ.get('XDG_DATA_HOME', str(pathlib.Path.home()/'.local/share')))/'Steam'
+            binary = steam_root/'steamrtarm64/steam'
+            if binary.is_file():
+                environment = os.environ.copy()
+                environment['LD_LIBRARY_PATH'] = str(steam_root/'steamrtarm64')+':'+str(steam_root/'steamrtarm64/panorama')
+                subprocess.Popen([str(binary),'-gamepadui'],env=environment,
+                                 stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            continue
         if kind == 'cancel':
             if active and active.poll() is None: cancel_runner(active.pid)
             continue

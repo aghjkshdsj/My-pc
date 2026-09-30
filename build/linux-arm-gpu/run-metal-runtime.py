@@ -63,10 +63,13 @@ with tempfile.TemporaryDirectory() as temporary:
     if not args.legacy:
         command += ['--verify-cpu-count', '--display', '--launcher', str(runtime / 'host-launcher'),
                     '--library', str(runtime / 'Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu')]
+    if args.hardware: command += ['--controller']
     with (guest / 'metal-host.log').open('w') as output:
         result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
     content = (guest / ('boot-4.log' if args.steam else 'boot-3.log')).read_text(errors='replace')
     if args.hardware:
+        assert 'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1' in content, 'Actual gamepad input must pass in Linux as the Steam user'
+        print('MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1',flush=True)
         for line in content.splitlines():
             if line.startswith('MYPC_HARDWARE_RUNTIME_CHECK ') or line.startswith('MYPC_HARDWARE_CI_FAILURE '):
                 print(line[:8192],flush=True)

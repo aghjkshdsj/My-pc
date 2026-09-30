@@ -262,6 +262,7 @@ struct LinuxVMConfiguration {
     var resources: URL?
     var graphics: LinuxGraphicsMode = .software
     var graphicsInitrd: URL?
+    var controller: URL?
 
     func arguments() throws -> [String] {
         guard (512...3072).contains(memoryMiB), (1...LinuxCPUSelection.maximum).contains(cpuCount) else {
@@ -275,7 +276,7 @@ struct LinuxVMConfiguration {
         }
         let files = try ["Image", "initrd.img", "rootfs.raw"].map { try asset($0) }
         var initrd = files[1]
-        if graphics == .metal {
+        if graphics == .metal || graphicsInitrd != nil {
             #if MYPC_INTERPRETER
             throw LinuxVMError.invalid("This interpreter build supports software graphics only.")
             #else
@@ -324,6 +325,15 @@ struct LinuxVMConfiguration {
                 "-chardev", "socket,id=linux-control,path=\(control.path),server=on,wait=off",
                 "-mon", "chardev=linux-control,mode=control"]
         if let resources { arguments += ["-L", resources.path] }
+        if let controller {
+            guard controller.isFileURL, controller.path.utf8.count < 100,
+                  !controller.path.contains(","), !controller.path.contains("\n"), controller != control else {
+                throw LinuxVMError.invalid("The Linux controller socket path is invalid.")
+            }
+            arguments += ["-device", "virtio-serial-pci,id=linux-gamepads",
+                "-chardev", "socket,id=linux-gamepads,path=\(controller.path),server=on,wait=off",
+                "-device", "virtserialport,bus=linux-gamepads.0,chardev=linux-gamepads,name=org.my-pc.gamepad"]
+        }
         return arguments
     }
 
@@ -343,6 +353,31 @@ struct LinuxVMConfiguration {
 
     private func json(_ object: [String: Any]) throws -> String {
         String(decoding: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]), as: UTF8.self)
+    }
+}
+
+/// Fixed, versioned controller state. No commands, paths, names or account data.
+struct LinuxGamepadState: Equatable {
+    var connected = false
+    var buttons: UInt32 = 0
+    var axes: [Int16] = Array(repeating: 0, count: 6) // X,Y,RX,RY,LT,RT
+    static func axis(_ value: Float, inverted: Bool = false, trigger: Bool = false) -> Int16 {
+        guard value.isFinite else { return 0 }
+        let bounded = min(1, max(trigger ? 0 : -1, value))
+        return Int16((bounded * (inverted ? -32767 : 32767)).rounded())
+    }
+    func packet(slot: Int, sequence: UInt32) -> Data {
+        precondition((0..<4).contains(slot) && axes.count == 6)
+        var data = Data("MPG1".utf8)
+        data.append(UInt8(slot)); data.append(connected ? 1 : 0)
+        func little(_ value: UInt32, bytes: Int) {
+            for offset in 0..<bytes { data.append(UInt8(truncatingIfNeeded: value >> (offset * 8))) }
+        }
+        little(0, bytes: 2); little(sequence, bytes: 4)
+        little(connected ? buttons & 0xf7ff : 0, bytes: 4)
+        for axis in axes { little(connected ? UInt32(UInt16(bitPattern: axis)) : 0, bytes: 2) }
+        little(0, bytes: 4)
+        return data
     }
 }
 

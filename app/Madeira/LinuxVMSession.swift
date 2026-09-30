@@ -4,6 +4,108 @@ import UIKit
 import Darwin
 import CryptoKit
 import Metal
+import GameController
+
+/// A separate, nonblocking local channel. Slow Linux input cannot hold up QMP.
+final class LinuxGamepadConnection: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "my-pc.linux.gamepad", qos: .userInteractive)
+    private let lock = NSLock()
+    private var pending: [(Data, Data)] = [] // transition signature, full state
+    private var overflow = false
+    private var descriptor: Int32 = -1
+    private var timer: DispatchSourceTimer?
+    private var path = ""
+    private var retryAt = 0.0
+    private var sending = Data(), received = Data()
+    private var offset = 0
+    private var acknowledgedMask: UInt32?
+    private var acknowledgedAt = 0.0
+    var guestMask: UInt32? {
+        lock.lock(); defer { lock.unlock() }
+        return ProcessInfo.processInfo.systemUptime - acknowledgedAt < 3 ? acknowledgedMask : nil
+    }
+    func offer(_ data: Data, signature: Data) {
+        lock.lock(); defer { lock.unlock() }
+        if pending.last?.0 == signature { pending[pending.count - 1] = (signature, data) }
+        else if pending.count < 64 { pending.append((signature, data)) }
+        else { pending = [(signature, data)]; overflow = true }
+    }
+    func start(path: String) {
+        queue.async {
+            self.path = path
+            let timer = DispatchSource.makeTimerSource(queue: self.queue)
+            timer.schedule(deadline: .now(), repeating: .milliseconds(16), leeway: .milliseconds(2))
+            timer.setEventHandler { [weak self] in self?.drain() }
+            self.timer = timer; timer.resume()
+        }
+    }
+    func close() {
+        queue.async {
+            self.timer?.cancel(); self.timer = nil; self.disconnect()
+            self.lock.lock(); self.pending.removeAll(); self.overflow = false; self.lock.unlock()
+        }
+    }
+    private func disconnect() {
+        if descriptor >= 0 { Darwin.close(descriptor); descriptor = -1 }
+        sending.removeAll(); received.removeAll(); offset = 0
+        lock.lock(); acknowledgedMask = nil; lock.unlock()
+    }
+    private func drain() {
+        let now = ProcessInfo.processInfo.systemUptime
+        lock.lock(); let reset = overflow; overflow = false; lock.unlock()
+        if reset { disconnect() }
+        if descriptor < 0 {
+            guard now >= retryAt, path.utf8.count < 100 else { return }
+            retryAt = now + 1
+            let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+            guard fd >= 0 else { return }
+            _ = fcntl(fd, F_SETFL, O_NONBLOCK)
+            var flag: Int32 = 1
+            setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flag, socklen_t(MemoryLayout<Int32>.size))
+            var address = sockaddr_un()
+            address.sun_family = sa_family_t(AF_UNIX); address.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
+            _ = withUnsafeMutableBytes(of: &address.sun_path) { bytes in
+                path.withCString { strlcpy(bytes.baseAddress!.assumingMemoryBound(to: CChar.self), $0, bytes.count) }
+            }
+            let result = withUnsafePointer(to: &address) {
+                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+            }
+            guard result == 0 else { Darwin.close(fd); return }
+            descriptor = fd
+        }
+        // Preserve partial frames and button edges. Coalesce only queued analog motion.
+        for _ in 0..<32 {
+            if sending.isEmpty {
+                lock.lock()
+                if !pending.isEmpty { sending = pending.removeFirst().1 }
+                lock.unlock(); offset = 0
+                if sending.isEmpty { break }
+            }
+            let count = sending.withUnsafeBytes { bytes in
+                Darwin.send(descriptor, bytes.baseAddress!.advanced(by: offset), sending.count - offset, 0)
+            }
+            if count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) { break }
+            guard count > 0 else { disconnect(); return }
+            offset += count
+            if offset == sending.count { sending.removeAll(); offset = 0 }
+        }
+        var buffer = [UInt8](repeating: 0, count: 256)
+        let count = Darwin.recv(descriptor, &buffer, buffer.count, 0)
+        if count == 0 { disconnect(); return }
+        if count < 0 {
+            if errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR { disconnect() }
+            return
+        }
+        received.append(contentsOf: buffer.prefix(count))
+        while received.count >= 16 {
+            let bytes = Array(received.prefix(16)); received.removeFirst(16)
+            guard Array(bytes[0..<4]) == Array("ACK1".utf8), bytes[4] == 1,
+                  bytes[5..<8].allSatisfy({ $0 == 0 }), bytes[8] <= 15,
+                  bytes[9..<16].allSatisfy({ $0 == 0 }) else { disconnect(); return }
+            lock.lock(); acknowledgedMask = UInt32(bytes[8]); acknowledgedAt = now; lock.unlock()
+        }
+    }
+}
 
 /// A single serial owner for the local QMP socket. No listener is exposed on LAN.
 final class LinuxQMPConnection: @unchecked Sendable {
@@ -200,6 +302,75 @@ private enum LinuxProcessMetrics {
 
 @MainActor final class LinuxVMSession: ObservableObject {
     static let shared = LinuxVMSession()
+    private let gamepad = LinuxGamepadConnection()
+    private var controllers: [GCController?] = Array(repeating: nil, count: 4)
+    private var controllerSequence: UInt32 = 0
+    private var lastControllerFrame = Data()
+    private var lastControllerTime = 0.0
+    @Published private(set) var controllerNames = [String]()
+    @Published private(set) var controllerGuestCount: Int?
+    private var controllerPanelVisible = false
+    var controllerStatus: String {
+        guard !controllerNames.isEmpty else { return "Connect Backbone Pro or another iOS gamepad." }
+        guard let count = controllerGuestCount else { return "\(controllerNames.joined(separator: ", ")) · waiting for Linux gamepad bridge…" }
+        return "\(controllerNames.joined(separator: ", ")) · \(count) Linux gamepad\(count == 1 ? "" : "s")"
+    }
+    func setControllerPanelVisible(_ visible: Bool) {
+        controllerPanelVisible = visible
+        pollControllers(force: true)
+    }
+    func openBigPicture() {
+        guard connected, hardwareTestsReady, !paused else { return }
+        sendKeyboard(LinuxHardwareTestKind.shortcut("f7"))
+    }
+    private func pollControllers(force: Bool = false) {
+        guard running else { return }
+        let available = GCController.controllers().filter { $0.extendedGamepad != nil }
+        for index in controllers.indices {
+            if let old = controllers[index], !available.contains(where: { $0 === old }) { controllers[index] = nil }
+        }
+        for controller in available where !controllers.contains(where: { $0 === controller }) {
+            if let index = controllers.firstIndex(where: { $0 == nil }) { controllers[index] = controller }
+        }
+        let enabled = !controllerPanelVisible && !paused && UIApplication.shared.applicationState == .active
+        var frame = Data(), signature = Data(), names = [String]()
+        controllerSequence &+= 1
+        for index in controllers.indices {
+            var state = LinuxGamepadState()
+            if let controller = controllers[index], let pad = controller.extendedGamepad {
+                names.append(controller.vendorName ?? "iOS gamepad")
+                state.connected = true
+                if enabled {
+                    let values: [(GCControllerButtonInput?, UInt32)] = [
+                        (pad.buttonA,0x1000),(pad.buttonB,0x2000),(pad.buttonX,0x4000),(pad.buttonY,0x8000),
+                        (pad.leftShoulder,0x100),(pad.rightShoulder,0x200),(pad.dpad.up,1),(pad.dpad.down,2),
+                        (pad.dpad.left,4),(pad.dpad.right,8),(pad.buttonMenu,0x10),(pad.buttonOptions,0x20),
+                        (pad.leftThumbstickButton,0x40),(pad.rightThumbstickButton,0x80),(pad.buttonHome,0x400)]
+                    for (button, mask) in values where button?.isPressed == true { state.buttons |= mask }
+                    state.axes = [LinuxGamepadState.axis(pad.leftThumbstick.xAxis.value),
+                        LinuxGamepadState.axis(pad.leftThumbstick.yAxis.value,inverted: true),
+                        LinuxGamepadState.axis(pad.rightThumbstick.xAxis.value),
+                        LinuxGamepadState.axis(pad.rightThumbstick.yAxis.value,inverted: true),
+                        LinuxGamepadState.axis(pad.leftTrigger.value,trigger: true),
+                        LinuxGamepadState.axis(pad.rightTrigger.value,trigger: true)]
+                }
+            }
+            let packet = state.packet(slot: index, sequence: 0)
+            signature.append(packet.subdata(in: 4..<8)); signature.append(packet.subdata(in: 12..<16))
+            frame.append(packet)
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        if force || frame != lastControllerFrame || now-lastControllerTime >= 0.5 {
+            lastControllerFrame = frame; lastControllerTime = now
+            for index in 0..<4 {
+                for offset in 0..<4 { frame[index*32+8+offset] = UInt8(truncatingIfNeeded: controllerSequence >> (offset*8)) }
+            }
+            gamepad.offer(frame, signature: signature)
+        }
+        if controllerNames != names { controllerNames = names }
+        let count = gamepad.guestMask.map { $0.nonzeroBitCount }
+        if controllerGuestCount != count { controllerGuestCount = count }
+    }
     private static var initialCPUSelection: Int {
         UserDefaults.standard.object(forKey: "linuxCPUCount") == nil
             ? LinuxExecutionMode.defaultCPUSelection : UserDefaults.standard.integer(forKey: "linuxCPUCount")
@@ -359,10 +530,18 @@ private enum LinuxProcessMetrics {
         UserDefaults.standard.set(mode.rawValue, forKey: "linuxGraphicsMode")
     }
     private func verifiedGraphicsInitrd() throws -> URL? {
-        guard graphicsMode == .metal else { return nil }
-        guard Self.metalAvailable, MTLCreateSystemDefaultDevice() != nil, let source = Self.bundledRuntime else {
+        if graphicsMode == .software {
+            if Self.graphicsUpdateFailed(Self.directory.appendingPathComponent("boot.log")) { return nil }
+            return try? verifiedBootUpdate()
+        }
+        return try verifiedBootUpdate()
+    }
+    private func verifiedBootUpdate() throws -> URL? {
+        guard Self.metalAvailable, let source = Self.bundledRuntime else {
+            if graphicsMode == .software { return nil }
             throw LinuxVMError.invalid("This build or device cannot start Metal graphics. Choose Software.")
         }
+        if graphicsMode == .metal && MTLCreateSystemDefaultDevice() == nil { throw LinuxVMError.invalid("Metal is unavailable on this device.") }
         let metadata = source.appendingPathComponent("graphics.json")
         let data = try Data(contentsOf: metadata)
         guard data.count <= 8192 else { throw LinuxVMError.invalid("Invalid graphics update metadata.") }
@@ -492,12 +671,14 @@ private enum LinuxProcessMetrics {
             #endif
             let control = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("linux-qmp")
             if FileManager.default.fileExists(atPath: control.path) { try FileManager.default.removeItem(at: control) }
+            let controller = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("l-pad")
+            if FileManager.default.fileExists(atPath: controller.path) { try FileManager.default.removeItem(at: controller) }
             let log = Self.directory.appendingPathComponent("boot.log")
             guestCPUCount = LinuxCPUSelection.resolve(cpuSelection, hostCount: hostCPUCount)
             let arguments = try LinuxVMConfiguration(directory: Self.directory, log: log, control: control,
                 memoryMiB: guestMemoryMiB, cpuCount: guestCPUCount,
                 resources: Bundle.main.bundleURL.appendingPathComponent("QEMU"),
-                graphics: graphicsMode, graphicsInitrd: verifiedGraphicsInitrd()).arguments()
+                graphics: graphicsMode, graphicsInitrd: verifiedGraphicsInitrd(), controller: controller).arguments()
             #if !MYPC_INTERPRETER
             jit_install_trap_handler()
             #endif
@@ -509,6 +690,7 @@ private enum LinuxProcessMetrics {
             hardwareElapsedSeconds = 0; hardwareHeartbeatAge = 0; hardwareRequestedKind = nil
             hardwareCancellationRequested = false; hardwareTestUnresponsive = false
             started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores · \(graphicsMode.title)…"
+            gamepad.start(path: controller.path)
             UIApplication.shared.isIdleTimerDisabled = true
             beginPerformanceSample()
             let frameTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { _ in
@@ -535,6 +717,7 @@ private enum LinuxProcessMetrics {
                 let code = spc_linux_run(framework.path, Int32(arguments.count), &argv, linuxFrameCallback, nil, &message, message.count)
                 let detail = String(cString: message)
                 Task { @MainActor in
+                    self.gamepad.close(); self.controllerGuestCount = nil
                     self.qmp.close(); self.connected = false; self.running = false
                     self.timer?.invalidate(); self.timer = nil
                     self.pendingPointer = nil; self.pointerDown = false
@@ -582,6 +765,7 @@ private enum LinuxProcessMetrics {
         guard connected else { return }
         guard paused != background else { return }
         paused = background
+        pollControllers(force: true)
         if background {
             hardwareBackgroundTime = ProcessInfo.processInfo.systemUptime
             if pointerDown {
@@ -605,6 +789,7 @@ private enum LinuxProcessMetrics {
         _ = performance.sample(time: sampleTime, cpuSeconds: LinuxProcessMetrics.cpuSeconds(), frames: 0)
     }
     private func refreshDisplay() {
+        pollControllers()
         guard !paused else { return }
         if let point = pendingPointer {
             pendingPointer = nil

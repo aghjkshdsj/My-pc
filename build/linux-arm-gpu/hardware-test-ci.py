@@ -10,6 +10,8 @@ spec = importlib.util.spec_from_file_location('hardware', folder/'hardware-test.
 hardware = importlib.util.module_from_spec(spec); spec.loader.exec_module(hardware)
 os.environ['MYPC_HARDWARE_CI'] = '1'
 try:
+    import runpy
+    runpy.run_path('/usr/local/lib/my-pc/controller/controller-ci.py',run_name='__main__')
     for kind in ('cpu','gpu'):
         updates = []
         def emit(state):

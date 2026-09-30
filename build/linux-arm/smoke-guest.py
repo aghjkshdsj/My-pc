@@ -22,6 +22,7 @@ parser.add_argument("--expect-existing", action="store_true")
 parser.add_argument("--display", action="store_true")
 parser.add_argument("--desktop", action="store_true")
 parser.add_argument("--steam", action="store_true", help="Launch full Steam in the actual Linux guest")
+parser.add_argument("--controller", action="store_true", help="Require real virtio-serial/uinput gamepad observations")
 parser.add_argument("--interpreter", action="store_true", help="Use non-executable translation storage and longer boot deadlines")
 parser.add_argument("--deny-jit-policy", action="store_true", help="Require the CI-only allocation guard and no attempts to generate executable host code")
 parser.add_argument("--cpus", type=int, default=2)
@@ -65,8 +66,41 @@ with tempfile.TemporaryDirectory() as directory:
             if args.verify_cpu_count:
                 command[command.index('-append') + 1] += f' my_pc_expected_cpus={args.cpus}'
             log = guest / f"boot-{boot}.log"
+            gamepad_path = pathlib.Path(directory, 'gamepad.sock')
+            if args.controller:
+                command += ['-device','virtio-serial-pci,id=linux-gamepads',
+                    '-chardev',f'socket,id=linux-gamepads,path={gamepad_path},server=on,wait=off',
+                    '-device','virtserialport,bus=linux-gamepads.0,chardev=linux-gamepads,name=org.my-pc.gamepad']
+            controller_stop = threading.Event()
             with log.open("w") as output:
                 process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, env=environment)
+                if args.controller:
+                    def send_controller():
+                        import struct
+                        deadline=time.monotonic()+120
+                        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as pad:
+                            while not controller_stop.is_set():
+                                try: pad.connect(str(gamepad_path)); break
+                                except OSError:
+                                    if time.monotonic()>deadline: return
+                                    controller_stop.wait(0.1)
+                            pad.settimeout(1)
+                            start=time.monotonic(); sequence=0
+                            while not controller_stop.is_set():
+                                phase=(time.monotonic()-start)%12
+                                connected=not 8<=phase<9
+                                pressed=phase<4 or phase>=9
+                                sequence=(sequence+1)&0xffffffff
+                                axes=(-16000,14000,12000,-8000,8192,24576) if connected and pressed else (0,)*6
+                                data=struct.pack('<4sBBHII6hI',b'MPG1',0,int(connected),0,sequence,0xf7f9 if connected and pressed else 0,*axes,0)
+                                try:
+                                    pad.sendall(data)
+                                    # Drain bounded acknowledgements, without waiting for one.
+                                    if select.select([pad],[],[],0)[0]: pad.recv(256)
+                                except OSError: return
+                                controller_stop.wait(0.05)
+                    import select
+                    threading.Thread(target=send_controller,daemon=True).start()
                 try:
                     if args.desktop or args.steam:
                         marker = 'MYPC_GUEST_STEAM_WINDOW_OK' if args.steam else 'MYPC_DESKTOP_READY'
@@ -157,6 +191,7 @@ with tempfile.TemporaryDirectory() as directory:
                         print(log.read_text(errors="replace")[-12000:])
                         raise
                 finally:
+                    controller_stop.set()
                     if process.poll() is None:
                         process.kill()
                         process.wait()

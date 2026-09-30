@@ -5,7 +5,7 @@ prereqs() { echo "$PREREQ"; }
 case "${1:-}" in prereqs) prereqs; exit 0;; esac
 # The minimal initrd need not contain grep or BusyBox. Use shell built-ins.
 read -r command_line </proc/cmdline
-case " $command_line " in *" my_pc_graphics=virgl "*) ;; *) exit 0;; esac
+case " $command_line " in *" my_pc_graphics=virgl "*|*" my_pc_graphics=software "*) ;; *) exit 0;; esac
 echo 'MYPC_GRAPHICS_HOOK_SEEN=1' >/dev/console
 set -eu
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=shell-ready' >/dev/console
@@ -55,6 +55,27 @@ destination="$rootmnt/usr/local/lib/my-pc/hardware-tests"
 test ! -L "$destination"
 root_command mkdir -p "$destination"
 root_command cp -a hardware-tests/. "$destination/"
+echo 'MYPC_GRAPHICS_UPDATE_PHASE=install-controller' >/dev/console
+destination="$rootmnt/usr/local/lib/my-pc/controller"
+test ! -L "$destination"
+root_command mkdir -p "$destination"
+for name in controller.py controller-ci.py my-pc-controller.service; do test ! -L "$destination/$name"; done
+root_command cp -a controller/. "$destination/"
+# Add only the named bridge unit and its normal target dependency.
+for directory in etc etc/systemd etc/systemd/system etc/systemd/system/multi-user.target.wants; do
+    test ! -L "$rootmnt/$directory"
+    root_command mkdir -p "$rootmnt/$directory"
+done
+unit="$rootmnt/etc/systemd/system/my-pc-controller.service"
+test ! -L "$unit"
+root_command cp controller/my-pc-controller.service "$unit"
+link="$rootmnt/etc/systemd/system/multi-user.target.wants/my-pc-controller.service"
+if test -L "$link"; then
+    test "$(root_command readlink "$link")" = ../my-pc-controller.service
+else
+    test ! -e "$link"
+    root_command ln -s ../my-pc-controller.service "$link"
+fi
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=sync' >/dev/console
 root_command sync
 echo 'MYPC_GRAPHICS_UPDATE_OK=1' >/dev/console

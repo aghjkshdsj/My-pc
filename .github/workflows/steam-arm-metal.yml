@@ -52,6 +52,7 @@ jobs:
           python3 build/linux-arm-gpu/test-boot-update.py
           python3 build/linux-arm-gpu/test-steam-gpu.py
           python3 build/linux-arm-gpu/test-hardware-test.py
+          python3 build/linux-arm-gpu/test-controller.py
           bash -n build/linux-arm-gpu/graphics-update.sh
           bash -n build/linux-arm-gpu/build-hardware-tests.sh
           bash build/linux-arm-gpu/build-hardware-tests.sh

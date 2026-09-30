@@ -48,6 +48,13 @@ if grep -qw my_pc_graphics=virgl /proc/cmdline; then graphics_options=(); fi
     }
     checksums = ''.join(hashlib.sha256(data).hexdigest() + '  ' + name + '\n' for name, data in payload.items()).encode()
     files = [(f'my-pc-graphics/{name}', stat.S_IFREG | 0o755, data) for name, data in payload.items()]
+    controller = {
+        'controller/controller.py': pathlib.Path('build/linux-arm-gpu/controller.py').read_bytes(),
+        'controller/my-pc-controller.service': pathlib.Path('build/linux-arm-gpu/my-pc-controller.service').read_bytes(),
+        'controller/controller-ci.py': pathlib.Path('build/linux-arm-gpu/controller-ci.py').read_bytes(),
+    }
+    files += [(f'my-pc-graphics/{name}', stat.S_IFREG | 0o644, data) for name, data in controller.items()]
+    checksums += ''.join(hashlib.sha256(data).hexdigest()+'  '+name+'\n' for name,data in controller.items()).encode()
     diagnostics = pathlib.Path('build/linux-arm-gpu/output/hardware-tests')
     assert diagnostics.is_dir(), 'Build the hardware diagnostic payload before preparing the boot update'
     diagnostic_checksums = []

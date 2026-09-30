@@ -1,0 +1,22 @@
+[Unit]
+Description=My-pc local iOS gamepad bridge
+After=systemd-udevd.service
+
+[Service]
+ExecStartPre=/sbin/modprobe virtio_console
+ExecStartPre=/sbin/modprobe uinput
+ExecStartPre=/sbin/modprobe joydev
+ExecStart=/usr/bin/python3 -u /usr/local/lib/my-pc/controller/controller.py
+Restart=on-failure
+RestartSec=2
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyAMA0
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

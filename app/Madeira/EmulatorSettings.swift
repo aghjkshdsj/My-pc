@@ -194,7 +194,7 @@ final class GameControllerManager: NSObject, ObservableObject {
         var snapshots: [ControllerDevice] = []
         var desiredKeys: Set<Int32> = []
         var desiredMouse: UInt32 = 0
-        let active = !suspended && UIApplication.shared.applicationState == .active
+        let active = !suspended && !LinuxVMSession.shared.running && UIApplication.shared.applicationState == .active
         for index in slots.indices {
             let controller = slots[index]
             let pad = controller?.extendedGamepad

@@ -19,6 +19,18 @@ var disk = Data(repeating: 0, count: 2048)
 disk.replaceSubrange(1080..<1082, with: [0x53, 0xef])
 try disk.write(to: guest.appendingPathComponent("rootfs.raw"))
 var config = LinuxVMConfiguration(directory: guest, log: root.appendingPathComponent("serial.log"), control: root.appendingPathComponent("q.sock"))
+var pad = LinuxGamepadState(connected: true, buttons: 0x1009, axes: [-16000,14000,12000,-8000,8192,24576])
+let padPacket = Array(pad.packet(slot: 3, sequence: 0x12345678))
+check(padPacket.count == 32 && Array(padPacket[0..<8]) == [77,80,71,49,3,1,0,0], "Controller wire header and slot")
+check(Array(padPacket[8..<16]) == [0x78,0x56,0x34,0x12,9,0x10,0,0], "Controller sequence and buttons are little endian")
+check(Array(padPacket[16..<20]) == [0x80,0xc1,0xb0,0x36], "Signed analog axes preserve their exact values")
+pad.connected = false
+check(pad.packet(slot: 0, sequence: 2).suffix(20).allSatisfy { $0 == 0 }, "Disconnect must release every button/axis")
+check(LinuxGamepadState.axis(.nan) == 0 && LinuxGamepadState.axis(2) == 32767 && LinuxGamepadState.axis(1,inverted: true) == -32767 && LinuxGamepadState.axis(-1,trigger: true) == 0, "Controller axis clamps and Linux Y inversion")
+var padConfig = config
+padConfig.controller = root.appendingPathComponent("g.sock")
+let padArguments = try padConfig.arguments()
+check(padArguments.contains("virtio-serial-pci,id=linux-gamepads") && padArguments.contains("virtserialport,bus=linux-gamepads.0,chardev=linux-gamepads,name=org.my-pc.gamepad"), "Real virtual Linux gamepad channel required")
 let argv = try config.arguments()
 #if MYPC_INTERPRETER
 check(!LinuxExecutionMode.requiresJIT, "Interpreter must not request JIT")

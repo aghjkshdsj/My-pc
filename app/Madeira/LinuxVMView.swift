@@ -1,6 +1,37 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import UIKit
+import GameController
+
+/// Make the Steam surface receive GameController profiles. Native settings
+/// retain normal controller navigation when a session panel is open.
+private struct LinuxGamepadHost<Content: View>: UIViewControllerRepresentable {
+    var enabled: Bool
+    var content: Content
+    final class Controller: GCEventViewController {
+        let host: UIHostingController<Content>
+        init(content: Content) { host = UIHostingController(rootView: content); super.init(nibName: nil, bundle: nil) }
+        required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+        override var canBecomeFirstResponder: Bool { true }
+        override func viewDidLoad() {
+            super.viewDidLoad(); addChild(host); view.addSubview(host.view)
+            host.view.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([host.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                host.view.topAnchor.constraint(equalTo: view.topAnchor), host.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)])
+            host.didMove(toParent: self)
+        }
+        override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); if !controllerUserInteractionEnabled { becomeFirstResponder() } }
+    }
+    func makeUIViewController(context: Context) -> Controller {
+        let controller = Controller(content: content); controller.controllerUserInteractionEnabled = !enabled; return controller
+    }
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        let previouslyEnabled = !controller.controllerUserInteractionEnabled
+        controller.host.rootView = content; controller.controllerUserInteractionEnabled = !enabled
+        if enabled && !previouslyEnabled { controller.becomeFirstResponder() }
+    }
+}
 
 private enum LinuxSessionPanel: String, Identifiable {
     case options, performance, cpu, tests
@@ -135,6 +166,13 @@ struct LinuxVMView: View {
     @State private var panel: LinuxSessionPanel?
 
     var body: some View {
+        LinuxGamepadHost(enabled: session.running && panel == nil, content: sessionContent)
+            .onAppear { session.setControllerPanelVisible(panel != nil) }
+            .onDisappear { session.setControllerPanelVisible(true) }
+            .onChange(of: panel) { _, value in session.setControllerPanelVisible(value != nil) }
+    }
+
+    private var sessionContent: some View {
         NavigationStack {
             Group {
                 if let image = session.image {
@@ -254,6 +292,11 @@ struct LinuxVMView: View {
                 Button("Open CPU & GPU tests") { panel = .tests }.buttonStyle(.borderedProminent).padding(10)
                 List {
                     Text(session.status)
+                    Text(session.controllerStatus)
+                    Button("Open Steam Big Picture") { session.openBigPicture(); panel = nil }
+                        .disabled(!session.connected || !session.hardwareTestsReady || session.paused)
+                    Text("Backbone Pro: sticks, triggers, D-pad, A/B/X/Y, shoulders, Menu/View and stick clicks are sent as a Linux gamepad. Use Steam's Big Picture mode for controller navigation. App panels temporarily release game inputs.")
+                    Text("Rumble and vendor-specific shortcut buttons are not forwarded in this preview.").font(.caption)
                     Button("CPU & graphics (\(session.guestCPUCount) cores)") { panel = .cpu }
                     Button("Performance details") { panel = .performance }
                     Toggle("Touch as trackpad", isOn: $trackpad)
