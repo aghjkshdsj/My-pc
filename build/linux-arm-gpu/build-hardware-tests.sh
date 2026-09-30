@@ -35,6 +35,13 @@ sudo mmdebstrap --variant=extract --architectures=amd64 \
     --include=libc6,libstdc++6,libx11-6 trixie "$output/rootfs" https://deb.debian.org/debian
 rm "$output/debian-key.asc" "$output/debian-keyring.gpg"
 sudo chown -R "$(id -u):$(id -g)" "$output/rootfs"
+# Extract-only roots do not run Debian's usr-merge maintainer scripts.
+for name in lib lib64 bin sbin; do
+    if [ ! -e "$output/rootfs/$name" ] && [ ! -L "$output/rootfs/$name" ]; then
+        ln -s "usr/$name" "$output/rootfs/$name"
+    fi
+done
+test -r "$output/rootfs/lib64/ld-linux-x86-64.so.2"
 mkdir -p "$output/rootfs/usr/lib/x86_64-linux-gnu"
 # Private diagnostic root only: directly load the supplied x86 thunk binaries.
 # EGL forwards GL procedures through the GL thunk. No x86 software Mesa is
@@ -80,5 +87,5 @@ for iterations in (10000, 1000000):
 PY
 # Real native/FEX CPU smoke checks on the ARM builder, including deterministic
 # checksums. Graphics is subsequently checked in the production Metal VM.
-python3 build/linux-arm-gpu/test-hardware-runtime.py "$output" --cpu-only
+MYPC_HARDWARE_CI=1 python3 build/linux-arm-gpu/test-hardware-runtime.py "$output" --cpu-only
 echo MYPC_HARDWARE_TEST_PAYLOAD_BUILT

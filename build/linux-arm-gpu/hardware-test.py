@@ -80,7 +80,7 @@ def execute(folder, mode, kind, workers, env, iterations=ITERATIONS):
             records.append(row)
     if child.returncode or len(records) != (3 if kind == 'cpu' else 1):
         if os.environ.get('MYPC_HARDWARE_CI') == '1':
-            print('MYPC_HARDWARE_CI_FAILURE '+stderr.decode(errors='replace')[-4096:],flush=True)
+            print('MYPC_HARDWARE_CI_FAILURE '+(stdout+stderr).decode(errors='replace')[-4096:],flush=True)
         stage = 'runtime'
         for item in stderr.decode(errors='replace').splitlines():
             if item.startswith('MYPC_BENCH_FAILED stage='):
