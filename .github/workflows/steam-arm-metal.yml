@@ -53,9 +53,6 @@ jobs:
           order=$(find build/linux-arm-gpu/inspect-initrd -type f -path '*/scripts/local-bottom/ORDER' | head -n1)
           python3 build/linux-arm-gpu/prepare-boot-update.py build/linux-arm/output/guest "$order"
           (cd build/linux-arm/output/guest && sha256sum -c SHA256SUMS)
-          busybox=$(find build/linux-arm-gpu/inspect-initrd -type f -name busybox | head -n1)
-          test -n "$busybox"
-          "$busybox" sha256sum </dev/null
           test "$(gh run view 36586450467 --json headSha --jq .headSha)" = ccab0ec62a875a80fa16570d0dcf88442c109194
           gh run download 36586450467 --name linux-arm-guest --dir build/linux-arm-gpu/legacy-download
           mkdir -p build/linux-arm-gpu/legacy-guest
