@@ -61,8 +61,10 @@ with tempfile.TemporaryDirectory(prefix='my-pc-pad-') as temporary:
                 connection.sendall(struct.pack('<4sIII',b'ACK1',1,1,0))
                 assert read_exact(connection,128)==bytes([0x33])*128, 'First button edge lost'
                 assert read_exact(connection,128)==bytes([0x44])*128, 'Second button edge lost'
-            output,error = child.communicate(timeout=5)
-            assert child.returncode==0,(output+error).decode(errors='replace')[-4000:]
-            print(output.decode().strip(),flush=True)
+                # Keep the mock guest connected until Swift checks its ACK.
+                # Closing it earlier correctly clears guestMask on disconnect.
+                output,error = child.communicate(timeout=5)
+                assert child.returncode==0,(output+error).decode(errors='replace')[-4000:]
+                print(output.decode().strip(),flush=True)
         finally:
             if child.poll() is None: child.kill(); child.communicate(timeout=5)

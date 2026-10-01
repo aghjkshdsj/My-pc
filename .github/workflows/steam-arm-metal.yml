@@ -39,13 +39,22 @@ jobs:
       - name: Check whether the unchanged runtime already passed
         id: prior
         run: python3 build/linux-arm-gpu/reuse-runtime-checks.py
+      - name: Check whether the UI-only repair can reuse the identical Linux payload
+        id: guest-payload
+        if: steps.prior.outputs.reuse != 'true'
+        run: python3 build/linux-arm-gpu/reuse-guest-payload.py
       - name: Restore the guest artifacts whose runtime gates passed
         if: steps.prior.outputs.reuse == 'true'
         run: |
           gh run download 36659448881 --name linux-arm-guest --dir build/linux-arm/output
           gh run download 36659448881 --name metal-steam-test-guest --dir build/linux-arm-gpu/output
+      - name: Restore the identical payload whose guest job passed
+        if: steps.prior.outputs.reuse != 'true' && steps.guest-payload.outputs.reuse == 'true'
+        run: |
+          gh run download 36803567684 --name linux-arm-guest --dir build/linux-arm/output
+          gh run download 36803567684 --name metal-steam-test-guest --dir build/linux-arm-gpu/output
       - name: Prepare a bare production runtime and validate preservation on the older disk
-        if: steps.prior.outputs.reuse != 'true'
+        if: steps.prior.outputs.reuse != 'true' && steps.guest-payload.outputs.reuse != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-system-arm initramfs-tools-core
