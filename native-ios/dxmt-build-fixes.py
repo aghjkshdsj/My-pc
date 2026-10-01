@@ -14,6 +14,13 @@ if source.count(old) != 1:
 source = source.replace(old, '#include "../../../../research/remote-metal/host/wmt_decode.h"', 1)
 source_path.write_text(source)
 
+client_path = Path('dxmt/src/winemetal/unix/wmt_remote_client.h')
+client = client_path.read_text()
+old = '#include "../../../../remote-metal/protocol.h"'
+if client.count(old) != 1:
+    raise SystemExit('DXMT optional remote protocol include marker changed')
+client_path.write_text(client.replace(old, '#include "../../../../research/remote-metal/protocol.h"', 1))
+
 build_path = Path('build/dxmt-ios/build.sh')
 script = build_path.read_text()
 old = 'COMMON_FLAGS="-arch arm64'

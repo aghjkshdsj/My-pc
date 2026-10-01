@@ -36,10 +36,7 @@ jobs:
         working-directory: native-ios/runtime
         run: |
           set -euo pipefail
-          python3 tests/host/check-steam-signin-native.py
-          python3 tests/host/check-steam-library.py
-          python3 tests/host/check-dock-path.py
-          python3 tests/host/check-gamepad.py
+          python3 ../test-protocols.py
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

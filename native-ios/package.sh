@@ -7,10 +7,13 @@ test -s app/Madeira/arm64ec-windows/dockhost.exe
 test -s app/Madeira/arm64ec-windows/dock-notices.txt
 test -s app/Madeira/x86_64-vcruntime/msvcp140.dll
 bash build/stage-licenses.sh
-# Keep the reference's tested Debug host configuration. FEX, Wine and DXMT
-# libraries above are separately built with their production optimizations.
+# Keep Debug's C/Objective-C host flags: the reference reports guest crashes
+# with a fully Release host. Optimize Swift account/library/download work;
+# the same optimization is exercised by the protocol tests under ASan.
+# FEX, Wine and DXMT libraries are separately optimized source builds.
 xcodebuild -project app/Madeira.xcodeproj -scheme Madeira -configuration Debug \
   -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build/MyPCNative \
+  SWIFT_OPTIMIZATION_LEVEL=-O SWIFT_COMPILATION_MODE=wholemodule \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
   DEVELOPMENT_TEAM="" build 2>&1 | tee "$driver/out/xcodebuild.log"
 app=build/MyPCNative/Build/Products/Debug-iphoneos/Madeira.app

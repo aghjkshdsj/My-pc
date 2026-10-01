@@ -10,6 +10,32 @@ import sys
 import zipfile
 
 
+def macho(data, filetype):
+    assert len(data) >= 32, 'Truncated Mach-O'
+    magic, cpu, _, kind, commands, command_bytes, _, _ = struct.unpack_from('<8I', data)
+    assert magic == 0xfeedfacf, 'Expected little-endian 64-bit Mach-O'
+    assert cpu == 0x0100000c, 'Expected ARM64 host'
+    assert kind == filetype, 'Unexpected Mach-O file type'
+    assert 32 + command_bytes <= len(data), 'Truncated Mach-O load commands'
+    position = 32
+    platforms, libraries = [], []
+    for _ in range(commands):
+        command, length = struct.unpack_from('<II', data, position)
+        assert length >= 8 and position + length <= 32 + command_bytes, 'Invalid Mach-O load command'
+        if command == 0x32:
+            assert length >= 24
+            platforms.append(struct.unpack_from('<I', data, position + 8)[0])
+        if command in (0xc, 0x80000018, 0x8000001f):
+            assert length >= 24
+            offset = struct.unpack_from('<I', data, position + 8)[0]
+            assert 24 <= offset < length
+            libraries.append(data[position + offset:position + length].split(b'\0', 1)[0].decode())
+        position += length
+    assert position == 32 + command_bytes
+    assert platforms == [2], 'Expected Mach-O iOS platform'
+    return libraries
+
+
 def verify(path, lock_path):
     lock = json.loads(Path(lock_path).read_text())
     prefix = 'Payload/Madeira.app/'
@@ -24,9 +50,16 @@ def verify(path, lock_path):
         assert info['MyPCNativeBackend'] == 'native-ios-fex-wine-metal'
         if 'GITHUB_SHA' in os.environ: assert info['SomethingPCBuildCommit'] == os.environ['GITHUB_SHA']
         binary = archive.read(prefix + info['CFBundleExecutable'])
-        assert binary[:4] == b'\xcf\xfa\xed\xfe', 'Expected little-endian 64-bit Mach-O'
-        assert struct.unpack_from('<I', binary, 4)[0] == 0x0100000c, 'Expected ARM64 host'
-        assert len(binary) > 1_000_000, 'Host executable is unexpectedly small'
+        libraries = macho(binary, 2)
+        debug_name = info['CFBundleExecutable'] + '.debug.dylib'
+        # Xcode's unoptimized app layout uses a small MH_EXECUTE launcher and
+        # stores the real app in a referenced MH_DYLIB. Verify both, preserving
+        # the reference's device-tested Debug configuration.
+        debug_layout = any(item.rsplit('/', 1)[-1] == debug_name for item in libraries)
+        if debug_layout:
+            binary = archive.read(prefix + debug_name)
+            macho(binary, 6)
+        assert len(binary) > 1_000_000, 'Host app code is unexpectedly small'
         prohibited = ('qemu', 'virgl', 'rootfs.raw', 'linuxruntime', 'libegl.framework', 'libglesv2.framework')
         assert not any(term in name.lower() for name in names for term in prohibited), 'VM payload included'
         for directory in ('arm64ec-windows', 'aarch64-windows', 'i386-windows', 'x86_64-vcruntime'):
@@ -42,7 +75,8 @@ def verify(path, lock_path):
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     value = {'build': info['CFBundleVersion'], 'commit': info['SomethingPCBuildCommit'],
              'source': info['MyPCNativeSourceCommit'], 'bytes': path.stat().st_size,
-             'sha256': digest, 'vm_payload': False, 'arm64_ios_host': True}
+             'sha256': digest, 'vm_payload': False, 'arm64_ios_host': True,
+             'mach_o_platform': 'iOS', 'debug_dylib_layout': debug_layout}
     print(json.dumps(value, indent=2))
     return value
 

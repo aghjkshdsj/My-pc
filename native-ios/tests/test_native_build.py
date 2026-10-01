@@ -83,7 +83,7 @@ keep rename pass
                 self.assertEqual(info['CFBundleVersion'], '3000007')
                 self.assertEqual(info['SomethingPCBuildCommit'], '1' * 40)
 
-    def fixture_ipa(self, path, extra=None, machine=0x0100000c):
+    def fixture_ipa(self, path, extra=None, machine=0x0100000c, platform=2, debug=False, missing_debug=False):
         lock = json.loads((ROOT / 'source-lock.json').read_text())
         info = {
             'CFBundleIdentifier': lock['bundle_id'], 'CFBundleDisplayName': lock['display_name'],
@@ -91,8 +91,20 @@ keep rename pass
             'SomethingPCBuildCommit': '1' * 40, 'MyPCNativeSourceCommit': lock['source']['commit'],
             'MyPCNativeBackend': 'native-ios-fex-wine-metal'
         }
-        binary = bytearray(1_000_001)
-        struct.pack_into('<II', binary, 0, 0xfeedfacf, machine)
+        def binary(kind, size, dependency=None):
+            commands = struct.pack('<6I', 0x32, 24, platform, 26 << 16, 26 << 16, 0)
+            count = 1
+            if dependency:
+                name = dependency.encode() + b'\0'
+                length = (24 + len(name) + 7) & ~7
+                commands += struct.pack('<6I', 0xc, length, 24, 0, 0, 0) + name.ljust(length - 24, b'\0')
+                count += 1
+            data = bytearray(size)
+            struct.pack_into('<8I', data, 0, 0xfeedfacf, machine, 0, kind, count, len(commands), 0, 0)
+            data[32:32 + len(commands)] = commands
+            return data
+
+        host = binary(2, 512 if debug else 1_000_001, '@rpath/Madeira.debug.dylib' if debug else None)
         helper = bytearray(100)
         struct.pack_into('<I', helper, 0x3c, 64)
         helper[64:68] = b'PE\0\0'
@@ -100,7 +112,9 @@ keep rename pass
         prefix = 'Payload/Madeira.app/'
         with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as archive:
             archive.writestr(prefix + 'Info.plist', plistlib.dumps(info))
-            archive.writestr(prefix + 'Madeira', binary)
+            archive.writestr(prefix + 'Madeira', host)
+            if debug and not missing_debug:
+                archive.writestr(prefix + 'Madeira.debug.dylib', binary(6, 1_000_001))
             archive.writestr(prefix + 'arm64ec-windows/dockhost.exe', helper)
             for item in ('arm64ec-windows/dock-notices.txt', 'aarch64-windows/fixture.dll',
                          'i386-windows/fixture.dll', 'x86_64-vcruntime/fixture.dll',
@@ -124,6 +138,24 @@ keep rename pass
             self.fixture_ipa(path, extra='LinuxRuntime/rootfs.raw')
             with self.assertRaisesRegex(AssertionError, 'VM payload'):
                 verifier.verify(path, ROOT / 'source-lock.json')
+
+    def test_package_verifier_checks_xcode_debug_launcher_and_code_library(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'GITHUB_SHA': '1' * 40}):
+            path = Path(folder) / 'fixture.ipa'
+            self.fixture_ipa(path, debug=True)
+            result = verifier.verify(path, ROOT / 'source-lock.json')
+            self.assertTrue(result['debug_dylib_layout'])
+            self.fixture_ipa(path, debug=True, missing_debug=True)
+            with self.assertRaises(KeyError):
+                verifier.verify(path, ROOT / 'source-lock.json')
+
+    def test_package_verifier_rejects_macos_and_simulator_binaries(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'GITHUB_SHA': '1' * 40}):
+            path = Path(folder) / 'fixture.ipa'
+            for platform in (1, 7):
+                self.fixture_ipa(path, platform=platform)
+                with self.assertRaisesRegex(AssertionError, 'iOS platform'):
+                    verifier.verify(path, ROOT / 'source-lock.json')
 
 
 if __name__ == '__main__':

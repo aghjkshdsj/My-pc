@@ -39,6 +39,12 @@ bash native-ios/package.sh
 ```
 
 The workflow builds native iOS libraries from their locked source revisions.
+Swift account, library and download code is compiled with `-O` and whole-module
+optimization. The protocol tests exercise that Swift optimization under
+AddressSanitizer. C/Objective-C app code retains the reference's Debug flags
+because the reference reports guest crashes with its fully Release host;
+FEX, Wine and DXMT libraries have their own optimized source builds. Device
+testing of this combination remains required.
 The upstream Windows DLL farms remain pinned source-repository inputs; their
 provenance is recorded in the release. They are not silently substituted with
 the older preview-33 runtime. JIT is needed when launching translated games,
@@ -57,6 +63,17 @@ process starts. Game FPS must be measured in a named game at a stated resolution
 after its game window appears; CI shader loops and Android reference numbers
 are not evidence of iPhone game performance. Record thermal state and compare
 the same game, scene and settings. The preview-33 reports were hot.
+
+The owner's first game target is **Hollow Knight at 60–80 FPS**. Start with its
+Windows depot at 1280×720 and record the actual resolution, scene, launch time
+and thermal state. This is a measurement target, not a verified result. Use the
+same save and route for comparisons, and record any game frame cap or VSync
+setting separately from performance. JIT must be enabled for **My-pc Native**
+before launching a game; check JIT and Memory+ readiness in the app's Settings.
+
+The IPA verifier handles Xcode's Debug layout: it verifies the ARM64 iOS
+launcher and the referenced `Madeira.debug.dylib` containing the actual app
+code. It rejects macOS and simulator binaries, missing app code and VM payloads.
 
 Valve authenticates the account, confirms licenses and prepares protected
 executables. The Dock helper fails closed for unsupported client fingerprints
