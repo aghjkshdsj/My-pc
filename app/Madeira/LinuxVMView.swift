@@ -1,6 +1,115 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import UIKit
+import GameController
+
+/// Make the Steam surface receive GameController profiles. Native settings
+/// retain normal controller navigation when a session panel is open.
+private struct LinuxGamepadHost<Content: View>: UIViewControllerRepresentable {
+    var enabled: Bool
+    var content: Content
+    final class Controller: GCEventViewController {
+        let host: UIHostingController<Content>
+        init(content: Content) { host = UIHostingController(rootView: content); super.init(nibName: nil, bundle: nil) }
+        required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+        override var canBecomeFirstResponder: Bool { true }
+        override func viewDidLoad() {
+            super.viewDidLoad(); addChild(host); view.addSubview(host.view)
+            host.view.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([host.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                host.view.topAnchor.constraint(equalTo: view.topAnchor), host.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)])
+            host.didMove(toParent: self)
+        }
+        override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); if !controllerUserInteractionEnabled { becomeFirstResponder() } }
+    }
+    func makeUIViewController(context: Context) -> Controller {
+        let controller = Controller(content: content); controller.controllerUserInteractionEnabled = !enabled; return controller
+    }
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        let previouslyEnabled = !controller.controllerUserInteractionEnabled
+        controller.host.rootView = content; controller.controllerUserInteractionEnabled = !enabled
+        if enabled && !previouslyEnabled { controller.becomeFirstResponder() }
+    }
+}
+
+private enum LinuxSessionPanel: String, Identifiable {
+    case options, performance, cpu, tests
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .options: return "Session controls"
+        case .performance: return "Performance"
+        case .cpu: return "CPU & graphics"
+        case .tests: return "CPU & GPU tests"
+        }
+    }
+}
+
+private struct LinuxHardwareTestScreen: View {
+    @ObservedObject var session: LinuxVMSession
+    var body: some View {
+        VStack(spacing: 0) {
+            // Fixed controls and progress do not move with result scrolling.
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center, spacing: 12) {
+                    Text("\(Int((session.hardwareProgress * 100).rounded()))%")
+                        .font(.system(size: 38, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .frame(minWidth: 88)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(session.hardwareTestStatus).font(.headline)
+                        if let work = session.hardwareObservation?.workTitle { Text(work).font(.caption) }
+                        Text("Elapsed \(Int(session.hardwareElapsedSeconds)) seconds").font(.caption).monospacedDigit()
+                    }
+                }
+                ProgressView(value: session.hardwareProgress)
+                Text(session.hardwareHeartbeatStatus).font(.caption)
+                    .foregroundStyle(session.hardwareHeartbeatAge >= 15 && session.hardwareTestBusy ? .orange : .secondary)
+                HStack {
+                    Button("Run CPU") { session.runHardwareTest(.cpu) }.frame(maxWidth: .infinity)
+                    Button("Run GPU (FEX)") { session.runHardwareTest(.gpu) }.frame(maxWidth: .infinity)
+                }.buttonStyle(.borderedProminent)
+                    .disabled(!session.hardwareTestsReady || !session.connected || session.paused || session.hardwareTestBusy || session.hardwareTestUnresponsive)
+                HStack {
+                    if session.hardwareTestBusy {
+                        Button("Stop test") { session.cancelHardwareTest() }.buttonStyle(.bordered)
+                            .disabled(session.hardwareCancellationRequested)
+                    }
+                    ShareLink("Share test report", item: session.hardwareReport).buttonStyle(.bordered)
+                }
+                Text("Pause downloads and close games; leave Steam open. Progress advances as samples or frames finish.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }.padding(.horizontal).padding(.vertical, 10)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if let time = session.nativeCPUMilliseconds {
+                        Text(String(format: "Native iOS CPU: %.2f ms for one million iterations, one worker.", time))
+                    }
+                    if let observation = session.cpuObservation {
+                        Text("CPU results").font(.headline)
+                        ForEach(Array(observation.results.enumerated()), id: \.offset) { _, row in Text(row.summary) }
+                    }
+                    if let observation = session.gpuObservation {
+                        Text("GPU results").font(.headline)
+                        ForEach(Array(observation.results.enumerated()), id: \.offset) { _, row in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(row.summary)
+                                if let renderer = row.renderer { Text(renderer).font(.caption).foregroundStyle(.secondary) }
+                                if let submit = row.submitMedianMs, let finish = row.finishMedianMs, let swap = row.swapMedianMs {
+                                    Text(String(format: "Median: submit %.1f · finish %.1f · swap %.1f ms", submit, finish, swap)).font(.caption)
+                                }
+                            }
+                        }
+                    }
+                    Text("CPU compares native iOS, ARM64 Linux and x86-64 through FEX, with one worker and all guest cores. The native version uses Swift; the guest versions use C. Compiler differences affect the comparison.")
+                    Text("GPU checks real shader pixels and 60 frames at 800 × 500 through ARM64 and FEX. It measures submission, completion and swap delays. Test FPS is not game FPS or GPU utilization; Vulkan and Proton game compatibility need separate checks.")
+                    Text("Linux activity sampling has a timeout. If it is unavailable, the benchmarks continue and the report records that limitation. Steam's files and settings are preserved.")
+                }.frame(maxWidth: .infinity, alignment: .leading).padding()
+            }
+        }
+    }
+}
 
 private struct LinuxMouseCursor: Shape {
     func path(in rect: CGRect) -> Path {
@@ -54,10 +163,16 @@ struct LinuxVMView: View {
     @State private var gestureOrigin: CGPoint?
     @State private var dragging = false
     @State private var showPerformance = true
-    @State private var performanceHelp = false
-    @State private var cpuSettings = false
+    @State private var panel: LinuxSessionPanel?
 
     var body: some View {
+        LinuxGamepadHost(enabled: session.running && panel == nil, content: sessionContent)
+            .onAppear { session.setControllerPanelVisible(panel != nil) }
+            .onDisappear { session.setControllerPanelVisible(true) }
+            .onChange(of: panel) { _, value in session.setControllerPanelVisible(value != nil) }
+    }
+
+    private var sessionContent: some View {
         NavigationStack {
             Group {
                 if let image = session.image {
@@ -70,6 +185,14 @@ struct LinuxVMView: View {
                             .foregroundStyle(.secondary).multilineTextAlignment(.center)
                         Spacer()
                         cpuPicker
+                        if LinuxVMSession.metalAvailable {
+                            graphicsPicker
+                            if session.graphicsMode == .software && !session.started {
+                                Text("Software rendering is selected. Use Metal to enable the GPU backend.")
+                                    .font(.footnote).foregroundStyle(.orange)
+                                Button("Use Metal graphics") { session.selectGraphics(.metal) }.disabled(session.installing)
+                            }
+                        }
                         Text(session.status).font(.footnote).textSelection(.enabled)
                         if session.installing { ProgressView(value: session.installProgress) }
                         HStack {
@@ -112,38 +235,89 @@ struct LinuxVMView: View {
             } message: { Text(session.error ?? "") }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { releaseMouse() }
-                session.setBackground(phase != .active)
+                let visibility: LinuxAppVisibility = phase == .active ? .active : (phase == .background ? .background : .inactive)
+                if let paused = LinuxPausePolicy.change(for: visibility) { session.setBackground(paused) }
             }
             .onChange(of: trackpad) { _, _ in releaseMouse() }
-            .sheet(isPresented: $performanceHelp) {
+            .fullScreenCover(item: $panel) { chosen in
                 NavigationStack {
-                    List {
-                        Text("CPU is this app's total use across its threads, including Linux emulation. 100% means one fully busy core; it can exceed 100%. It is not the guest's CPU percentage.")
-                        Text("RAM is this app's physical memory footprint, including QEMU and the display. Linux has \(session.guestMemoryMiB) MiB allocated and \(session.guestCPUCount) virtual CPUs. Allocation is not memory usage.")
-                        Text("This session has \(session.guestCPUCount) virtual CPU cores. iOS reports \(session.hostCPUCount) available host cores. CPU core settings apply at startup; iOS controls scheduling, power and thermal limits. More cores do not guarantee a faster interface.")
-                        Text("Display FPS counts new guest frames shown each second, up to 30. An idle desktop can show 0 FPS. This is not a game's internal FPS.")
-                        Text("Linux desktop: \(LinuxDesktopSize.width) × \(LinuxDesktopSize.height). Fit shows the whole guest desktop; Enlarge pans toward the pointer.")
-                        Text("Steam currently uses CPU software rendering. GPU utilization is unavailable in this build; no GPU percentage is estimated.")
-                        Text("Device thermal state: \(session.thermalStatus). iOS decides CPU scheduling and thermal limits.")
-                    }
-                    .navigationTitle("Performance")
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { performanceHelp = false } } }
-                }.presentationDetents([.medium, .large])
-            }
-            .sheet(isPresented: $cpuSettings) {
-                NavigationStack {
-                    Form {
-                        cpuPicker
-                        Text("All available cores is the default. More virtual CPUs can help parallel work, but also add overhead. iOS controls scheduling and thermal limits.")
-                        Text("Choose before starting Linux. After a session, shut down Linux and restart My-pc to change this setting. Your installed disk is preserved.")
-                    }
-                    .navigationTitle("CPU cores")
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { cpuSettings = false } } }
-                }.presentationDetents([.medium])
+                    panelContent(chosen)
+                        .navigationTitle(chosen.title)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar(.visible, for: .navigationBar)
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { panel = nil } } }
+                }.preferredColorScheme(.dark)
             }
         }
         .interactiveDismissDisabled(session.running || session.installing)
         .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder private func panelContent(_ chosen: LinuxSessionPanel) -> some View {
+        switch chosen {
+        case .tests:
+            LinuxHardwareTestScreen(session: session)
+        case .performance:
+            List {
+                        Text("CPU is this app's total use across its threads, including Linux emulation. 100% means one fully busy core; it can exceed 100%. It is not the guest's CPU percentage.")
+                        Text("RAM is this app's physical memory footprint, including QEMU and the display. Linux has \(session.guestMemoryMiB) MiB allocated and \(session.guestCPUCount) virtual CPUs. Allocation is not memory usage.")
+                        Text("This session has \(session.guestCPUCount) virtual CPU cores. iOS reports \(session.hostCPUCount) available host cores. CPU core settings apply at startup; iOS controls scheduling, power and thermal limits. More cores do not guarantee a faster interface.")
+                        Text("Display FPS counts new guest frames shown each second, up to 30. An idle desktop can show 0 FPS. This is not a game's internal FPS.")
+                        if let latency = session.inputMilliseconds {
+                            Text("Last input acknowledged by the VM: \(Int(latency.rounded())) ms. This measures control processing, not Steam's time to draw a response.")
+                        }
+                        Text("Linux desktop: \(LinuxDesktopSize.width) × \(LinuxDesktopSize.height). Fit shows the whole guest desktop; Enlarge pans toward the pointer.")
+                        Text("Graphics selection: \(session.graphicsMode.title). Metal uses the experimental virgl/ANGLE backend; individual apps can still fall back to software. GPU utilization is unavailable; no percentage is estimated.")
+                        Text(session.graphicsSummary)
+                        if let observation = session.guestGraphics {
+                            Text("Guest renderer: \(observation.renderer.isEmpty ? "unavailable" : observation.renderer)")
+                            Text("Render/readback check: \(observation.readbackOK ? "passed" : "failed or unavailable"). This verifies the guest driver; Steam CEF can still choose a different renderer.")
+                        }
+                        ShareLink("Share graphics report", item: session.graphicsReport)
+                        Text("Device thermal state: \(session.thermalStatus). iOS decides CPU scheduling and thermal limits.")
+            }
+            .safeAreaInset(edge: .top) { Button("Open CPU & GPU tests") { panel = .tests }.buttonStyle(.borderedProminent).padding(8) }
+        case .cpu:
+            Form {
+                        cpuPicker
+                        if LinuxVMSession.metalAvailable {
+                            graphicsPicker
+                            Text("Metal is the default in GPU previews unless you explicitly choose Software. It is experimental and needs device testing. Choose Software if startup or rendering fails. The startup update preserves your installed Steam client, account and games.")
+                        }
+                        Text("All available cores is the default. More virtual CPUs can help parallel work, but also add overhead. iOS controls scheduling and thermal limits.")
+                        Text("Choose before starting Linux. After a session, shut down Linux and restart My-pc to change this setting. Your installed disk is preserved.")
+            }
+        case .options:
+            VStack(spacing: 0) {
+                Button("Open CPU & GPU tests") { panel = .tests }.buttonStyle(.borderedProminent).padding(10)
+                List {
+                    Text(session.status)
+                    Text(session.controllerStatus)
+                    Button("Open Steam Big Picture") { session.openBigPicture(); panel = nil }
+                        .disabled(!session.connected || !session.hardwareTestsReady || session.paused)
+                    Text("Backbone Pro: sticks, triggers, D-pad, A/B/X/Y, shoulders, Menu/View and stick clicks are sent as a Linux gamepad. Use Steam's Big Picture mode for controller navigation. App panels temporarily release game inputs.")
+                    Text("Rumble and vendor-specific shortcut buttons are not forwarded in this preview.").font(.caption)
+                    Button("CPU & graphics (\(session.guestCPUCount) cores)") { panel = .cpu }
+                    Button("Performance details") { panel = .performance }
+                    Toggle("Touch as trackpad", isOn: $trackpad)
+                    if trackpad {
+                        Button(dragging ? "Release mouse drag" : "Hold mouse for dragging") {
+                            dragging.toggle()
+                            session.pointer(x: mousePoint.x, y: mousePoint.y, down: dragging)
+                        }.disabled(!session.connected)
+                    }
+                    Button("Click") { session.click(x: mousePoint.x, y: mousePoint.y) }.disabled(!session.connected || dragging)
+                    Button("Right-click") { session.click(x: mousePoint.x, y: mousePoint.y, button: .right) }.disabled(!session.connected || dragging)
+                    Button("Scroll up") { session.click(x: mousePoint.x, y: mousePoint.y, button: .wheelUp) }.disabled(!session.connected || dragging)
+                    Button("Scroll down") { session.click(x: mousePoint.x, y: mousePoint.y, button: .wheelDown) }.disabled(!session.connected || dragging)
+                    Toggle("Performance monitor", isOn: $showPerformance)
+                    Button("Up arrow") { session.press("up") }.disabled(!session.connected)
+                    Button("Down arrow") { session.press("down") }.disabled(!session.connected)
+                    Button("Shut down Linux", role: .destructive) { session.shutdown() }.disabled(!session.running || !session.connected)
+                    Button("Close session") { panel = nil; dismiss() }.disabled(session.running || session.installing)
+                }
+            }
+        }
     }
 
     private func desktop(_ image: CGImage) -> some View {
@@ -196,10 +370,10 @@ struct LinuxVMView: View {
         }
         .overlay(alignment: .topLeading) {
             if showPerformance {
-                Button { performanceHelp = true } label: {
+                Button { openPanel(.performance) } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("CPU \(session.cpuPercent.map { String(format: "%.0f%%", $0) } ?? "—") · RAM \(session.memoryMiB.map { String(format: "%.0f MiB", $0) } ?? "—")")
-                        Text(String(format: "Display %.1f FPS · GPU: software", session.displayFPS))
+                        Text(String(format: "Display %.1f FPS", session.displayFPS) + " · " + session.graphicsSummary)
                         Text("VM \(session.guestCPUCount) cores · \(image.width)×\(image.height)")
                     }
                     .font(.system(size: 11, design: .monospaced)).monospacedDigit()
@@ -218,35 +392,17 @@ struct LinuxVMView: View {
                 Button("Tab") { session.press("tab") }.disabled(!session.connected)
                 Button("Enter") { session.press("ret") }.disabled(!session.connected)
                 Spacer(minLength: 0)
+                Button("Tests") { openPanel(.tests) }.buttonStyle(.borderedProminent)
+                    .accessibilityLabel("Open CPU and FEX GPU tests")
                 Button {
                     zoomed.toggle()
                     if zoomed { trackpad = true }
                 } label: { Image(systemName: zoomed ? "arrow.down.right.and.arrow.up.left" : "plus.magnifyingglass") }
                     .accessibilityLabel(zoomed ? "Fit desktop to screen" : "Enlarge desktop")
-                Menu {
-                    Text(session.status)
-                    Button("CPU cores (\(session.guestCPUCount))") { cpuSettings = true }
-                    Toggle("Touch as trackpad", isOn: $trackpad)
-                    if trackpad {
-                        Button(dragging ? "Release mouse drag" : "Hold mouse for dragging") {
-                            dragging.toggle()
-                            session.pointer(x: mousePoint.x, y: mousePoint.y, down: dragging)
-                        }.disabled(!session.connected)
-                    }
-                    Button("Click") { session.click(x: mousePoint.x, y: mousePoint.y) }.disabled(!session.connected || dragging)
-                    Button("Right-click") { session.click(x: mousePoint.x, y: mousePoint.y, button: .right) }.disabled(!session.connected || dragging)
-                    Button("Scroll up") { session.click(x: mousePoint.x, y: mousePoint.y, button: .wheelUp) }.disabled(!session.connected || dragging)
-                    Button("Scroll down") { session.click(x: mousePoint.x, y: mousePoint.y, button: .wheelDown) }.disabled(!session.connected || dragging)
-                    Toggle("Performance monitor", isOn: $showPerformance)
-                    Button("Performance details") { performanceHelp = true }
-                    Button("Up arrow") { session.press("up") }.disabled(!session.connected)
-                    Button("Down arrow") { session.press("down") }.disabled(!session.connected)
-                    Button("Shut down Linux", role: .destructive) { session.shutdown() }.disabled(!session.running || !session.connected)
-                    Button("Close") { dismiss() }.disabled(session.running || session.installing)
-                } label: { Image(systemName: "ellipsis") }
+                Button { openPanel(.options) } label: { Image(systemName: "slider.horizontal.3") }
                 .accessibilityLabel("Session options")
             }
-            .font(.footnote).buttonStyle(.bordered)
+            .font(.caption).buttonStyle(.bordered)
             .padding(.horizontal, 8).padding(.vertical, 4).background(.black)
         }
     }
@@ -260,6 +416,12 @@ struct LinuxVMView: View {
         }.disabled(session.started || session.installing)
     }
 
+    private var graphicsPicker: some View {
+        Picker("Graphics", selection: Binding(get: { session.graphicsMode }, set: { session.selectGraphics($0) })) {
+            ForEach(LinuxGraphicsMode.allCases, id: \.self) { mode in Text(mode.title).tag(mode) }
+        }.disabled(session.started || session.installing)
+    }
+
     private func moveMouse(x: CGFloat, y: CGFloat, down: Bool) {
         mousePoint = CGPoint(x: x.isFinite ? min(1, max(0, x)) : 0,
                              y: y.isFinite ? min(1, max(0, y)) : 0)
@@ -269,5 +431,8 @@ struct LinuxVMView: View {
     private func releaseMouse() {
         session.pointer(x: mousePoint.x, y: mousePoint.y, down: false)
         dragging = false; gestureOrigin = nil
+    }
+    private func openPanel(_ selected: LinuxSessionPanel) {
+        keyboard = false; releaseMouse(); panel = selected
     }
 }

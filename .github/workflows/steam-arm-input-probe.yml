@@ -1,0 +1,93 @@
+name: ARM Steam input failure probe
+on:
+  push:
+    branches: [codex/steam-arm-metal]
+    paths: [.github/workflows/steam-arm-input-probe.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  controller:
+    runs-on: macos-26
+    timeout-minutes: 16
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore the exact controller preview artifacts
+        run: |
+          test "$(gh run view 36807323324 --json headSha --jq .headSha)" = eeea11a802f22c80398c8d2002f1ac75c8bfaf81
+          gh run download 36807323324 --name linux-arm-guest --dir build/input-probe/download/guest
+          gh run download 36807323324 --name linux-arm-qemu-macos --dir build/input-probe/download/qemu
+          mkdir -p build/input-probe/guest build/input-probe/qemu
+          tar -xzf build/input-probe/download/guest/linux-arm-guest.tar.gz -C build/input-probe/guest
+          tar -xzf build/input-probe/download/qemu/linux-arm-qemu-macos.tar.gz -C build/input-probe/qemu
+          (cd build/input-probe/guest && shasum -a 256 -c SHA256SUMS)
+          python3 build/linux-arm-gpu/package-test-runtime.py build/input-probe/qemu build/input-probe/runtime
+          chmod +x build/input-probe/runtime/host-launcher
+          for framework in build/input-probe/runtime/Frameworks/*.framework; do codesign --force --sign - "$framework"; done
+          brew install e2fsprogs
+          python3 .github/probes/probe-startup-overlay.py build/input-probe/guest --journal
+      - name: Run the isolated guest and report fixed startup flags
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, re, subprocess, sys
+          # Keep all raw subprocess output private to the runner. Export only
+          # these predefined boolean values; never raw logs or error text.
+          result = subprocess.run([sys.executable,'build/linux-arm-gpu/run-metal-runtime.py',
+              'build/input-probe/guest','build/input-probe/runtime','--hardware'],
+              stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=600)
+          output = result.stdout.decode(errors='replace').lower()
+          guest = pathlib.Path('build/input-probe/guest/boot-3.log')
+          if guest.exists(): output += guest.read_text(errors='replace').lower()
+          patterns = {'controller_service_ready':'mypc_controller_ready=1',
+              'controller_device_created':'mypc_controller_created',
+              'graphics_probe_started':'mypc_guest_graphics',
+              'hardware_keys_ready':'mypc_hardware_test_ready=1',
+              'controller_test_passed':'mypc_controller_evdev_analog_buttons_hotplug_ok=1',
+              'hardware_test_passed':'mypc_hardware_runtime_ok=1',
+              'hardware_test_failed':'mypc_hardware_runtime_failed=1',
+              'desktop_ready':'mypc_desktop_ready',
+              'desktop_deadline':'desktop did not become ready',
+              'observer_deadline':'controller observation timed out',
+              'device_removed':'no such device',
+              'permission_error':'permission denied'}
+          flags = {key:pattern in output for key,pattern in patterns.items()}
+          flags['runtime_succeeded'] = result.returncode == 0
+          print('MYPC_RUNTIME_FLAGS '+json.dumps(flags,sort_keys=True),flush=True)
+          allowed = {'serial_steam_write_allowed','serial_owned_by_steam','serial_group_is_steam_group',
+              'serial_node_missing','vt_permission_error','vt_serial_open_error','vt_x_server_error',
+              'vt_no_space','vt_missing_command','vt_resource_error'}
+          for record in re.findall(r'mypc_startup_access (\{[^\r\n]{1,1024}\})',output):
+              try: state=json.loads(record)
+              except ValueError: continue
+              if set(state)<=allowed and all(type(value) is bool for value in state.values()):
+                  print('MYPC_STARTUP_ACCESS '+json.dumps(state,sort_keys=True),flush=True)
+          sys.exit(0 if result.returncode==0 else 1)
+          PY
+      - name: Report fixed startup diagnostic flags from the isolated guest
+        if: failure()
+        run: |
+          export MYPC_DEBUGFS="$(brew --prefix e2fsprogs)/sbin/debugfs"
+          python3 - <<'PY'
+          import json, os, subprocess
+          sources = {'xorg-user':'/home/steam/.local/share/xorg/Xorg.0.log',
+                     'xorg-system':'/var/log/Xorg.0.log','profile':'/home/steam/.profile',
+                     'bash-profile':'/home/steam/.bash_profile','desktop':'/usr/local/bin/my-pc-desktop'}
+          patterns = {'missing_screen':'no screens found','server_fatal':'fatal server error',
+                      'permission_error':'permission denied','load_failed':'failed to load',
+                      'libinput_seen':'libinput','modesetting_seen':'modesetting','gamepad_seen':'my-pc ios gamepad',
+                      'startx_present':'startx','desktop_command_present':'my-pc-desktop',
+                      'hardware_launcher_present':'hardware-keys.py','hardware_ci_present':'hardware-test-ci.py'}
+          for label,name in sources.items():
+              result = subprocess.run([os.environ['MYPC_DEBUGFS'],'-R','cat '+name,'build/input-probe/guest/rootfs.raw'],
+                                      stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=15)
+              text = result.stdout.decode(errors='replace').lower()
+              flags = {key:pattern in text for key,pattern in patterns.items()}
+              flags.update(source=label,missing='file not found' in text)
+              # Never print file contents, lines, unknown paths, environment,
+              # names or exception strings. Only this fixed boolean schema.
+              print('MYPC_STARTUP_FLAGS '+json.dumps(flags,sort_keys=True),flush=True)
+          PY

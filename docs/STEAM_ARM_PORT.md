@@ -8,6 +8,43 @@ contains a real unsigned iPhone IPA. The owner reports successful Steam launch
 and account login on the target iPhone. Downloads and gaming performance still
 need device testing; the owner reports a slow interface with software graphics.
 
+2026-09-29: [Metal preview 7](https://github.com/aghjkshdsj/My-pc/releases/tag/steam-arm-metal-preview-7)
+was published from `0f94c657e69dc1ff2ab781df462b6af61bcc59b0` after
+[run 36653198424](https://github.com/aghjkshdsj/My-pc/actions/runs/36653198424)
+passed the production update, old-disk preservation, six-core desktop, software
+recovery, Steam CEF virgl GPU compositing/WebGL, responsive login and shutdown.
+The actual IPA is 716,417,077 bytes, SHA-256
+`56739bf722e593934e23c13ccaa8704a6397bd277591f38a0a98fd6c8df6047d`;
+release download, checksum and byte comparison passed before publication.
+The owner reports that its overlay says **GPU: software**, which in this build
+means the app selected software at launch. Preview 7 intentionally defaulted
+to Software; this report is not evidence of a tested Metal context falling back.
+
+The owner then selected Metal and reported an app crash. The private MetricKit
+report identifies SIGABRT in libepoxy on preview 7, not an out-of-memory kill.
+Its IPA framework closure omitted ANGLE EGL/GLESv2, which epoxy opens dynamically;
+previous hosted Mac tests had the full build folder and did not catch this.
+The next candidate explicitly packages those providers and all resources,
+checks their iPhone platform/exports, preflights their load paths before QEMU,
+and tests only the framework set destined for the app. Removing either provider
+must produce a recoverable error instead of aborting. This is a likely cause
+supported by the crash and packaging, not yet a verified fix on the owner's phone.
+
+Software remains the default; the candidate preserves explicit choices and offers
+a Use Metal button. It queries the real guest OpenGL renderer and renders/reads
+one pixel before launching Steam. The overlay distinguishes requested Metal,
+verified guest virgl, software selection and software fallback/readback failure.
+The diagnostics share sheet contains only build, requested backend, guest driver,
+readback result, public Metal device name and guest CPU/RAM configuration.
+It does not export Steam account information, target URLs or full logs; Steam
+CEF remains explicitly unverified on the physical phone.
+CI must pass this new guest diagnostic alongside the existing full Steam GPU
+test before publishing the candidate. Physical performance remains unmeasured.
+
+Native client preparation and Big Picture changes were saved separately and
+are not in this GPU candidate. The owner asked to prioritize GPU integration.
+The JIT-free product is also paused at the owner's request.
+
 ## Objective
 
 Run Valve's full ARM64 **Linux** Steam client locally inside My-pc on iPhone,

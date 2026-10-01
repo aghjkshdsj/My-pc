@@ -16,6 +16,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       BASE_RUNTIME_RUN: '36243324815'
       BASE_RUNTIME_SHA: 992bbb795113f412ec5b1214a90d009b2a06decb
+      MYPC_PACKAGE_METAL: ${{ github.ref == 'refs/heads/codex/steam-arm-metal' && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,7 +60,9 @@ jobs:
             -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -import-objc-header app/Madeira/Madeira-Bridging-Header.h app/Madeira/*.swift
       - name: Build actual iPhone IPA with bundled Linux runtime
         run: |
-          /usr/libexec/PlistBuddy -c "Set CFBundleVersion 100${GITHUB_RUN_NUMBER}" app/Madeira/Info.plist
+          taskBuildVersion="100${GITHUB_RUN_NUMBER}"
+          if [ "$MYPC_PACKAGE_METAL" = 1 ]; then taskBuildVersion="20000${GITHUB_RUN_NUMBER}"; fi
+          /usr/libexec/PlistBuddy -c "Set CFBundleVersion $taskBuildVersion" app/Madeira/Info.plist
           /usr/libexec/PlistBuddy -c "Add SomethingPCBuildCommit string $GITHUB_SHA" app/Madeira/Info.plist
           bash build/linux-arm/package-ipa.sh
           python3 build/linux-arm/package-sources.py
@@ -73,9 +76,9 @@ jobs:
           compression-level: 0
           if-no-files-found: error
       - name: Publish verified experimental IPA
-        if: github.ref == 'refs/heads/codex/steam-arm-linux'
+        if: github.ref == 'refs/heads/codex/steam-arm-linux' || github.ref == 'refs/heads/codex/steam-arm-metal'
         env:
-          RELEASE_TAG: steam-arm-preview-${{ github.run_number }}
+          RELEASE_TAG: ${{ github.ref == 'refs/heads/codex/steam-arm-metal' && format('steam-arm-metal-preview-{0}', github.run_number) || format('steam-arm-preview-{0}', github.run_number) }}
         run: |
           cat > build/arm-release-notes.md <<'NOTES'
           Experimental ARM64 Linux Steam port for iPhone. Download **SomethingPC-SteamARM64.ipa** from Assets and sign it with your sideloading tool.
@@ -90,8 +93,13 @@ jobs:
 
           The existing Windows Steam/Wine option remains available. Restart My-pc before switching runtimes. Source material for the new QEMU runtime is attached; exact build code and test logs are linked by this release commit and Actions run.
           NOTES
+          taskReleaseTitle="Something PC ARM64 Steam development preview ${GITHUB_RUN_NUMBER}"
+          if [ "$MYPC_PACKAGE_METAL" = 1 ]; then
+            cp docs/METAL_RELEASE_NOTES.md build/arm-release-notes.md
+            taskReleaseTitle="Something PC ARM64 Steam Metal development preview ${GITHUB_RUN_NUMBER}"
+          fi
           gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --draft --prerelease --latest=false \
-            --title "Something PC ARM64 Steam development preview ${GITHUB_RUN_NUMBER}" \
+            --title "$taskReleaseTitle" \
             --notes-file build/arm-release-notes.md \
             build/ARM-IPA/SomethingPC-SteamARM64.ipa build/ARM-IPA/SomethingPC-SteamARM64.ipa.sha256 \
             build/linux-arm/LinuxRuntime-Sources.tar.gz

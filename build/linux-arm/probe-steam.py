@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Run official ARM Steam under X11, without an account or Steam credentials.
 
-This proves only a running CEF renderer and a visible client window on Linux.
+This proves a running CEF renderer, a visible client window, and Steam's ARM64
+SDK launch wrapper executing a harmless command through its expected path.
 It does not prove login, downloads, GPU acceleration or iPhone performance.
 """
 import argparse
 import base64
+import hashlib
 import json
 import os
 import pathlib
@@ -35,6 +37,39 @@ if not args.guest:
                     '--destination', str(steam)], check=True)
 environment = dict(os.environ, HOME=str(home), XDG_DATA_HOME=str(home / '.local/share'))
 environment['LD_LIBRARY_PATH'] = str(steam / 'steamrtarm64')
+def verify_sdk_wrapper():
+    sdk = home / '.steam/sdkarm64'
+    wrapper = sdk / 'steam-launch-wrapper'
+    report = {
+        'sdk_alias_matches_client': sdk.is_symlink() and sdk.resolve() == (steam / 'linuxarm64').resolve(),
+        'arm64_wrapper': False,
+        'wrapper_executable': os.access(wrapper, os.X_OK),
+        'exit_status': None,
+        'vendor_file_unchanged': False,
+    }
+    with (output / 'sdk-wrapper.log').open('w') as log:
+        try:
+            vendor_bytes = wrapper.read_bytes()
+            report['arm64_wrapper'] = (len(vendor_bytes) >= 20 and vendor_bytes[:6] == b'\x7fELF\x02\x01'
+                                       and vendor_bytes[18:20] == b'\xb7\x00')
+            if all(report[name] for name in ('sdk_alias_matches_client', 'arm64_wrapper', 'wrapper_executable')):
+                # Exercise the exact SDK path used by Steam's game launch. Turn
+                # off optional desktop integrations; no account or game needed.
+                result = subprocess.run([str(wrapper), '--no-game-bin', '--no-journal', '--no-scope',
+                                         '--no-audio-namespace', '--', '/usr/bin/true'],
+                                        stdout=log, stderr=subprocess.STDOUT, env=environment, timeout=15)
+                report['exit_status'] = result.returncode
+                report['vendor_file_unchanged'] = (hashlib.sha256(wrapper.read_bytes()).digest()
+                                                   == hashlib.sha256(vendor_bytes).digest())
+        except (OSError, subprocess.TimeoutExpired) as error:
+            # Only fixed exception labels enter the account-free gate summary.
+            report['error'] = type(error).__name__
+    (output / 'sdk-wrapper.json').write_text(json.dumps(report, indent=2) + '\n')
+    passed = (report['sdk_alias_matches_client'] and report['arm64_wrapper'] and report['wrapper_executable']
+              and report['exit_status'] == 0 and report['vendor_file_unchanged'])
+    print('MYPC_STEAM_SDK_WRAPPER_OK' if passed else 'MYPC_STEAM_SDK_WRAPPER_FAILED', flush=True)
+    return passed
+
 def dependencies():
     missing = []
     with (output / 'dependencies.txt').open('w') as log:
@@ -98,6 +133,8 @@ with (output / 'launch.log').open('w') as log:
                 print(f'Client window remained mapped with a responsive login renderer: {window["title"]!r}', flush=True)
                 print(json.dumps(readiness), flush=True)
                 break
+        if success:
+            success = verify_sdk_wrapper()
         if success and args.guest:
             dependencies()
             print('MYPC_GUEST_STEAM_WINDOW_OK', flush=True)
@@ -127,7 +164,7 @@ with (output / 'launch.log').open('w') as log:
 if not success:
     diagnostics = [output / name for name in ['launch.log', 'windows.txt', 'processes.txt',
                                              'client-window.json', 'cef-targets.json', 'cef-readiness.json',
-                                             'missing-dependencies.txt']]
+                                             'missing-dependencies.txt', 'sdk-wrapper.json', 'sdk-wrapper.log']]
     diagnostics += sorted(path for path in (output / 'steam-logs').glob('*') if path.suffix in {'.txt', '.log'})
     for path in diagnostics:
         if path.is_file():
@@ -136,5 +173,5 @@ if not success:
     print('MYPC_STEAM_HEALTH ' + (output / 'steam-health.json').read_text().strip(), flush=True)
     if args.guest:
         print('MYPC_GUEST_STEAM_FAILED', flush=True)
-    raise SystemExit('ARM Steam did not present a client window with a CEF renderer. Inspect launch/dependency/Steam logs.')
-print('PASS: ARM64 Steam client window and CEF renderer on Linux; no account login attempted')
+    raise SystemExit('ARM Steam did not pass the client window, CEF renderer and SDK launch-wrapper gates. Inspect probe logs.')
+print('PASS: ARM64 Steam client window, CEF renderer and SDK launch wrapper on Linux; no account login attempted')

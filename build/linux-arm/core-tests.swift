@@ -19,16 +19,53 @@ var disk = Data(repeating: 0, count: 2048)
 disk.replaceSubrange(1080..<1082, with: [0x53, 0xef])
 try disk.write(to: guest.appendingPathComponent("rootfs.raw"))
 var config = LinuxVMConfiguration(directory: guest, log: root.appendingPathComponent("serial.log"), control: root.appendingPathComponent("q.sock"))
+var pad = LinuxGamepadState(connected: true, buttons: 0x1009, axes: [-16000,14000,12000,-8000,8192,24576])
+let padPacket = Array(pad.packet(slot: 3, sequence: 0x12345678))
+check(padPacket.count == 32 && Array(padPacket[0..<8]) == [77,80,71,49,3,1,0,0], "Controller wire header and slot")
+check(Array(padPacket[8..<16]) == [0x78,0x56,0x34,0x12,9,0x10,0,0], "Controller sequence and buttons are little endian")
+check(Array(padPacket[16..<20]) == [0x80,0xc1,0xb0,0x36], "Signed analog axes preserve their exact values")
+pad.connected = false
+check(pad.packet(slot: 0, sequence: 2).suffix(20).allSatisfy { $0 == 0 }, "Disconnect must release every button/axis")
+check(LinuxGamepadState.axis(.nan) == 0 && LinuxGamepadState.axis(2) == 32767 && LinuxGamepadState.axis(1,inverted: true) == -32767 && LinuxGamepadState.axis(-1,trigger: true) == 0, "Controller axis clamps and Linux Y inversion")
+var padConfig = config
+padConfig.controller = root.appendingPathComponent("g.sock")
+let padArguments = try padConfig.arguments()
+check(padArguments.contains("virtio-serial-pci,id=linux-gamepads") && padArguments.contains("virtserialport,bus=linux-gamepads.0,chardev=linux-gamepads,name=org.my-pc.gamepad"), "Real virtual Linux gamepad channel required")
+var diagnosticConfig = padConfig
+diagnosticConfig.diagnostics = root.appendingPathComponent("t.sock")
+let diagnosticArguments = try diagnosticConfig.arguments()
+check(diagnosticArguments.contains("virtserialport,bus=linux-diagnostics.0,chardev=linux-diagnostics,name=org.my-pc.diagnostics"), "Diagnostics require a separate private guest port")
+diagnosticConfig.diagnostics = padConfig.controller
+rejects { _ = try diagnosticConfig.arguments() }
+diagnosticConfig.diagnostics = URL(fileURLWithPath: "/tmp/test,invalid")
+rejects { _ = try diagnosticConfig.arguments() }
 let argv = try config.arguments()
 #if MYPC_INTERPRETER
 check(!LinuxExecutionMode.requiresJIT, "Interpreter must not request JIT")
+check(LinuxExecutionMode.defaultCPUSelection == 2, "Interpreter retains the tested two-core default")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: nil) == .software, "Interpreter cannot enable Metal")
 check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=off"), "Interpreter translation storage must not be executable")
 #else
 check(LinuxExecutionMode.requiresJIT, "Sideload build must retain JIT preflight")
-check(argv.contains("tcg,thread=multi,tb-size=128,split-wx=on"), "JIT must require split W/X")
+check(LinuxExecutionMode.defaultCPUSelection == 0, "JIT defaults to all available cores")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: nil) == .software, "GPU preview retains Software until device validation")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "invalid") == .software, "Invalid stored choice should allow software recovery")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "metal") == .metal, "An explicit Metal choice must be preserved")
+check(argv.contains("tcg,thread=multi,tb-size=256,split-wx=on"), "JIT must require split W/X")
 #endif
-let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: String]
-check(block["filename"] == guest.appendingPathComponent("rootfs.raw").path, "Disk path must survive spaces and commas without option injection")
+let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: Any]
+let cache = block["cache"] as! [String: Bool]
+check(cache["no-flush"] == false, "Performance changes must preserve guest flushes")
+check(argv.contains("virtio-blk-pci,drive=linux-root,iothread=linux-disk-io,num-queues=2"), "Disk processing must use its own IOThread and one queue per guest CPU")
+check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "software") == .software, "Explicit software recovery must be preserved")
+check(LinuxGraphicsMode.initial(metalAvailable: false, saved: "metal") == .software, "A software-only runtime cannot request Metal")
+let graphicsLine = #"MYPC_GUEST_GRAPHICS {"schema":1,"renderer":"virgl","readback_ok":true,"accelerated":true}"#
+check(LinuxGuestGraphics.observation(in: graphicsLine)?.verifiedVirgl == true, "Actual virgl pixel readback should verify the guest driver")
+check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "virgl", with: "virgl llvmpipe"))?.verifiedVirgl == false, "Software fallback must not be reported as accelerated")
+check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "\"readback_ok\":true", with: "\"readback_ok\":false"))?.verifiedVirgl == false, "A renderer name alone cannot pass")
+check(LinuxGuestGraphics.observation(in: "MYPC_GUEST_GRAPHICS invalid") == nil, "Malformed graphics report stays unverified")
+check(LinuxGuestGraphics.observation(in: graphicsLine.replacingOccurrences(of: "\"schema\":1", with: "\"schema\":2")) == nil, "Unknown graphics schemas cannot verify acceleration")
+check(block["filename"] as? String == guest.appendingPathComponent("rootfs.raw").path, "Disk path must survive spaces and commas without option injection")
 check(LinuxCPUSelection.resolve(0, hostCount: 6) == 6, "Automatic mode must expose all six iPhone cores")
 check(LinuxCPUSelection.resolve(2, hostCount: 6) == 2, "A smaller manual selection must remain available")
 check(LinuxCPUSelection.resolve(8, hostCount: 6) == 6, "Stored preferences must not oversubscribe this phone")
@@ -43,6 +80,18 @@ rejects { _ = try config.arguments() }
 config.cpuCount = 0
 rejects { _ = try config.arguments() }
 config.cpuCount = 6
+config.graphics = .metal
+rejects { _ = try config.arguments() }
+config.graphicsInitrd = guest.appendingPathComponent("initrd.img")
+#if MYPC_INTERPRETER
+rejects { _ = try config.arguments() }
+#else
+let metalArguments = try config.arguments()
+check(metalArguments.contains("virtio-gpu-gl-pci,xres=1280,yres=800"), "Metal must use the accelerated virtio GPU")
+check(metalArguments.contains("egl-headless,gl=es"), "Metal must select the tested GLES display backend")
+check(metalArguments[metalArguments.firstIndex(of: "-append")! + 1].contains("my_pc_graphics=virgl"), "Metal must update existing guest startup scripts")
+#endif
+config.graphics = .software
 config.memoryMiB = 8192
 rejects { _ = try config.arguments() }
 config.memoryMiB = 2048
@@ -88,3 +137,72 @@ let right = LinuxQMP.pointer(x: 0.5, y: 0.5, down: true, button: .right)
 let rightEvents = right["events"] as! [[String: Any]]
 check((rightEvents[2]["data"] as! [String: Any])["button"] as? String == "right", "Context clicks must use the right mouse button")
 print("PASS: CPU accounting, display frame rates, missing metrics and right-click input")
+
+let mailbox = LinuxPointerMailbox()
+check(mailbox.offer(.init(x: 0, y: 0, down: false)), "First motion schedules one drain")
+let inflight = mailbox.take()!
+check(inflight.x == 0, "First request is in flight")
+for index in 1...10_000 {
+    check(!mailbox.offer(.init(x: Double(index), y: 1, down: false)), "Stalled control must not queue another drain for each movement")
+}
+check(mailbox.finish(), "Latest motion needs one more turn after the click queue")
+check(mailbox.take()?.x == 10_000, "Drop stale movements rather than playing them back")
+check(!mailbox.finish(), "Drain becomes idle after the latest position")
+check(mailbox.offer(.init(x: 1, y: 1, down: true)), "Motion after idle restarts drain")
+mailbox.discard()
+check(mailbox.take() == nil, "Press/release cancels any older pending motion")
+check(!mailbox.finish(), "Cancelled drain must become idle")
+check(mailbox.offer(.init(x: 2, y: 2, down: false)), "Motion after release restarts safely")
+check(mailbox.take()?.down == false, "Release state must survive motion coalescing")
+check(!mailbox.finish(), "No empty drain spin")
+print("PASS: 10,000 motions during a stalled request retain one latest position")
+check(LinuxNativeCPUBenchmark.checksum(seed: 1, iterations: 1_000_000) == 0x1d250c45a7bbc87e,
+      "Native iOS integer kernel must match the independent C/Python reference")
+let nativeCPU = LinuxNativeCPUBenchmark.run()
+check(nativeCPU.milliseconds > 0 && nativeCPU.checksum.split(separator: ",").count == 3,
+      "CPU timing must retain all three observable workloads")
+let hardwareLine = #"MYPC_HARDWARE_TEST {"schema":1,"run":"F898533A-6F4A-47B9-824F-9A76574D0847","kind":"gpu","status":"complete","stage":"finished","results":[{"mode":"fex","kind":"gpu","status":"passed","renderer":"virgl","render_fps":12.5,"accelerated":true,"readback_ok":true}]}"#
+check(LinuxHardwareObservation.observation(in: hardwareLine)?.0.results.first?.renderFps == 12.5,
+      "FEX graphics records must decode their actual measured FPS")
+check(LinuxHardwareObservation.observation(in: hardwareLine.replacingOccurrences(of: "\"schema\":1", with: "\"schema\":2")) == nil,
+      "Unknown diagnostic schemas cannot pass")
+check(LinuxHardwareObservation.observation(in: hardwareLine.replacingOccurrences(of: "\"kind\":\"gpu\"", with: "\"kind\":\"other\"")) == nil,
+      "Unknown diagnostic commands cannot enter the report")
+let shortcut = LinuxHardwareTestKind.shortcut("f9")
+check(shortcut.count == 6 && shortcut.last?["data"] as? [String: Any] != nil,
+      "Diagnostic shortcut must include modifier releases")
+print("PASS: diagnostic schema, native workload checksum and fixed shortcut transitions")
+let diagnosticID = String(repeating: "a", count: 32)
+check(LinuxDiagnosticMessage.request(id: diagnosticID, command: "gpu") != nil, "Fixed diagnostic start request")
+check(LinuxDiagnosticMessage.request(id: diagnosticID, command: "cancel", target: String(repeating: "b", count: 32)) != nil, "Stop identifies its own originating run")
+check(LinuxDiagnosticMessage.request(id: diagnosticID, command: "cancel") == nil, "Unscoped Stop cannot signal any process")
+check(LinuxDiagnosticMessage.request(id: diagnosticID, command: "sh") == nil && LinuxDiagnosticMessage.request(id: "../path", command: "cpu") == nil, "No commands or paths can enter the diagnostic channel")
+check(LinuxDiagnosticMessage.parse(Data(#"{"schema":1,"type":"ready","ready":true,"busy":false}"#.utf8)) != nil, "Live guest readiness")
+check(LinuxDiagnosticMessage.parse(Data(#"{"schema":1,"type":"ready","ready":1,"busy":false}"#.utf8)) == nil, "Readiness must be a boolean")
+check(LinuxDiagnosticMessage.parse(Data(#"{"schema":true,"type":"ready","ready":true,"busy":false}"#.utf8)) == nil, "A boolean cannot impersonate a protocol version")
+check(LinuxDiagnosticMessage.parse(Data(repeating: 32, count: LinuxDiagnosticMessage.maxBytes + 1)) == nil, "Diagnostic messages are bounded")
+print("PASS: diagnostic command isolation, cancellation targeting and message validation")
+
+let progressLine = hardwareLine.replacingOccurrences(of: "\"stage\":\"finished\"", with:
+    "\"stage\":\"fex-gpu-1\",\"progress_percent\":55,\"heartbeat_seq\":7,\"elapsed_s\":4,\"work_done\":20,\"work_total\":60,\"work_unit\":\"frames\",\"work_stage\":\"frames\"")
+let progress = LinuxHardwareObservation.observation(in: progressLine)!.0
+check(progress.progressPercent == 55 && progress.workTitle == "20 of 60 frames finished", "Display actual work counters")
+check(LinuxHardwareObservation.observation(in: progressLine.replacingOccurrences(of: "\"progress_percent\":55", with: "\"progress_percent\":101")) == nil,
+      "Impossible completion must not enter progress UI")
+var heartbeat = LinuxHardwareHeartbeat()
+heartbeat.start(now: 10)
+check(heartbeat.receive(progressLine, now: 11), "First record establishes a heartbeat")
+check(!heartbeat.receive(progressLine, now: 30), "Rereading the same serial record is not a new heartbeat")
+check(heartbeat.age(now: 30) == 19 && !heartbeat.needsCancellation(now: 30), "Host elapsed time cannot manufacture guest activity")
+check(heartbeat.needsCancellation(now: 56), "No guest heartbeat for 45 seconds requests cancellation")
+heartbeat.cancel(now: 56)
+check(!heartbeat.needsCancellation(now: 57) && heartbeat.unresponsive(now: 71), "Send cancellation once and identify a missing response")
+heartbeat.excludeBackgroundTime(100)
+check(heartbeat.age(now: 156) == 45 && !heartbeat.unresponsive(now: 156), "Background time does not consume the active cancellation deadline")
+heartbeat.start(now: 1)
+_ = heartbeat.receive("fresh", now: 179)
+check(heartbeat.needsCancellation(now: 181), "A live heartbeat cannot keep a stalled workload running forever")
+check(LinuxPausePolicy.change(for: .inactive) == nil, "Temporary iOS interruptions must not stop the guest")
+check(LinuxPausePolicy.change(for: .background) == true && LinuxPausePolicy.change(for: .active) == false,
+      "Leaving and returning to the app must pause and resume Linux")
+print("PASS: real work progress, stale heartbeat detection, bounded cancellation and modal pause policy")

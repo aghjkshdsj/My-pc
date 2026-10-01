@@ -6,6 +6,7 @@ CDP SystemInfo.getInfo response, discarding command lines and target URLs.
 import contextlib
 import json
 import time
+import statistics
 import urllib.parse
 import urllib.request
 from steam_cdp import login_target
@@ -86,4 +87,42 @@ def accelerated_login():
     }
     print('MYPC_STEAM_GPU_INFO ' + json.dumps(summary), flush=True)
     assert summary['accelerated'], 'Steam CEF did not prove virgl compositing and WebGL'
+    measure_input(target.get('webSocketDebuggerUrl', ''))
     print('MYPC_STEAM_GPU_CEF_OK', flush=True)
+
+
+def measure_input(endpoint):
+    """Exercise actual CEF click handling and two animation frames, in CI only.
+
+    This guest has no account. The fixture is removed in finally, and contains
+    no Steam form data. Timing includes CDP transport in this emulated guest.
+    """
+    def evaluate(expression, promise=False):
+        reply = request(endpoint, 'Runtime.evaluate', {
+            'expression': expression, 'awaitPromise': promise,
+            'returnByValue': True, 'timeout': 4000})
+        assert 'exceptionDetails' not in reply, 'CEF input fixture failed'
+        return reply.get('result', {}).get('value')
+    evaluate('''(() => {
+      const b = document.createElement('button'); b.id = 'my-pc-ci-input';
+      b.style.cssText = 'position:fixed;left:8px;top:8px;width:32px;height:32px;z-index:2147483647';
+      b.textContent = 'CI'; window.my_pc_ci_clicks = 0;
+      b.onclick = () => { window.my_pc_ci_clicks++; b.style.background = (window.my_pc_ci_clicks % 2) ? 'red' : 'blue'; };
+      document.body.appendChild(b); return true;
+    })()''')
+    samples = []
+    try:
+        for index in range(12):
+            started = time.monotonic()
+            for kind in ('mousePressed', 'mouseReleased'):
+                request(endpoint, 'Input.dispatchMouseEvent', {
+                    'type': kind, 'x': 24, 'y': 24, 'button': 'left', 'clickCount': 1})
+            clicks = evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(window.my_pc_ci_clicks))))', True)
+            assert clicks == index + 1, 'CEF lost or delayed a fixture click'
+            samples.append((time.monotonic() - started) * 1000)
+        summary = {'samples': len(samples), 'median_ms': round(statistics.median(samples), 1),
+                   'p95_ms': round(sorted(samples)[-1], 1)}
+        print('MYPC_STEAM_INPUT_LATENCY ' + json.dumps(summary), flush=True)
+        assert summary['p95_ms'] < 2000, 'CEF click and frame response exceeded two seconds in CI'
+    finally:
+        evaluate("document.getElementById('my-pc-ci-input')?.remove(); delete window.my_pc_ci_clicks;")

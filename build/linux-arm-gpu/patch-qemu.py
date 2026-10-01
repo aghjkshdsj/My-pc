@@ -97,3 +97,94 @@ source = source.replace(anchor, r'''    if (qemu_egl_mode == DISPLAY_GL_MODE_ES)
                      GL_BGRA, GL_UNSIGNED_BYTE, surface_data(dst));
     }''')
 path.write_text(source)
+
+# egl-headless normally reads a full frame for EVERY virtio RESOURCE_FLUSH,
+# including small rectangles. The app consumes at most 30 frames/sec. Defer
+# presentation to that cadence, so GPU stalls do not multiply inside the BQL.
+path = root / 'ui/egl-headless.c'
+source = path.read_text()
+anchor = '    bool y_0_top;\n'
+assert source.count(anchor) == 1, 'Headless display state anchor changed'
+source = source.replace(anchor, '''    bool y_0_top;
+    bool pending_update;
+    EGLContext scanout_ctx;
+    uint64_t flush_requests, readbacks, readback_us;
+    gint64 stats_time;
+''')
+anchor = '''static void egl_refresh(DisplayChangeListener *dcl)
+{
+    graphic_hw_update(dcl->con);
+}'''
+assert source.count(anchor) == 1, 'Headless refresh anchor changed'
+source = source.replace(anchor, '''static void my_pc_egl_present(egl_dpy *edpy);
+
+static void egl_refresh(DisplayChangeListener *dcl)
+{
+    egl_dpy *edpy = container_of(dcl, egl_dpy, dcl);
+    graphic_hw_update(dcl->con);
+    if (edpy->pending_update) {
+        my_pc_egl_present(edpy);
+    }
+}''')
+anchor = '    egl_fb_destroy(&edpy->guest_fb);\n'
+assert source.count(anchor) == 1, 'Headless scanout disable anchor changed'
+source = source.replace(anchor, '''    edpy->pending_update = false;
+    edpy->scanout_ctx = EGL_NO_CONTEXT;
+    egl_fb_destroy(&edpy->guest_fb);
+''')
+anchor = '    edpy->y_0_top = backing_y_0_top;\n'
+assert source.count(anchor) == 1, 'Headless scanout texture anchor changed'
+source = source.replace(anchor, '''    edpy->y_0_top = backing_y_0_top;
+    /* Upstream virgl explicitly selects context 0 before this callback.
+     * FBOs are context-local; retain it rather than borrowing a guest context. */
+    edpy->scanout_ctx = eglGetCurrentContext();
+    edpy->pending_update = true;
+''')
+anchor = '''    if (!edpy->guest_fb.texture || !edpy->ds) {
+        return;
+    }
+    assert(surface_format(edpy->ds) == PIXMAN_x8r8g8b8);'''
+assert source.count(anchor) == 1, 'Headless flush anchor changed'
+source = source.replace(anchor, '''    if (edpy->guest_fb.texture && edpy->ds) {
+        edpy->flush_requests++;
+        edpy->pending_update = true;
+    }
+}
+
+static void my_pc_egl_present(egl_dpy *edpy)
+{
+    if (!edpy->guest_fb.texture || !edpy->ds ||
+        edpy->scanout_ctx == EGL_NO_CONTEXT) {
+        return;
+    }
+    EGLContext previous = eglGetCurrentContext();
+    EGLSurface draw = eglGetCurrentSurface(EGL_DRAW);
+    EGLSurface read = eglGetCurrentSurface(EGL_READ);
+    if (!eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                        edpy->scanout_ctx)) {
+        return;
+    }
+    edpy->pending_update = false;
+    gint64 started = g_get_monotonic_time();
+    assert(surface_format(edpy->ds) == PIXMAN_x8r8g8b8);''')
+anchor = '    dpy_gfx_update(edpy->dcl.con, x, y, w, h);\n'
+assert source.count(anchor) == 1, 'Headless presentation anchor changed'
+source = source.replace(anchor, '''    edpy->readbacks++;
+    edpy->readback_us += g_get_monotonic_time() - started;
+    /* A full readback replaces all pixels, including the final dirty rectangle.
+     * Never publish only the rectangle of an earlier, coalesced flush. */
+    dpy_gfx_update(edpy->dcl.con, 0, 0, surface_width(edpy->ds), surface_height(edpy->ds));
+    eglMakeCurrent(qemu_egl_display, draw, read, previous);
+    gint64 now = g_get_monotonic_time();
+    if (now - edpy->stats_time >= 5000000) {
+        fprintf(stderr, "MYPC_GPU_PRESENT flushes=%llu readbacks=%llu readback_us=%llu\\n",
+                (unsigned long long)edpy->flush_requests,
+                (unsigned long long)edpy->readbacks,
+                (unsigned long long)edpy->readback_us);
+        edpy->stats_time = now;
+    }
+''')
+anchor = '        register_displaychangelistener(&edpy->dcl);\n'
+assert source.count(anchor) == 1, 'Headless listener registration anchor changed'
+source = source.replace(anchor, anchor + '        update_displaychangelistener(&edpy->dcl, 33);\n')
+path.write_text(source)
