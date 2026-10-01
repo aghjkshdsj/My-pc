@@ -54,6 +54,8 @@ cp "$output/fex/usr/share/fex-emu/GuestThunks/libEGL-guest.so" "$output/rootfs/u
 for package in "$output"/libopengl0_*.deb; do dpkg-deb -x "$package" "$output/native"; rm "$package"; done
 cp build/linux-arm-gpu/hardware-test.py "$output/"
 cp build/linux-arm-gpu/hardware-keys.py "$output/"
+cp build/linux-arm-gpu/hardware-control.py "$output/"
+cp build/linux-arm-gpu/hardware-control-ci.py "$output/"
 cp build/linux-arm-gpu/hardware-test-ci.py "$output/"
 python3 - "$output" <<'PY'
 import hashlib, json, pathlib, sys

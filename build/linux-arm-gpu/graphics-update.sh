@@ -59,8 +59,17 @@ echo 'MYPC_GRAPHICS_UPDATE_PHASE=install-controller' >/dev/console
 destination="$rootmnt/usr/local/lib/my-pc/controller"
 test ! -L "$destination"
 root_command mkdir -p "$destination"
-for name in controller.py controller-ci.py my-pc-controller.service; do test ! -L "$destination/$name"; done
+for name in controller.py controller-ci.py my-pc-controller.service 70-my-pc-diagnostics.rules; do test ! -L "$destination/$name"; done
 root_command cp -a controller/. "$destination/"
+# Permit only Steam's unprivileged desktop user to open the diagnostic port.
+# udev processes the virtio port after this initramfs hook, on normal boot.
+for directory in etc etc/udev etc/udev/rules.d; do
+    test ! -L "$rootmnt/$directory"
+    root_command mkdir -p "$rootmnt/$directory"
+done
+rule="$rootmnt/etc/udev/rules.d/70-my-pc-diagnostics.rules"
+test ! -L "$rule"
+root_command cp controller/70-my-pc-diagnostics.rules "$rule"
 # Add only the named bridge unit and its normal target dependency.
 for directory in etc etc/systemd etc/systemd/system etc/systemd/system/multi-user.target.wants; do
     test ! -L "$rootmnt/$directory"

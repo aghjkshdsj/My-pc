@@ -52,6 +52,7 @@ if grep -qw my_pc_graphics=virgl /proc/cmdline; then graphics_options=(); fi
         'controller/controller.py': pathlib.Path('build/linux-arm-gpu/controller.py').read_bytes(),
         'controller/my-pc-controller.service': pathlib.Path('build/linux-arm-gpu/my-pc-controller.service').read_bytes(),
         'controller/controller-ci.py': pathlib.Path('build/linux-arm-gpu/controller-ci.py').read_bytes(),
+        'controller/70-my-pc-diagnostics.rules': pathlib.Path('build/linux-arm-gpu/70-my-pc-diagnostics.rules').read_bytes(),
     }
     files += [(f'my-pc-graphics/{name}', stat.S_IFREG | 0o644, data) for name, data in controller.items()]
     checksums += ''.join(hashlib.sha256(data).hexdigest()+'  '+name+'\n' for name,data in controller.items()).encode()

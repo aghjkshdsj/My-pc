@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// A build-time choice: the interpreter app never falls back to native JIT.
 enum LinuxExecutionMode {
@@ -114,9 +115,9 @@ struct LinuxHardwareResult: Decodable {
         let name = mode == "fex" ? "x86-64 through FEX" : "ARM64 inside Linux"
         guard status == "passed" else { return "\(name): \(status)\(stage.map { " (\($0))" } ?? "")" }
         if kind == "cpu", let rate = millionIterationsS, let workers {
-            return String(format: "%@: %d workers · %.2f M iterations/s", name, workers, rate)
+            return String(format: "%@: %d workers Â· %.2f M iterations/s", name, workers, rate)
         }
-        return String(format: "%@: %.1f render FPS · %@", name, renderFps ?? 0,
+        return String(format: "%@: %.1f render FPS Â· %@", name, renderFps ?? 0,
                       accelerated == true ? "virgl pixel check passed" : "software or unverified")
     }
 }
@@ -140,8 +141,8 @@ struct LinuxHardwareObservation: Decodable {
         if stage == "sampling-idle" { return "Checking Linux CPU activity" }
         if stage == "finished" { return "Tests finished" }
         if stage == "cancelled" { return "Test stopped" }
-        if stage.hasPrefix("arm64-cpu-") { return "ARM64 Linux CPU · \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
-        if stage.hasPrefix("fex-cpu-") { return "FEX CPU · \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
+        if stage.hasPrefix("arm64-cpu-") { return "ARM64 Linux CPU Â· \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
+        if stage.hasPrefix("fex-cpu-") { return "FEX CPU Â· \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
         if stage.hasPrefix("arm64-gpu-") { return "ARM64 graphics" }
         if stage.hasPrefix("fex-gpu-") { return "FEX graphics" }
         return "Diagnostic test failed"
@@ -182,6 +183,60 @@ struct LinuxHardwareObservation: Decodable {
                       $0.kind == value.kind.rawValue && ["passed", "failed", "timeout"].contains($0.status) &&
                       ($0.renderer?.utf8.count ?? 0) <= 256 && ($0.stage?.utf8.count ?? 0) <= 32 }) else { continue }
             return (value, json)
+        }
+        return nil
+    }
+}
+
+/// Only bounded diagnostic messages are accepted from the private guest port.
+/// Readiness/command ACKs are deliberately separate from workload heartbeats.
+enum LinuxDiagnosticMessage {
+    case ready(busy: Bool)
+    case ack(id: String, command: String, status: String)
+    case state(id: String, observation: LinuxHardwareObservation, json: String)
+    case failure(id: String, code: String, busy: Bool)
+    static let maxBytes = 16_384
+    static let commands = ["cpu", "gpu", "cancel", "status"]
+    static let failureCodes = ["launch-timeout", "launch-failed", "report-invalid", "runner-exited", "cancellation-timeout", "launch-cancelled"]
+    static func validID(_ id: String) -> Bool {
+        id.utf8.count == 32 && id.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
+    }
+    static func request(id: String, command: String, target: String? = nil) -> Data? {
+        guard validID(id), commands.contains(command),
+              (command == "cancel" ? target.map(validID) == true : target == nil) else { return nil }
+        var object: [String: Any] = ["schema": 1, "id": id, "command": command]
+        if let target { object["target"] = target }
+        guard var data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else { return nil }
+        data.append(10); return data
+    }
+    static func parse(_ data: Data) -> Self? {
+        guard data.count <= maxBytes,
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let schema = object["schema"] as? NSNumber,
+              CFGetTypeID(schema) != CFBooleanGetTypeID(), schema == 1,
+              let type = object["type"] as? String else { return nil }
+        func boolean(_ key: String) -> Bool? {
+            guard let number = object[key] as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+            return number.boolValue
+        }
+        if type == "ready", Set(object.keys) == Set(["schema", "type", "ready", "busy"]),
+           boolean("ready") == true, let busy = boolean("busy") { return .ready(busy: busy) }
+        guard let id = object["id"] as? String, validID(id) else { return nil }
+        if type == "ack", Set(object.keys) == Set(["schema", "type", "id", "command", "status"]),
+           let command = object["command"] as? String, commands.contains(command),
+           let status = object["status"] as? String,
+           ["accepted", "busy", "idle", "duplicate", "stale"].contains(status) {
+            return .ack(id: id, command: command, status: status)
+        }
+        if type == "failure", Set(object.keys) == Set(["schema", "type", "id", "code", "busy"]),
+           let code = object["code"] as? String, failureCodes.contains(code), let busy = boolean("busy") {
+            return .failure(id: id, code: code, busy: busy)
+        }
+        if type == "state", Set(object.keys) == Set(["schema", "type", "id", "state"]),
+           let state = object["state"] as? [String: Any],
+           let bytes = try? JSONSerialization.data(withJSONObject: state, options: [.sortedKeys]),
+           let (observation, json) = LinuxHardwareObservation.observation(in: "MYPC_HARDWARE_TEST " + String(decoding: bytes, as: UTF8.self)) {
+            return .state(id: id, observation: observation, json: json)
         }
         return nil
     }
@@ -265,10 +320,11 @@ struct LinuxVMConfiguration {
     var graphics: LinuxGraphicsMode = .software
     var graphicsInitrd: URL?
     var controller: URL?
+    var diagnostics: URL?
 
     func arguments() throws -> [String] {
         guard (512...3072).contains(memoryMiB), (1...LinuxCPUSelection.maximum).contains(cpuCount) else {
-            throw LinuxVMError.invalid("Linux requires 512–3072 MB RAM and 1–64 CPU cores.")
+            throw LinuxVMError.invalid("Linux requires 512â€“3072 MB RAM and 1â€“64 CPU cores.")
         }
         // QEMU's Unix socket chardev uses the platform sockaddr_un path limit.
         guard control.isFileURL, control.path.utf8.count < 100,
@@ -335,6 +391,16 @@ struct LinuxVMConfiguration {
             arguments += ["-device", "virtio-serial-pci,id=linux-gamepads",
                 "-chardev", "socket,id=linux-gamepads,path=\(controller.path),server=on,wait=off",
                 "-device", "virtserialport,bus=linux-gamepads.0,chardev=linux-gamepads,name=org.my-pc.gamepad"]
+        }
+        if let diagnostics {
+            guard diagnostics.isFileURL, diagnostics.path.utf8.count < 100,
+                  !diagnostics.path.contains(","), !diagnostics.path.contains("\n"),
+                  diagnostics != control, diagnostics != controller else {
+                throw LinuxVMError.invalid("The Linux diagnostic socket path is invalid.")
+            }
+            arguments += ["-device", "virtio-serial-pci,id=linux-diagnostics",
+                "-chardev", "socket,id=linux-diagnostics,path=\(diagnostics.path),server=on,wait=off",
+                "-device", "virtserialport,bus=linux-diagnostics.0,chardev=linux-diagnostics,name=org.my-pc.diagnostics"]
         }
         return arguments
     }

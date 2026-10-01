@@ -1,69 +1,86 @@
 #!/usr/bin/env python3
-"""Account-free VM gate for the exact on-device diagnostic payload."""
+"""Independently observe reports produced through the phone control port."""
 import importlib.util
 import json
 import os
 import pathlib
-import subprocess
-import tempfile
+import runpy
 import time
 
 folder = pathlib.Path(__file__).resolve().parent
-spec = importlib.util.spec_from_file_location('hardware', folder/'hardware-test.py')
-hardware = importlib.util.module_from_spec(spec); spec.loader.exec_module(hardware)
+spec = importlib.util.spec_from_file_location('hardware_control_ci', folder/'hardware-control-ci.py')
+control = importlib.util.module_from_spec(spec); spec.loader.exec_module(control)
 os.environ['MYPC_HARDWARE_CI'] = '1'
-try:
-    import runpy
-    runpy.run_path('/usr/local/lib/my-pc/controller/controller-ci.py',run_name='__main__')
-    for kind in ('cpu','gpu'):
-        updates = []
-        # Execute the real phone CLI with no X11 terminal or inherited output
-        # pipe. Independently observe its atomic results so broken serial
-        # delivery cannot accidentally pass the production gate.
-        with tempfile.TemporaryDirectory(prefix='my-pc-cli-gate-') as temporary:
-            report = pathlib.Path(temporary)/'state.json'
-            child = hardware.spawn_child(['python3','-u',str(folder/'hardware-test.py'),kind,
-                '--result-file',str(report)],10,stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
-            started = last_update = time.monotonic()
-            last_sequence = 0
-            try:
-                while child.poll() is None:
-                    if report.exists():
-                        state = json.loads(report.read_text())
-                        if state['heartbeat_seq']!=last_sequence:
-                            updates.append(state); last_sequence=state['heartbeat_seq']; last_update=time.monotonic()
-                    assert time.monotonic()-started<180, 'CLI test deadline'
-                    assert time.monotonic()-last_update<15, 'CLI test heartbeat stopped'
-                    time.sleep(0.02)
-                assert child.returncode==0, 'Phone CLI failed'
-                result = json.loads(report.read_text())
-                if result['heartbeat_seq']!=last_sequence: updates.append(result)
-            finally: hardware.stop_child(child)
-        if result['status']!='complete':
-            # This is the same account-free fixed benchmark schema exposed
-            # by the phone. Never export subprocess stderr or command lines.
-            print('MYPC_HARDWARE_CLI_FAILURE '+json.dumps({key:result[key] for key in
-                ('kind','status','stage','heartbeat_seq','elapsed_s','results')}),flush=True)
-        assert result['status']=='complete', 'Phone CLI did not complete'
-        assert result['idle_guest']['status']=='measured' and len(result['idle_guest']['per_core'])==6
-        assert updates[0]['progress_percent']<10 and updates[-1]['progress_percent']==100
-        assert all(a['heartbeat_seq']<b['heartbeat_seq'] and a['progress_percent']<=b['progress_percent']
-                   for a,b in zip(updates,updates[1:]))
-        for row in result['results']:
-            print('MYPC_HARDWARE_RUNTIME_CHECK '+json.dumps(row),flush=True)
-            assert row['status']=='passed'
-            if kind=='gpu':
-                assert row['accelerated'] and row['readback_ok'], 'Actual FEX/virgl shader pixels required'
-        if kind=='cpu': assert [(r['mode'],r['workers']) for r in result['results']]==[('arm64',1),('arm64',6),('fex',1),('fex',6)]
-    print('MYPC_HARDWARE_IDLE_PROGRESS_AND_HEARTBEAT_OK=1',flush=True)
-except BaseException:
-    import traceback
-    traceback.print_exc()
-    # Print the cause before the failure marker: the host stops the VM as
-    # soon as it sees that marker, and would otherwise lose the traceback.
-    print('MYPC_HARDWARE_RUNTIME_FAILED=1',flush=True)
-    raise
-print('MYPC_HARDWARE_RUNTIME_OK=1',flush=True)
-# Reuse the existing desktop/input/shutdown checks after actual workloads.
-os.execv('/usr/bin/python3',['python3','/usr/local/lib/my-pc/desktop-test.py'])
+
+
+def observe(directory=control.GUEST_DIRECTORY, checksums_path=folder/'checksums.json', timeout=600):
+    """Read the runner's atomic report separately from the serial response.
+
+    Update races are retried. The host waits for each guest marker before
+    starting another test, so a later run cannot hide the completed report.
+    """
+    directory = pathlib.Path(directory)
+    deadline = time.monotonic() + timeout
+    completed, gpu_seen, heartbeats = set(), False, {}
+    checksums = json.loads(pathlib.Path(checksums_path).read_text())
+    print('MYPC_HARDWARE_GUEST_OBSERVER_READY=1', flush=True)
+    while completed != {control.CPU_ID, control.CANCEL_GPU_ID, control.RETRY_GPU_ID}:
+        control.require(time.monotonic() < deadline, 'Guest diagnostic observation deadline')
+        try:
+            with (directory/'state.json').open('rb') as stream: evidence = stream.read(control.MAX_FRAME + 1)
+            with (directory/'runner.json').open('rb') as stream: raw = stream.read(control.MAX_FRAME + 1)
+        except FileNotFoundError:
+            time.sleep(0.01); continue
+        control.require(len(evidence) <= control.MAX_FRAME and len(raw) <= control.MAX_FRAME,
+                        'Private report exceeds limit')
+        outer, runner = json.loads(evidence), json.loads(raw)
+        control.require(set(outer) == {'schema', 'type', 'id', 'state'}
+                        and outer['schema'] == 1 and outer['type'] == 'state'
+                        and outer['id'] in {control.CPU_ID, control.CANCEL_GPU_ID, control.RETRY_GPU_ID},
+                        'Private report request identity invalid')
+        if outer['state'] != runner:
+            time.sleep(0.01); continue
+        state = control.state(runner)
+        identifier = outer['id']
+        expected_kind = 'cpu' if identifier == control.CPU_ID else 'gpu'
+        control.require(state['kind'] == expected_kind, 'Private workload identity mismatch')
+        previous = heartbeats.get(identifier)
+        if previous:
+            control.require(previous[0] == state['run'] and previous[1] <= state['heartbeat_seq']
+                            and previous[2] <= state['progress_percent'], 'Private report regressed')
+        heartbeats[identifier] = (state['run'], state['heartbeat_seq'], state['progress_percent'])
+        if identifier == control.CANCEL_GPU_ID and control.gpu_work(state) and not gpu_seen:
+            gpu_seen = True
+            print('MYPC_HARDWARE_GUEST_GPU_WORK_OBSERVED=1', flush=True)
+        if state['status'] != 'running' and identifier not in completed:
+            expected_status = 'cancelled' if identifier == control.CANCEL_GPU_ID else 'complete'
+            control.require(state['status'] == expected_status, 'Private workload terminal status invalid')
+            if identifier == control.CANCEL_GPU_ID:
+                control.require(gpu_seen, 'Cancellation happened before actual GPU work')
+            else:
+                for row in state['results']:
+                    if row['kind'] == 'cpu':
+                        control.require(row['checksum'] == checksums[f"{row['workers']}:1000000"],
+                                        'Independent CPU checksum invalid')
+                print('MYPC_HARDWARE_GUEST_RESULT ' + json.dumps(control.metrics(state), sort_keys=True), flush=True)
+            completed.add(identifier)
+            print(control.MARKERS[identifier], flush=True)
+        time.sleep(0.01)
+
+
+def main():
+    try:
+        # Retain controller axes/buttons/hotplug checks as the Steam user.
+        runpy.run_path('/usr/local/lib/my-pc/controller/controller-ci.py', run_name='__main__')
+        observe()
+        print('MYPC_HARDWARE_IDLE_PROGRESS_AND_HEARTBEAT_OK=1', flush=True)
+        print('MYPC_HARDWARE_PRIVATE_CONTROL_AND_CANCEL_OK=1', flush=True)
+        print('MYPC_HARDWARE_RUNTIME_OK=1', flush=True)
+    except BaseException:
+        # No traceback, subprocess stderr, commands or Steam/account logs.
+        print('MYPC_HARDWARE_RUNTIME_FAILED=1', flush=True)
+        raise SystemExit(1)
+    os.execv('/usr/bin/python3', ['python3', '/usr/local/lib/my-pc/desktop-test.py'])
+
+
+if __name__ == '__main__': main()

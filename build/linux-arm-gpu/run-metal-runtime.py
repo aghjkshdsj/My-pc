@@ -63,7 +63,9 @@ with tempfile.TemporaryDirectory() as temporary:
     if not args.legacy:
         command += ['--verify-cpu-count', '--display', '--launcher', str(runtime / 'host-launcher'),
                     '--library', str(runtime / 'Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu')]
-    if args.hardware: command += ['--controller']
+    if args.hardware:
+        assert not args.steam, 'Hardware control CI requires the account-free desktop gate'
+        command += ['--controller', '--hardware-control-ci', str(pathlib.Path('build/linux-arm-gpu/hardware-control-ci.py').resolve())]
     with (guest / 'metal-host.log').open('w') as output:
         result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
     content = (guest / ('boot-4.log' if args.steam else 'boot-3.log')).read_text(errors='replace')
@@ -76,6 +78,7 @@ with tempfile.TemporaryDirectory() as temporary:
             'controller_passed':'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1',
             'hardware_keys_ready':'MYPC_HARDWARE_TEST_READY=1',
             'hardware_failed':'MYPC_HARDWARE_RUNTIME_FAILED=1',
+            'hardware_control_failed':'MYPC_HARDWARE_HOST_CONTROL_FAILED=1',
             'desktop_deadline':'Desktop did not become ready',
             'controller_deadline':'Controller observation timed out',
             'device_removed':'No such device',
@@ -93,17 +96,31 @@ with tempfile.TemporaryDirectory() as temporary:
     if args.hardware:
         assert 'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1' in content, 'Actual gamepad input must pass in Linux as the Steam user'
         print('MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1',flush=True)
-        for line in content.splitlines():
-            if line.startswith('MYPC_HARDWARE_RUNTIME_CHECK ') or line.startswith('MYPC_HARDWARE_CLI_FAILURE '):
-                print(line[:8192],flush=True)
         assert 'MYPC_HARDWARE_RUNTIME_OK=1' in content, 'Production ARM/FEX diagnostics did not pass'
         assert 'MYPC_HARDWARE_IDLE_PROGRESS_AND_HEARTBEAT_OK=1' in content, 'On-device idle/progress path must pass'
+        assert 'MYPC_HARDWARE_PRIVATE_CONTROL_AND_CANCEL_OK=1' in content, 'Independent guest cancellation/retry observations required'
+        host_content = (guest/'metal-host.log').read_text(errors='replace')
+        assert 'MYPC_HARDWARE_HOST_PRIVATE_CONTROL_AND_CANCEL_OK=1' in host_content, 'Same private phone command/ACK/state channel must pass'
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('hardware_control_ci', 'build/linux-arm-gpu/hardware-control-ci.py')
+        harness = importlib.util.module_from_spec(spec); spec.loader.exec_module(harness)
+        guest_results = {}
         for line in content.splitlines():
-            if line.startswith('MYPC_HARDWARE_TEST ') and len(line) <= 16384:
-                state = json.loads(line[len('MYPC_HARDWARE_TEST '):])
-                if state['status'] == 'complete':
-                    print('MYPC_HARDWARE_PROGRESS_RESULT '+json.dumps({key:state[key] for key in
-                        ('kind','status','progress_percent','heartbeat_seq','elapsed_s')}),flush=True)
+            if line.startswith('MYPC_HARDWARE_GUEST_RESULT ') and len(line) <= 16384:
+                state = json.loads(line.removeprefix('MYPC_HARDWARE_GUEST_RESULT '))
+                guest_results[state['kind']] = state
+        host_results = []
+        for line in host_content.splitlines():
+            if line.startswith('MYPC_HARDWARE_HOST_CONTROL_RESULT ') and len(line) <= 32768:
+                host_results.append(json.loads(line.removeprefix('MYPC_HARDWARE_HOST_CONTROL_RESULT ')))
+        assert len(host_results) == 1 and set(guest_results) == {'cpu', 'gpu'}, 'Independent metric observations missing'
+        observed = host_results[0]
+        assert set(observed) == {'cpu', 'gpu', 'gpu_cancelled_during_work', 'ack_and_state_ids_matched', 'independent_guest_reports_matched'}
+        assert all(observed[key] is True for key in ('gpu_cancelled_during_work', 'ack_and_state_ids_matched', 'independent_guest_reports_matched'))
+        for kind in ('cpu', 'gpu'):
+            assert observed[kind] == guest_results[kind], 'Host/independent guest measurements disagree'
+            print('MYPC_HARDWARE_CONTROL_RESULT ' + json.dumps(harness.validated_metrics(observed[kind]), sort_keys=True), flush=True)
+        print('MYPC_HARDWARE_PRIVATE_CONTROL_AND_CANCEL_OK=1', flush=True)
     for item in re.findall(r'MYPC_STEAM_INPUT_LATENCY (\{[^\r\n]{1,256}\})', content):
         state = json.loads(item)
         if set(state) == {'samples', 'median_ms', 'p95_ms'}:
@@ -143,4 +160,6 @@ with tempfile.TemporaryDirectory() as temporary:
         assert summary['guest_graphics_verified'], 'The actual guest driver/readback check must pass'
     if args.steam:
         assert summary['cef_gpu'], 'Steam GPU fallback cannot pass the release gate'
+        assert 'MYPC_STEAM_SDK_WRAPPER_OK' in content, 'Downloaded Valve SDK wrapper must launch successfully'
+        print('MYPC_STEAM_SDK_WRAPPER_OK=1', flush=True)
 print('PASS: reserved launcher update, desktop/input or full Steam gate, persistence and clean shutdown')

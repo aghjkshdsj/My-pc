@@ -31,6 +31,14 @@ var padConfig = config
 padConfig.controller = root.appendingPathComponent("g.sock")
 let padArguments = try padConfig.arguments()
 check(padArguments.contains("virtio-serial-pci,id=linux-gamepads") && padArguments.contains("virtserialport,bus=linux-gamepads.0,chardev=linux-gamepads,name=org.my-pc.gamepad"), "Real virtual Linux gamepad channel required")
+var diagnosticConfig = padConfig
+diagnosticConfig.diagnostics = root.appendingPathComponent("t.sock")
+let diagnosticArguments = try diagnosticConfig.arguments()
+check(diagnosticArguments.contains("virtserialport,bus=linux-diagnostics.0,chardev=linux-diagnostics,name=org.my-pc.diagnostics"), "Diagnostics require a separate private guest port")
+diagnosticConfig.diagnostics = padConfig.controller
+rejects { _ = try diagnosticConfig.arguments() }
+diagnosticConfig.diagnostics = URL(fileURLWithPath: "/tmp/test,invalid")
+rejects { _ = try diagnosticConfig.arguments() }
 let argv = try config.arguments()
 #if MYPC_INTERPRETER
 check(!LinuxExecutionMode.requiresJIT, "Interpreter must not request JIT")
@@ -107,7 +115,7 @@ let typed = try LinuxQMP.text("aA@! ")
 let events = typed["events"] as! [[String: Any]]
 check(events.count == 16, "Each character must release its key and any shift modifier")
 check(JSONSerialization.isValidJSONObject(typed), "Keyboard must form valid QMP events")
-rejects { _ = try LinuxQMP.text("password🙂") }
+rejects { _ = try LinuxQMP.text("passwordðŸ™‚") }
 rejects { _ = try LinuxQMP.text(String(repeating: "a", count: 1025)) }
 print("PASS: Linux launch validation, disk paths, JIT options, control replies and input bounds")
 
@@ -164,6 +172,16 @@ let shortcut = LinuxHardwareTestKind.shortcut("f9")
 check(shortcut.count == 6 && shortcut.last?["data"] as? [String: Any] != nil,
       "Diagnostic shortcut must include modifier releases")
 print("PASS: diagnostic schema, native workload checksum and fixed shortcut transitions")
+let diagnosticID = String(repeating: "a", count: 32)
+check(LinuxDiagnosticMessage.request(id: diagnosticID, command: "gpu") != nil, "Fixed diagnostic start request")
+check(LinuxDiagnosticMessage.request(id: diagnosticID, command: "cancel", target: String(repeating: "b", count: 32)) != nil, "Stop identifies its own originating run")
+check(LinuxDiagnosticMessage.request(id: diagnosticID, command: "cancel") == nil, "Unscoped Stop cannot signal any process")
+check(LinuxDiagnosticMessage.request(id: diagnosticID, command: "sh") == nil && LinuxDiagnosticMessage.request(id: "../path", command: "cpu") == nil, "No commands or paths can enter the diagnostic channel")
+check(LinuxDiagnosticMessage.parse(Data(#"{"schema":1,"type":"ready","ready":true,"busy":false}"#.utf8)) != nil, "Live guest readiness")
+check(LinuxDiagnosticMessage.parse(Data(#"{"schema":1,"type":"ready","ready":1,"busy":false}"#.utf8)) == nil, "Readiness must be a boolean")
+check(LinuxDiagnosticMessage.parse(Data(#"{"schema":true,"type":"ready","ready":true,"busy":false}"#.utf8)) == nil, "A boolean cannot impersonate a protocol version")
+check(LinuxDiagnosticMessage.parse(Data(repeating: 32, count: LinuxDiagnosticMessage.maxBytes + 1)) == nil, "Diagnostic messages are bounded")
+print("PASS: diagnostic command isolation, cancellation targeting and message validation")
 
 let progressLine = hardwareLine.replacingOccurrences(of: "\"stage\":\"finished\"", with:
     "\"stage\":\"fex-gpu-1\",\"progress_percent\":55,\"heartbeat_seq\":7,\"elapsed_s\":4,\"work_done\":20,\"work_total\":60,\"work_unit\":\"frames\",\"work_stage\":\"frames\"")

@@ -9,6 +9,7 @@ mkdir -p "$root"
 sudo mount -o loop "$guest/rootfs.raw" "$root"
 trap 'sudo umount "$root"' EXIT
 sudo install -m 644 build/linux-arm-gpu/steam_gpu.py "$root/usr/local/lib/my-pc/steam_gpu.py"
+sudo install -m 755 build/linux-arm/probe-steam.py "$root/usr/local/lib/my-pc/probe-steam.py"
 sudo python3 - "$root" <<'PY'
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])

@@ -24,6 +24,7 @@ jobs:
           swiftc -D MYPC_INTERPRETER app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/tcti-tests"
           "$RUNNER_TEMP/tcti-tests"
           python3 build/linux-arm/test-gamepad-transport.py
+          python3 build/linux-arm/test-diagnostic-transport.py
           xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -D MYPC_INTERPRETER -target arm64-apple-ios17.0 \
             -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -import-objc-header app/Madeira/LinuxVMBridge.h \
             app/Madeira/LinuxVMCore.swift app/Madeira/LinuxVMSession.swift app/Madeira/LinuxVMView.swift \
@@ -57,11 +58,14 @@ jobs:
         if: steps.prior.outputs.reuse != 'true' && steps.guest-payload.outputs.reuse != 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-arm initramfs-tools-core
+          sudo apt-get install -y qemu-system-arm initramfs-tools-core lsof
           python3 -m py_compile build/linux-arm-gpu/*.py
           python3 build/linux-arm-gpu/test-boot-update.py
           python3 build/linux-arm-gpu/test-steam-gpu.py
           python3 build/linux-arm-gpu/test-hardware-test.py
+          python3 build/linux-arm-gpu/test-hardware-control.py
+          python3 build/linux-arm-gpu/test-hardware-control-ci.py
+          python3 build/linux-arm/test-steam-session.py
           python3 build/linux-arm-gpu/test-controller.py
           bash -n build/linux-arm-gpu/graphics-update.sh
           bash -n build/linux-arm-gpu/build-hardware-tests.sh

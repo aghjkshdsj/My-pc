@@ -264,6 +264,112 @@ final class LinuxQMPConnection: @unchecked Sendable {
     }
 }
 
+/// Tests use their own nonblocking port, independent of keyboard grabs and UART.
+/// Disconnects never replay a start/cancel command; status only replays results.
+final class LinuxDiagnosticConnection: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "my-pc.linux.diagnostics", qos: .userInitiated)
+    private let lock = NSLock()
+    private var readyAt = 0.0
+    private var descriptor: Int32 = -1
+    private var timer: DispatchSourceTimer?
+    private var path = "", retryAt = 0.0
+    private var received = Data(), sending = Data()
+    private var offset = 0
+    private var pending = [(Data, (Bool) -> Void)]()
+    private var sent: ((Bool) -> Void)?
+    private var receiver: ((LinuxDiagnosticMessage) -> Void)?
+    var ready: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return readyAt > 0 && ProcessInfo.processInfo.systemUptime - readyAt < 4
+    }
+    static func identifier() -> String { UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased() }
+    func start(path: String, receive: @escaping (LinuxDiagnosticMessage) -> Void) {
+        queue.async {
+            self.path = path; self.receiver = receive
+            let timer = DispatchSource.makeTimerSource(queue: self.queue)
+            timer.schedule(deadline: .now(), repeating: .milliseconds(50), leeway: .milliseconds(5))
+            timer.setEventHandler { [weak self] in self?.drain() }
+            self.timer = timer; timer.resume()
+        }
+    }
+    func send(id: String, command: String, target: String? = nil, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let data = LinuxDiagnosticMessage.request(id: id, command: command, target: target) else { completion(false); return }
+        queue.async {
+            guard self.ready, self.descriptor >= 0, self.pending.count < 8 else { completion(false); return }
+            self.pending.append((data, completion))
+        }
+    }
+    func close() {
+        queue.async { self.timer?.cancel(); self.timer = nil; self.disconnect(); self.receiver = nil }
+    }
+    private func disconnect() {
+        if descriptor >= 0 { Darwin.close(descriptor); descriptor = -1 }
+        lock.lock(); readyAt = 0; lock.unlock()
+        received.removeAll(); sending.removeAll(); offset = 0
+        sent?(false); sent = nil
+        let dropped = pending; pending.removeAll()
+        dropped.forEach { $0.1(false) }
+    }
+    private func drain() {
+        let now = ProcessInfo.processInfo.systemUptime
+        if descriptor < 0 {
+            guard now >= retryAt, path.utf8.count < 100 else { return }
+            retryAt = now + 1
+            let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+            guard fd >= 0 else { return }
+            _ = fcntl(fd, F_SETFL, O_NONBLOCK)
+            var flag: Int32 = 1
+            setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flag, socklen_t(MemoryLayout<Int32>.size))
+            var address = sockaddr_un()
+            address.sun_family = sa_family_t(AF_UNIX); address.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
+            _ = withUnsafeMutableBytes(of: &address.sun_path) { bytes in
+                path.withCString { strlcpy(bytes.baseAddress!.assumingMemoryBound(to: CChar.self), $0, bytes.count) }
+            }
+            let result = withUnsafePointer(to: &address) {
+                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+            }
+            guard result == 0 else { Darwin.close(fd); return }
+            descriptor = fd
+        }
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        for _ in 0..<8 {
+            let count = Darwin.recv(descriptor, &buffer, buffer.count, 0)
+            if count == 0 { disconnect(); return }
+            if count < 0 {
+                if errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR { disconnect() }
+                break
+            }
+            received.append(contentsOf: buffer.prefix(count))
+            while let newline = received.firstIndex(of: 10) {
+                let data = Data(received[..<newline]); received.removeSubrange(...newline)
+                guard let message = LinuxDiagnosticMessage.parse(data) else { disconnect(); return }
+                if case .ready = message {
+                    let first = !ready
+                    lock.lock(); readyAt = now; lock.unlock()
+                    if first, let status = LinuxDiagnosticMessage.request(id: Self.identifier(), command: "status") {
+                        pending.append((status, { _ in }))
+                    }
+                }
+                receiver?(message)
+            }
+            guard received.count < LinuxDiagnosticMessage.maxBytes else { disconnect(); return }
+        }
+        for _ in 0..<8 {
+            if sending.isEmpty {
+                guard !pending.isEmpty else { break }
+                let next = pending.removeFirst(); sending = next.0; sent = next.1; offset = 0
+            }
+            let count = sending.withUnsafeBytes { bytes in
+                Darwin.send(descriptor, bytes.baseAddress!.advanced(by: offset), sending.count - offset, 0)
+            }
+            if count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) { break }
+            guard count > 0 else { disconnect(); return }
+            offset += count
+            if offset == sending.count { sending.removeAll(); sent?(true); sent = nil; offset = 0 }
+        }
+    }
+}
+
 /// Only the latest frame is retained, so a slow UI cannot build an unbounded queue.
 final class LinuxFrameInbox: @unchecked Sendable {
     static let shared = LinuxFrameInbox()
@@ -315,6 +421,7 @@ private enum LinuxProcessMetrics {
 @MainActor final class LinuxVMSession: ObservableObject {
     static let shared = LinuxVMSession()
     private let gamepad = LinuxGamepadConnection()
+    private let diagnostics = LinuxDiagnosticConnection()
     private var controllers: [GCController?] = Array(repeating: nil, count: 4)
     private var controllerSequence: UInt32 = 0
     private var lastControllerFrame = Data()
@@ -324,8 +431,8 @@ private enum LinuxProcessMetrics {
     private var controllerPanelVisible = false
     var controllerStatus: String {
         guard !controllerNames.isEmpty else { return "Connect Backbone Pro or another iOS gamepad." }
-        guard let count = controllerGuestCount else { return "\(controllerNames.joined(separator: ", ")) · waiting for Linux gamepad bridge…" }
-        return "\(controllerNames.joined(separator: ", ")) · \(count) Linux gamepad\(count == 1 ? "" : "s")"
+        guard let count = controllerGuestCount else { return "\(controllerNames.joined(separator: ", ")) Â· waiting for Linux gamepad bridgeâ€¦" }
+        return "\(controllerNames.joined(separator: ", ")) Â· \(count) Linux gamepad\(count == 1 ? "" : "s")"
     }
     func setControllerPanelVisible(_ visible: Bool) {
         controllerPanelVisible = visible
@@ -426,21 +533,40 @@ private enum LinuxProcessMetrics {
     @Published private(set) var hardwareCancellationRequested = false
     @Published private(set) var hardwareTestUnresponsive = false
     @Published private(set) var hardwareRequestedKind: LinuxHardwareTestKind?
+    @Published private(set) var hardwareLaunchStatus = "idle"
+    @Published private(set) var hardwareLauncherAcknowledged = false
+    @Published private(set) var hardwareCancellationAcknowledged = false
+    @Published private(set) var hardwareFailure: String?
+    @Published private(set) var hardwareTestActive = false
+    @Published private(set) var hardwareGuestBusy = false
+    private var hardwareRequestIdentifier: String?
+    private var hardwareCancelIdentifier: String?
+    private var hardwareCancelAttemptTime = 0.0
     private var hardwareHeartbeat = LinuxHardwareHeartbeat()
     private var hardwareBackgroundTime: Double?
     private var backgroundRequested = false
     private var cpuReportJSON: String?
     private var gpuReportJSON: String?
-    private var previousHardwareRun: String?
     private var hardwareRequestTime = 0.0
-    var hardwareTestBusy: Bool { hardwareTestWaiting || hardwareObservation?.status == "running" }
+    var hardwareTestBusy: Bool { hardwareTestActive }
     var hardwareTestStatus: String {
+        if let hardwareFailure {
+            switch hardwareFailure {
+            case "launch-failed", "runner-exited": return "The Linux test runner could not start or exited before reporting results."
+            case "launch-timeout": return "The Linux test runner did not start within its deadline."
+            case "report-invalid": return "The Linux test runner returned an invalid report."
+            case "launch-cancelled": return "The test was stopped before it started."
+            case "runner-busy": return "Linux already has a diagnostic test running. Waiting for it to finish."
+            case "transport-lost": return "The diagnostic connection was interrupted. Waiting for Linux to confirm the test state."
+            default: return "Linux has not confirmed that the diagnostic stopped."
+            }
+        }
         if hardwareTestUnresponsive { return "Linux did not acknowledge stopping the test. Shut down Linux or restart My-pc before retrying." }
-        if hardwareCancellationRequested { return "Stopping the diagnostic test…" }
+        if hardwareCancellationRequested { return "Stopping the diagnostic testâ€¦" }
         if paused && hardwareTestBusy { return "Test paused while My-pc is in the background." }
-        if hardwareTestWaiting { return "Waiting for the Linux diagnostic launcher…" }
+        if hardwareTestWaiting { return hardwareLauncherAcknowledged ? "Linux accepted the test. Waiting for its first workload heartbeatâ€¦" : "Waiting for Linux to acknowledge the test requestâ€¦" }
         guard let result = hardwareObservation else { return hardwareTestsReady ? "Ready to test." : "Tests become available after the Metal startup update and desktop boot." }
-        return "\(result.stageTitle) · \(result.status)"
+        return "\(result.stageTitle) Â· \(result.status)"
     }
     var hardwareProgress: Double {
         guard let observation = hardwareObservation else {
@@ -463,6 +589,9 @@ private enum LinuxProcessMetrics {
             "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
             "commit": Bundle.main.object(forInfoDictionaryKey: "SomethingPCBuildCommit") as? String ?? "unknown",
             "graphics": graphicsMode.rawValue, "virtual_cpus": guestCPUCount,
+            "guest_renderer": guestGraphics?.renderer ?? "unverified",
+            "guest_readback_ok": guestGraphics?.readbackOK ?? false,
+            "guest_virgl_verified": guestGraphics?.verifiedVirgl ?? false,
             "host_available_cpus": hostCPUCount, "guest_memory_mib": guestMemoryMiB,
             "thermal_state": thermalStatus, "low_power_mode": ProcessInfo.processInfo.isLowPowerModeEnabled,
             "host_app_cpu_percent": cpuPercent.map { $0 as Any } ?? NSNull(),
@@ -474,7 +603,13 @@ private enum LinuxProcessMetrics {
             "vm_paused": paused, "vm_connected": connected,
             "hardware_monitor": ["active_elapsed_s": hardwareElapsedSeconds,
                 "guest_heartbeat_age_s": hardwareHeartbeatAge, "cancellation_requested": hardwareCancellationRequested,
-                "unresponsive": hardwareTestUnresponsive]]
+                "unresponsive": hardwareTestUnresponsive, "transport": "private-virtio-serial",
+                "launcher_ready": hardwareTestsReady, "request_kind": hardwareRequestedKind?.rawValue as Any? ?? NSNull(),
+                "service_ready": diagnostics.ready, "guest_busy": hardwareGuestBusy,
+                "request_id": hardwareRequestIdentifier as Any? ?? NSNull(), "launch_status": hardwareLaunchStatus,
+                "launcher_acknowledged": hardwareLauncherAcknowledged,
+                "cancellation_acknowledged": hardwareCancellationAcknowledged,
+                "failure": hardwareFailure as Any? ?? NSNull()]]
         for (key, json) in [("cpu_test", cpuReportJSON), ("gpu_test", gpuReportJSON)] {
             if let json, let value = try? JSONSerialization.jsonObject(with: Data(json.utf8)) { report[key] = value }
         }
@@ -484,28 +619,110 @@ private enum LinuxProcessMetrics {
     func runHardwareTest(_ kind: LinuxHardwareTestKind) {
         guard running, connected, !paused, hardwareTestsReady, !hardwareTestBusy, !hardwareTestUnresponsive else { return }
         hardwareTestWaiting = true
-        previousHardwareRun = hardwareObservation?.run
+        hardwareTestActive = true
+        hardwareGuestBusy = true; hardwareTestsReady = false
+        hardwareRequestIdentifier = LinuxDiagnosticConnection.identifier()
+        hardwareCancelIdentifier = nil
+        hardwareLaunchStatus = "preparing"
+        hardwareLauncherAcknowledged = false; hardwareCancellationAcknowledged = false; hardwareFailure = nil
         hardwareObservation = nil
         hardwareRequestTime = ProcessInfo.processInfo.systemUptime
         hardwareHeartbeat.start(now: hardwareRequestTime)
         hardwareRequestedKind = kind
         hardwareElapsedSeconds = 0; hardwareHeartbeatAge = 0
         hardwareCancellationRequested = false; hardwareTestUnresponsive = false
+        guard let requestID = hardwareRequestIdentifier else { return }
         Task {
             if kind == .cpu {
                 let result = await Task.detached(priority: .userInitiated) { LinuxNativeCPUBenchmark.run() }.value
+                guard hardwareRequestIdentifier == requestID, hardwareTestActive else { return }
                 nativeCPUMilliseconds = result.milliseconds; nativeCPUChecksum = result.checksum
             }
-            guard running, connected, !hardwareCancellationRequested else { return }
-            qmp.discardMotion()
-            sendKeyboard(LinuxHardwareTestKind.shortcut(kind.key))
+            guard running, connected, hardwareTestActive, !hardwareCancellationRequested,
+                  hardwareRequestIdentifier == requestID else { return }
+            let id = requestID
+            hardwareLaunchStatus = "sending"
+            diagnostics.send(id: id, command: kind.rawValue) { [weak self] sent in
+                Task { @MainActor in
+                    guard let self, self.hardwareRequestIdentifier == id, self.hardwareTestActive else { return }
+                    if !sent { self.hardwareFailure = "transport-lost" }
+                    else if !self.hardwareLauncherAcknowledged { self.hardwareLaunchStatus = "sent" }
+                }
+            }
         }
     }
     func cancelHardwareTest() {
         guard connected, hardwareTestBusy else { return }
         hardwareCancellationRequested = true
-        hardwareHeartbeat.cancel(now: ProcessInfo.processInfo.systemUptime)
-        sendKeyboard(LinuxHardwareTestKind.shortcut("f10"))
+        let now = ProcessInfo.processInfo.systemUptime
+        hardwareHeartbeat.cancel(now: now)
+        sendHardwareCancellation(now: now)
+    }
+    private func sendHardwareCancellation(now: Double) {
+        guard let target = hardwareRequestIdentifier else { return }
+        let id = LinuxDiagnosticConnection.identifier(); hardwareCancelIdentifier = id
+        hardwareCancelAttemptTime = now
+        diagnostics.send(id: id, command: "cancel", target: target) { [weak self] sent in
+            if !sent { Task { @MainActor in self?.hardwareFailure = "transport-lost" } }
+        }
+    }
+    private func receiveDiagnostic(_ message: LinuxDiagnosticMessage) {
+        guard running else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        switch message {
+        case let .ready(busy):
+            hardwareGuestBusy = busy
+            hardwareTestsReady = diagnostics.ready && !busy
+            if !busy, hardwareFailure == "runner-busy" { hardwareFailure = nil; hardwareTestUnresponsive = false }
+            if hardwareTestActive, hardwareCancellationRequested, !hardwareCancellationAcknowledged,
+               now - hardwareCancelAttemptTime >= 5 { sendHardwareCancellation(now: now) }
+        case let .ack(id, command, status):
+            if id == hardwareCancelIdentifier, command == "cancel" {
+                hardwareCancellationAcknowledged = status == "accepted" || status == "idle"
+                if status == "stale" {
+                    hardwareFailure = "runner-busy"; hardwareTestUnresponsive = true
+                    hardwareTestActive = false; hardwareTestWaiting = false
+                }
+                if status == "idle" {
+                    hardwareTestActive = false; hardwareTestWaiting = false
+                    hardwareGuestBusy = false; hardwareTestsReady = diagnostics.ready
+                    hardwareLaunchStatus = "cancelled"; hardwareCancellationRequested = false
+                    hardwareTestUnresponsive = false; hardwareFailure = nil
+                }
+                return
+            }
+            guard id == hardwareRequestIdentifier, command == hardwareRequestedKind?.rawValue else { return }
+            if status == "accepted" || status == "duplicate" {
+                hardwareLauncherAcknowledged = true; hardwareLaunchStatus = "accepted"
+                if hardwareFailure == "transport-lost" { hardwareFailure = nil }
+            } else if status == "busy" {
+                hardwareLaunchStatus = "busy"; hardwareFailure = "runner-busy"
+                hardwareTestActive = false; hardwareTestWaiting = false; hardwareGuestBusy = true
+                hardwareTestsReady = false; hardwareTestUnresponsive = false
+            }
+        case let .state(id, observation, json):
+            guard id == hardwareRequestIdentifier, observation.kind == hardwareRequestedKind,
+                  hardwareHeartbeat.receive(json, now: now) else { return }
+            hardwareLauncherAcknowledged = true; hardwareLaunchStatus = "running"
+            hardwareTestWaiting = false; hardwareObservation = observation
+            hardwareElapsedSeconds = hardwareHeartbeat.elapsed(now: now); hardwareHeartbeatAge = 0
+            if hardwareFailure == "transport-lost" { hardwareFailure = nil }
+            if observation.status != "running" {
+                hardwareTestActive = false; hardwareLaunchStatus = observation.status
+                hardwareTestsReady = false; hardwareGuestBusy = true // wait for idle after child cleanup
+                hardwareCancellationRequested = false; hardwareTestUnresponsive = false; hardwareFailure = nil
+            }
+            if observation.kind == .cpu { cpuObservation = observation; cpuReportJSON = json }
+            else { gpuObservation = observation; gpuReportJSON = json }
+        case let .failure(id, code, busy):
+            guard id == hardwareRequestIdentifier else { return }
+            hardwareFailure = code; hardwareLaunchStatus = "failed"
+            if !busy {
+                hardwareTestActive = false; hardwareTestWaiting = false
+                hardwareGuestBusy = false; hardwareTestsReady = diagnostics.ready
+                hardwareCancellationRequested = false; hardwareTestUnresponsive = false
+            }
+        }
     }
     @Published private(set) var paused = false
     @Published private(set) var cpuSelection = LinuxVMSession.initialCPUSelection
@@ -518,8 +735,8 @@ private enum LinuxProcessMetrics {
     var hostCPUCount: Int { LinuxCPUSelection.available(ProcessInfo.processInfo.activeProcessorCount) }
     var graphicsSummary: String {
         guard graphicsMode == .metal else { return "GPU: software selected" }
-        guard let observed = guestGraphics, !observed.renderer.isEmpty else { return "GPU: Metal requested · unverified" }
-        return observed.verifiedVirgl ? "GPU: virgl → Metal verified · use —" : "GPU: software fallback or failed readback"
+        guard let observed = guestGraphics, !observed.renderer.isEmpty else { return "GPU: Metal requested Â· unverified" }
+        return observed.verifiedVirgl ? "GPU: virgl â†’ Metal verified Â· use â€”" : "GPU: software fallback or failed readback"
     }
     var graphicsReport: String {
         let report: [String: Any] = ["build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
@@ -615,7 +832,7 @@ private enum LinuxProcessMetrics {
     func installBundledRuntime() {
         guard !started, !installing, !otherRuntimeStarted, let source = Self.bundledRuntime else { return }
         installing = true; installProgress = 0
-        status = "Installing Linux runtime… Keep My-pc open."
+        status = "Installing Linux runtimeâ€¦ Keep My-pc open."
         let destination = Self.directory
         Task {
             do {
@@ -634,7 +851,7 @@ private enum LinuxProcessMetrics {
         guard !started, !installing, !otherRuntimeStarted else { error = "Restart My-pc before importing a Linux runtime."; return }
         guard !installed else { error = "A Linux disk already exists. Import does not overwrite your installed games or account."; return }
         installing = true
-        status = "Verifying and copying Linux runtime…"
+        status = "Verifying and copying Linux runtimeâ€¦"
         let destination = Self.directory
         Task {
             do {
@@ -685,12 +902,14 @@ private enum LinuxProcessMetrics {
             if FileManager.default.fileExists(atPath: control.path) { try FileManager.default.removeItem(at: control) }
             let controller = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("l-pad")
             if FileManager.default.fileExists(atPath: controller.path) { try FileManager.default.removeItem(at: controller) }
+            let diagnostic = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("l-test")
+            if FileManager.default.fileExists(atPath: diagnostic.path) { try FileManager.default.removeItem(at: diagnostic) }
             let log = Self.directory.appendingPathComponent("boot.log")
             guestCPUCount = LinuxCPUSelection.resolve(cpuSelection, hostCount: hostCPUCount)
             let arguments = try LinuxVMConfiguration(directory: Self.directory, log: log, control: control,
                 memoryMiB: guestMemoryMiB, cpuCount: guestCPUCount,
                 resources: Bundle.main.bundleURL.appendingPathComponent("QEMU"),
-                graphics: graphicsMode, graphicsInitrd: verifiedGraphicsInitrd(), controller: controller).arguments()
+                graphics: graphicsMode, graphicsInitrd: verifiedGraphicsInitrd(), controller: controller, diagnostics: diagnostic).arguments()
             #if !MYPC_INTERPRETER
             jit_install_trap_handler()
             #endif
@@ -701,8 +920,15 @@ private enum LinuxProcessMetrics {
             hardwareHeartbeat = LinuxHardwareHeartbeat(); hardwareBackgroundTime = nil
             hardwareElapsedSeconds = 0; hardwareHeartbeatAge = 0; hardwareRequestedKind = nil
             hardwareCancellationRequested = false; hardwareTestUnresponsive = false
-            started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores · \(graphicsMode.title)…"
+            hardwareTestActive = false; hardwareRequestIdentifier = nil; hardwareCancelIdentifier = nil
+            hardwareGuestBusy = false
+            hardwareLaunchStatus = "idle"; hardwareLauncherAcknowledged = false
+            hardwareCancellationAcknowledged = false; hardwareFailure = nil
+            started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores Â· \(graphicsMode.title)â€¦"
             gamepad.start(path: controller.path)
+            diagnostics.start(path: diagnostic.path) { [weak self] message in
+                Task { @MainActor in self?.receiveDiagnostic(message) }
+            }
             UIApplication.shared.isIdleTimerDisabled = true
             beginPerformanceSample()
             let frameTimer = Timer(timeInterval: 1.0 / 30, repeats: true) { _ in
@@ -730,11 +956,13 @@ private enum LinuxProcessMetrics {
                 let detail = String(cString: message)
                 Task { @MainActor in
                     self.gamepad.close(); self.controllerGuestCount = nil
+                    self.diagnostics.close()
                     self.qmp.close(); self.connected = false; self.running = false
                     self.timer?.invalidate(); self.timer = nil
                     self.pendingPointer = nil; self.pointerDown = false
                     self.displayFPS = 0; self.cpuPercent = nil; self.paused = false
                     self.hardwareTestsReady = false; self.hardwareTestWaiting = false
+                    self.hardwareTestActive = false
                     self.hardwareCancellationRequested = false
                     UIApplication.shared.isIdleTimerDisabled = false
                     self.status = code == 0 ? "Linux shut down. Restart My-pc for another session." : "Linux stopped: \(detail)"
@@ -749,7 +977,7 @@ private enum LinuxProcessMetrics {
 
     func shutdown() {
         guard connected else { return }
-        status = "Shutting Linux down…"
+        status = "Shutting Linux downâ€¦"
         qmp.send("system_powerdown") { result in
             if case .failure(let error) = result { Task { @MainActor in self.error = error.localizedDescription } }
         }
@@ -815,6 +1043,7 @@ private enum LinuxProcessMetrics {
         }
         memoryMiB = LinuxProcessMetrics.footprintMiB()
         inputMilliseconds = qmp.inputMilliseconds
+        hardwareTestsReady = diagnostics.ready && !hardwareGuestBusy
         // Read bounded diagnostic records once a second, never Steam logs or
         // account files. A running test retains only its latest small result.
         do {
@@ -826,18 +1055,6 @@ private enum LinuxProcessMetrics {
                     if let bytes = try? handle.read(upToCount: 65_536) {
                         let text = String(decoding: bytes, as: UTF8.self)
                         if guestGraphics == nil { guestGraphics = LinuxGuestGraphics.observation(in: text) }
-                        if text.contains("MYPC_HARDWARE_TEST_READY=1") { hardwareTestsReady = true }
-                        if let (observation, json) = LinuxHardwareObservation.observation(in: text),
-                           observation.run != previousHardwareRun || !hardwareTestWaiting,
-                           hardwareHeartbeat.receive(json, now: now) {
-                            hardwareTestWaiting = false; hardwareObservation = observation
-                            hardwareElapsedSeconds = hardwareHeartbeat.elapsed(now: now); hardwareHeartbeatAge = 0
-                            if observation.status != "running" {
-                                hardwareCancellationRequested = false; hardwareTestUnresponsive = false
-                            }
-                            if observation.kind == .cpu { cpuObservation = observation; cpuReportJSON = json }
-                            else { gpuObservation = observation; gpuReportJSON = json }
-                        }
                     }
                 }
             }

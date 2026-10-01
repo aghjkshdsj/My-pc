@@ -23,6 +23,7 @@ parser.add_argument("--display", action="store_true")
 parser.add_argument("--desktop", action="store_true")
 parser.add_argument("--steam", action="store_true", help="Launch full Steam in the actual Linux guest")
 parser.add_argument("--controller", action="store_true", help="Require real virtio-serial/uinput gamepad observations")
+parser.add_argument("--hardware-control-ci", type=pathlib.Path, help="Exercise the private phone diagnostic port with the fixed CI harness")
 parser.add_argument("--interpreter", action="store_true", help="Use non-executable translation storage and longer boot deadlines")
 parser.add_argument("--deny-jit-policy", action="store_true", help="Require the CI-only allocation guard and no attempts to generate executable host code")
 parser.add_argument("--cpus", type=int, default=2)
@@ -36,6 +37,8 @@ if args.desktop and args.steam:
     parser.error('Choose one desktop test mode')
 if args.deny_jit_policy and (not args.interpreter or not args.launcher):
     parser.error('--deny-jit-policy requires --interpreter and a guarded --launcher')
+if args.hardware_control_ci and (not args.desktop or args.cpus != 6 or not args.controller):
+    parser.error('--hardware-control-ci requires --desktop --cpus 6 --controller')
 guest = pathlib.Path(args.guest).resolve()
 with tempfile.TemporaryDirectory() as directory:
     pathlib.Path(directory, "probe.txt").write_text("my-pc-network-ok\n")
@@ -71,9 +74,28 @@ with tempfile.TemporaryDirectory() as directory:
                 command += ['-device','virtio-serial-pci,id=linux-gamepads',
                     '-chardev',f'socket,id=linux-gamepads,path={gamepad_path},server=on,wait=off',
                     '-device','virtserialport,bus=linux-gamepads.0,chardev=linux-gamepads,name=org.my-pc.gamepad']
+            diagnostics_path = pathlib.Path(directory, 'diagnostics.sock')
+            if args.hardware_control_ci:
+                command += ['-device', 'virtio-serial-pci,id=linux-diagnostics',
+                    '-chardev', f'socket,id=linux-diagnostics,path={diagnostics_path},server=on,wait=off',
+                    '-device', 'virtserialport,bus=linux-diagnostics.0,chardev=linux-diagnostics,name=org.my-pc.diagnostics']
             controller_stop = threading.Event()
+            hardware_done, hardware_failed, hardware_result = threading.Event(), threading.Event(), {}
             with log.open("w") as output:
                 process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, env=environment)
+                if args.hardware_control_ci:
+                    def exercise_hardware():
+                        try:
+                            import importlib.util
+                            spec = importlib.util.spec_from_file_location('hardware_control_ci', args.hardware_control_ci.resolve())
+                            harness = importlib.util.module_from_spec(spec); spec.loader.exec_module(harness)
+                            hardware_result.update(harness.run_socket(diagnostics_path,
+                                lambda: log.read_text(errors='replace'), controller_stop))
+                        except BaseException:
+                            hardware_failed.set()
+                            print('MYPC_HARDWARE_HOST_CONTROL_FAILED=1', flush=True)
+                        finally: hardware_done.set()
+                    threading.Thread(target=exercise_hardware, daemon=True).start()
                 if args.controller:
                     def send_controller():
                         import struct
@@ -134,9 +156,11 @@ with tempfile.TemporaryDirectory() as directory:
                 try:
                     if args.desktop or args.steam:
                         marker = 'MYPC_GUEST_STEAM_WINDOW_OK' if args.steam else 'MYPC_DESKTOP_READY'
-                        deadline = time.monotonic() + (2700 if args.steam else 1800 if args.interpreter else 300)
+                        deadline = time.monotonic() + (900 if args.hardware_control_ci else 2700 if args.steam else 1800 if args.interpreter else 300)
                         reported = set()
                         while marker not in log.read_text(errors="replace"):
+                            if hardware_failed.is_set():
+                                raise RuntimeError('Private diagnostic control failed')
                             # Only forward bounded, fixed-schema progress. Never
                             # expose arbitrary guest log lines as heartbeat data.
                             for item in re.findall(r'MYPC_STEAM_PROGRESS (\{[^\r\n]{1,256}\})', log.read_text(errors='replace')):
@@ -157,6 +181,11 @@ with tempfile.TemporaryDirectory() as directory:
                             if process.poll() is not None or time.monotonic() > deadline:
                                 raise RuntimeError("Desktop did not become ready: " + log.read_text(errors="replace")[-8000:])
                             time.sleep(1)
+                        if args.hardware_control_ci:
+                            if not hardware_done.wait(30) or hardware_failed.is_set():
+                                raise RuntimeError('Private diagnostic control did not complete')
+                            print('MYPC_HARDWARE_HOST_CONTROL_RESULT ' + json.dumps(hardware_result, sort_keys=True), flush=True)
+                            print('MYPC_HARDWARE_HOST_PRIVATE_CONTROL_AND_CANCEL_OK=1', flush=True)
                         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
                             client.settimeout(10)
                             client.connect(str(control))
@@ -218,7 +247,7 @@ with tempfile.TemporaryDirectory() as directory:
                     try:
                         process.wait(timeout=1800 if args.interpreter else 360)
                     except subprocess.TimeoutExpired:
-                        print(log.read_text(errors="replace")[-12000:])
+                        if not args.hardware_control_ci: print(log.read_text(errors="replace")[-12000:])
                         raise
                 finally:
                     controller_stop.set()
@@ -226,7 +255,7 @@ with tempfile.TemporaryDirectory() as directory:
                         process.kill()
                         process.wait()
             content = log.read_text(errors="replace")
-            print(content[-6000:])
+            if not args.hardware_control_ci: print(content[-6000:])
             required = ["MYPC_LINUX_ARM64_BOOTED", "MYPC_LINUX_NETWORK_OK", "MYPC_LINUX_SMOKE_OK", "MYPC_LINUX_PERSISTENCE_WRITTEN" if boot == 1 and not args.expect_existing else "MYPC_LINUX_PERSISTENCE_OK"]
             if args.verify_cpu_count:
                 required.append(f'MYPC_LINUX_CPU_COUNT={args.cpus}')
@@ -240,6 +269,8 @@ with tempfile.TemporaryDirectory() as directory:
                 required += ["MYPC_DESKTOP_MOUSE_OK", "MYPC_DESKTOP_KEYBOARD_OK", "MYPC_DESKTOP_INPUT_OK"]
             if args.steam:
                 required += ["MYPC_GUEST_STEAM_WINDOW_OK"]
+            if args.hardware_control_ci:
+                required += ['MYPC_HARDWARE_PRIVATE_CONTROL_AND_CANCEL_OK=1', 'MYPC_HARDWARE_RUNTIME_OK=1']
             if process.returncode or "MYPC_LINUX_FAIL:" in content or any(marker not in content for marker in required):
                 raise SystemExit(f"ARM Linux boot {boot} failed; inspect {log}")
     finally:

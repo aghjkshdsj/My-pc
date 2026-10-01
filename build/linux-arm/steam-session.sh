@@ -20,8 +20,30 @@ shim_dir="$launcher_dir/steam-bin"
 [ -d "$shim_dir" ] || shim_dir=/usr/local/lib/my-pc/steam-bin
 test -x "$shim_dir/taskset"
 export PATH="$shim_dir:$PATH"
-ln -sfn "$steam_root" "$HOME/.steam/steam"
-ln -sfn "$steam_root" "$HOME/.steam/root"
+# Steam launches games through ~/.steam/sdkarm64/steam-launch-wrapper. We
+# invoke its native client directly, so reproduce the paths normally set up
+# by Valve's steam.sh without editing the downloaded client or user data.
+link_steam_path() {
+    local target="$1" link="$2"
+    [ -d "$target" ] || return 0
+    if [ -e "$link" ] && [ ! -L "$link" ]; then
+        echo "Preserving existing Steam path: $link" >&2
+        return 0
+    fi
+    # -T prevents an existing directory symlink from receiving a nested link.
+    ln -sfnT -- "$target" "$link"
+}
+setup_steam_paths() {
+    link_steam_path "$steam_root" "$HOME/.steam/steam"
+    link_steam_path "$steam_root" "$HOME/.steam/root"
+    link_steam_path "$steam_root/linuxarm64" "$HOME/.steam/sdkarm64"
+    # These aliases are for x86 libraries only; an ARM64 library cannot satisfy
+    # the bin32/bin64 preload requests of an x86 game.
+    link_steam_path "$steam_root/ubuntu12_32" "$HOME/.steam/bin32"
+    link_steam_path "$steam_root/ubuntu12_64" "$HOME/.steam/bin64"
+    link_steam_path "$steam_root/linux32" "$HOME/.steam/sdk32"
+    link_steam_path "$steam_root/linux64" "$HOME/.steam/sdk64"
+}
 export STEAM_RUNTIME=1 SDL_VIDEO_X11_DGAMOUSE=0
 export LD_LIBRARY_PATH="$steam_root/steamrtarm64:$steam_root/steamrtarm64/panorama${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 # Bring-up renderer: software Mesa. Hardware acceleration is a separate gate.
@@ -29,6 +51,8 @@ export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
 cd "$steam_root"
 restarts=0
 while :; do
+    # An updater restart can add or replace architecture-specific directories.
+    setup_steam_paths
     status=0
     "$steam_root/steamrtarm64/steam" -clientbeta publicbeta \
         -no-cef-sandbox -cef-disable-gpu -cef-ozone-platform=x11 "$@" || status=$?

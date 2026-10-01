@@ -321,10 +321,15 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS):
                 publish(); before = sample(False)
                 state['work_stage'] = 'launching'; publish()
                 def tick(work, _elapsed):
+                    first_work = work is not None and work['done'] > 0 and state.get('work_done', 0) == 0
                     if work:
                         state.update(work_done=work['done'],work_total=work['total'],work_stage=work['stage'])
                         state['progress_percent'] = max(state['progress_percent'], round(base+span*0.95*work['done']/work['total'],1))
-                    publish(False)
+                    # A fast first frame/sample is evidence of real work. Send
+                    # it immediately so Stop/CI can observe it, even inside the
+                    # usual one-second heartbeat interval. Benchmark timing
+                    # has already ended before its work counter is printed.
+                    publish(first_work)
                 try: row = execute(folder, mode, kind, count, env, iterations, tick=tick)
                 except subprocess.TimeoutExpired:
                     row = {'mode':mode,'kind':kind,'workers':count,'status':'timeout', 'stage':'workload-timeout'}
@@ -379,23 +384,28 @@ def main():
     # CI reads the same CLI result independently of UART delivery. The phone
     # launcher does not accept any user-controlled file or command argument.
     parser.add_argument('--result-file',type=pathlib.Path)
+    parser.add_argument('--no-serial',action='store_true',
+                        help='Report only to the private atomic result file owned by the control service')
     args = parser.parse_args()
+    if args.no_serial and args.result_file is None:
+        parser.error('--no-serial requires --result-file')
     lock = open('/tmp/my-pc-hardware-test.lock', 'a+')
     try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         print('A hardware test is already running.'); raise SystemExit(1)
-    console = os.open('/dev/ttyAMA0',os.O_WRONLY|os.O_NONBLOCK|os.O_NOCTTY|os.O_CLOEXEC)
-    reporter = SerialReporter(console)
+    console = None if args.no_serial else os.open('/dev/ttyAMA0',os.O_WRONLY|os.O_NONBLOCK|os.O_NOCTTY|os.O_CLOEXEC)
+    reporter = None if console is None else SerialReporter(console)
     def emit(state):
         if args.result_file:
             temporary = args.result_file.with_suffix('.new')
             temporary.write_text(json.dumps(state,separators=(',',':')))
             temporary.replace(args.result_file)
-        reporter.emit(state)
+        if reporter is not None: reporter.emit(state)
     try:
         state = run(args.kind, emit=emit)
-        reporter.emit(state,limit=2)
-    finally: os.close(console)
+        if reporter is not None: reporter.emit(state,limit=2)
+    finally:
+        if console is not None: os.close(console)
 
 
 if __name__ == '__main__': main()

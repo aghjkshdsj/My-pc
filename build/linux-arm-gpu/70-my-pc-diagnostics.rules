@@ -1,0 +1,1 @@
+SUBSYSTEM=="virtio-ports", ATTR{name}=="org.my-pc.diagnostics", OWNER="steam", MODE="0600"

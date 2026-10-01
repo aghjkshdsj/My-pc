@@ -8,6 +8,12 @@ echo MYPC_DESKTOP_STARTUP=screen-settings >/dev/ttyAMA0
 xsetroot -solid '#162334'
 openbox &
 echo MYPC_DESKTOP_STARTUP=window-manager >/dev/ttyAMA0
+if grep -qw my_pc_hardware_ci=1 /proc/cmdline; then export MYPC_HARDWARE_CI=1; fi
+if [ -f /usr/local/lib/my-pc/hardware-tests/hardware-control.py ]; then
+    # Same unprivileged user and X11 environment as Steam. The private port
+    # carries fixed diagnostic commands; it never interprets a shell command.
+    python3 -u /usr/local/lib/my-pc/hardware-tests/hardware-control.py </dev/null >/dev/null 2>&1 &
+fi
 if [ -f /usr/local/lib/my-pc/hardware-tests/hardware-keys.py ]; then
     python3 -u /usr/local/lib/my-pc/hardware-tests/hardware-keys.py >/dev/ttyAMA0 2>&1 &
 fi
