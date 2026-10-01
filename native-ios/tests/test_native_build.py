@@ -4,6 +4,8 @@ import json
 import os
 import plistlib
 import struct
+import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -41,6 +43,38 @@ class NativeBuildTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Only native-ios/runtime'):
                 prepare.prepare(root)
             self.assertEqual(list(root.iterdir()), before)
+
+    def test_dxmt_directory_move_repairs_all_headers_and_preflights_missing_files(self):
+        for missing in (False, True):
+            with tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                unix = root / 'dxmt/src/winemetal/unix'
+                unix.mkdir(parents=True)
+                main = unix / 'winemetal_unix.c'
+                main.write_text('#include "../../../../../build/madeira_cfg.h"\n'
+                                '#include "../../../../remote-metal/host/wmt_decode.h"\n')
+                for name, include in [('client', 'protocol.h'), ('pack', 'wmt_pack.h'), ('extra', 'host/extra.h')]:
+                    (unix / (name + '.h')).write_text(f'#include "../../../../remote-metal/{include}"\n')
+                build = root / 'build/dxmt-ios/build.sh'
+                build.parent.mkdir(parents=True)
+                build.write_text('COMMON_FLAGS="-arch arm64"\n')
+                for name in ('host/wmt_decode.h', 'protocol.h', 'wmt_pack.h', 'host/extra.h'):
+                    if missing and name == 'wmt_pack.h': continue
+                    target = root / 'research/remote-metal' / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text('fixture')
+                before = {p: p.read_bytes() for p in root.rglob('*') if p.is_file()}
+                run = subprocess.run([sys.executable, str(ROOT / 'dxmt-build-fixes.py')], cwd=root,
+                                     capture_output=True, text=True)
+                if missing:
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertIn('moved include is missing', run.stderr)
+                    self.assertEqual(before, {p: p.read_bytes() for p in root.rglob('*') if p.is_file()})
+                else:
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    for path in unix.iterdir():
+                        self.assertNotIn('../../../../remote-metal/', path.read_text())
+                    self.assertIn('-I$REPO_ROOT/build', build.read_text())
 
     def test_overlay_rebuilds_every_server_object_and_can_be_reapplied(self):
         with tempfile.TemporaryDirectory() as folder:

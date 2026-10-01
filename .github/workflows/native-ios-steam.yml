@@ -84,12 +84,25 @@ jobs:
           echo "version=$(xcrun --sdk iphoneos --show-sdk-version)" >> "$GITHUB_OUTPUT"
       - name: Cache native component built from this exact source and driver
         id: native-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: native-ios/out/native-${{ matrix.component }}.tar
-          key: native-ios-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ matrix.component }}-${{ hashFiles('native-ios/source-lock.json', 'native-ios/build-component.sh', 'native-ios/build-llvm.sh', 'native-ios/fex-build-fixes.py', 'native-ios/wine-build-fixes.py', 'native-ios/dxmt-build-fixes.py', 'native-ios/prepare.py') }}
+          key: native-ios-v2-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ matrix.component }}-${{ hashFiles('native-ios/source-lock.json', 'native-ios/build-component.sh', 'native-ios/build-llvm.sh', 'native-ios/prepare.py') }}-${{ hashFiles(format('native-ios/{0}-build-fixes.py', matrix.component)) }}
+          # Only FEX/Wine/Dock may reuse this exact verified v1 cache: their
+          # source and compiler inputs are unchanged from run 4. No prefix
+          # fallback is allowed across other source or driver revisions.
+          restore-keys: ${{ matrix.component != 'dxmt' && hashFiles('native-ios/source-lock.json', 'native-ios/build-component.sh', 'native-ios/build-llvm.sh', 'native-ios/fex-build-fixes.py', 'native-ios/wine-build-fixes.py', 'native-ios/prepare.py') == '977121c5e87d86d0b40961497bb54ead334894e6c465152eb7c5bacf5634a61b' && format('native-ios-v1-{0}-{1}-{2}-285748cefe2cf0e7cc1b42a0795123e4de49e091ff1d6dbf94b43c0d65ac46c1', runner.arch, steps.sdk.outputs.version, matrix.component) || '' }}
+      - name: Reject any cache outside the exact verified keys
+        env:
+          CACHE_MATCHED: ${{ steps.native-cache.outputs.cache-matched-key }}
+          CACHE_PRIMARY: ${{ steps.native-cache.outputs.cache-primary-key }}
+          CACHE_V1: native-ios-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ matrix.component }}-285748cefe2cf0e7cc1b42a0795123e4de49e091ff1d6dbf94b43c0d65ac46c1
+        run: |
+          if [ -n "$CACHE_MATCHED" ] && [ "$CACHE_MATCHED" != "$CACHE_PRIMARY" ] && [ "$CACHE_MATCHED" != "$CACHE_V1" ]; then
+            echo 'Unexpected native cache key' >&2; exit 1
+          fi
       - name: Cache locked LLVM iOS libraries
-        if: matrix.component == 'dxmt' && steps.native-cache.outputs.cache-hit != 'true'
+        if: matrix.component == 'dxmt' && steps.native-cache.outputs.cache-matched-key == ''
         id: llvm-cache
         uses: actions/cache@v4
         with:
@@ -99,11 +112,11 @@ jobs:
             native-ios/runtime/toolchains/llvm-ios-build/lib
           key: native-ios-llvm15-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ hashFiles('native-ios/build-llvm.sh') }}
       - name: Build locked LLVM for the native Metal compiler
-        if: matrix.component == 'dxmt' && steps.native-cache.outputs.cache-hit != 'true' && steps.llvm-cache.outputs.cache-hit != 'true'
+        if: matrix.component == 'dxmt' && steps.native-cache.outputs.cache-matched-key == '' && steps.llvm-cache.outputs.cache-hit != 'true'
         working-directory: native-ios/runtime
         run: bash ../build-llvm.sh
       - name: Save completed LLVM before building DXMT
-        if: matrix.component == 'dxmt' && steps.native-cache.outputs.cache-hit != 'true' && steps.llvm-cache.outputs.cache-hit != 'true'
+        if: matrix.component == 'dxmt' && steps.native-cache.outputs.cache-matched-key == '' && steps.llvm-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -112,8 +125,14 @@ jobs:
             native-ios/runtime/toolchains/llvm-ios-build/lib
           key: native-ios-llvm15-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ hashFiles('native-ios/build-llvm.sh') }}
       - name: Build native component
-        if: steps.native-cache.outputs.cache-hit != 'true'
+        if: steps.native-cache.outputs.cache-matched-key == ''
         run: bash native-ios/build-component.sh '${{ matrix.component }}'
+      - name: Save the verified native component under its exact compiler inputs
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: native-ios/out/native-${{ matrix.component }}.tar
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         with:
           name: native-ios-${{ matrix.component }}
