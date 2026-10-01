@@ -1,0 +1,212 @@
+name: Native iOS Steam
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/native-ios-steam]
+    paths: [native-ios/**, .github/workflows/native-ios-steam.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ios-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  protocol-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check native overlay and package verifier
+        run: python3 -m unittest discover -s native-ios/tests -v
+      - name: Check out locked native source
+        run: bash native-ios/checkout-source.sh
+      - name: Prepare host protocol test dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libssl-dev liblzma-dev zlib1g-dev python3-cryptography
+          swiftc --version
+      - name: Test Steam authentication and depot downloads without account credentials
+        working-directory: native-ios/runtime
+        run: |
+          set -euo pipefail
+          python3 tests/host/check-steam-signin-native.py
+          python3 tests/host/check-steam-library.py
+          python3 tests/host/check-dock-path.py
+          python3 tests/host/check-gamepad.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: native-protocol-diagnostics
+          path: native-ios/runtime/tests/host/*.log
+          if-no-files-found: ignore
+
+  native:
+    runs-on: macos-26
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [fex, wine, dxmt, dock]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out locked native source
+        run: bash native-ios/checkout-source.sh
+      - name: Record SDK
+        id: sdk
+        run: |
+          xcodebuild -version
+          echo "version=$(xcrun --sdk iphoneos --show-sdk-version)" >> "$GITHUB_OUTPUT"
+      - name: Cache native component built from this exact source and driver
+        id: native-cache
+        uses: actions/cache@v4
+        with:
+          path: native-ios/out/native-${{ matrix.component }}.tar
+          key: native-ios-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ matrix.component }}-${{ hashFiles('native-ios/source-lock.json', 'native-ios/build-component.sh', 'native-ios/build-llvm.sh', 'native-ios/prepare.py') }}
+      - name: Restore LLVM iOS libraries built from the same locked LLVM recipe
+        if: matrix.component == 'dxmt' && steps.native-cache.outputs.cache-hit != 'true'
+        id: llvm-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            toolchains/llvm-project/llvm/include
+            toolchains/llvm-ios-build/include
+            toolchains/llvm-ios-build/lib
+          key: llvm15-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ hashFiles('build/ci/build-llvm.sh') }}
+      - name: Place verified cached LLVM inputs in native source checkout
+        if: matrix.component == 'dxmt' && steps.llvm-cache.outputs.cache-hit == 'true'
+        run: |
+          set -euo pipefail
+          cmp build/ci/build-llvm.sh native-ios/build-llvm.sh
+          mkdir -p native-ios/runtime/toolchains
+          cp -a toolchains/llvm-project native-ios/runtime/toolchains/
+          cp -a toolchains/llvm-ios-build native-ios/runtime/toolchains/
+          xcrun lipo native-ios/runtime/toolchains/llvm-ios-build/lib/libLLVMPasses.a -verify_arch arm64
+      - name: Build native component
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        run: bash native-ios/build-component.sh '${{ matrix.component }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-ios-${{ matrix.component }}
+          path: native-ios/out/native-${{ matrix.component }}.tar
+          if-no-files-found: error
+      - name: Preserve compiler diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ios-errors-${{ matrix.component }}
+          path: |
+            native-ios/runtime/build/**/*.err
+            native-ios/runtime/build/**/err-*.txt
+            native-ios/runtime/build/**/*.log
+            native-ios/runtime/wine/build-macos/config.log
+            native-ios/runtime/toolchains/**/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
+
+  vcruntime:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect Microsoft-signed x64 runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $env:RUNNER_TEMP 'VC_redist.x64.exe'
+          Invoke-WebRequest -Uri 'https://aka.ms/vc14/vc_redist.x64.exe' -OutFile $installer
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft') { throw 'Unverified Microsoft installer' }
+          $process = Start-Process -FilePath $installer -ArgumentList '/install','/quiet','/norestart' -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -notin @(0,3010,1638)) { throw "Runtime installation failed: $($process.ExitCode)" }
+          $folder = Join-Path $env:GITHUB_WORKSPACE 'native-ios/out/x86_64-vcruntime'
+          New-Item -ItemType Directory -Path $folder -Force | Out-Null
+          $required = @('concrt140.dll','msvcp140.dll','msvcp140_1.dll','msvcp140_2.dll','msvcp140_atomic_wait.dll','msvcp140_codecvt_ids.dll','vcruntime140.dll','vcruntime140_1.dll')
+          $hashes = @{}
+          foreach ($name in $required) {
+            $source = Join-Path $env:WINDIR "System32/$name"
+            $signature = Get-AuthenticodeSignature -LiteralPath $source
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft') { throw "Invalid runtime signature: $name" }
+            $bytes = [IO.File]::ReadAllBytes($source)
+            $offset = [BitConverter]::ToInt32($bytes,60)
+            if ([BitConverter]::ToUInt16($bytes,$offset+4) -ne 0x8664) { throw "Non-x64 runtime: $name" }
+            Copy-Item -LiteralPath $source -Destination (Join-Path $folder $name)
+            $hashes[$name] = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
+          }
+          @{files=$hashes;installerSha256=(Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $folder 'manifest.json') -Encoding utf8NoBOM
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-ios-vcruntime
+          path: native-ios/out/x86_64-vcruntime
+          if-no-files-found: error
+
+  ipa:
+    needs: [protocol-tests, native, vcruntime]
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out locked native source
+        run: bash native-ios/checkout-source.sh
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-ios-*
+          path: native-ios/out/artifacts
+          merge-multiple: true
+      - name: Install the native build artifacts
+        run: |
+          set -euo pipefail
+          for archive in native-ios/out/artifacts/native-*.tar; do
+            tar -xf "$archive" -C native-ios/runtime
+          done
+          mkdir -p native-ios/runtime/app/Madeira/x86_64-vcruntime
+          cp native-ios/out/artifacts/*.dll native-ios/runtime/app/Madeira/x86_64-vcruntime/
+          cp native-ios/out/artifacts/manifest.json native-ios/runtime/app/Madeira/x86_64-vcruntime/
+      - name: Compile and verify the ARM64 iOS app and complete source archive
+        run: bash native-ios/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyPC-NativeSteam-IPA
+          path: |
+            native-ios/out/IPA/MyPC-NativeSteam.ipa
+            native-ios/out/IPA/MyPC-NativeSteam.ipa.sha256
+            native-ios/out/MyPC-NativeSteam-Sources.tar.gz
+            native-ios/out/MyPC-NativeSteam-Sources.tar.gz.sha256
+          if-no-files-found: error
+      - name: Publish verified native IPA prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="native-ios-steam-preview-${GITHUB_RUN_NUMBER}"
+          printf '%s\n' \
+            'Native iOS Steam sign-in, library and downloads; ARM64EC Wine + FEX + Metal game runtime.' \
+            '' \
+            'Install My-pc Native alongside the existing Steam ARM64 preview. This build does not migrate or delete its Linux disk or games. Select Windows game downloads in the native library.' \
+            '' \
+            'The packaged ARM64 iOS app and source archive passed CI verification. Cold launch under one minute, live Steam authentication and game FPS still need measurement on the phone. This is an experimental prerelease; game compatibility varies.' \
+            '' \
+            "Build commit: $GITHUB_SHA" > native-ios/out/release-notes.md
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --draft --title "My-pc Native Steam preview ${GITHUB_RUN_NUMBER}" \
+            --notes-file native-ios/out/release-notes.md \
+            native-ios/out/IPA/MyPC-NativeSteam.ipa \
+            native-ios/out/IPA/MyPC-NativeSteam.ipa.sha256 \
+            native-ios/out/MyPC-NativeSteam-Sources.tar.gz \
+            native-ios/out/MyPC-NativeSteam-Sources.tar.gz.sha256
+          mkdir -p native-ios/out/release-check
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir native-ios/out/release-check \
+            --pattern MyPC-NativeSteam.ipa --pattern MyPC-NativeSteam.ipa.sha256
+          (cd native-ios/out/release-check && shasum -a 256 -c MyPC-NativeSteam.ipa.sha256)
+          cmp native-ios/out/release-check/MyPC-NativeSteam.ipa native-ios/out/IPA/MyPC-NativeSteam.ipa
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
+      - name: Preserve iOS compiler diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ios-app-errors
+          path: native-ios/out/xcodebuild.log
+          if-no-files-found: ignore

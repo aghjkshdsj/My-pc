@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "source": {
+    "repository": "https://github.com/willfaust/Madeira.git",
+    "commit": "69b2fc0457aa81057ffb0dd478e18f2682c5395e"
+  },
+  "submodules": {
+    "FEX": "26859e184ad90f0e811d7f8bbd943a4b1573a2c3",
+    "wine": "4f5b19718f4de88ecc5cb0dc08b119497a67ba8f",
+    "dxmt": "a5e0cd3d41bf248fd1c030a2e1c515ba3522f4ef",
+    "madeira-dock": "3cadfbea700e4da4b04e331dd7ef1ba633dfacef"
+  },
+  "llvm_commit": "8dfdcc7b7bf66834a761bd8de445840ef68e4d1a",
+  "llvm_mingw": {
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20260421/llvm-mingw-20260421-ucrt-macos-universal.tar.xz",
+    "sha256": "bd85a3975723815cef28dbbd2ca2cb0c926f6b348a12a0453f39f7af273cb3f7"
+  },
+  "bundle_id": "com.aghjkshdsj.mypc.native",
+  "display_name": "My-pc Native",
+  "minimum_ios": "26.0"
+}

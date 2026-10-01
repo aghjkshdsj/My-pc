@@ -1,0 +1,65 @@
+# My-pc Native iOS Steam
+
+This is the separate native version requested on October 1, 2026. It builds
+the iOS Steam account, library and content-download frontend and runs Windows
+games through native ARM64EC Wine, FEX and DXMT/Metal. Its app target contains
+no QEMU, Linux guest, virgl, guest filesystem or VM startup.
+
+The existing Steam ARM64 preview remains on `codex/steam-arm-metal`.
+`com.aghjkshdsj.mypc.native` is a separate app identity: installing this preview
+does not replace that app or migrate/delete its Linux disk, account or games.
+Steam downloads in the new app select Windows depots for Wine; existing Linux
+game downloads cannot simply be relabeled as Windows installations.
+
+## Source and build
+
+`source-lock.json` pins the complete Madeira source and each of its runtime
+forks. `checkout-source.sh` checks out exactly those revisions under the ignored
+`runtime/` directory. `prepare.py` applies the checked My-pc overlay. This is
+an attributed port of the referenced native implementation, not a claim to have
+rewritten Valve's proprietary client, Wine or FEX from scratch. The supplied
+0.1.0 ZIP informed the architecture; the pinned public source contains later
+account handoff and launch fixes.
+
+The source keeps its GPL-3.0-or-later / Madeira Converter Exception notices,
+the Wine LGPL notices and other component notices. Release source archives
+include the checked-out source, recursively checked-out runtime forks, the
+overlay and the build scripts. Valve components are downloaded from Valve by
+the app and verified; credentials and games are never bundled.
+
+Run on a Mac with Xcode and the iOS SDK:
+
+```sh
+bash native-ios/checkout-source.sh
+bash native-ios/build-component.sh fex
+bash native-ios/build-component.sh wine
+bash native-ios/build-component.sh dxmt
+bash native-ios/build-component.sh dock
+bash native-ios/package.sh
+```
+
+The workflow builds native iOS libraries from their locked source revisions.
+The upstream Windows DLL farms remain pinned source-repository inputs; their
+provenance is recorded in the release. They are not silently substituted with
+the older preview-33 runtime. JIT is needed when launching translated games,
+but browsing and downloading in the native library do not start Wine or JIT.
+
+## Performance acceptance
+
+Opening the app must show the native library without starting Wine, FEX or a
+Linux VM. The performance report records app-init-to-library time separately
+from account refresh, download throughput, game launch and actual Metal
+presents. It contains no account name, token, password, file path or game list.
+
+The under-one-minute target requires an external cold-launch timing on the
+owner's iPhone. A UI timer cannot measure pre-main loading or time before the
+process starts. Game FPS must be measured in a named game at a stated resolution
+after its game window appears; CI shader loops and Android reference numbers
+are not evidence of iPhone game performance. Record thermal state and compare
+the same game, scene and settings. The preview-33 reports were hot.
+
+Valve authenticates the account, confirms licenses and prepares protected
+executables. The Dock helper fails closed for unsupported client fingerprints
+or rejected authentication/licenses. The app closes its Steam library connection
+before the helper signs in, then resumes only after the game session ends.
+These checks and waits remain part of a real game launch.
