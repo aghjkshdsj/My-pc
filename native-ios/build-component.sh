@@ -9,6 +9,7 @@ mkdir -p "$driver/out"
 
 case "$component" in
   fex)
+    python3 "$driver/fex-build-fixes.py"
     cmake -S FEX -B FEX/build-ios -G Ninja \
       -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_SYSTEM_PROCESSOR=arm64 \
       -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=26.0 \
@@ -24,6 +25,7 @@ case "$component" in
     tar -cf "$driver/out/native-fex.tar" FEX/build-ios
     ;;
   wine)
+    python3 "$driver/wine-build-fixes.py"
     brew list --versions bison >/dev/null 2>&1 || brew install bison
     brew list --versions llvm >/dev/null 2>&1 || brew install llvm
     export PATH="$(brew --prefix bison)/bin:$(brew --prefix llvm)/bin:$PATH"

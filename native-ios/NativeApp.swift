@@ -40,6 +40,9 @@ private struct NativeRootView: View {
             .onChange(of: steam.owned.count) { _, count in
                 NativePerformance.ownedLibrary(count: count)
             }
+            .onReceive(steam.$downloads) { downloads in
+                NativePerformance.downloadProgress(downloads.values.map(\.progress))
+            }
             .onChange(of: library.current) { _, value in
                 if value == nil { NativePerformance.endSession() }
                 else { NativePerformance.startSession() }
@@ -63,6 +66,7 @@ enum NativePerformance {
     private static var capture: Task<Void, Never>?
     private static var cpuMedianMS: Double?
     private static var cpuChecksum: String?
+    private static var download: SteamDownloadProgress?
 
     static func begin() { began = ProcessInfo.processInfo.systemUptime }
     static func libraryVisible() {
@@ -74,6 +78,9 @@ enum NativePerformance {
     static func ownedLibrary(count: Int) {
         ownedCount = count
         if ownedMS == nil, count > 0 { ownedMS = (ProcessInfo.processInfo.systemUptime - began) * 1000 }
+    }
+    static func downloadProgress(_ progress: [SteamDownloadProgress]) {
+        if let active = progress.first(where: { $0.totalBytes > 0 }) { download = active }
     }
     static func startSession() {
         capture?.cancel(); capture = nil
@@ -151,6 +158,12 @@ enum NativePerformance {
         if let readyMS { value["session_request_to_ready_ms"] = readyMS }
         if let presentsPerSecond { value["metal_presents_per_s_after_session_ready"] = presentsPerSecond }
         if let memory = residentMiB { value["host_app_memory_mib"] = memory }
+        if let download {
+            value["last_download_phase"] = download.phase.rawValue
+            value["last_download_total_bytes"] = download.totalBytes
+            value["last_download_completed_bytes"] = download.doneBytes
+            value["last_download_bytes_per_s"] = download.bytesPerSecond
+        }
         if let cpuMedianMS {
             value["native_cpu_median_ms"] = cpuMedianMS
             value["native_cpu_checksum"] = cpuChecksum

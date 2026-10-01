@@ -24,6 +24,10 @@ jobs:
       - name: Check out locked native source
         run: bash native-ios/checkout-source.sh
       - name: Prepare host protocol test dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Prepare native protocol libraries
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y libssl-dev liblzma-dev zlib1g-dev python3-cryptography
@@ -42,6 +46,28 @@ jobs:
           name: native-protocol-diagnostics
           path: native-ios/runtime/tests/host/*.log
           if-no-files-found: ignore
+
+  ios-interface:
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out locked native source
+        run: bash native-ios/checkout-source.sh
+      - name: Typecheck the complete native iOS interface
+        working-directory: native-ios/runtime
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+from pathlib import Path
+import subprocess
+sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], text=True).strip()
+sources = [str(path) for path in sorted(Path('app/Madeira').rglob('*.swift'))]
+assert sources
+subprocess.run(['xcrun', '--sdk', 'iphoneos', 'swiftc', '-typecheck', '-swift-version', '5',
+                '-target', 'arm64-apple-ios26.0', '-sdk', sdk,
+                '-import-objc-header', 'app/Madeira/Madeira-Bridging-Header.h', *sources], check=True)
+PY
 
   native:
     runs-on: macos-26
@@ -64,7 +90,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: native-ios/out/native-${{ matrix.component }}.tar
-          key: native-ios-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ matrix.component }}-${{ hashFiles('native-ios/source-lock.json', 'native-ios/build-component.sh', 'native-ios/build-llvm.sh', 'native-ios/prepare.py') }}
+          key: native-ios-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ matrix.component }}-${{ hashFiles('native-ios/source-lock.json', 'native-ios/build-component.sh', 'native-ios/build-llvm.sh', 'native-ios/fex-build-fixes.py', 'native-ios/wine-build-fixes.py', 'native-ios/prepare.py') }}
       - name: Restore LLVM iOS libraries built from the same locked LLVM recipe
         if: matrix.component == 'dxmt' && steps.native-cache.outputs.cache-hit != 'true'
         id: llvm-cache
@@ -142,7 +168,7 @@ jobs:
           if-no-files-found: error
 
   ipa:
-    needs: [protocol-tests, native, vcruntime]
+    needs: [protocol-tests, ios-interface, native, vcruntime]
     runs-on: macos-26
     timeout-minutes: 60
     permissions:
