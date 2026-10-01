@@ -5,6 +5,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch, Mock
@@ -49,9 +50,9 @@ class DiagnosticValidation(unittest.TestCase):
         child = Mock(pid=42,returncode=None); child.poll.return_value = None
         expired = hardware.subprocess.TimeoutExpired('test',180)
         child.communicate.side_effect = [expired,expired,(b'',b'')]
-        with patch.object(hardware.subprocess,'Popen',return_value=child), \
+        with patch.object(hardware,'spawn_child',return_value=child), \
              patch.object(hardware,'PROCESS_GROUPS',True), \
-             patch.object(hardware.time,'monotonic',side_effect=[0,0,0,200,200]), \
+             patch.object(hardware.time,'monotonic',side_effect=[0,0,0,0,0,200]), \
              patch.object(hardware.signal,'SIGKILL',9,create=True), \
              patch.object(hardware.os,'killpg',create=True) as kill:
             with self.assertRaises(hardware.subprocess.TimeoutExpired):
@@ -73,6 +74,51 @@ class DiagnosticValidation(unittest.TestCase):
         self.assertEqual(result,{'status':'timeout'})
         self.assertTrue(updates)
         self.assertLess(time.monotonic()-started,3)
+
+    def test_launch_itself_is_bounded_and_late_child_is_killed(self):
+        original = subprocess.Popen
+        launched, finished = [], threading.Event()
+        def delayed(*args, **kwargs):
+            time.sleep(0.35)
+            child = original([sys.executable,'-c','import time; time.sleep(10)'],**kwargs)
+            launched.append(child); finished.set()
+            return child
+        updates = []
+        started = time.monotonic()
+        with patch.object(hardware.subprocess,'Popen',side_effect=delayed):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                hardware.spawn_child(['diagnostic'],0.05,updates.append,
+                    stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+            self.assertLess(time.monotonic()-started,0.3)
+            self.assertTrue(finished.wait(3))
+            launched[0].wait(timeout=3)
+        self.assertTrue(updates)
+        self.assertNotEqual(launched[0].returncode,0)
+
+    @unittest.skipUnless(hardware.PROCESS_GROUPS,'Nonblocking POSIX serial sink')
+    def test_blocked_serial_cannot_stall_the_benchmark_runner(self):
+        import os
+        read_fd,write_fd = os.pipe()
+        os.set_blocking(write_fd,False)
+        try:
+            try:
+                while True: os.write(write_fd,b'x'*4096)
+            except BlockingIOError: pass
+            reporter = hardware.SerialReporter(write_fd)
+            started = time.monotonic()
+            for sequence in range(3): reporter.emit({'heartbeat_seq':sequence},limit=0.01)
+            self.assertLess(time.monotonic()-started,0.2)
+            self.assertLessEqual(len(reporter.pending),16385)
+            # Drain backpressure. Finish the old line, then emit a new one;
+            # there must be no concatenated or partially overwritten JSON.
+            os.set_blocking(read_fd,False)
+            while True:
+                try: os.read(read_fd,65536)
+                except BlockingIOError: break
+            reporter.emit({'heartbeat_seq':3},limit=0.1)
+            records = os.read(read_fd,65536).decode().splitlines()
+            self.assertEqual([json.loads(x.removeprefix('MYPC_HARDWARE_TEST '))['heartbeat_seq'] for x in records],[0,3])
+        finally: os.close(read_fd); os.close(write_fd)
 
     def test_idle_sampler_failure_does_not_prevent_cpu_work(self):
         clock = [1.0]; records = []; calls = []

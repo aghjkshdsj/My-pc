@@ -67,6 +67,11 @@ with tempfile.TemporaryDirectory() as temporary:
     with (guest / 'metal-host.log').open('w') as output:
         result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
     content = (guest / ('boot-4.log' if args.steam else 'boot-3.log')).read_text(errors='replace')
+    if result.returncode != 0:
+        # These are isolated account-free CI guests. Surface bounded failure
+        # evidence before assertions; the phone's shared report stays private.
+        print('MYPC_RUNTIME_GUEST_FAILURE_LOG\n'+content[-24000:],flush=True)
+        print('MYPC_RUNTIME_HOST_FAILURE_LOG\n'+(guest/'metal-host.log').read_text(errors='replace')[-24000:],flush=True)
     if args.hardware:
         assert 'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1' in content, 'Actual gamepad input must pass in Linux as the Steam user'
         print('MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1',flush=True)

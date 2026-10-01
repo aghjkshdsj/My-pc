@@ -23,6 +23,7 @@ jobs:
           "$RUNNER_TEMP/jit-tests"
           swiftc -D MYPC_INTERPRETER app/Madeira/LinuxVMCore.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/tcti-tests"
           "$RUNNER_TEMP/tcti-tests"
+          python3 build/linux-arm/test-gamepad-transport.py
           xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -D MYPC_INTERPRETER -target arm64-apple-ios17.0 \
             -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -import-objc-header app/Madeira/LinuxVMBridge.h \
             app/Madeira/LinuxVMCore.swift app/Madeira/LinuxVMSession.swift app/Madeira/LinuxVMView.swift \
@@ -211,6 +212,14 @@ jobs:
           python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --desktop --display --launcher build/linux-arm/output/packaged-macos/host-launcher --library build/linux-arm/output/packaged-macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
           python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/guest build/linux-arm/output/packaged-macos --hardware
           python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/steam-guest build/linux-arm/output/packaged-macos --steam
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: account-free-metal-runtime-failure-logs
+          path: |
+            build/linux-arm/output/guest/*.log
+            build/linux-arm/output/steam-guest/*.log
+          retention-days: 1
   ipa:
     needs: [apple, guest, qemu, ui]
     permissions:

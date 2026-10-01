@@ -148,6 +148,8 @@ struct LinuxHardwareObservation: Decodable {
     }
     var workTitle: String? {
         switch workStage {
+        case "starting-sampler": return "Starting the Linux activity sampler"
+        case "sampling": return "Measuring Linux CPU activity"
         case "libraries", "launching": return "Loading the test runtime"
         case "EGL", "shader": return "Preparing graphics and shaders"
         case "pixel": return "Checking rendered pixels"

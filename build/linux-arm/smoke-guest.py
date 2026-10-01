@@ -77,7 +77,7 @@ with tempfile.TemporaryDirectory() as directory:
                 if args.controller:
                     def send_controller():
                         import struct
-                        deadline=time.monotonic()+120
+                        deadline=time.monotonic()+300
                         with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as pad:
                             while not controller_stop.is_set():
                                 try: pad.connect(str(gamepad_path)); break
@@ -85,6 +85,28 @@ with tempfile.TemporaryDirectory() as directory:
                                     if time.monotonic()>deadline: return
                                     controller_stop.wait(0.1)
                             pad.settimeout(1)
+                            # The socket exists before Linux opens virtio-serial.
+                            # Wait for its ACK instead of buffering stale input
+                            # and filling QEMU's receive buffer during boot.
+                            pending=bytearray(); acknowledged=False
+                            while not controller_stop.is_set() and time.monotonic()<deadline:
+                                try: chunk=pad.recv(256)
+                                except socket.timeout: continue
+                                except OSError: return
+                                if not chunk: return
+                                pending.extend(chunk)
+                                while len(pending)>=16:
+                                    start=pending.find(b'ACK1')
+                                    if start<0: del pending[:-3]; break
+                                    if start: del pending[:start]
+                                    if len(pending)<16: break
+                                    magic,version,mask,padding=struct.unpack('<4sIII',pending[:16])
+                                    del pending[:16]
+                                    if magic==b'ACK1' and version==1 and mask<16 and padding==0:
+                                        acknowledged=True
+                                if acknowledged: break
+                            if not acknowledged: return
+                            print('MYPC_GAMEPAD_HOST_ACK_READY=1',flush=True)
                             start=time.monotonic(); sequence=0
                             while not controller_stop.is_set():
                                 phase=(time.monotonic()-start)%12

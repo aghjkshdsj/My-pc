@@ -18,6 +18,7 @@ final class LinuxGamepadConnection: @unchecked Sendable {
     private var retryAt = 0.0
     private var sending = Data(), received = Data()
     private var offset = 0
+    private var guestReady = false
     private var acknowledgedMask: UInt32?
     private var acknowledgedAt = 0.0
     var guestMask: UInt32? {
@@ -48,6 +49,7 @@ final class LinuxGamepadConnection: @unchecked Sendable {
     private func disconnect() {
         if descriptor >= 0 { Darwin.close(descriptor); descriptor = -1 }
         sending.removeAll(); received.removeAll(); offset = 0
+        guestReady = false
         lock.lock(); acknowledgedMask = nil; lock.unlock()
     }
     private func drain() {
@@ -73,7 +75,32 @@ final class LinuxGamepadConnection: @unchecked Sendable {
             guard result == 0 else { Darwin.close(fd); return }
             descriptor = fd
         }
-        // Preserve partial frames and button edges. Coalesce only queued analog motion.
+        // Linux opens the virtio port after boot. Before its first ACK, only
+        // the newest full state matters; do not replay pre-boot button presses.
+        if !guestReady {
+            lock.lock()
+            if let latest = pending.last { pending = [latest] }
+            lock.unlock()
+        }
+        var buffer = [UInt8](repeating: 0, count: 256)
+        let count = Darwin.recv(descriptor, &buffer, buffer.count, 0)
+        if count == 0 { disconnect(); return }
+        if count < 0 {
+            if errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR { disconnect(); return }
+        } else {
+            received.append(contentsOf: buffer.prefix(count))
+        }
+        while received.count >= 16 {
+            let bytes = Array(received.prefix(16)); received.removeFirst(16)
+            guard Array(bytes[0..<4]) == Array("ACK1".utf8), bytes[4] == 1,
+                  bytes[5..<8].allSatisfy({ $0 == 0 }), bytes[8] <= 15,
+                  bytes[9..<16].allSatisfy({ $0 == 0 }) else { disconnect(); return }
+            lock.lock(); acknowledgedMask = UInt32(bytes[8]); acknowledgedAt = now; lock.unlock()
+            guestReady = true
+        }
+        guard guestReady else { return }
+        // Once ready, preserve partial frames and button edges. Coalesce only
+        // queued analog motion with an unchanged button/connection signature.
         for _ in 0..<32 {
             if sending.isEmpty {
                 lock.lock()
@@ -88,21 +115,6 @@ final class LinuxGamepadConnection: @unchecked Sendable {
             guard count > 0 else { disconnect(); return }
             offset += count
             if offset == sending.count { sending.removeAll(); offset = 0 }
-        }
-        var buffer = [UInt8](repeating: 0, count: 256)
-        let count = Darwin.recv(descriptor, &buffer, buffer.count, 0)
-        if count == 0 { disconnect(); return }
-        if count < 0 {
-            if errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR { disconnect() }
-            return
-        }
-        received.append(contentsOf: buffer.prefix(count))
-        while received.count >= 16 {
-            let bytes = Array(received.prefix(16)); received.removeFirst(16)
-            guard Array(bytes[0..<4]) == Array("ACK1".utf8), bytes[4] == 1,
-                  bytes[5..<8].allSatisfy({ $0 == 0 }), bytes[8] <= 15,
-                  bytes[9..<16].allSatisfy({ $0 == 0 }) else { disconnect(); return }
-            lock.lock(); acknowledgedMask = UInt32(bytes[8]); acknowledgedAt = now; lock.unlock()
         }
     }
 }

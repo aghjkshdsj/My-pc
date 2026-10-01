@@ -174,7 +174,7 @@ def main():
     print('MYPC_CONTROLLER_READY=1', flush=True)
     try:
         while True:
-            ready, _, _ = select.select([fd], [], [], 0.05)
+            ready, _, _ = select.select([fd], [], [], 0.25)
             now = time.monotonic()
             if ready:
                 try:

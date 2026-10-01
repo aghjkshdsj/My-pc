@@ -9,6 +9,7 @@ import statistics
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
 
@@ -18,6 +19,43 @@ SNAPSHOT_TIMEOUT = 3
 CPU_TIMEOUT = 30
 GPU_TIMEOUT = 60
 PROCESS_GROUPS = os.name == 'posix'
+
+
+def spawn_child(command, timeout, tick=None, **options):
+    """Bound fork/exec as well as the subsequent child workload.
+
+    Popen can wait on its exec-error pipe before returning a child handle.
+    Keep that wait off the reporting thread; a late child is killed if the
+    caller has already timed out or cancelled. Never start another workload
+    in the abandoned launch thread.
+    """
+    ready, abandoned, gate = threading.Event(), threading.Event(), threading.Lock()
+    result = {}
+    started = time.monotonic()
+    def launch():
+        try: value = subprocess.Popen(command, **options)
+        except BaseException as error:
+            with gate: result['error'] = error
+        else:
+            with gate:
+                late = abandoned.is_set()
+                if not late: result['child'] = value
+            if late: stop_child(value)
+        finally: ready.set()
+    threading.Thread(target=launch, daemon=True).start()
+    try:
+        while not ready.wait(0.1):
+            elapsed = time.monotonic()-started
+            if tick: tick(elapsed)
+            if elapsed >= timeout: raise subprocess.TimeoutExpired('diagnostic-launch',timeout)
+        if 'error' in result: raise result['error']
+        return result['child']
+    except BaseException:
+        with gate:
+            abandoned.set()
+            child = result.get('child')
+        if child is not None: stop_child(child)
+        raise
 
 
 def stop_child(child):
@@ -120,10 +158,13 @@ def execute(folder, mode, kind, workers, env, iterations=ITERATIONS, tick=None, 
     if mode == 'fex':
         command.insert(0, str(folder / 'fex/usr/bin/FEX'))
     started = time.monotonic()
-    child = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    limit = timeout or (CPU_TIMEOUT if kind == 'cpu' else GPU_TIMEOUT)
+    child = spawn_child(command, min(10,limit), lambda elapsed: tick(None,elapsed) if tick else None,
+                        env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE, start_new_session=True)
     def update(output, elapsed):
         if tick: tick(work_progress(output, mode, kind), elapsed)
-    stdout, stderr = wait_child(child, timeout or (CPU_TIMEOUT if kind == 'cpu' else GPU_TIMEOUT), update)
+    stdout, stderr = wait_child(child, max(0.001,limit-(time.monotonic()-started)), update)
     total_ms = (time.monotonic() - started) * 1000
     # Do not relay FEX or X11 logs, environment, paths or arguments to reports.
     records = []
@@ -196,9 +237,12 @@ def snapshot(include_processes=True):
 def collect_snapshot(tick=None, include_processes=True):
     command = [sys.executable, str(pathlib.Path(__file__).resolve()), '--snapshot']
     if not include_processes: command.append('--no-processes')
-    child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    started = time.monotonic()
     try:
-        output, _ = wait_child(child, SNAPSHOT_TIMEOUT, lambda _output, elapsed: tick(elapsed) if tick else None)
+        child = spawn_child(command, SNAPSHOT_TIMEOUT, tick, stdin=subprocess.DEVNULL,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+        output, _ = wait_child(child, max(0.001,SNAPSHOT_TIMEOUT-(time.monotonic()-started)),
+                              lambda _output, elapsed: tick(elapsed) if tick else None)
         if child.returncode or len(output) > 65536: return {'status':'unavailable'}
         value = json.loads(output)
         if not isinstance(value.get('cores'), dict) or not value.get('cores'): return {'status':'unavailable'}
@@ -248,6 +292,7 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS):
         if emit: emit(json.loads(json.dumps(state)))
         last_emit = now
     def sample(include_processes=True):
+        state['work_stage'] = 'starting-sampler'; publish()
         return collect_snapshot(lambda _elapsed: publish(False), include_processes)
     # Signals cancel children through execute's finally path, then return a
     # structured cancelled result instead of leaving a test using the CPU.
@@ -255,6 +300,7 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS):
     old = signal.signal(signal.SIGTERM, cancelled)
     try:
         publish(); before = sample()
+        state['work_stage'] = 'sampling'; publish()
         idle_start = time.monotonic()
         while time.monotonic() - idle_start < 3:
             state['progress_percent'] = min(8, round(2 + (time.monotonic()-idle_start)*2,1))
@@ -273,6 +319,7 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS):
                              work_done=0, work_total=3 if kind=='cpu' else 60,
                              work_unit='samples' if kind=='cpu' else 'frames', work_stage='launching')
                 publish(); before = sample(False)
+                state['work_stage'] = 'launching'; publish()
                 def tick(work, _elapsed):
                     if work:
                         state.update(work_done=work['done'],work_total=work['total'],work_stage=work['stage'])
@@ -297,25 +344,58 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS):
     publish(); return state
 
 
+class SerialReporter:
+    """Serial backpressure must not block work, heartbeats or cancellation."""
+    def __init__(self, fd):
+        self.fd, self.pending = fd, b''
+
+    def emit(self, state, limit=0.25):
+        import select
+        line = ('MYPC_HARDWARE_TEST '+json.dumps(state,separators=(',',':'),allow_nan=False)+'\n').encode()
+        assert len(line) <= 16385
+        deadline = time.monotonic()+limit
+        # Finish a partial record first; retain at most that single record.
+        if self.pending: self.flush(deadline,select)
+        if not self.pending:
+            self.pending = line
+            self.flush(deadline,select)
+
+    def flush(self, deadline, select):
+        while self.pending and time.monotonic()<deadline:
+            try:
+                count = os.write(self.fd,self.pending)
+                if count == 0: return
+                self.pending = self.pending[count:]
+            except BlockingIOError:
+                select.select([], [self.fd], [], min(0.05,max(0,deadline-time.monotonic())))
+
+
 def main():
     if '--snapshot' in sys.argv[1:]:
         print(json.dumps(snapshot('--no-processes' not in sys.argv[1:]),separators=(',',':')))
         return
     import fcntl
-    parser = argparse.ArgumentParser(); parser.add_argument('kind', choices=['cpu','gpu']); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument('kind', choices=['cpu','gpu'])
+    # CI reads the same CLI result independently of UART delivery. The phone
+    # launcher does not accept any user-controlled file or command argument.
+    parser.add_argument('--result-file',type=pathlib.Path)
+    args = parser.parse_args()
     lock = open('/tmp/my-pc-hardware-test.lock', 'a+')
     try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         print('A hardware test is already running.'); raise SystemExit(1)
-    console = open('/dev/ttyAMA0','w',buffering=1)
+    console = os.open('/dev/ttyAMA0',os.O_WRONLY|os.O_NONBLOCK|os.O_NOCTTY|os.O_CLOEXEC)
+    reporter = SerialReporter(console)
     def emit(state):
-        line = 'MYPC_HARDWARE_TEST ' + json.dumps(state,separators=(',',':'),allow_nan=False)
-        assert len(line) <= 16384
-        console.write(line+'\n')
-        print(f"{state['kind'].upper()}: {state['progress_percent']:.0f}% · {state['stage']} · {state['elapsed_s']:.0f}s · {state['status']}",flush=True)
-    state = run(args.kind, emit=emit)
-    print(json.dumps(state,indent=2),flush=True)
-    print('\nDone. Results are available in My-pc → Hardware tests.',flush=True)
+        if args.result_file:
+            temporary = args.result_file.with_suffix('.new')
+            temporary.write_text(json.dumps(state,separators=(',',':')))
+            temporary.replace(args.result_file)
+        reporter.emit(state)
+    try:
+        state = run(args.kind, emit=emit)
+        reporter.emit(state,limit=2)
+    finally: os.close(console)
 
 
 if __name__ == '__main__': main()

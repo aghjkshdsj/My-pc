@@ -54,15 +54,18 @@ def main():
             if binary.is_file():
                 environment = os.environ.copy()
                 environment['LD_LIBRARY_PATH'] = str(steam_root/'steamrtarm64')+':'+str(steam_root/'steamrtarm64/panorama')
-                subprocess.Popen([str(binary),'-gamepadui'],env=environment,
+                subprocess.Popen([str(binary),'-gamepadui'],env=environment,cwd=steam_root,
                                  stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             continue
         if kind == 'cancel':
             if active and active.poll() is None: cancel_runner(active.pid)
             continue
         if active and active.poll() is None: continue
-        active = subprocess.Popen(['xterm','-T','My-pc hardware test','-fa','DejaVu Sans Mono','-fs','11',
-                                   '-geometry','110x30+20+20','-e','python3','-u',str(folder/'hardware-test.py'),kind])
+        # The app owns the progress/result UI. An X11 terminal's PTY can
+        # apply backpressure while Steam/Xorg are slow; never report through it.
+        active = subprocess.Popen(['python3','-u',str(folder/'hardware-test.py'),kind],
+                                  stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL,start_new_session=True)
 
 
 if __name__ == '__main__': main()

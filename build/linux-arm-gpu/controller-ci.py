@@ -10,9 +10,11 @@ import time
 
 def node():
     for path in pathlib.Path('/sys/class/input').glob('event*/device/name'):
-        if path.read_text().strip() == 'My-pc iOS Gamepad 1':
-            candidate = pathlib.Path('/dev/input', path.parents[1].name)
-            if candidate.exists(): return candidate
+        try:
+            if path.read_text().strip() == 'My-pc iOS Gamepad 1':
+                candidate = pathlib.Path('/dev/input', path.parents[1].name)
+                if candidate.exists() and os.access(candidate,os.R_OK): return candidate
+        except OSError: continue
     return None
 
 
@@ -28,8 +30,12 @@ def wait(predicate, limit=40):
 def run():
     device = wait(node)
     assert os.access(device, os.R_OK), 'Steam user must have gamepad access'
-    properties = subprocess.check_output(['udevadm','info','--query=property','--name',str(device)],text=True,timeout=5)
-    assert 'ID_INPUT_JOYSTICK=1' in properties, 'Real udev gamepad classification required'
+    def classified():
+        try:
+            properties = subprocess.check_output(['udevadm','info','--query=property','--name',str(device)],text=True,timeout=5)
+            return 'ID_INPUT_JOYSTICK=1' in properties
+        except (OSError,subprocess.SubprocessError): return False
+    wait(classified,10)
     fd = os.open(device, os.O_RDONLY|os.O_NONBLOCK)
     def state():
         keys = bytearray(128)
