@@ -66,6 +66,8 @@ exec "$(dirname "$0")/steamwebhelper.sh" "$@"
         with tempfile.TemporaryDirectory(prefix='steam game launch ') as folder:
             home = pathlib.Path(folder)
             root = self.make_client(home, '''#!/bin/bash
+# The fake client consumes Steam's five startup arguments before launching a game.
+shift 5
 exec "$HOME/.steam/sdkarm64/steam-launch-wrapper" 'game with spaces' "$@"
 ''')
             sdk = root / 'linuxarm64'
@@ -147,6 +149,7 @@ if [ ! -e "$HOME/updated" ]; then
     touch "$HOME/updated"
     exit 42
 fi
+shift 5
 exec "$HOME/.steam/sdkarm64/steam-launch-wrapper" "$@"
 ''')
             template = home / 'vendor-wrapper'
