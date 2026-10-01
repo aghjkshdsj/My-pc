@@ -1,7 +1,9 @@
 """Check output validation, bounded failure/cancellation and load arithmetic."""
 import importlib.util
 import json
+import os
 import pathlib
+import selectors
 import subprocess
 import sys
 import tempfile
@@ -17,6 +19,79 @@ keys = importlib.util.module_from_spec(key_spec); key_spec.loader.exec_module(ke
 
 
 class DiagnosticValidation(unittest.TestCase):
+    def test_cancellation_exception_escapes_the_subprocess_selector(self):
+        # CPython retries interrupted I/O. Raising InterruptedError from a
+        # signal handler silently resumes communicate instead of stopping it.
+        selector = Mock()
+        selector._selector.poll.side_effect = InterruptedError()
+        self.assertEqual(selectors._PollLikeSelector.select(selector, 0.5), [])
+        selector._selector.poll.side_effect = hardware.DiagnosticCancelled()
+        with self.assertRaises(hardware.DiagnosticCancelled):
+            selectors._PollLikeSelector.select(selector, 0.5)
+
+    @unittest.skipUnless(os.name == 'posix' and pathlib.Path('/proc/self/wchan').is_file(),
+                         'Linux subprocess selector and signal delivery')
+    def test_real_sigterm_cancels_while_communicate_is_polling_and_reaps_child(self):
+        fixture_child = "import time; marker='my-pc-selector-child'; time.sleep(60)"
+        program = '''import importlib.util, json, pathlib, subprocess, sys
+spec = importlib.util.spec_from_file_location('hardware', __MODULE__)
+h = importlib.util.module_from_spec(spec); spec.loader.exec_module(h)
+report, pid_file = map(pathlib.Path, sys.argv[1:3])
+h.collect_snapshot = lambda *args, **kwargs: {'status': 'timeout'}
+h.environment = lambda *args: {}
+def execute(folder, mode, kind, workers, env, iterations, tick):
+    child = h.spawn_child([sys.executable, '-c', __CHILD__], 3,
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        start_new_session=True)
+    pid_file.write_text(str(child.pid))
+    tick({'done': 1, 'total': 60, 'stage': 'frames'}, 0)
+    return h.wait_child(child, 60)
+h.execute = execute
+def emit(state):
+    temporary = report.with_suffix('.new')
+    temporary.write_text(json.dumps(state)); temporary.replace(report)
+state = h.run('gpu', report.parent, emit)
+sys.exit(0 if state['status'] == 'cancelled' else 1)
+'''.replace('__MODULE__', repr(str(hardware.__file__))).replace('__CHILD__', repr(fixture_child))
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = pathlib.Path(temporary)
+            fixture, report, pid_file = (folder/name for name in ('fixture.py', 'state.json', 'child.pid'))
+            fixture.write_text(program)
+            runner = subprocess.Popen([sys.executable, str(fixture), str(report), str(pid_file)],
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            pid = None
+            try:
+                deadline = time.monotonic() + 10
+                # Send Stop inside the actual selector syscall, not between
+                # Python instructions where the former handler worked by luck.
+                while time.monotonic() < deadline:
+                    try:
+                        state = json.loads(report.read_text())
+                        waiting = pathlib.Path(f'/proc/{runner.pid}/wchan').read_text()
+                        if state.get('work_done') == 1 and ('poll' in waiting or 'select' in waiting):
+                            pid = int(pid_file.read_text()); break
+                    except (OSError, ValueError): pass
+                    self.assertIsNone(runner.poll(), 'Fixture exited before entering the workload wait')
+                    time.sleep(0.01)
+                self.assertIsNotNone(pid, 'Fixture did not enter the subprocess selector')
+                runner.terminate()
+                runner.communicate(timeout=4)
+                self.assertEqual(runner.returncode, 0)
+                self.assertEqual(json.loads(report.read_text())['status'], 'cancelled')
+                self.assertFalse(pathlib.Path(f'/proc/{pid}').exists(), 'Diagnostic child was not reaped')
+            finally:
+                if runner.poll() is None:
+                    runner.kill(); runner.communicate(timeout=3)
+                # Only a failed fixture can leave this explicitly launched child.
+                # Validate its exact command before cleaning up the test group.
+                if pid_file.exists():
+                    pid = int(pid_file.read_text())
+                    try:
+                        argv = pathlib.Path(f'/proc/{pid}/cmdline').read_bytes().split(b'\0')
+                        if argv[:3] == [os.fsencode(sys.executable), b'-c', fixture_child.encode()]:
+                            os.killpg(pid, hardware.signal.SIGKILL)
+                    except (FileNotFoundError, ProcessLookupError): pass
+
     def test_signal_cancellation_emits_a_final_result(self):
         records = []
         previous = hardware.signal.getsignal(hardware.signal.SIGTERM)

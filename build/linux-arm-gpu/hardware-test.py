@@ -23,6 +23,10 @@ GPU_MAX_FRAMES = 6000
 PROCESS_GROUPS = os.name == 'posix'
 
 
+class DiagnosticCancelled(Exception):
+    """Escape subprocess selectors, which deliberately swallow InterruptedError."""
+
+
 def spawn_child(command, timeout, tick=None, **options):
     """Bound fork/exec as well as the subsequent child workload.
 
@@ -308,7 +312,7 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS, gpu_frames=GPU_FRAM
         return collect_snapshot(lambda _elapsed: publish(False), include_processes)
     # Signals cancel children through execute's finally path, then return a
     # structured cancelled result instead of leaving a test using the CPU.
-    def cancelled(*_): raise InterruptedError()
+    def cancelled(*_): raise DiagnosticCancelled()
     old = signal.signal(signal.SIGTERM, cancelled)
     try:
         publish(); before = sample()
@@ -354,7 +358,7 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS, gpu_frames=GPU_FRAM
         passed = len(state['results']) == len(steps) and all(row['status']=='passed' for row in state['results'])
         state['status'] = 'complete' if passed else 'failed'
         state['stage'] = 'finished' if passed else 'workload-failed'
-    except InterruptedError:
+    except DiagnosticCancelled:
         state.update(status='cancelled',stage='cancelled')
     except Exception:
         state.update(status='failed',stage='diagnostic-runtime')
