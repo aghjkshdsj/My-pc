@@ -1,0 +1,48 @@
+name: ARM Steam input failure probe
+on:
+  push:
+    branches: [codex/steam-arm-metal]
+    paths: [.github/workflows/steam-arm-input-probe.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  controller:
+    runs-on: macos-26
+    timeout-minutes: 16
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore the exact controller preview artifacts
+        run: |
+          test "$(gh run view 36759625314 --json headSha --jq .headSha)" = 1f6cba588c16cf3b99e52722faa909692cc30158
+          gh run download 36759625314 --name linux-arm-guest --dir build/input-probe/download/guest
+          gh run download 36759625314 --name linux-arm-qemu-macos --dir build/input-probe/download/qemu
+          mkdir -p build/input-probe/guest build/input-probe/qemu
+          tar -xzf build/input-probe/download/guest/linux-arm-guest.tar.gz -C build/input-probe/guest
+          tar -xzf build/input-probe/download/qemu/linux-arm-qemu-macos.tar.gz -C build/input-probe/qemu
+          (cd build/input-probe/guest && shasum -a 256 -c SHA256SUMS)
+          python3 build/linux-arm-gpu/package-test-runtime.py build/input-probe/qemu build/input-probe/runtime
+          chmod +x build/input-probe/runtime/host-launcher
+          for framework in build/input-probe/runtime/Frameworks/*.framework; do codesign --force --sign - "$framework"; done
+      - name: Expose the account-free guest failure before the gate assertion
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          path = pathlib.Path('build/linux-arm-gpu/run-metal-runtime.py')
+          source = path.read_text()
+          anchor = "    if args.hardware:\n        assert 'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1'"
+          assert source.count(anchor) == 1
+          source = source.replace(anchor, "    print('MYPC_INPUT_PROBE_GUEST_LOG\\n'+content[-30000:],flush=True)\n    print('MYPC_INPUT_PROBE_HOST_LOG\\n'+(guest/'metal-host.log').read_text(errors='replace')[-16000:],flush=True)\n"+anchor)
+          path.write_text(source)
+          PY
+          python3 build/linux-arm-gpu/run-metal-runtime.py build/input-probe/guest build/input-probe/runtime --hardware
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: account-free-input-probe-logs
+          path: build/input-probe/guest/*.log
+          retention-days: 1
