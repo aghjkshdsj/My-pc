@@ -110,7 +110,7 @@ jobs:
             native-ios/runtime/toolchains/llvm-project/llvm/include
             native-ios/runtime/toolchains/llvm-ios-build/include
             native-ios/runtime/toolchains/llvm-ios-build/lib
-          key: ${{ steps.llvm-cache.outputs.cache-primary-key }}
+          key: native-ios-llvm15-v1-${{ runner.arch }}-${{ steps.sdk.outputs.version }}-${{ hashFiles('native-ios/build-llvm.sh') }}
       - name: Build native component
         if: steps.native-cache.outputs.cache-hit != 'true'
         run: bash native-ios/build-component.sh '${{ matrix.component }}'
