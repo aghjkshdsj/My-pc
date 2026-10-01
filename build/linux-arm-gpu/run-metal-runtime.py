@@ -17,6 +17,7 @@ parser.add_argument('runtime', type=pathlib.Path)
 parser.add_argument('--steam', action='store_true')
 parser.add_argument('--hardware', action='store_true')
 parser.add_argument('--legacy', action='store_true', help='Migration/input only on Linux QEMU, without a Metal host')
+parser.add_argument('--expect-update-reuse', action='store_true')
 args = parser.parse_args()
 if args.hardware:
     spec = importlib.util.spec_from_file_location('hardware_control_ci', 'build/linux-arm-gpu/hardware-control-ci.py')
@@ -39,7 +40,7 @@ source = source.replace(anchor, '''            # Match the shipping disk path, c
                     'node-name': 'linux-file', 'aio': 'threads',
                     'cache': {'direct': False, 'no-flush': False}}),
                 '-blockdev', json.dumps({'driver': 'raw', 'file': 'linux-file', 'node-name': 'linux-root'}),
-                '-device', 'virtio-blk-pci,drive=linux-root,iothread=linux-disk-io']
+                '-device', 'virtio-blk-pci,drive=linux-root,iothread=linux-disk-io,num-queues=6']
             command[command.index('-accel') + 1] = 'tcg,thread=multi,tb-size=256'
 ''' + anchor)
 anchor = '            if args.verify_cpu_count:\n'
@@ -149,6 +150,9 @@ with tempfile.TemporaryDirectory() as temporary:
         if state.get('schema') == 1:
             guest_graphics = state
             print('MYPC_GUEST_GRAPHICS ' + json.dumps(state), flush=True)
+    timing = re.findall(r'MYPC_GRAPHICS_UPDATE_TIMING (\d+\.\d+) (\d+\.\d+)', content)
+    update_seconds = round(float(timing[-1][1]) - float(timing[-1][0]), 2) if timing else None
+    assert update_seconds is not None and 0 <= update_seconds <= 600, 'Require an actual bounded update timing'
     summary = {'host_success': result.returncode == 0,
                'hook_seen': 'MYPC_GRAPHICS_HOOK_SEEN=1' in content,
                'update_phases': re.findall(r'MYPC_GRAPHICS_UPDATE_PHASE=(shell-ready|validate-root|verify-payload|replace-launcher|sync)', content)[-8:],
@@ -156,14 +160,20 @@ with tempfile.TemporaryDirectory() as temporary:
                'shell_trap_error': bool(re.search(r'(?:bad trap|invalid signal specification)', content)),
                'unset_parameter': 'parameter not set' in content or 'unbound variable' in content,
                'update_ok': 'MYPC_GRAPHICS_UPDATE_OK=1' in content,
+               'update_reused': 'MYPC_GRAPHICS_UPDATE_REUSED=1' in content,
+               'update_elapsed_s': update_seconds,
                'update_failed': 'MYPC_GRAPHICS_UPDATE_FAILED' in content,
                'cpu_count_verified': 'MYPC_LINUX_CPU_COUNT=6' in content,
+               'storage_queues_verified': 'MYPC_GUEST_DISK_QUEUES=6' in content,
                'metal': 'ANGLE Metal Renderer' in content,
                'cef_gpu': 'MYPC_STEAM_GPU_CEF_OK' in content,
                'guest_graphics_verified': bool(guest_graphics and guest_graphics.get('accelerated') is True and guest_graphics.get('readback_ok') is True),
                'legacy_migration_only': args.legacy}
     print('MYPC_METAL_RUNTIME_RESULT ' + json.dumps(summary), flush=True)
     assert summary['host_success'] and summary['update_ok'] and not summary['update_failed']
+    assert summary['storage_queues_verified'], 'The guest must expose all six disk queues'
+    if args.expect_update_reuse:
+        assert summary['update_reused'], 'An unchanged installed payload must be reused'
     if not args.legacy:
         assert summary['metal'] and summary['cpu_count_verified']
         assert summary['guest_graphics_verified'], 'The actual guest driver/readback check must pass'

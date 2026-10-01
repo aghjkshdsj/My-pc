@@ -56,7 +56,7 @@ check(argv.contains("tcg,thread=multi,tb-size=256,split-wx=on"), "JIT must requi
 let block = try JSONSerialization.jsonObject(with: Data(argv[argv.firstIndex(of: "-blockdev")! + 1].utf8)) as! [String: Any]
 let cache = block["cache"] as! [String: Bool]
 check(cache["no-flush"] == false, "Performance changes must preserve guest flushes")
-check(argv.contains("virtio-blk-pci,drive=linux-root,iothread=linux-disk-io"), "Disk processing must use its own IOThread")
+check(argv.contains("virtio-blk-pci,drive=linux-root,iothread=linux-disk-io,num-queues=2"), "Disk processing must use its own IOThread and one queue per guest CPU")
 check(LinuxGraphicsMode.initial(metalAvailable: true, saved: "software") == .software, "Explicit software recovery must be preserved")
 check(LinuxGraphicsMode.initial(metalAvailable: false, saved: "metal") == .software, "A software-only runtime cannot request Metal")
 let graphicsLine = #"MYPC_GUEST_GRAPHICS {"schema":1,"renderer":"virgl","readback_ok":true,"accelerated":true}"#
@@ -115,7 +115,7 @@ let typed = try LinuxQMP.text("aA@! ")
 let events = typed["events"] as! [[String: Any]]
 check(events.count == 16, "Each character must release its key and any shift modifier")
 check(JSONSerialization.isValidJSONObject(typed), "Keyboard must form valid QMP events")
-rejects { _ = try LinuxQMP.text("passwordðŸ™‚") }
+rejects { _ = try LinuxQMP.text("password🙂") }
 rejects { _ = try LinuxQMP.text(String(repeating: "a", count: 1025)) }
 print("PASS: Linux launch validation, disk paths, JIT options, control replies and input bounds")
 

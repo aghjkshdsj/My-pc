@@ -95,6 +95,7 @@ jobs:
           sudo cp build/linux-arm-gpu/preserve-sentinel build/linux-arm-gpu/legacy-mount/home/steam/.local/share/Steam/steamapps/common/MyPCPreserveTest/data
           sudo umount build/linux-arm-gpu/legacy-mount
           python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm-gpu/legacy-guest /tmp --legacy
+          python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm-gpu/legacy-guest /tmp --legacy --expect-update-reuse
           sudo mount -o loop build/linux-arm-gpu/legacy-guest/rootfs.raw build/linux-arm-gpu/legacy-mount
           sudo cmp build/linux-arm-gpu/preserve-sentinel build/linux-arm-gpu/legacy-mount/home/steam/.steam/my-pc-preserve-test
           sudo cmp build/linux-arm-gpu/preserve-sentinel build/linux-arm-gpu/legacy-mount/home/steam/.local/share/Steam/steamapps/common/MyPCPreserveTest/data

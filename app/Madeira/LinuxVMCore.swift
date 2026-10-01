@@ -115,9 +115,9 @@ struct LinuxHardwareResult: Decodable {
         let name = mode == "fex" ? "x86-64 through FEX" : "ARM64 inside Linux"
         guard status == "passed" else { return "\(name): \(status)\(stage.map { " (\($0))" } ?? "")" }
         if kind == "cpu", let rate = millionIterationsS, let workers {
-            return String(format: "%@: %d workers Â· %.2f M iterations/s", name, workers, rate)
+            return String(format: "%@: %d workers · %.2f M iterations/s", name, workers, rate)
         }
-        return String(format: "%@: %.1f render FPS Â· %@", name, renderFps ?? 0,
+        return String(format: "%@: %.1f render FPS · %@", name, renderFps ?? 0,
                       accelerated == true ? "virgl pixel check passed" : "software or unverified")
     }
 }
@@ -141,8 +141,8 @@ struct LinuxHardwareObservation: Decodable {
         if stage == "sampling-idle" { return "Checking Linux CPU activity" }
         if stage == "finished" { return "Tests finished" }
         if stage == "cancelled" { return "Test stopped" }
-        if stage.hasPrefix("arm64-cpu-") { return "ARM64 Linux CPU Â· \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
-        if stage.hasPrefix("fex-cpu-") { return "FEX CPU Â· \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
+        if stage.hasPrefix("arm64-cpu-") { return "ARM64 Linux CPU · \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
+        if stage.hasPrefix("fex-cpu-") { return "FEX CPU · \(stage.hasSuffix("-1") ? "one worker" : "all guest cores")" }
         if stage.hasPrefix("arm64-gpu-") { return "ARM64 graphics" }
         if stage.hasPrefix("fex-gpu-") { return "FEX graphics" }
         return "Diagnostic test failed"
@@ -324,7 +324,7 @@ struct LinuxVMConfiguration {
 
     func arguments() throws -> [String] {
         guard (512...3072).contains(memoryMiB), (1...LinuxCPUSelection.maximum).contains(cpuCount) else {
-            throw LinuxVMError.invalid("Linux requires 512â€“3072 MB RAM and 1â€“64 CPU cores.")
+            throw LinuxVMError.invalid("Linux requires 512–3072 MB RAM and 1–64 CPU cores.")
         }
         // QEMU's Unix socket chardev uses the platform sockaddr_un path limit.
         guard control.isFileURL, control.path.utf8.count < 100,
@@ -374,7 +374,7 @@ struct LinuxVMConfiguration {
                 "-append", "console=ttyAMA0 root=/dev/vda rw quiet loglevel=3 my_pc_graphics=\(graphics == .metal ? "virgl" : "software")",
                 "-object", "iothread,id=linux-disk-io,poll-max-ns=0",
                 "-blockdev", storage, "-blockdev", raw,
-                "-device", "virtio-blk-pci,drive=linux-root,iothread=linux-disk-io",
+                "-device", "virtio-blk-pci,drive=linux-root,iothread=linux-disk-io,num-queues=\(cpuCount)",
                 "-netdev", "user,id=linux-net", "-device", "virtio-net-pci,netdev=linux-net,romfile=",
                 "-device", "\(graphics == .metal ? "virtio-gpu-gl-pci" : "virtio-gpu-pci"),xres=\(LinuxDesktopSize.width),yres=\(LinuxDesktopSize.height)",
                 "-device", "qemu-xhci", "-device", "usb-tablet", "-device", "usb-kbd",

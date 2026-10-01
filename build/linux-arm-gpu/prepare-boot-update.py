@@ -23,6 +23,41 @@ def newc(entries):
     return bytes(archive)
 
 
+def installed_checks(files):
+    """Exact installed bytes, file types/modes, and symlink targets for reuse."""
+    entries = []
+    for source, mode, data in files:
+        name = source.removeprefix('my-pc-graphics/')
+        if name.startswith('usr/'):
+            target = name
+        elif name.startswith(('controller/', 'hardware-tests/')):
+            target = 'usr/local/lib/my-pc/' + name
+        else:
+            raise ValueError('Unexpected reserved installation path')
+        entries.append((target, mode, data))
+        if name == 'controller/my-pc-controller.service':
+            entries.append(('etc/systemd/system/my-pc-controller.service', mode, data))
+        if name == 'controller/70-my-pc-diagnostics.rules':
+            entries.append(('etc/udev/rules.d/70-my-pc-diagnostics.rules', mode, data))
+    entries.append(('etc/systemd/system/multi-user.target.wants/my-pc-controller.service',
+                    stat.S_IFLNK | 0o777, b'../my-pc-controller.service'))
+    hashes, modes, links = [], [], []
+    for name, mode, data in entries:
+        assert not any(c.isspace() for c in name)
+        modes.append(f'0:0:{mode:x}  {name}\n')
+        if stat.S_ISREG(mode):
+            hashes.append(hashlib.sha256(data).hexdigest() + '  ' + name + '\n')
+        elif stat.S_ISLNK(mode):
+            target = data.decode()
+            assert target and not any(c.isspace() or c == '\0' for c in target)
+            links.append(name + ' ' + target + '\n')
+        else:
+            raise ValueError('Unexpected installed file type')
+    return {'installed-SHA256SUMS': ''.join(hashes).encode(),
+            'installed-MODES': ''.join(modes).encode(),
+            'installed-LINKS': ''.join(links).encode()}
+
+
 def main(guest, order_file=None):
     guest = pathlib.Path(guest)
     source = pathlib.Path('build/linux-arm')
@@ -69,6 +104,10 @@ if grep -qw my_pc_graphics=virgl /proc/cmdline; then graphics_options=(); fi
             diagnostic_checksums.append(hashlib.sha256(body).hexdigest() + '  ' + name.removeprefix('my-pc-graphics/') + '\n')
     files.append(('my-pc-graphics/hardware-tests/SHA256SUMS', stat.S_IFREG | 0o644,
                   ''.join(diagnostic_checksums).encode()))
+    installed = installed_checks(files)
+    for name, data in installed.items():
+        files.append(('my-pc-graphics/' + name, stat.S_IFREG | 0o644, data))
+        checksums += (hashlib.sha256(data).hexdigest() + '  ' + name + '\n').encode()
     # The source kernel/initrd and Steam's disk remain unchanged. Append the
     # self-contained test payload only to the verified Metal startup update.
     checksums += ''.join(diagnostic_checksums).encode()

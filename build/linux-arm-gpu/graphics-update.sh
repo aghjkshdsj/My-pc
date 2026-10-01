@@ -8,6 +8,11 @@ read -r command_line </proc/cmdline
 case " $command_line " in *" my_pc_graphics=virgl "*|*" my_pc_graphics=software "*) ;; *) exit 0;; esac
 echo 'MYPC_GRAPHICS_HOOK_SEEN=1' >/dev/console
 set -eu
+read -r update_started ignored </proc/uptime
+report_timing() {
+    read -r update_finished ignored </proc/uptime
+    echo "MYPC_GRAPHICS_UPDATE_TIMING $update_started $update_finished" >/dev/console
+}
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=shell-ready' >/dev/console
 root_command() {
     command=$1
@@ -35,6 +40,30 @@ root_command sha256sum -c SHA256SUMS >/dev/null
 for directory in usr usr/local usr/local/bin usr/local/lib usr/local/lib/my-pc usr/local/lib/my-pc/steam-bin; do
     test -d "$rootmnt/$directory" && test ! -L "$rootmnt/$directory"
 done
+# Avoid recopies and a global disk sync when every reserved installed byte,
+# file type, permission, owner and link already matches this verified payload.
+# The comparison output lives in the initramfs, never on the persistent disk.
+reuse_installed() {
+    for directory in usr/local/lib/my-pc/hardware-tests usr/local/lib/my-pc/controller etc etc/udev etc/udev/rules.d etc/systemd etc/systemd/system etc/systemd/system/multi-user.target.wants; do
+        test -d "$rootmnt/$directory" && test ! -L "$rootmnt/$directory" || return 1
+    done
+    cd "$rootmnt"
+    set --
+    while read -r properties name; do set -- "$@" "$name"; done </my-pc-graphics/installed-MODES
+    root_command stat -c '%u:%g:%f  %n' -- "$@" >/my-pc-graphics/installed-actual-modes 2>/dev/null || return 1
+    root_command cmp -s /my-pc-graphics/installed-MODES /my-pc-graphics/installed-actual-modes || return 1
+    root_command sha256sum -c /my-pc-graphics/installed-SHA256SUMS >/dev/null 2>&1 || return 1
+    while read -r name target; do
+        test -L "$name" && test "$(root_command readlink "$name")" = "$target" || return 1
+    done </my-pc-graphics/installed-LINKS
+}
+if (reuse_installed); then
+    echo 'MYPC_GRAPHICS_UPDATE_REUSED=1' >/dev/console
+    report_timing
+    echo 'MYPC_GRAPHICS_UPDATE_OK=1' >/dev/console
+    trap - 0
+    exit 0
+fi
 for file in usr/local/bin/my-pc-desktop usr/local/bin/my-pc-steam usr/local/lib/my-pc/steam-bin/taskset; do
     echo 'MYPC_GRAPHICS_UPDATE_PHASE=replace-launcher' >/dev/console
     destination="$rootmnt/$file"
@@ -87,5 +116,6 @@ else
 fi
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=sync' >/dev/console
 root_command sync
+report_timing
 echo 'MYPC_GRAPHICS_UPDATE_OK=1' >/dev/console
 trap - 0

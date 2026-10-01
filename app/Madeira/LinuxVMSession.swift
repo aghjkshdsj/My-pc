@@ -953,7 +953,7 @@ private enum LinuxProcessMetrics {
                     }
                 }
             }
-            Thread.detachNewThread {
+            let vmThread = Thread {
                 var argv = arguments.map { strdup($0) }
                 argv.append(nil)
                 defer { argv.forEach { free($0) } }
@@ -978,6 +978,11 @@ private enum LinuxProcessMetrics {
                     }
                 }
             }
+            // The foreground VM creates its CPU and I/O threads here. Give
+            // iOS an explicit scheduling preference for this user-started work.
+            vmThread.qualityOfService = .userInitiated
+            vmThread.name = "My-pc Linux VM"
+            vmThread.start()
         } catch { self.error = error.localizedDescription }
     }
 

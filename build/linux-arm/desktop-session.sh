@@ -3,6 +3,10 @@ set -eu
 export XDG_SESSION_TYPE=x11 XDG_CURRENT_DESKTOP=Openbox
 export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
 echo MYPC_DESKTOP_STARTUP=session >/dev/ttyAMA0
+if [ -d /sys/block/vda/mq ]; then
+    set -- /sys/block/vda/mq/*
+    echo "MYPC_GUEST_DISK_QUEUES=$#" >/dev/ttyAMA0
+fi
 xset s off -dpms
 echo MYPC_DESKTOP_STARTUP=screen-settings >/dev/ttyAMA0
 xsetroot -solid '#162334'
