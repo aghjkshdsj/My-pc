@@ -28,26 +28,57 @@ jobs:
           python3 build/linux-arm-gpu/package-test-runtime.py build/input-probe/qemu build/input-probe/runtime
           chmod +x build/input-probe/runtime/host-launcher
           for framework in build/input-probe/runtime/Frameworks/*.framework; do codesign --force --sign - "$framework"; done
-      - name: Expose the account-free guest failure before the gate assertion
+          brew install e2fsprogs
+      - name: Run the isolated guest and report fixed startup flags
         run: |
           python3 - <<'PY'
-          import pathlib
-          path = pathlib.Path('build/linux-arm-gpu/run-metal-runtime.py')
-          source = path.read_text()
-          # Let the original guest finish printing its traceback before the
-          # host terminates it on the first failure marker.
-          failure = "raise RuntimeError('Hardware diagnostic failed: '"
-          assert source.count(failure) == 1
-          source = source.replace(failure, "time.sleep(1); "+failure)
-          anchor = "    if args.hardware:\n        assert 'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1'"
-          assert source.count(anchor) == 1
-          source = source.replace(anchor, "    print('MYPC_INPUT_PROBE_GUEST_LOG\\n'+content[-30000:],flush=True)\n    print('MYPC_INPUT_PROBE_HOST_LOG\\n'+(guest/'metal-host.log').read_text(errors='replace')[-16000:],flush=True)\n"+anchor)
-          path.write_text(source)
+          import json, pathlib, subprocess, sys
+          # Keep all raw subprocess output private to the runner. Export only
+          # these predefined boolean values; never raw logs or error text.
+          result = subprocess.run([sys.executable,'build/linux-arm-gpu/run-metal-runtime.py',
+              'build/input-probe/guest','build/input-probe/runtime','--hardware'],
+              stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=600)
+          output = result.stdout.decode(errors='replace').lower()
+          guest = pathlib.Path('build/input-probe/guest/boot-3.log')
+          if guest.exists(): output += guest.read_text(errors='replace').lower()
+          patterns = {'controller_service_ready':'mypc_controller_ready=1',
+              'controller_device_created':'mypc_controller_created',
+              'graphics_probe_started':'mypc_guest_graphics',
+              'hardware_keys_ready':'mypc_hardware_test_ready=1',
+              'controller_test_passed':'mypc_controller_evdev_analog_buttons_hotplug_ok=1',
+              'hardware_test_passed':'mypc_hardware_runtime_ok=1',
+              'hardware_test_failed':'mypc_hardware_runtime_failed=1',
+              'desktop_ready':'mypc_desktop_ready',
+              'desktop_deadline':'desktop did not become ready',
+              'observer_deadline':'controller observation timed out',
+              'device_removed':'no such device',
+              'permission_error':'permission denied'}
+          flags = {key:pattern in output for key,pattern in patterns.items()}
+          flags['runtime_succeeded'] = result.returncode == 0
+          print('MYPC_RUNTIME_FLAGS '+json.dumps(flags,sort_keys=True),flush=True)
+          sys.exit(0 if result.returncode==0 else 1)
           PY
-          python3 build/linux-arm-gpu/run-metal-runtime.py build/input-probe/guest build/input-probe/runtime --hardware
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: account-free-input-probe-logs
-          path: build/input-probe/guest/*.log
-          retention-days: 1
+      - name: Report fixed startup diagnostic flags from the isolated guest
+        if: failure()
+        run: |
+          export MYPC_DEBUGFS="$(brew --prefix e2fsprogs)/sbin/debugfs"
+          python3 - <<'PY'
+          import json, os, subprocess
+          sources = {'xorg-user':'/home/steam/.local/share/xorg/Xorg.0.log',
+                     'xorg-system':'/var/log/Xorg.0.log','profile':'/home/steam/.profile',
+                     'bash-profile':'/home/steam/.bash_profile','desktop':'/usr/local/bin/my-pc-desktop'}
+          patterns = {'missing_screen':'no screens found','server_fatal':'fatal server error',
+                      'permission_error':'permission denied','load_failed':'failed to load',
+                      'libinput_seen':'libinput','modesetting_seen':'modesetting','gamepad_seen':'my-pc ios gamepad',
+                      'startx_present':'startx','desktop_command_present':'my-pc-desktop',
+                      'hardware_launcher_present':'hardware-keys.py','hardware_ci_present':'hardware-test-ci.py'}
+          for label,name in sources.items():
+              result = subprocess.run([os.environ['MYPC_DEBUGFS'],'-R','cat '+name,'build/input-probe/guest/rootfs.raw'],
+                                      stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=15)
+              text = result.stdout.decode(errors='replace').lower()
+              flags = {key:pattern in text for key,pattern in patterns.items()}
+              flags.update(source=label,missing='file not found' in text)
+              # Never print file contents, lines, unknown paths, environment,
+              # names or exception strings. Only this fixed boolean schema.
+              print('MYPC_STARTUP_FLAGS '+json.dumps(flags,sort_keys=True),flush=True)
+          PY
