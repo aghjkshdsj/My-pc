@@ -37,7 +37,7 @@ private struct NativeRootView: View {
                     .accessibilityLabel("Performance report")
                 }
             }
-            .onChange(of: steam.owned.count) { _, count in
+            .onChange(of: steam.owned.count, initial: true) { _, count in
                 NativePerformance.ownedLibrary(count: count)
             }
             .onReceive(steam.$downloads) { downloads in
