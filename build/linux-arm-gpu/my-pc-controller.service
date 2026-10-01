@@ -9,9 +9,10 @@ ExecStartPre=/sbin/modprobe joydev
 ExecStart=/usr/bin/python3 -u /usr/local/lib/my-pc/controller/controller.py
 Restart=on-failure
 RestartSec=2
-StandardOutput=tty
-StandardError=tty
-TTYPath=/dev/ttyAMA0
+# Keep the root service off the serial terminal used by Steam diagnostics.
+# The gamepad's binary ACK channel remains the readiness/health signal.
+StandardOutput=journal
+StandardError=journal
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
