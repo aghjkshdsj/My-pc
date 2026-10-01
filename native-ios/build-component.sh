@@ -68,6 +68,7 @@ EOF
     tar -cf "$driver/out/native-wine.tar" app/Madeira/lib*.a
     ;;
   dxmt)
+    python3 "$driver/dxmt-build-fixes.py"
     # LLVM's locked headers and iOS libraries may be restored by CI.
     if [ ! -s toolchains/llvm-ios-build/lib/libLLVMPasses.a ]; then
       bash "$driver/build-llvm.sh"
