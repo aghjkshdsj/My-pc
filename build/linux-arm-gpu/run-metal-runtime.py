@@ -68,15 +68,33 @@ with tempfile.TemporaryDirectory() as temporary:
         result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
     content = (guest / ('boot-4.log' if args.steam else 'boot-3.log')).read_text(errors='replace')
     if result.returncode != 0:
-        # These are isolated account-free CI guests. Surface bounded failure
-        # evidence before assertions; the phone's shared report stays private.
-        print('MYPC_RUNTIME_GUEST_FAILURE_LOG\n'+content[-24000:],flush=True)
-        print('MYPC_RUNTIME_HOST_FAILURE_LOG\n'+(guest/'metal-host.log').read_text(errors='replace')[-24000:],flush=True)
+        # Export only predefined booleans/stages. Keep raw guest/host output
+        # private to the runner, including profiles, paths and error strings.
+        evidence = content + (guest/'metal-host.log').read_text(errors='replace')
+        patterns = {'controller_service_ready':'MYPC_CONTROLLER_READY=1',
+            'controller_observer_ready':'MYPC_CONTROLLER_OBSERVER_READY=1',
+            'controller_passed':'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1',
+            'hardware_keys_ready':'MYPC_HARDWARE_TEST_READY=1',
+            'hardware_failed':'MYPC_HARDWARE_RUNTIME_FAILED=1',
+            'desktop_deadline':'Desktop did not become ready',
+            'controller_deadline':'Controller observation timed out',
+            'device_removed':'No such device',
+            'permission_error':'Permission denied',
+            'cli_deadline':'CLI test deadline',
+            'cli_heartbeat_missing':'CLI test heartbeat stopped',
+            'missing_file':'FileNotFoundError',
+            'assertion_failed':'AssertionError',
+            'process_timeout':'TimeoutExpired',
+            'invalid_name':'NameError',
+            'invalid_value':'ValueError'}
+        failure = {key:value in evidence for key,value in patterns.items()}
+        failure['startup_stages'] = re.findall(r'MYPC_DESKTOP_STARTUP=(session|screen-settings|window-manager|graphics-probe|graphics-finished|hardware-ci)\b',content)[-12:]
+        print('MYPC_RUNTIME_FAILURE '+json.dumps(failure,sort_keys=True),flush=True)
     if args.hardware:
         assert 'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1' in content, 'Actual gamepad input must pass in Linux as the Steam user'
         print('MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1',flush=True)
         for line in content.splitlines():
-            if line.startswith('MYPC_HARDWARE_RUNTIME_CHECK ') or line.startswith('MYPC_HARDWARE_CI_FAILURE '):
+            if line.startswith('MYPC_HARDWARE_RUNTIME_CHECK ') or line.startswith('MYPC_HARDWARE_CLI_FAILURE '):
                 print(line[:8192],flush=True)
         assert 'MYPC_HARDWARE_RUNTIME_OK=1' in content, 'Production ARM/FEX diagnostics did not pass'
         assert 'MYPC_HARDWARE_IDLE_PROGRESS_AND_HEARTBEAT_OK=1' in content, 'On-device idle/progress path must pass'

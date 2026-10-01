@@ -107,11 +107,19 @@ with tempfile.TemporaryDirectory() as directory:
                                 if acknowledged: break
                             if not acknowledged: return
                             print('MYPC_GAMEPAD_HOST_ACK_READY=1',flush=True)
-                            start=time.monotonic(); sequence=0
+                            start=None; sequence=0; finished=False
                             while not controller_stop.is_set():
-                                phase=(time.monotonic()-start)%12
-                                connected=not 8<=phase<9
-                                pressed=phase<4 or phase>=9
+                                if not finished:
+                                    evidence=log.read_text(errors='replace')
+                                    finished='MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1' in evidence
+                                    if start is None and 'MYPC_CONTROLLER_OBSERVER_READY=1' in evidence:
+                                        start=time.monotonic()
+                                # Creating/destroying devices and pressing every
+                                # button before X11/the observer starts races
+                                # udev and can invalidate the observer's fd.
+                                phase=(time.monotonic()-start)%12 if start is not None and not finished else None
+                                connected=phase is None or not 8<=phase<9
+                                pressed=phase is not None and (phase<4 or phase>=9)
                                 sequence=(sequence+1)&0xffffffff
                                 axes=(-16000,14000,12000,-8000,8192,24576) if connected and pressed else (0,)*6
                                 data=struct.pack('<4sBBHII6hI',b'MPG1',0,int(connected),0,sequence,0xf7f9 if connected and pressed else 0,*axes,0)

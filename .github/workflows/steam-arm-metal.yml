@@ -193,7 +193,7 @@ jobs:
       - name: Verify the prior complete packaged Metal and Steam gates
         id: prior
         run: python3 build/linux-arm-gpu/reuse-runtime-checks.py
-      - name: Test both software fallback and the production Metal update
+      - name: Restore and verify the packaged runtime and isolated guests
         if: steps.prior.outputs.reuse != 'true'
         run: |
           mkdir -p build/linux-arm/output/macos build/linux-arm/output/guest build/linux-arm/output/steam-guest
@@ -205,7 +205,13 @@ jobs:
           python3 build/linux-arm-gpu/package-test-runtime.py build/linux-arm/output/macos build/linux-arm/output/packaged-macos
           chmod +x build/linux-arm/output/packaged-macos/host-launcher
           for framework in build/linux-arm/output/packaged-macos/Frameworks/*.framework; do codesign --force --sign - "$framework"; done
+      - name: Validate Metal providers and missing-provider error handling
+        if: steps.prior.outputs.reuse != 'true'
+        run: |
           python3 build/linux-arm-gpu/probe-metal.py build/linux-arm/output/packaged-macos
+      - name: Verify moving guest GL pixels through the iPhone display bridge
+        if: steps.prior.outputs.reuse != 'true'
+        run: |
           # Require actual moving primary-color pixels through the iPhone ABI,
           # in addition to the shader/CEF renderer and input response checks.
           test "$(gh run view 36629999384 --json headSha --jq .headSha)" = 3f4549945b33002e2b50cfce0bc1e7c7e41b60f2
@@ -218,17 +224,18 @@ jobs:
             -Wl,-rpath,@executable_path/Frameworks -o build/linux-arm/output/packaged-macos/gpu-host-launcher
           codesign --force --sign - build/linux-arm/output/packaged-macos/gpu-host-launcher
           python3 build/linux-arm-gpu/probe-guest.py build/linux-arm/output/pixel-guest build/linux-arm/output/packaged-macos
+      - name: Verify software desktop, six CPUs, storage and mouse/keyboard input
+        if: steps.prior.outputs.reuse != 'true'
+        run: |
           python3 build/linux-arm/smoke-guest.py build/linux-arm/output/guest --cpus 6 --verify-cpu-count --expect-existing --desktop --display --launcher build/linux-arm/output/packaged-macos/host-launcher --library build/linux-arm/output/packaged-macos/Frameworks/qemu-aarch64-softmmu.framework/Versions/A/qemu-aarch64-softmmu
+      - name: Verify actual controller events and the on-device CPU/FEX GPU test CLI
+        if: steps.prior.outputs.reuse != 'true'
+        run: |
           python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/guest build/linux-arm/output/packaged-macos --hardware
+      - name: Verify full Steam CEF virgl acceleration and input response
+        if: steps.prior.outputs.reuse != 'true'
+        run: |
           python3 build/linux-arm-gpu/run-metal-runtime.py build/linux-arm/output/steam-guest build/linux-arm/output/packaged-macos --steam
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: account-free-metal-runtime-failure-logs
-          path: |
-            build/linux-arm/output/guest/*.log
-            build/linux-arm/output/steam-guest/*.log
-          retention-days: 1
   ipa:
     needs: [apple, guest, qemu, ui]
     permissions:

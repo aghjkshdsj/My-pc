@@ -37,6 +37,9 @@ def run():
         except (OSError,subprocess.SubprocessError): return False
     wait(classified,10)
     fd = os.open(device, os.O_RDONLY|os.O_NONBLOCK)
+    # The host keeps a connected neutral pad during boot. Only exercise
+    # buttons/hotplug once this observer owns the classified event device.
+    print('MYPC_CONTROLLER_OBSERVER_READY=1',flush=True)
     def state():
         keys = bytearray(128)
         fcntl.ioctl(fd, 0x80000000 | len(keys)<<16 | ord('E')<<8 | 0x18, keys, True)

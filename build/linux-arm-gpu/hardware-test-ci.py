@@ -40,7 +40,12 @@ try:
                 result = json.loads(report.read_text())
                 if result['heartbeat_seq']!=last_sequence: updates.append(result)
             finally: hardware.stop_child(child)
-        assert result['status']=='complete', result
+        if result['status']!='complete':
+            # This is the same account-free fixed benchmark schema exposed
+            # by the phone. Never export subprocess stderr or command lines.
+            print('MYPC_HARDWARE_CLI_FAILURE '+json.dumps({key:result[key] for key in
+                ('kind','status','stage','heartbeat_seq','elapsed_s','results')}),flush=True)
+        assert result['status']=='complete', 'Phone CLI did not complete'
         assert result['idle_guest']['status']=='measured' and len(result['idle_guest']['per_core'])==6
         assert updates[0]['progress_percent']<10 and updates[-1]['progress_percent']==100
         assert all(a['heartbeat_seq']<b['heartbeat_seq'] and a['progress_percent']<=b['progress_percent']
