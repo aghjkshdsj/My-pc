@@ -2,6 +2,7 @@
 """Test production Metal boot-update arguments; publish bounded results only."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -17,6 +18,9 @@ parser.add_argument('--steam', action='store_true')
 parser.add_argument('--hardware', action='store_true')
 parser.add_argument('--legacy', action='store_true', help='Migration/input only on Linux QEMU, without a Metal host')
 args = parser.parse_args()
+if args.hardware:
+    spec = importlib.util.spec_from_file_location('hardware_control_ci', 'build/linux-arm-gpu/hardware-control-ci.py')
+    harness = importlib.util.module_from_spec(spec); spec.loader.exec_module(harness)
 guest, runtime = args.guest.resolve(), args.runtime.resolve()
 manifest = json.loads((guest / 'graphics.json').read_text())
 assert hashlib.sha256((guest / 'Image').read_bytes()).hexdigest() == manifest['kernelSHA256']
@@ -47,7 +51,7 @@ if args.hardware:
     anchor = "                            if args.steam and 'MYPC_GUEST_STEAM_FAILED' in log.read_text(errors=\"replace\"):\n"
     assert source.count(anchor) == 1
     source = source.replace(anchor, "                            if 'MYPC_HARDWARE_RUNTIME_FAILED=1' in log.read_text(errors=\"replace\"):\n"
-        "                                raise RuntimeError('Hardware diagnostic failed: ' + log.read_text(errors=\"replace\")[-12000:])\n" + anchor)
+        "                                raise RuntimeError('Hardware diagnostic failed')\n" + anchor)
 if not args.legacy:
     anchor = 'f"virtio-gpu-pci,xres={display_width},yres={display_height}"'
     assert source.count(anchor) == 1
@@ -69,10 +73,19 @@ with tempfile.TemporaryDirectory() as temporary:
     with (guest / 'metal-host.log').open('w') as output:
         result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
     content = (guest / ('boot-4.log' if args.steam else 'boot-3.log')).read_text(errors='replace')
+    host_content = (guest/'metal-host.log').read_text(errors='replace')
     if result.returncode != 0:
         # Export only predefined booleans/stages. Keep raw guest/host output
         # private to the runner, including profiles, paths and error strings.
-        evidence = content + (guest/'metal-host.log').read_text(errors='replace')
+        evidence = content + host_content
+        if args.hardware:
+            for diagnostic_source, diagnostic_content in (('GUEST', content), ('HOST', host_content)):
+                prefix = f'MYPC_HARDWARE_{diagnostic_source}_FAILURE '
+                for line in diagnostic_content.splitlines():
+                    if not line.startswith(prefix) or len(line) > 2048: continue
+                    try: bounded = harness.validated_failure(json.loads(line[len(prefix):]))
+                    except (ValueError, KeyError, TypeError): continue
+                    print(prefix + json.dumps(bounded, sort_keys=True), flush=True)
         patterns = {'controller_service_ready':'MYPC_CONTROLLER_READY=1',
             'controller_observer_ready':'MYPC_CONTROLLER_OBSERVER_READY=1',
             'controller_passed':'MYPC_CONTROLLER_EVDEV_ANALOG_BUTTONS_HOTPLUG_OK=1',
@@ -99,11 +112,7 @@ with tempfile.TemporaryDirectory() as temporary:
         assert 'MYPC_HARDWARE_RUNTIME_OK=1' in content, 'Production ARM/FEX diagnostics did not pass'
         assert 'MYPC_HARDWARE_IDLE_PROGRESS_AND_HEARTBEAT_OK=1' in content, 'On-device idle/progress path must pass'
         assert 'MYPC_HARDWARE_PRIVATE_CONTROL_AND_CANCEL_OK=1' in content, 'Independent guest cancellation/retry observations required'
-        host_content = (guest/'metal-host.log').read_text(errors='replace')
         assert 'MYPC_HARDWARE_HOST_PRIVATE_CONTROL_AND_CANCEL_OK=1' in host_content, 'Same private phone command/ACK/state channel must pass'
-        import importlib.util
-        spec = importlib.util.spec_from_file_location('hardware_control_ci', 'build/linux-arm-gpu/hardware-control-ci.py')
-        harness = importlib.util.module_from_spec(spec); spec.loader.exec_module(harness)
         guest_results = {}
         for line in content.splitlines():
             if line.startswith('MYPC_HARDWARE_GUEST_RESULT ') and len(line) <= 16384:

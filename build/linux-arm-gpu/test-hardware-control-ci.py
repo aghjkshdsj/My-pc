@@ -168,6 +168,53 @@ class ControlGate(unittest.TestCase):
         host = self.host(ScriptedTransport()); host.stop.set()
         with self.assertRaisesRegex(ValueError, 'stopped'): host.wait(lambda: False)
 
+    def test_snapshot_timeout_is_reported_honestly_without_hiding_real_work(self):
+        value = state('cpu', 'complete', 4, 100)
+        value['idle_guest'] = {'status': 'unavailable', 'reason': 'sampling-timeout'}
+        value['results'][0]['guest_load'] = {'status': 'unavailable', 'reason': 'sampling-timeout'}
+        value['results'][1]['guest_load'].update(sample_seconds=0, per_core=[])
+        value['results'][2]['guest_load']['process_cpu_percent'] = {'test': 615.3}
+        result = ci.metrics(value)
+        self.assertEqual(result['idle_guest'], {'status': 'unavailable', 'reason': 'sampling-timeout'})
+        self.assertEqual([row['workers'] for row in result['results']], [1, 6, 1, 6])
+        self.assertEqual(ci.validated_metrics(result), result)
+        value['idle_guest'] = pressure(); value['idle_guest']['per_core'].pop()
+        with self.assertRaisesRegex(ci.GateError, 'Six-core'): ci.metrics(value)
+
+    def test_unavailable_load_does_not_accept_arbitrary_error_strings(self):
+        value = state('gpu', 'complete', 4, 100)
+        value['idle_guest'] = {'status': 'unavailable', 'reason': 'private-account'}
+        with self.assertRaises(ci.GateError): ci.metrics(value)
+
+    def test_fixed_failure_evidence_never_contains_arbitrary_exception_text(self):
+        value = state('gpu', 'failed', 7, 25)
+        value.update(stage='workload-failed', work_stage='frames')
+        value['results'] = [{'mode': 'fex', 'status': 'failed', 'stage': 'libraries', 'account': 'private-account'}]
+        error = ci.GateError('Diagnostic control failure', 'report-invalid')
+        result = ci.failure(error, {'phase': 'gpu-retry-work', 'state': value},
+                            'MYPC_CONTROLLER_READY=1 MYPC_CONTROLLER_OBSERVER_READY=1')
+        self.assertEqual(result['code'], 'control-service-failure')
+        self.assertEqual(result['service_code'], 'report-invalid')
+        self.assertEqual((result['kind'], result['status'], result['heartbeat_seq']), ('gpu', 'failed', 7))
+        self.assertEqual(result['last_result_stage'], 'libraries')
+        self.assertEqual(ci.validated_failure(result), result)
+        self.assertNotIn('private-account', json.dumps(result))
+        generic = ci.failure(ValueError('private-account'), {'phase': 'private-account', 'state': {'kind': 'private-account'}})
+        self.assertEqual(generic['code'], 'invalid-value'); self.assertEqual(generic['phase'], 'unknown')
+        self.assertNotIn('private-account', json.dumps(generic))
+        polluted = copy.deepcopy(result); polluted['code'] = 'private-account'
+        with self.assertRaises(ci.GateError): ci.validated_failure(polluted)
+
+    def test_validation_failure_captures_correlated_state_before_rejecting_it(self):
+        transport = ScriptedTransport(); transport.pending.clear()
+        value = state('gpu', 'complete', 4, 100); value['results'][1]['readback_ok'] = False
+        transport.offer({'schema': 1, 'type': 'state', 'id': ci.RETRY_GPU_ID, 'state': value})
+        host = self.host(transport); host.commands[ci.RETRY_GPU_ID] = 'gpu'; host.context['phase'] = 'gpu-retry-work'
+        with self.assertRaises(ci.GateError) as caught: host.wait(lambda: False, 0.25)
+        result = ci.failure(caught.exception, host.context)
+        self.assertEqual(result['code'], 'gpu-pixels-invalid')
+        self.assertEqual(result['heartbeat_seq'], 4); self.assertEqual(result['last_result_mode'], 'fex')
+
     def test_guest_reads_matching_private_files_and_independent_checksums(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = pathlib.Path(temporary); markers = []
