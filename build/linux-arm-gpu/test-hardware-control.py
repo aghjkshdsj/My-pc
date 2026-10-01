@@ -111,6 +111,68 @@ class GuestControl(unittest.TestCase):
         self.service.handle(command(4,'cancel',command(1)['id']))
         self.assertEqual(child.terminations,1)
 
+    def test_cancel_reads_completed_report_before_accepting_or_signalling(self):
+        child = self.start(); self.write(report('complete'))
+        self.service.handle(command(2,'cancel',command(1)['id']))
+        self.assertEqual(self.ack()['status'],'idle')
+        self.assertEqual(child.terminations,0)
+        self.assertIsNone(self.service.job['cancelled'])
+        self.assertEqual(self.service.latest['state']['status'],'complete')
+        self.assertEqual(self.events[-2],{'schema':1,'type':'ready','ready':True,'busy':True})
+        self.assertEqual(self.events[-1],self.service.latest)
+
+    def test_cancel_reaps_already_exited_child_and_replays_truthful_completion(self):
+        child = self.start(); self.write(report('complete')); child.returncode=0
+        self.service.handle(command(2,'cancel',command(1)['id']))
+        self.assertEqual(self.ack()['status'],'idle')
+        self.assertEqual(child.terminations,0); self.assertFalse(self.service.busy)
+        self.assertEqual(self.service.latest['state']['status'],'complete')
+        self.assertEqual(self.events[-2],{'schema':1,'type':'ready','ready':True,'busy':False})
+        self.assertEqual(self.events[-1],self.service.latest)
+
+    def test_exit_racing_with_terminate_is_not_acknowledged_as_delivered_stop(self):
+        child = self.start(); self.write(report())
+        launch = self.service.job['launch']
+        def exited_before_signal():
+            # Match Popen.send_signal's early return after its internal poll
+            # notices normal exit; no process actually receives SIGTERM.
+            self.write(report('complete',sequence=2)); child.returncode=0
+        child.terminate = exited_before_signal
+        self.service.handle(command(2,'cancel',command(1)['id']))
+        self.assertEqual(self.ack()['status'],'idle'); self.assertFalse(launch.signalled)
+        self.assertFalse(self.service.busy)
+        self.assertEqual(self.service.latest['state']['status'],'complete')
+
+    def test_accepted_cancel_is_emitted_only_after_direct_child_is_signalled(self):
+        child = self.start()
+        def terminate():
+            self.assertFalse(any(value['type']=='ack' and value['id']==command(2)['id'] for value in self.events))
+            child.terminations += 1
+        child.terminate = terminate
+        self.service.handle(command(2,'cancel',command(1)['id']))
+        self.assertEqual(child.terminations,1); self.assertEqual(self.ack()['status'],'accepted')
+        self.assertTrue(self.service.job['launch'].signalled)
+
+    def test_only_fixed_ci_cancel_run_gets_a_long_real_gpu_workload(self):
+        cancel_start = {'schema':1,'id':'2'*32,'command':'gpu'}
+        with patch.dict(control.os.environ,{'MYPC_HARDWARE_CI':'1'}):
+            self.service.handle(cancel_start)
+            self.assertTrue(self.service.job['launch'].finished.wait(1))
+        self.assertEqual(self.launches[-1][0][-2:],['--gpu-frames','6000'])
+        child = self.children[-1]; self.write(report('complete',kind='gpu'))
+        child.returncode=0; self.service.poll()
+        with patch.dict(control.os.environ,{'MYPC_HARDWARE_CI':'1'}): self.start(3,'gpu')
+        self.assertNotIn('--gpu-frames',self.launches[-1][0])
+
+    def test_phone_request_cannot_enable_ci_gpu_frames_or_supply_arguments(self):
+        cancel_start = {'schema':1,'id':'2'*32,'command':'gpu'}
+        with patch.dict(control.os.environ,{'MYPC_HARDWARE_CI':'0'}):
+            self.service.handle(cancel_start)
+            self.assertTrue(self.service.job['launch'].finished.wait(1))
+        self.assertNotIn('--gpu-frames',self.launches[-1][0])
+        self.service.handle(dict(command(2,'gpu'),gpu_frames=6000))
+        self.assertEqual(len(self.launches),1)
+
     def test_terminal_state_is_correlated_atomic_and_replayed_without_spawning(self):
         child = self.start(); state = report('complete'); self.write(state)
         child.returncode = 0; self.service.poll()

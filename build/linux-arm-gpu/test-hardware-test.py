@@ -152,6 +152,60 @@ class DiagnosticValidation(unittest.TestCase):
         self.assertIsNone(hardware.work_progress(output(),'fex','gpu'))
         self.assertIsNone(hardware.work_progress(b'private account text','fex','gpu'))
 
+    def test_long_gpu_probe_progress_requires_its_requested_budget(self):
+        row = {'kind': 'gpu', 'arch': 'aarch64', 'done': 12, 'total': 6000, 'stage': 'frames'}
+        output = ('MYPC_BENCH_PROGRESS ' + json.dumps(row)).encode()
+        self.assertIsNone(hardware.work_progress(output, 'arm64', 'gpu'))
+        self.assertEqual(hardware.work_progress(output, 'arm64', 'gpu', gpu_frames=6000), row)
+        row['done'] = 6001
+        output = ('MYPC_BENCH_PROGRESS ' + json.dumps(row)).encode()
+        self.assertIsNone(hardware.work_progress(output, 'arm64', 'gpu', gpu_frames=6000))
+
+    def test_gpu_frame_budget_is_bounded_and_cpu_cannot_select_it(self):
+        for kind, frames in [('gpu', 59), ('gpu', 6001), ('gpu', True), ('cpu', 6000)]:
+            with self.assertRaises(ValueError): hardware.validate_gpu_frames(kind, frames)
+        hardware.validate_gpu_frames('gpu', 60); hardware.validate_gpu_frames('gpu', 6000)
+
+    def test_default_gpu_argv_and_long_probe_argv_are_distinct(self):
+        child = Mock(returncode=0)
+        row = {'kind': 'gpu', 'arch': 'aarch64', 'frames': 60, 'renderer': 'virgl', 'readback_ok': True}
+        child.communicate.return_value = (('MYPC_BENCH ' + json.dumps(row)).encode(), b'')
+        with patch.object(hardware, 'spawn_child', return_value=child) as spawn:
+            result = hardware.execute(pathlib.Path('/test'), 'arm64', 'gpu', 1, {})
+        self.assertEqual(spawn.call_args.args[0][-1], 'gpu'); self.assertEqual(result['frames'], 60)
+        row['frames'] = 6000
+        child.communicate.return_value = (('MYPC_BENCH ' + json.dumps(row)).encode(), b'')
+        with patch.object(hardware, 'spawn_child', return_value=child) as spawn:
+            result = hardware.execute(pathlib.Path('/test'), 'arm64', 'gpu', 1, {}, gpu_frames=6000)
+        self.assertEqual(spawn.call_args.args[0][-2:], ['gpu', '6000']); self.assertEqual(result['frames'], 6000)
+        self.assertLessEqual(spawn.call_args.args[1], 10)
+
+    def test_long_probe_result_cannot_masquerade_as_default_gpu_result(self):
+        child = Mock(returncode=0)
+        row = {'kind': 'gpu', 'arch': 'aarch64', 'frames': 6000, 'renderer': 'virgl', 'readback_ok': True}
+        child.communicate.return_value = (('MYPC_BENCH ' + json.dumps(row)).encode(), b'')
+        with patch.object(hardware, 'spawn_child', return_value=child):
+            with self.assertRaisesRegex(AssertionError, 'frame budget mismatch'):
+                hardware.execute(pathlib.Path('/test'), 'arm64', 'gpu', 1, {})
+
+    def test_gpu_probe_cancellation_emits_real_budget_counter(self):
+        clock, records = [1.0], []
+        def sleep(seconds): clock[0] += seconds
+        def execute(folder, mode, kind, workers, env, iterations, tick, gpu_frames):
+            self.assertEqual(gpu_frames, 6000)
+            tick({'done': 12, 'total': gpu_frames, 'stage': 'frames'}, 0.5)
+            hardware.signal.raise_signal(hardware.signal.SIGTERM)
+        with tempfile.TemporaryDirectory() as folder, \
+             patch.object(hardware.time, 'monotonic', side_effect=lambda: clock[0]), \
+             patch.object(hardware.time, 'sleep', side_effect=sleep), \
+             patch.object(hardware, 'collect_snapshot', return_value={'status': 'timeout'}), \
+             patch.object(hardware, 'environment', return_value={}), \
+             patch.object(hardware, 'execute', side_effect=execute):
+            result = hardware.run('gpu', folder, records.append, gpu_frames=6000)
+        self.assertEqual(result['status'], 'cancelled')
+        self.assertTrue(any(row.get('work_stage') == 'frames' and row.get('work_done') == 12
+                            and row.get('work_total') == 6000 for row in records))
+
     def test_private_home_keeps_original_x11_auth_location(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(hardware.os.environ,{'HOME':'/home/steam'},clear=True):
             env = hardware.environment(pathlib.Path('/test'),temporary)

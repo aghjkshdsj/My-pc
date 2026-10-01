@@ -18,6 +18,8 @@ MASK = (1 << 64) - 1
 SNAPSHOT_TIMEOUT = 3
 CPU_TIMEOUT = 30
 GPU_TIMEOUT = 60
+GPU_FRAMES = 60
+GPU_MAX_FRAMES = 6000
 PROCESS_GROUPS = os.name == 'posix'
 
 
@@ -96,12 +98,12 @@ def wait_child(child, timeout, tick=None):
         raise
 
 
-def work_progress(output, mode, kind):
+def work_progress(output, mode, kind, gpu_frames=GPU_FRAMES):
     for line in output[-65536:].decode(errors='replace').splitlines()[::-1]:
         if not line.startswith('MYPC_BENCH_PROGRESS ') or len(line) > 1024: continue
         try:
             row = json.loads(line[len('MYPC_BENCH_PROGRESS '):])
-            total = 3 if kind == 'cpu' else 60
+            total = 3 if kind == 'cpu' else gpu_frames
             if (row['kind'] == kind and row['arch'] == ('aarch64' if mode == 'arm64' else 'x86_64') and
                 type(row['done']) is int and type(row['total']) is int and row['total'] == total and
                 0 <= row['done'] <= total and row['stage'] in ('warmup','samples','libraries','EGL','shader','pixel','frames')):
@@ -150,11 +152,19 @@ def environment(folder, temporary):
     return env
 
 
-def execute(folder, mode, kind, workers, env, iterations=ITERATIONS, tick=None, timeout=None):
+def validate_gpu_frames(kind, frames):
+    if type(frames) is not int or not GPU_FRAMES <= frames <= GPU_MAX_FRAMES or (kind != 'gpu' and frames != GPU_FRAMES):
+        raise ValueError('Invalid GPU frame budget')
+
+
+def execute(folder, mode, kind, workers, env, iterations=ITERATIONS, tick=None, timeout=None, gpu_frames=GPU_FRAMES):
+    validate_gpu_frames(kind, gpu_frames)
     binary = folder / 'bin' / ('hardware-bench-arm64' if mode == 'arm64' else 'hardware-bench-x86_64')
     command = [str(binary), kind]
     if kind == 'cpu':
         command += [str(workers), str(iterations)]
+    elif gpu_frames != GPU_FRAMES:
+        command.append(str(gpu_frames))
     if mode == 'fex':
         command.insert(0, str(folder / 'fex/usr/bin/FEX'))
     started = time.monotonic()
@@ -163,7 +173,7 @@ def execute(folder, mode, kind, workers, env, iterations=ITERATIONS, tick=None, 
                         env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE, start_new_session=True)
     def update(output, elapsed):
-        if tick: tick(work_progress(output, mode, kind), elapsed)
+        if tick: tick(work_progress(output, mode, kind, gpu_frames), elapsed)
     stdout, stderr = wait_child(child, max(0.001,limit-(time.monotonic()-started)), update)
     total_ms = (time.monotonic() - started) * 1000
     # Do not relay FEX or X11 logs, environment, paths or arguments to reports.
@@ -195,6 +205,7 @@ def execute(folder, mode, kind, workers, env, iterations=ITERATIONS, tick=None, 
                 'million_iterations_s': round(iterations * workers / wall / 1000, 4),
                 'launch_total_ms': round(total_ms, 2)}
     row = records[0]
+    assert type(row.get('frames')) is int and row['frames'] == gpu_frames, 'GPU frame budget mismatch'
     name = row['renderer'].lower()
     row.update(mode=mode, status='passed', launch_total_ms=round(total_ms, 2),
                accelerated=row['readback_ok'] is True and 'virgl' in name and
@@ -275,7 +286,8 @@ def pressure(before, after):
             'mem_available_mib': after.get('mem_available_mib'), 'swap_used_mib': after.get('swap_used_mib')}
 
 
-def run(kind, folder=None, emit=None, iterations=ITERATIONS):
+def run(kind, folder=None, emit=None, iterations=ITERATIONS, gpu_frames=GPU_FRAMES):
+    validate_gpu_frames(kind, gpu_frames)
     folder = pathlib.Path(folder or __file__).resolve().parent if folder is None else pathlib.Path(folder).resolve()
     identifier = str(uuid.uuid4())
     started = time.monotonic()
@@ -316,7 +328,7 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS):
                 stage_started = time.monotonic()
                 base, span = 10 + 90*index/len(steps), 90/len(steps)
                 state.update(stage=f'{mode}-{kind}-{count}', progress_percent=round(base,1),
-                             work_done=0, work_total=3 if kind=='cpu' else 60,
+                             work_done=0, work_total=3 if kind=='cpu' else gpu_frames,
                              work_unit='samples' if kind=='cpu' else 'frames', work_stage='launching')
                 publish(); before = sample(False)
                 state['work_stage'] = 'launching'; publish()
@@ -330,7 +342,9 @@ def run(kind, folder=None, emit=None, iterations=ITERATIONS):
                     # usual one-second heartbeat interval. Benchmark timing
                     # has already ended before its work counter is printed.
                     publish(first_work)
-                try: row = execute(folder, mode, kind, count, env, iterations, tick=tick)
+                try:
+                    options = {'gpu_frames': gpu_frames} if gpu_frames != GPU_FRAMES else {}
+                    row = execute(folder, mode, kind, count, env, iterations, tick=tick, **options)
                 except subprocess.TimeoutExpired:
                     row = {'mode':mode,'kind':kind,'workers':count,'status':'timeout', 'stage':'workload-timeout'}
                 row['guest_load'] = pressure(before, sample(False))
@@ -386,9 +400,16 @@ def main():
     parser.add_argument('--result-file',type=pathlib.Path)
     parser.add_argument('--no-serial',action='store_true',
                         help='Report only to the private atomic result file owned by the control service')
+    parser.add_argument('--gpu-frames',type=int,default=GPU_FRAMES,
+                        help='Bounded real rendering budget for the trusted private CI cancellation probe')
     args = parser.parse_args()
     if args.no_serial and args.result_file is None:
         parser.error('--no-serial requires --result-file')
+    try: validate_gpu_frames(args.kind, args.gpu_frames)
+    except ValueError: parser.error('--gpu-frames must be 60..6000 for GPU work; CPU uses the default')
+    if args.gpu_frames != GPU_FRAMES and (os.environ.get('MYPC_HARDWARE_CI') != '1'
+            or not args.no_serial or args.result_file is None):
+        parser.error('--gpu-frames requires the trusted private CI report path')
     lock = open('/tmp/my-pc-hardware-test.lock', 'a+')
     try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -402,7 +423,8 @@ def main():
             temporary.replace(args.result_file)
         if reporter is not None: reporter.emit(state)
     try:
-        state = run(args.kind, emit=emit)
+        options = {'gpu_frames': args.gpu_frames} if args.gpu_frames != GPU_FRAMES else {}
+        state = run(args.kind, emit=emit, **options)
         if reporter is not None: reporter.emit(state,limit=2)
     finally:
         if console is not None: os.close(console)

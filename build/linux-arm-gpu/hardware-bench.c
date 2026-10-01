@@ -146,9 +146,21 @@ static int compare_double(const void *a, const void *b) {
     return (x > y) - (x < y);
 }
 
-static int gpu(void) {
+static int gpu(int frames) {
+    if (frames < 60 || frames > 6000) return 2;
+    /* The normal benchmark retains its 60-frame stack storage. A longer
+     * CI cancellation probe performs the same actual draws with bounded
+     * additional storage; it never pauses or fabricates a work counter. */
+    double normal_draw[60], normal_finish[60], normal_swap[60];
+    double *allocation = NULL;
+    double *drawtime = normal_draw, *finishtime = normal_finish, *swaptime = normal_swap;
+    if (frames != 60) {
+        allocation = malloc(sizeof(double) * (size_t)frames * 3);
+        if (!allocation) return 2;
+        drawtime = allocation; finishtime = allocation + frames; swaptime = allocation + frames * 2;
+    }
     const char *stage = "libraries";
-    progress("gpu", stage, 0, 60);
+    progress("gpu", stage, 0, frames);
     void *x11 = dlopen("libX11.so.6", RTLD_NOW | RTLD_LOCAL);
     void *egl = dlopen("libEGL.so.1", RTLD_NOW | RTLD_LOCAL);
     Display *display = NULL; EDisplay ed = NULL;
@@ -174,7 +186,7 @@ static int gpu(void) {
      * it an x86 Xlib structure containing foreign function pointers. Window
      * IDs are shared across connections to the same X11 server. */
     stage = "EGL"; ed = eglGetDisplay(NULL);
-    progress("gpu", stage, 0, 60);
+    progress("gpu", stage, 0, frames);
     if (!ed || !eglInitialize(ed, NULL, NULL) || !eglBindAPI(0x30A0)) goto failed;
     /* EGL window / ES2 / RGB8, same visual as the X11 default window. */
     /* The pinned EGL forwarding library has no eglGetConfigAttrib or
@@ -198,7 +210,7 @@ static int gpu(void) {
     GL(glGetUniformLocation); GL(glUniform4f); GL(glViewport); GL(glVertexAttribPointer);
     GL(glEnableVertexAttribArray); GL(glDrawArrays); GL(glReadPixels); GL(glFinish); GL(glGetError);
     stage = "shader";
-    progress("gpu", stage, 0, 60);
+    progress("gpu", stage, 0, frames);
     vertex = shader(0x8B31, "attribute vec2 position; void main(){gl_Position=vec4(position,0.,1.);}");
     fragment = shader(0x8B30, "precision mediump float; uniform vec4 tint; void main(){gl_FragColor=tint;}");
     if (!vertex || !fragment) goto failed;
@@ -211,7 +223,7 @@ static int gpu(void) {
     glEnableVertexAttribArray(0);
     unsigned char pixel[4] = {0};
     stage = "pixel";
-    progress("gpu", stage, 0, 60);
+    progress("gpu", stage, 0, frames);
     /* A real shader draw and exact red/green/blue readbacks, not just a name. */
     for (int color = 0; color < 3; ++color) {
         glUniform4f(tint, color == 0, color == 1, color == 2, 1);
@@ -226,12 +238,11 @@ static int gpu(void) {
         name[i] = renderer[i] >= 32 && renderer[i] < 127 && renderer[i] != '"' && renderer[i] != '\\' ? renderer[i] : '?';
     for (int i = 0; i < 128 && version && version[i]; ++i)
         ver[i] = version[i] >= 32 && version[i] < 127 && version[i] != '"' && version[i] != '\\' ? version[i] : '?';
-    double drawtime[60], finishtime[60], swaptime[60];
-    /* Warm shaders, then 60 visible frames, 16 full-screen draws per frame.
+    /* Warm shaders, then visible frames, 16 full-screen draws per frame.
      * Finish separates CPU submission from GPU completion/backpressure.
      * This is a deliberately synchronized test, not an in-game FPS estimate. */
     stage = "frames"; double seconds = 0;
-    for (int frame = 0; frame < 60; ++frame) {
+    for (int frame = 0; frame < frames; ++frame) {
         double a = now(CLOCK_MONOTONIC);
         for (int draw = 0; draw < 16; ++draw) {
             glUniform4f(tint, (frame % 20) / 19.f, (draw % 8) / 7.f, (frame % 3) / 2.f, 1);
@@ -242,17 +253,18 @@ static int gpu(void) {
         double d = now(CLOCK_MONOTONIC);
         drawtime[frame] = (b-a)*1000; finishtime[frame] = (c-b)*1000; swaptime[frame] = (d-c)*1000;
         seconds += d-a;
-        progress("gpu", stage, frame + 1, 60);
+        progress("gpu", stage, frame + 1, frames);
     }
-    qsort(drawtime, 60, sizeof(double), compare_double);
-    qsort(finishtime, 60, sizeof(double), compare_double);
-    qsort(swaptime, 60, sizeof(double), compare_double);
+    qsort(drawtime, (size_t)frames, sizeof(double), compare_double);
+    qsort(finishtime, (size_t)frames, sizeof(double), compare_double);
+    qsort(swaptime, (size_t)frames, sizeof(double), compare_double);
+    int median = frames / 2, p95 = frames == 60 ? 56 : frames * 95 / 100 - 1;
     printf("MYPC_BENCH {\"kind\":\"gpu\",\"arch\":\"%s\",\"renderer\":\"%s\",\"version\":\"%s\","
-           "\"readback_ok\":true,\"frames\":60,\"width\":800,\"height\":500,\"draws_per_frame\":16,"
+           "\"readback_ok\":true,\"frames\":%d,\"width\":800,\"height\":500,\"draws_per_frame\":16,"
            "\"wall_ms\":%.4f,\"render_fps\":%.4f,\"submit_median_ms\":%.4f,\"submit_p95_ms\":%.4f,"
            "\"finish_median_ms\":%.4f,\"finish_p95_ms\":%.4f,\"swap_median_ms\":%.4f,\"swap_p95_ms\":%.4f}\n",
-           ARCH, name, ver, seconds*1000, 60/seconds,
-           drawtime[30], drawtime[56], finishtime[30], finishtime[56], swaptime[30], swaptime[56]);
+           ARCH, name, ver, frames, seconds*1000, frames/seconds,
+           drawtime[median], drawtime[p95], finishtime[median], finishtime[p95], swaptime[median], swaptime[p95]);
     fflush(stdout); status = 0;
 failed:
     if (status) fprintf(stderr, "MYPC_BENCH_FAILED stage=%s\n", stage);
@@ -266,11 +278,16 @@ failed:
     if (window && XDestroyWindow) XDestroyWindow(display, window);
     if (display && XCloseDisplay) XCloseDisplay(display);
     if (egl) dlclose(egl); if (x11) dlclose(x11);
+    free(allocation);
     return status;
 }
 
 int main(int argc, char **argv) {
     if (argc == 4 && !strcmp(argv[1], "cpu")) return cpu(atoi(argv[2]), strtoull(argv[3], NULL, 10));
-    if (argc == 2 && !strcmp(argv[1], "gpu")) return gpu();
-    fprintf(stderr, "Usage: hardware-bench cpu WORKERS ITERATIONS | gpu\n"); return 2;
+    if (argc == 2 && !strcmp(argv[1], "gpu")) return gpu(60);
+    if (argc == 3 && !strcmp(argv[1], "gpu")) {
+        char *end = NULL; long frames = strtol(argv[2], &end, 10);
+        if (end && end != argv[2] && !*end && frames >= 60 && frames <= 6000) return gpu((int)frames);
+    }
+    fprintf(stderr, "Usage: hardware-bench cpu WORKERS ITERATIONS | gpu [FRAMES]\n"); return 2;
 }

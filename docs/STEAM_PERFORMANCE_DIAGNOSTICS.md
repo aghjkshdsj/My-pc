@@ -6,7 +6,7 @@ Its completed native iOS timing alone does not measure Linux or FEX performance.
 Check the release notes and build number first.
 
 1. Update the existing signed My-pc app, keeping its installed Linux disk.
-   Restart My-pc, select Metal, enable JIT, and open Library â†’ Apps â†’ Steam ARM64.
+   Restart My-pc, select Metal, enable JIT, and open Library → Apps → Steam ARM64.
 2. Pause Steam downloads and close games. Leave Steam open for the first tests
    so its idle load is included. Do not reset the Linux installation.
 3. Tap **Tests** in the desktop's bottom toolbar. The test buttons and progress
@@ -23,7 +23,8 @@ launching a workload, compiling shaders and rendering frames are separate
 stages. A sampler timeout marks CPU activity as unavailable and allows the
 workload test to proceed. Each CPU phase has a 30-second deadline and each GPU
 phase has a 60-second deadline. Stop test cancels only the diagnostic process
-and its own children.
+and its own children. If the test finishes before Stop arrives, its completed
+result is preserved. A new test becomes available after the runner exits.
 
 Test start, Stop, readiness and results use a separate local virtio-serial port,
 independent of Steam's keyboard focus, X11 shortcut grabs and the boot console.
@@ -52,7 +53,7 @@ another test while the app is still waiting for the previous cancellation.
 | Display FPS and VM input acknowledgement | Frame delivery and host-to-VM input processing | These are separate from Steam's click-to-visible-response time |
 
 The GPU test renders exact red, green and blue shader pixels, then 60 frames
-with 16 draws per frame at 800Ã—500. The bundled upstream FEX binaries are
+with 16 draws per frame at 800×500. The bundled upstream FEX binaries are
 unmodified and use an isolated diagnostic root. Tests do not read Steam
 account files, export command lines or change Steam's FEX settings.
 

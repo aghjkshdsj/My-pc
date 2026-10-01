@@ -54,7 +54,7 @@ def observe(directory=control.GUEST_DIRECTORY, checksums_path=folder/'checksums.
             control.require(previous[0] == state['run'] and previous[1] <= state['heartbeat_seq']
                             and previous[2] <= state['progress_percent'], 'Private report regressed')
         heartbeats[identifier] = (state['run'], state['heartbeat_seq'], state['progress_percent'])
-        if identifier == control.CANCEL_GPU_ID and control.gpu_work(state) and not gpu_seen:
+        if identifier == control.CANCEL_GPU_ID and control.gpu_work(state, control.CANCEL_GPU_FRAMES) and not gpu_seen:
             gpu_seen = True
             print('MYPC_HARDWARE_GUEST_GPU_WORK_OBSERVED=1', flush=True)
         if state['status'] != 'running' and identifier not in completed:

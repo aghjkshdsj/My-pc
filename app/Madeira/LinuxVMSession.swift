@@ -431,8 +431,8 @@ private enum LinuxProcessMetrics {
     private var controllerPanelVisible = false
     var controllerStatus: String {
         guard !controllerNames.isEmpty else { return "Connect Backbone Pro or another iOS gamepad." }
-        guard let count = controllerGuestCount else { return "\(controllerNames.joined(separator: ", ")) Â· waiting for Linux gamepad bridgeâ€¦" }
-        return "\(controllerNames.joined(separator: ", ")) Â· \(count) Linux gamepad\(count == 1 ? "" : "s")"
+        guard let count = controllerGuestCount else { return "\(controllerNames.joined(separator: ", ")) · waiting for Linux gamepad bridge…" }
+        return "\(controllerNames.joined(separator: ", ")) · \(count) Linux gamepad\(count == 1 ? "" : "s")"
     }
     func setControllerPanelVisible(_ visible: Bool) {
         controllerPanelVisible = visible
@@ -562,11 +562,11 @@ private enum LinuxProcessMetrics {
             }
         }
         if hardwareTestUnresponsive { return "Linux did not acknowledge stopping the test. Shut down Linux or restart My-pc before retrying." }
-        if hardwareCancellationRequested { return "Stopping the diagnostic testâ€¦" }
+        if hardwareCancellationRequested { return "Stopping the diagnostic test…" }
         if paused && hardwareTestBusy { return "Test paused while My-pc is in the background." }
-        if hardwareTestWaiting { return hardwareLauncherAcknowledged ? "Linux accepted the test. Waiting for its first workload heartbeatâ€¦" : "Waiting for Linux to acknowledge the test requestâ€¦" }
+        if hardwareTestWaiting { return hardwareLauncherAcknowledged ? "Linux accepted the test. Waiting for its first workload heartbeat…" : "Waiting for Linux to acknowledge the test request…" }
         guard let result = hardwareObservation else { return hardwareTestsReady ? "Ready to test." : "Tests become available after the Metal startup update and desktop boot." }
-        return "\(result.stageTitle) Â· \(result.status)"
+        return "\(result.stageTitle) · \(result.status)"
     }
     var hardwareProgress: Double {
         guard let observation = hardwareObservation else {
@@ -685,8 +685,14 @@ private enum LinuxProcessMetrics {
                 }
                 if status == "idle" {
                     hardwareTestActive = false; hardwareTestWaiting = false
-                    hardwareGuestBusy = false; hardwareTestsReady = diagnostics.ready
-                    hardwareLaunchStatus = "cancelled"; hardwareCancellationRequested = false
+                    // Stop can arrive after a truthful terminal report while
+                    // its runner is still exiting. Wait for service readiness
+                    // and preserve completion instead of inventing cancellation.
+                    hardwareGuestBusy = true; hardwareTestsReady = false
+                    if let observation = hardwareObservation, observation.status != "running" {
+                        hardwareLaunchStatus = observation.status
+                    } else { hardwareLaunchStatus = "idle" }
+                    hardwareCancellationRequested = false
                     hardwareTestUnresponsive = false; hardwareFailure = nil
                 }
                 return
@@ -735,8 +741,8 @@ private enum LinuxProcessMetrics {
     var hostCPUCount: Int { LinuxCPUSelection.available(ProcessInfo.processInfo.activeProcessorCount) }
     var graphicsSummary: String {
         guard graphicsMode == .metal else { return "GPU: software selected" }
-        guard let observed = guestGraphics, !observed.renderer.isEmpty else { return "GPU: Metal requested Â· unverified" }
-        return observed.verifiedVirgl ? "GPU: virgl â†’ Metal verified Â· use â€”" : "GPU: software fallback or failed readback"
+        guard let observed = guestGraphics, !observed.renderer.isEmpty else { return "GPU: Metal requested · unverified" }
+        return observed.verifiedVirgl ? "GPU: virgl → Metal verified · use —" : "GPU: software fallback or failed readback"
     }
     var graphicsReport: String {
         let report: [String: Any] = ["build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
@@ -832,7 +838,7 @@ private enum LinuxProcessMetrics {
     func installBundledRuntime() {
         guard !started, !installing, !otherRuntimeStarted, let source = Self.bundledRuntime else { return }
         installing = true; installProgress = 0
-        status = "Installing Linux runtimeâ€¦ Keep My-pc open."
+        status = "Installing Linux runtime… Keep My-pc open."
         let destination = Self.directory
         Task {
             do {
@@ -851,7 +857,7 @@ private enum LinuxProcessMetrics {
         guard !started, !installing, !otherRuntimeStarted else { error = "Restart My-pc before importing a Linux runtime."; return }
         guard !installed else { error = "A Linux disk already exists. Import does not overwrite your installed games or account."; return }
         installing = true
-        status = "Verifying and copying Linux runtimeâ€¦"
+        status = "Verifying and copying Linux runtime…"
         let destination = Self.directory
         Task {
             do {
@@ -924,7 +930,7 @@ private enum LinuxProcessMetrics {
             hardwareGuestBusy = false
             hardwareLaunchStatus = "idle"; hardwareLauncherAcknowledged = false
             hardwareCancellationAcknowledged = false; hardwareFailure = nil
-            started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores Â· \(graphicsMode.title)â€¦"
+            started = true; running = true; status = "Booting ARM64 Linux with \(guestCPUCount) CPU cores · \(graphicsMode.title)…"
             gamepad.start(path: controller.path)
             diagnostics.start(path: diagnostic.path) { [weak self] message in
                 Task { @MainActor in self?.receiveDiagnostic(message) }
@@ -977,7 +983,7 @@ private enum LinuxProcessMetrics {
 
     func shutdown() {
         guard connected else { return }
-        status = "Shutting Linux downâ€¦"
+        status = "Shutting Linux down…"
         qmp.send("system_powerdown") { result in
             if case .failure(let error) = result { Task { @MainActor in self.error = error.localizedDescription } }
         }

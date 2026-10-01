@@ -141,16 +141,23 @@ class Launch:
     def abandon(self):
         with self.lock:
             self.abandoned = True
-        self.terminate_once()
+        return self.terminate_once()
 
     def terminate_once(self):
         with self.lock:
             child = self.child
-            if child is None or self.signalled: return
-            self.signalled = True
-        if child is not None and child.poll() is None:
+            # An unfinished spawn retains Stop even before a child handle is
+            # returned. An exited child is no longer cancellable.
+            if child is None: return self.abandoned and not self.finished.is_set()
+            if child.poll() is not None: return False
+            if self.signalled: return True
             try: child.terminate()
-            except ProcessLookupError: pass
+            except ProcessLookupError: return False
+            # Popen.terminate() checks/reaps a process that raced with us before
+            # signalling. Do not call that case a delivered Stop.
+            if child.returncode is not None: return False
+            self.signalled = True
+            return True
 
 
 class Controller:
@@ -182,6 +189,8 @@ class Controller:
         identifier, command = value['id'], value['command']
         def ack(status):
             self.emit({'schema':1, 'type':'ack', 'id':identifier, 'command':command, 'status':status})
+        def idle():
+            ack('idle'); self.ready(); self.replay()
         if identifier in self.seen:
             ack('duplicate')
             if command == 'status': self.replay()
@@ -195,18 +204,33 @@ class Controller:
         if command == 'status':
             ack('accepted'); self.ready(); self.replay(); return
         if command == 'cancel':
-            if self.job is None: ack('idle'); return
+            # Drain the current atomic report and reap the child before deciding
+            # whether this target still has an actively cancellable workload.
+            # A retained Popen handle can outlive its final COMPLETE report.
+            self.poll()
+            if self.job is None: idle(); return
             if value['target'] != self.job['id']: ack('stale'); return
-            ack('accepted')
+            if self.latest and self.latest['id'] == self.job['id'] and self.latest['state']['status'] != 'running':
+                idle(); return
             if self.job['cancelled'] is None:
+                if not self.job['launch'].abandon():
+                    self.poll(); idle(); return
                 self.job['cancelled'] = self.clock()
-                self.job['launch'].abandon()
+            elif not self.job['launch'].abandon():
+                self.poll(); idle(); return
+            ack('accepted')
             return
         if self.busy: ack('busy'); return
         self.report.unlink(missing_ok=True)
         self.latest = self.last_failure = None
-        launch = Launch([sys.executable, '-u', str(self.runner), command, '--no-serial',
-                         '--result-file', str(self.report)], self.spawn)
+        arguments = [sys.executable, '-u', str(self.runner), command, '--no-serial',
+                     '--result-file', str(self.report)]
+        # This one account-free CI request exercises Stop during a substantial
+        # real rendering workload. The phone and retry still use the normal60
+        # measured frames; callers cannot supply any executable argument.
+        if os.environ.get('MYPC_HARDWARE_CI') == '1' and command == 'gpu' and identifier == '2'*32:
+            arguments += ['--gpu-frames', '6000']
+        launch = Launch(arguments, self.spawn)
         self.job = {'id':identifier, 'kind':command, 'launch':launch, 'started':self.clock(),
                     'cancelled':None, 'last_bytes':None, 'failure':None}
         ack('accepted')

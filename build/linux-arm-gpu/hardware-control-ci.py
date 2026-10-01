@@ -15,6 +15,7 @@ import time
 import uuid
 
 MAX_FRAME = 16384
+CANCEL_GPU_FRAMES = 6000
 CPU_ID, CANCEL_GPU_ID, RETRY_GPU_ID, CANCEL_ID = (digit * 32 for digit in '1234')
 GUEST_DIRECTORY = pathlib.Path('/tmp/my-pc-hardware-control-ci')
 MARKERS = {
@@ -46,6 +47,7 @@ FAILURE_MESSAGES = {
     'Heartbeat replay changed': 'heartbeat-replay-changed', 'Excess diagnostic updates': 'excess-updates',
     'Diagnostic control failure': 'control-service-failure', 'Diagnostic response type invalid': 'response-type-invalid',
     'Diagnostic host stopped': 'host-stopped', 'Diagnostic control deadline': 'host-deadline',
+    'Diagnostic drain exceeded limit': 'drain-limit',
     'Workload terminal status invalid': 'terminal-status-invalid', 'GPU finished before cancellation': 'gpu-finished-before-stop',
     'Initial/progress/completion observations missing': 'progress-observations-missing',
     'Diagnostic socket unavailable': 'socket-unavailable', 'Guest diagnostic observation deadline': 'guest-deadline',
@@ -60,7 +62,7 @@ GENERIC_CODES = {'invalid-json', 'missing-file', 'permission-error', 'io-error',
 CONTROL_CODES = {'launch-timeout', 'launch-failed', 'report-invalid', 'launch-cancelled',
                  'runner-exited', 'cancellation-timeout'}
 PHASES = {'unknown', 'connect', 'await-ready', 'cpu-start', 'cpu-ack', 'cpu-work', 'cpu-guest-report', 'cpu-idle',
-          'gpu-cancel-start', 'gpu-cancel-ack', 'gpu-work', 'gpu-guest-work', 'gpu-cancel', 'gpu-cancel-command-ack',
+          'gpu-cancel-start', 'gpu-cancel-ack', 'gpu-work', 'gpu-guest-work', 'gpu-drain', 'gpu-cancel', 'gpu-cancel-command-ack',
           'gpu-cancel-work', 'gpu-cancel-guest-report', 'gpu-cancel-idle', 'gpu-retry-start', 'gpu-retry-ack',
           'gpu-retry-work', 'gpu-retry-guest-report', 'gpu-retry-idle', 'validate-results',
           'guest-controller', 'guest-read-report', 'guest-validate-report', 'guest-validate-state',
@@ -220,10 +222,13 @@ def state(value):
     return value
 
 
-def gpu_work(value):
-    return (value.get('kind') == 'gpu' and value.get('status') == 'running'
+def gpu_work(value, total=60):
+    return (type(total) is int and 60 <= total <= CANCEL_GPU_FRAMES
+            and value.get('kind') == 'gpu' and value.get('status') == 'running'
+            and value.get('stage') in ('arm64-gpu-1', 'fex-gpu-1')
             and value.get('work_stage') == 'frames' and type(value.get('work_done')) is int
-            and type(value.get('work_total')) is int and 0 < value['work_done'] < value['work_total'])
+            and type(value.get('work_total')) is int and value['work_total'] == total
+            and 0 < value['work_done'] < value['work_total'])
 
 
 def metrics(value):
@@ -289,12 +294,14 @@ class Host:
         return identifier
 
     def poll(self):
+        received = False
         if not self.queue:
             try: chunk = self.transport.recv(4096)
-            except socket.timeout: return
+            except (socket.timeout, BlockingIOError): return False
             require(bool(chunk), 'Diagnostic transport disconnected')
+            received = True
             self.queue.extend(self.parser.feed(chunk))
-        if not self.queue: return
+        if not self.queue: return received
         value = self.queue.popleft()
         kind = value.get('type')
         if kind == 'ready':
@@ -320,7 +327,7 @@ class Host:
                 require(current['run'] == previous['run'] and current['heartbeat_seq'] >= previous['heartbeat_seq']
                         and current['progress_percent'] >= previous['progress_percent'], 'State regressed')
                 if current['heartbeat_seq'] == previous['heartbeat_seq']:
-                    require(current == previous, 'Heartbeat replay changed'); return
+                    require(current == previous, 'Heartbeat replay changed'); return True
             self.states[identifier] = current
             history = self.history.setdefault(identifier, [])
             history.append((current['heartbeat_seq'], current['progress_percent']))
@@ -330,6 +337,21 @@ class Host:
                     and type(value['busy']) is bool, 'State request correlation invalid')
             raise GateError('Diagnostic control failure', value.get('code'))
         else: raise GateError('Diagnostic response type invalid')
+        return True
+
+    def drain(self):
+        """Consume available replies before acting on a cached work counter.
+
+        Bounded, nonblocking reads close the stale-state race. The real render
+        probe supplies the remaining work window; draining never pauses it.
+        """
+        previous = self.transport.gettimeout()
+        self.transport.setblocking(False)
+        try:
+            for _ in range(256):
+                if not self.poll(): return
+            require(False, 'Diagnostic drain exceeded limit')
+        finally: self.transport.settimeout(previous)
 
     def wait(self, predicate, timeout=None):
         deadline = time.monotonic() + (self.timeout if timeout is None else timeout)
@@ -363,12 +385,13 @@ class Host:
         self.context['phase'] = 'gpu-cancel-start'; self.send('gpu', CANCEL_GPU_ID)
         self.context['phase'] = 'gpu-cancel-ack'; self.acknowledge(CANCEL_GPU_ID)
         self.context['phase'] = 'gpu-work'
-        self.wait(lambda: gpu_work(self.states.get(CANCEL_GPU_ID, {})))
+        self.wait(lambda: gpu_work(self.states.get(CANCEL_GPU_ID, {}), CANCEL_GPU_FRAMES))
         self.context['phase'] = 'gpu-guest-work'
         self.wait(lambda: 'MYPC_HARDWARE_GUEST_GPU_WORK_OBSERVED=1' in self.observation(), 10)
         # Recheck after waiting for independent evidence: completion cannot
         # masquerade as Stop during GPU work.
-        require(gpu_work(self.states[CANCEL_GPU_ID]), 'GPU finished before cancellation')
+        self.context['phase'] = 'gpu-drain'; self.drain()
+        require(gpu_work(self.states[CANCEL_GPU_ID], CANCEL_GPU_FRAMES), 'GPU finished before cancellation')
         self.context['phase'] = 'gpu-cancel'; self.send('cancel', CANCEL_ID, CANCEL_GPU_ID)
         self.context['phase'] = 'gpu-cancel-command-ack'; self.acknowledge(CANCEL_ID)
         self.finished(CANCEL_GPU_ID, 'cancelled')

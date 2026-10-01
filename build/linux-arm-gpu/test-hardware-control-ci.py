@@ -47,6 +47,7 @@ class ScriptedTransport:
     def __init__(self, evidence=True, cancel_work=True):
         self.pending, self.requests, self.markers = bytearray(), [], ['MYPC_HARDWARE_GUEST_OBSERVER_READY=1']
         self.evidence, self.cancel_work, self.latest = evidence, cancel_work, None
+        self.timeout = 0.1
         self.offer({'schema': 1, 'type': 'ready', 'ready': True, 'busy': False})
 
     def offer(self, value): self.pending.extend((json.dumps(value) + '\n').encode())
@@ -71,7 +72,7 @@ class ScriptedTransport:
             self.publish(identifier, state('gpu'))
             if self.cancel_work:
                 result = state('gpu', sequence=2, progress=25)
-                result.update(work_stage='frames', work_done=8, work_total=60)
+                result.update(stage='arm64-gpu-1', work_stage='frames', work_done=8, work_total=ci.CANCEL_GPU_FRAMES)
                 self.publish(identifier, result)
                 if self.evidence: self.markers.append('MYPC_HARDWARE_GUEST_GPU_WORK_OBSERVED=1')
             else: self.publish(identifier, state('gpu', 'complete', 3, 100))
@@ -85,6 +86,10 @@ class ScriptedTransport:
         # Exercise actual fragmentation and coalesced queued records.
         chunk = bytes(self.pending[:min(count, 97)]); del self.pending[:len(chunk)]
         return chunk
+
+    def gettimeout(self): return self.timeout
+    def setblocking(self, value): self.timeout = None if value else 0
+    def settimeout(self, value): self.timeout = value
 
 
 class ControlGate(unittest.TestCase):
@@ -229,7 +234,7 @@ class ControlGate(unittest.TestCase):
                     write(ci.CPU_ID, state('cpu', 'complete', 4, 100))
                 elif value == ci.MARKERS[ci.CPU_ID]:
                     working = state('gpu', sequence=2, progress=25)
-                    working.update(work_stage='frames', work_done=8, work_total=60)
+                    working.update(stage='arm64-gpu-1', work_stage='frames', work_done=8, work_total=ci.CANCEL_GPU_FRAMES)
                     write(ci.CANCEL_GPU_ID, working)
                 elif value == 'MYPC_HARDWARE_GUEST_GPU_WORK_OBSERVED=1':
                     write(ci.CANCEL_GPU_ID, state('gpu', 'cancelled', 3, 25))
@@ -251,6 +256,42 @@ class ControlGate(unittest.TestCase):
                  patch.object(guest.time, 'monotonic', side_effect=[0, 0, 2]):
                 with self.assertRaisesRegex(ValueError, 'deadline'): guest.observe(directory, checksums, timeout=1)
             self.assertEqual([call.args[0] for call in printed.call_args_list], ['MYPC_HARDWARE_GUEST_OBSERVER_READY=1'])
+
+    def test_drain_replaces_stale_gpu_work_before_stop(self):
+        transport = ScriptedTransport(); transport.pending.clear()
+        host = self.host(transport); host.commands[ci.CANCEL_GPU_ID] = 'gpu'
+        working = state('gpu', sequence=2, progress=25)
+        working.update(stage='arm64-gpu-1', work_stage='frames', work_done=8, work_total=ci.CANCEL_GPU_FRAMES)
+        host.states[ci.CANCEL_GPU_ID] = working
+        transport.publish(ci.CANCEL_GPU_ID, state('gpu', 'complete', 4, 100))
+        self.assertTrue(ci.gpu_work(host.states[ci.CANCEL_GPU_ID], ci.CANCEL_GPU_FRAMES))
+        host.drain()
+        self.assertFalse(ci.gpu_work(host.states[ci.CANCEL_GPU_ID], ci.CANCEL_GPU_FRAMES))
+        self.assertEqual(transport.gettimeout(), 0.1)
+        self.assertFalse(any(row['command'] == 'cancel' for row in transport.requests))
+
+    def test_cancel_probe_requires_requested_real_frame_total(self):
+        value = state('gpu', sequence=2, progress=25)
+        value.update(stage='arm64-gpu-1', work_stage='frames', work_done=8, work_total=60)
+        self.assertFalse(ci.gpu_work(value, ci.CANCEL_GPU_FRAMES))
+        value['work_total'] = ci.CANCEL_GPU_FRAMES
+        self.assertTrue(ci.gpu_work(value, ci.CANCEL_GPU_FRAMES))
+        value['work_done'] = ci.CANCEL_GPU_FRAMES
+        self.assertFalse(ci.gpu_work(value, ci.CANCEL_GPU_FRAMES))
+        value['work_done'] = True
+        self.assertFalse(ci.gpu_work(value, ci.CANCEL_GPU_FRAMES))
+        value.update(work_done=8, work_total=6001)
+        self.assertFalse(ci.gpu_work(value, 6001))
+        value.update(work_total=ci.CANCEL_GPU_FRAMES, stage='sampling-idle')
+        self.assertFalse(ci.gpu_work(value, ci.CANCEL_GPU_FRAMES))
+
+    def test_drain_is_bounded_and_restores_socket_mode(self):
+        transport = ScriptedTransport(); transport.pending.clear()
+        host = self.host(transport)
+        with patch.object(host, 'poll', return_value=True) as polled:
+            with self.assertRaisesRegex(ci.GateError, 'drain'): host.drain()
+        self.assertEqual(polled.call_count, 256)
+        self.assertEqual(transport.gettimeout(), 0.1)
 
 
 if __name__ == '__main__': unittest.main()
