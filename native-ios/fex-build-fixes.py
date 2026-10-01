@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 core = Path("FEX/FEXCore/Source/Interface/Core/Core.cpp")
 s = core.read_text()
@@ -13,6 +14,14 @@ if end == -1:
 s = s[:start] + s[end:]
 if "const uint64_t FfsCount = IosFfsBypassLog[0]" in s or "const uint64_t CBCount = IosCbEntryLog[6]" in s:
     raise SystemExit("FEX iOS diagnostic reporters remain after cleanup")
+# The fork's Apple CMake configuration always disables rpmalloc. Its snapshot
+# telemetry has no provider there; keep it for Windows, where rpmalloc exists.
+declaration = re.compile(r'extern "C" \{\nstruct rpm_cas_snapshot \{.*?\nint rpm_cas_snapshot_take\(struct rpm_cas_snapshot\* out\);\n\}', re.S)
+drain = re.compile(r'^      \{\n        rpm_cas_snapshot Snap;.*?^      \}\n', re.M | re.S)
+for label, marker in [('declaration', declaration), ('drain', drain)]:
+    if len(marker.findall(s)) != 1:
+        raise SystemExit(f'FEX rpmalloc snapshot {label} marker changed')
+    s = marker.sub(lambda match: '#if !defined(__APPLE__)\n' + match.group(0) + '\n#endif\n', s, count=1)
 core.write_text(s)
 
 arm = Path("FEX/FEXCore/Source/Utils/ArchHelpers/Arm64.cpp")
