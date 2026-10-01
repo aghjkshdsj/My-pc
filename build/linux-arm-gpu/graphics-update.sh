@@ -34,7 +34,19 @@ test -n "${rootmnt:-}" || fail
 test -d "$rootmnt/usr/local" || fail
 cd /my-pc-graphics
 echo 'MYPC_GRAPHICS_UPDATE_PHASE=verify-payload' >/dev/console
-root_command sha256sum -c SHA256SUMS >/dev/null
+# The app has verified the complete initrd. Validate its installed-file tables
+# before using them, but do not rescan unused bundled binaries on a reuse boot.
+metadata_count=0
+while read -r checksum name; do
+    case "$name" in
+        installed-SHA256SUMS|installed-MODES|installed-LINKS)
+            printf '%s  %s\n' "$checksum" "$name"
+            metadata_count=$((metadata_count + 1))
+            ;;
+    esac
+done <SHA256SUMS >installed-reuse-checks
+test "$metadata_count" -eq 3
+root_command sha256sum -c installed-reuse-checks >/dev/null
 # Reject linked directories before touching any reserved file. No user home,
 # account, Steam installation, game or downloaded package path is writable here.
 for directory in usr usr/local usr/local/bin usr/local/lib usr/local/lib/my-pc usr/local/lib/my-pc/steam-bin; do
@@ -53,9 +65,18 @@ reuse_installed() {
     root_command stat -c '%u:%g:%f  %n' -- "$@" >/my-pc-graphics/installed-actual-modes 2>/dev/null || return 1
     root_command cmp -s /my-pc-graphics/installed-MODES /my-pc-graphics/installed-actual-modes || return 1
     root_command sha256sum -c /my-pc-graphics/installed-SHA256SUMS >/dev/null 2>&1 || return 1
+    # The bulk stat above already established each symlink's type and owner.
+    # Read all targets in one process rather than launching a guest process
+    # per link. Both comparison files live only in the initramfs.
+    set --
     while read -r name target; do
-        test -L "$name" && test "$(root_command readlink "$name")" = "$target" || return 1
-    done </my-pc-graphics/installed-LINKS
+        set -- "$@" "$name"
+        printf '%s\n' "$target"
+    done </my-pc-graphics/installed-LINKS >/my-pc-graphics/installed-expected-links
+    if test "$#" -gt 0; then
+        root_command readlink -- "$@" >/my-pc-graphics/installed-actual-links || return 1
+        root_command cmp -s /my-pc-graphics/installed-expected-links /my-pc-graphics/installed-actual-links || return 1
+    fi
 }
 if (reuse_installed); then
     echo 'MYPC_GRAPHICS_UPDATE_REUSED=1' >/dev/console
@@ -64,6 +85,9 @@ if (reuse_installed); then
     trap - 0
     exit 0
 fi
+# Every source byte is verified before the first persistent write. A corrupt
+# unused source cannot damage a matching install or be used for a repair.
+root_command sha256sum -c SHA256SUMS >/dev/null
 for file in usr/local/bin/my-pc-desktop usr/local/bin/my-pc-steam usr/local/lib/my-pc/steam-bin/taskset; do
     echo 'MYPC_GRAPHICS_UPDATE_PHASE=replace-launcher' >/dev/console
     destination="$rootmnt/$file"

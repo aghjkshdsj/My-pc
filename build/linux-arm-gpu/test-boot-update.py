@@ -114,6 +114,7 @@ class InstalledReuse(unittest.TestCase):
                          (target.stat().st_ino, target.stat().st_mtime_ns, target.stat().st_ctime_ns))
         self.assertFalse(any(line.split()[0] in ('cp', 'chmod', 'mv', 'sync', 'mkdir', 'ln')
                              for line in self.operations.read_text().splitlines()))
+        self.assertNotIn('sha256sum -c SHA256SUMS', self.operations.read_text())
 
     def test_corrupt_bytes_or_executable_mode_require_repair(self):
         self.installed()
@@ -147,12 +148,36 @@ class InstalledReuse(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('MYPC_GRAPHICS_UPDATE_REUSED', result.stdout)
 
-    def test_unverified_payload_never_reuses(self):
+    def test_unverified_metadata_never_reuses(self):
         self.installed()
         (self.payload / 'installed-SHA256SUMS').write_text('tampered metadata')
         result = self.run_hook()
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('MYPC_GRAPHICS_UPDATE_REUSED', result.stdout)
+
+    def test_unused_source_bytes_are_not_needed_for_matching_install(self):
+        self.installed()
+        (self.payload / 'hardware-tests/bench').write_bytes(b'damaged unused source')
+        result = self.run_hook()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('MYPC_GRAPHICS_UPDATE_REUSED=1', result.stdout)
+        self.assertEqual((self.root / 'usr/local/lib/my-pc/hardware-tests/bench').read_bytes(),
+                         b'diagnostic binary')
+
+    def test_damaged_source_is_refused_before_any_repair_write(self):
+        self.installed()
+        (self.payload / 'hardware-tests/bench').write_bytes(b'damaged repair source')
+        target = self.root / 'usr/local/lib/my-pc/hardware-tests/bench'
+        target.write_bytes(b'damaged installed file')
+        before = target.stat()
+        result = self.run_hook()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('MYPC_GRAPHICS_UPDATE_REUSED', result.stdout)
+        self.assertEqual(target.read_bytes(), b'damaged installed file')
+        self.assertEqual((before.st_ino, before.st_mtime_ns, before.st_ctime_ns),
+                         (target.stat().st_ino, target.stat().st_mtime_ns, target.stat().st_ctime_ns))
+        self.assertFalse(any(line.split()[0] in ('cp', 'chmod', 'mv', 'mkdir', 'ln')
+                             for line in self.operations.read_text().splitlines()))
 
 
 if __name__ == '__main__':
