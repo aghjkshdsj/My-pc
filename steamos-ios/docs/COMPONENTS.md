@@ -14,7 +14,10 @@ because its source is present.
 Implemented bring-up code: separate native host probes, fresh Xcode target,
 Linux engine adapter, source-built kernel/initramfs, Linux ABI validator and
 guest GL shader diagnostic. Hosted Linux CPU and GL diagnostic/rejection tests
-passed; host adapter compiled for iOS. The actual iPhone kernel/GPU/Steam/game
+passed; the source-built CPU engine and adapter are packaged in Linux-gate-2.
+Official rootfs/index metadata and 35 ARM client package URLs are resolved;
+full rootfs/client verification, installation and execution remain open.
+The actual iPhone kernel/GPU/Steam/game
 gates remain open. See `STATUS.md` for run identities and failures/fixes.
 
 | Archive component | Files | Disposition and dependency | Acceptance |
@@ -59,11 +62,14 @@ gates remain open. See `STATUS.md` for run identities and failures/fixes.
 | Display/dock/HDR | virtual connector, compositor modes, color formats and guest cursor | CAMetalLayer, iOS orientation/external display limits and supported color space | 720p scaling/pacing, rotation, external display only if measured; no invented HDR |
 | Suspend/shutdown/battery | orderly guest pause/flush, bounded session teardown | iOS app lifecycle owns suspension; phone power key stays iOS-owned | Background/foreground, storage flush and input release; no multi-minute plugin stop |
 
-Missing external inputs include official rootfs/index/chunks and verification
-material, complete Steam ARM runtime/CEF/UI/SDK packages (two ZIPs alone are not
-assumed complete), upstream Linux, QEMU/iOS port and build dependencies, Mesa
+External inputs not yet integrated include the full authenticated official
+rootfs/chunks and complete Steam ARM runtime/CEF/UI/SDK packages (the index and
+35-package stable download plan are resolved; metadata is not installation), Mesa
 guest drivers plus Darwin virgl/Venus/ANGLE/MoltenVK, Steam's FEX/x86 rootfs,
 Proton/Wine/DXVK/VKD3D/runtime, Box64, InputPlumber/libiio, Decky Loader and plugin
 build dependencies, Qt/KDE/Plasma extras, Flatpak/Flathub/FUSE, Heroic/Lutris/SRM,
-and owner-licensed game depots. Each needs a resolved version/source/checksum and
+and owner-licensed game depots. The CPU-only QEMU/iOS engine, its dependencies,
+Linux 6.12.111 and BusyBox 1.38.0 are already source-built and packaged with
+corresponding source in the disposable Linux gate. Each remaining input needs
+a resolved version/source/checksum and
 license receipt before redistribution. No game or account data is in the build.

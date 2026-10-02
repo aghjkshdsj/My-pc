@@ -1,0 +1,15 @@
+name: SteamOS source and evidence boundaries
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tests/**', 'steamos-ios/tools/verify_device_report.py', 'steamos-ios/tools/run_kernel_gate.py', '.github/workflows/steamos-evidence.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 steamos-ios/tests/validate_sources.py
+      - run: python3 -m unittest discover -s steamos-ios/tests -p 'test_*.py' -v

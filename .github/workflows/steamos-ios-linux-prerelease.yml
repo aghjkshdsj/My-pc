@@ -2,7 +2,7 @@ name: Fresh iPhone Linux gate prerelease
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['.github/workflows/steamos-ios-linux-prerelease.yml', 'steamos-ios/tools/bundle_linux_gate.py']
+    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', '.github/workflows/steamos-ios-linux-prerelease.yml', 'steamos-ios/tools/bundle_linux_gate.py']
   workflow_dispatch:
 permissions:
   contents: write
@@ -38,6 +38,12 @@ jobs:
           run-id: 37014232445
           github-token: ${{ github.token }}
           path: steamos-ios/out/guest-artifact
+      - name: Verify crash recovery and evidence boundaries
+        run: |
+          python3 -m unittest discover -s steamos-ios/tests -p 'test_*.py' -v
+          clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host steamos-ios/Host/ProbeRecovery.mm steamos-ios/tests/RecoveryCaptureTests.mm -o /tmp/mpc-capture-tests
+          swiftc steamos-ios/Host/RecoveryJournal.swift steamos-ios/tests/RecoveryJournalTests.swift -o /tmp/mpc-recovery-tests
+          /tmp/mpc-recovery-tests /tmp/mpc-capture-tests
       - name: Compile the fresh Release ARM64 app
         run: |
           python3 steamos-ios/tests/validate_sources.py
@@ -61,7 +67,7 @@ jobs:
           python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --receipt steamos-ios/out/package/verification.json
           cp "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" steamos-ios/out/package/
           cp "$(dirname "$guest")/Linux-Gate-Corresponding-Source.tar.gz" steamos-ios/out/package/
-          git archive --format=tar.gz -o steamos-ios/out/package/MyPCSteamOS-Fresh-Source.tar.gz HEAD steamos-ios .github/workflows/steamos-ios-probe.yml .github/workflows/steamos-linux-kernel-gate.yml .github/workflows/steamos-ios-engine.yml .github/workflows/steamos-linux-source-gate.yml .github/workflows/steamos-graphics-diagnostic.yml .github/workflows/steamos-ios-linux-prerelease.yml
+          git archive --format=tar.gz -o steamos-ios/out/package/MyPCSteamOS-Fresh-Source.tar.gz HEAD steamos-ios ':(glob).github/workflows/steamos-*.yml'
           cp engine-run.json guest-run.json steamos-ios/out/package/
           (cd steamos-ios/out/package && shasum -a 256 *.ipa *.tar.gz *.json > SHA256SUMS)
       - name: Publish and redownload the verified Linux gate
@@ -75,6 +81,8 @@ jobs:
           This gate boots a disposable source-built Linux 6.12.111 / BusyBox 1.38.0 initramfs and checks guest signals, mmap/protection, pthread/TLS/futex, fork/exec and CPU checksum. It has no persistent disk, networking, SteamOS image, Steam/FEX client/game or guest GPU. Metal host probes remain separate. Phone boot/performance is unverified until a new device receipt is returned.
 
           Install with iLoader, enable StikDebug for My-pc SteamOS Probe, run the host probes, then Run Linux kernel gate. Keep the app foreground for up to three minutes. Close/relaunch before repeating Linux boot. Share device report; Linux serial and pending receipts are in the app's Files documents directory if it terminates or times out. Existing projects, game data and apps are not inputs.
+
+          New crash recovery: a pending-test marker and fsynced native stage/output logs are saved before risky JIT/engine calls. If a test ends without a result, reopening offers Share logs. Later or cancelling sharing preserves the files; Share saved diagnostic logs remains available. A pending run alone cannot distinguish a crash, OS termination and force-close. The diagnostic export is private and never uploaded automatically. This logging update does not claim to fix the underlying JIT/Linux crash.
 
           QEMU is software system emulation through TCG, not iOS hardware virtualization. This is a disposable Linux test, not a replacement architecture for the requested SteamOS product. No Steam startup or Hollow Knight FPS target is claimed.
 

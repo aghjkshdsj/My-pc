@@ -6,9 +6,18 @@ proprietary ELF software; its unavailable source cannot be recompiled into an
 iOS Mach-O app by changing project settings. Metal is a GPU API, not a Linux ABI
 or general CPU execution mechanism.
 
-The fresh probe uses Apple system frameworks and new project source only.
-The later OS/graphics plan requires explicit engine integration; no third-party
-engine is currently linked into this probe.
+The initial host-only probe uses Apple system frameworks and new project source.
+Linux-gate-2 additionally loads upstream QEMU 10.0.12-utm, GLib 2.83.0, gettext
+0.22.5 and iconv 1.16 built for ARM64 iOS, using a new adapter. It retains only
+the four required frameworks. The app does not inherit UTM or Madeira UI,
+session/storage implementation or prior native-preview code.
+
+The release attaches exact engine source/configs/patches/recipes and source-built
+Linux 6.12.111 / BusyBox 1.38.0 source/configs, plus fresh host source. Upstream
+notices and license texts remain in those corresponding-source archives; QEMU's
+COPYING and the fresh source license accompany the binary. New authored project
+source is MIT; that does not replace the combined QEMU-bearing distribution's
+applicable GPL obligations or LGPL/per-file dependency requirements.
 
 | Input | Reuse / source | License/distribution work before linking/shipping |
 |---|---|---|
@@ -26,17 +35,21 @@ engine is currently linked into this probe.
 | Games / LSFG models | Owner-licensed inputs | No game depots, credentials or separately licensed proprietary model assets bundled without rights |
 
 This is an integration inventory, not a claim that all combined-license questions
-are settled. Confirm exact component versions and obligations before the first
+are settled. Keep exact component versions and obligations with every
 engine-bearing release. Downloading an archive or a public client manifest does
 not itself grant distribution rights. Full open-source licenses/notices will be
-shipped with the exact engine build, not replaced by this table.
+retained with the exact CPU engine's corresponding source, not replaced by this
+table. Future graphics/game dependencies need their own complete notices and
+source/relink material as applicable before publication.
 
 Primary revision reviewed: UTM `7eadb056ae0f91d979059544d0ddcd2d5a40be92`
 (2026-09-25). Its `patches/sources` pins QEMU `10.0.12-utm`, virglrenderer
 `5d26f605f50f8e22002ec6db5fb775e1992d4e96`, ANGLE/WebKit
 `ed78ab6e1a37f4f11583a0bd038f22ec91f3ff10`, MoltenVK
 `05604465d691118cfd20f53a48ecf1aad9c12f93` and other dependencies.
-These are **review candidates**, not a completed source lock. Older HTTP URLs,
+The CPU engine and its build inputs are pinned in the published recipes and
+receipts; graphics revisions remain **review candidates**, not a completed
+graphics source lock. Older HTTP URLs,
 old dependency versions and runtime assumptions in upstream recipes must be
 audited rather than executed blindly. UTM's private/decompiled Hypervisor shim
 is not used as evidence of supported iPhone virtualization.

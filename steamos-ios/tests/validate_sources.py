@@ -27,6 +27,6 @@ assert info['CFBundleDisplayName'] == 'My-pc SteamOS Probe'
 scheme = ET.parse(root / 'MyPCSteamOS.xcodeproj/xcshareddata/xcschemes/MyPCSteamOSProbe.xcscheme').getroot()
 assert scheme.find('LaunchAction').attrib['buildConfiguration'] == 'Release'
 assert scheme.find('LaunchAction').attrib['selectedDebuggerIdentifier'] == ''
-for name in ['ProbeApp.swift', 'ProbeBridge.mm']:
+for name in ['ProbeApp.swift', 'ProbeBridge.mm', 'LinuxGate.mm', 'RecoveryJournal.swift', 'ProbeRecovery.mm']:
     assert 'Host/' + name in project
 print('SOURCE_GATE_OK: all 3672 archive files accounted for; fresh project inputs isolated')

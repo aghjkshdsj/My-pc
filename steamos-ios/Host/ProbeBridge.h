@@ -10,6 +10,9 @@ NSDictionary *MPCMetalProbe(void);
 NSDictionary *MPCStorageProbe(void);
 NSDictionary *MPCLinuxKernelProbe(void);
 NSDictionary *MPCNativeCPUProbe(void);
+BOOL MPCStartDiagnosticCapture(NSString *directory);
+BOOL MPCDiagnosticStage(NSString *stage, NSDictionary *details);
+void MPCStopDiagnosticCapture(void);
 #ifdef __cplusplus
 }
 #endif

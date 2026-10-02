@@ -32,8 +32,18 @@ nonces, no replay of launch), `MetalPresenter` (display pacing and resource
 ownership), `InputBridge`, `AudioBridge`, `ImageStore` and `Measurements`.
 Swift owns UI/lifecycle; ARM64 C/C++/Objective-C++ own latency-sensitive adapters.
 Release optimization is validated at the OS/runtime boundary before enabling
-aggressive allocator/VA changes. Current compiled target contains only the host
-probe; these engine modules are design boundaries, not claimed implementations.
+aggressive allocator/VA changes. The published CPU-gate target includes a new
+`LinuxGate.mm` adapter and four source-built engine/dependency frameworks. It
+loads QEMU's library entry points on a dedicated thread, boots a checked fresh
+kernel/initramfs and verifies a new guest nonce/ABI/checksum receipt. Host and
+guest diagnostics compile/test separately. Other session/graphics/input/audio
+modules remain design boundaries, not claimed implementations.
+
+Linux-gate-2 has been independently downloaded and checked for ARM64 physical
+iOS, all framework dependencies, payload hashes and complete ZIP CRC. Hosted
+Linux kernel checks passed; no phone receipt has been received. It has no
+SteamOS image, Steam/FEX, persistent disk, networking or guest GPU. This gate
+does not close the requested environment or performance requirements.
 
 The machine uses an upstream generic ARM `virt` kernel and virtio devices, not
 the archive's SM8550 device tree, ABL or Qualcomm kernel. Once CPU/graphics gates

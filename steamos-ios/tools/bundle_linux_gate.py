@@ -74,7 +74,7 @@ def bundle(engine, guest, app):
             (guest, 'Linux-Gate-Corresponding-Source.tar.gz')]}}
     (payload_stage / 'bundle-inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')
     info = plistlib.loads((app / 'Info.plist').read_bytes())
-    info['CFBundleVersion'] = '4000003'
+    info['CFBundleVersion'] = '4000004'
     (app / 'Info.plist').write_bytes(plistlib.dumps(info))
     print(json.dumps(inputs, indent=2))
 

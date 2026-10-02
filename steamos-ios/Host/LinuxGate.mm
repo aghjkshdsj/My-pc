@@ -37,6 +37,7 @@ static NSDictionary *failure(NSString *stage, NSString *reason) {
 
 NSDictionary *MPCLinuxKernelProbe(void) {
     @autoreleasepool {
+        MPCDiagnosticStage(@"linux-gate-starting", @{});
         NSString *framework = [NSBundle.mainBundle.privateFrameworksPath
                               stringByAppendingPathComponent:@"qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu"];
         NSString *payload = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"LinuxGate"];
@@ -48,6 +49,7 @@ NSDictionary *MPCLinuxKernelProbe(void) {
             return @{@"status": @"unavailable", @"reason": @"This build has no complete Linux engine/payload. Install an engine-bearing Linux gate prerelease.",
                      @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO};
         }
+        MPCDiagnosticStage(@"linux-jit-precondition", @{});
         NSDictionary *jit = MPCExecuteJITProbe();
         if (![jit[@"status"] isEqual:@"passed"]) return @{@"status": @"skipped", @"stage": @"jit-precondition", @"jit": jit, @"linux_execution": @NO};
         NSData *receiptData = [NSData dataWithContentsOfFile:[payload stringByAppendingPathComponent:@"payload-receipt.json"]];
@@ -63,6 +65,7 @@ NSDictionary *MPCLinuxKernelProbe(void) {
         }
         // QEMU global state cannot be initialized twice safely in this process.
         if (attempted.exchange(true)) return failure(@"one-run-per-process", @"Close and relaunch the app before another Linux boot.");
+        MPCDiagnosticStage(@"linux-before-dlopen-engine", @{});
         void *library = dlopen(framework.fileSystemRepresentation, RTLD_NOW | RTLD_LOCAL);
         if (!library) return failure(@"dlopen-engine", [NSString stringWithUTF8String:dlerror()] ?: @"Unknown loader error");
         using Init = void (*)(int, char **);
@@ -76,6 +79,7 @@ NSDictionary *MPCLinuxKernelProbe(void) {
         auto unlockReplay = reinterpret_cast<Unlock>(dlsym(library, "replay_mutex_unlock"));
         if (!initialize || !loop || !cleanup || !unlockBQL || !unlockReplay)
             return failure(@"engine-exports", @"Required pinned QEMU entry points unavailable");
+        MPCDiagnosticStage(@"linux-engine-loaded", @{});
         NSString *nonce = [NSUUID.UUID.UUIDString.lowercaseString stringByReplacingOccurrencesOfString:@"-" withString:@""];
         NSURL *documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask][0];
         NSURL *directory = [documents URLByAppendingPathComponent:[@"LinuxGate-" stringByAppendingString:nonce] isDirectory:YES];
@@ -95,6 +99,7 @@ NSDictionary *MPCLinuxKernelProbe(void) {
             @"serial_file": @"serial.log"} mutableCopy];
         NSURL *reportURL = [directory URLByAppendingPathComponent:@"linux-test.json"];
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
+        MPCDiagnosticStage(@"linux-pending-receipt-saved", @{@"run": nonce, @"relative_directory": directory.lastPathComponent});
         std::vector<std::string> values;
         for (NSString *arg in arguments) values.emplace_back(arg.UTF8String);
         double start = NSProcessInfo.processInfo.systemUptime;
@@ -105,13 +110,17 @@ NSDictionary *MPCLinuxKernelProbe(void) {
                 std::vector<char *> argv;
                 for (auto &value : values) argv.push_back(value.data());
                 argv.push_back(nullptr);
+                MPCDiagnosticStage(@"linux-before-qemu-init", @{});
                 initialize(static_cast<int>(argv.size() - 1), argv.data());
+                MPCDiagnosticStage(@"linux-before-qemu-main-loop", @{});
                 int status = loop();
+                MPCDiagnosticStage(@"linux-before-qemu-cleanup", @{@"engine_status": @(status)});
                 cleanup(status);
                 unlockBQL();
                 unlockReplay();
                 engineStatus.store(status);
                 finished.store(true);
+                MPCDiagnosticStage(@"linux-engine-finished", @{@"engine_status": @(status)});
             }
         }).detach();
         while (!finished.load() && NSProcessInfo.processInfo.systemUptime - start < 180)

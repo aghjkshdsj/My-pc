@@ -13,11 +13,11 @@ def generate():
     project, target, group, product, products = map(ident, ['project', 'target', 'group', 'product', 'products'])
     sources, frameworks, resources = map(ident, ['sources', 'frameworks', 'resources'])
     objects = []
-    files = ['Host/ProbeApp.swift', 'Host/ProbeBridge.mm', 'Host/LinuxGate.mm', 'Host/ProbeBridge.h', 'Host/Info.plist']
+    files = ['Host/ProbeApp.swift', 'Host/ProbeBridge.mm', 'Host/LinuxGate.mm', 'Host/RecoveryJournal.swift', 'Host/ProbeRecovery.mm', 'Host/ProbeBridge.h', 'Host/Info.plist']
     for path in files:
         kind = {'swift':'sourcecode.swift','mm':'sourcecode.cpp.objcpp','h':'sourcecode.c.h','plist':'text.plist.xml'}[path.rsplit('.',1)[1]]
         objects.append(f'{ident(path)} = {{isa = PBXFileReference; lastKnownFileType = {kind}; path = "{path}"; sourceTree = "<group>"; }};')
-    compiled = files[:3]
+    compiled = [path for path in files if path.endswith(('.swift', '.mm'))]
     for path in compiled:
         objects.append(f'{ident("build:"+path)} = {{isa = PBXBuildFile; fileRef = {ident(path)}; }};')
     objects += [

@@ -82,25 +82,42 @@ NSDictionary *MPCPlatformFacts(void) {
              @"public_ios_hypervisor_api": @NO};
 }
 NSDictionary *MPCExecuteJITProbe(void) {
+    MPCDiagnosticStage(@"jit-signing-query", @{});
     NSDictionary *signing = codeSigning();
+    MPCDiagnosticStage(@"jit-signing-result", signing);
     if (![signing[@"debugged"] boolValue]) {
         return @{@"status": @"skipped", @"reason": @"Enable StikDebug for this app first. Debugged code-signing status was not observed.",
                  @"code_signing": signing, @"linux_execution": @NO};
     }
 #if defined(__aarch64__)
     size_t size = static_cast<size_t>(getpagesize());
+    if (!MPCDiagnosticStage(@"jit-before-mmap-rw", @{@"bytes": @(size)}))
+        return @{@"status": @"failed", @"stage": @"diagnostic-write", @"linux_execution": @NO};
     void *mapping = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    if (mapping == MAP_FAILED) return @{@"status": @"failed", @"stage": @"mmap-rw", @"errno": @(errno), @"linux_execution": @NO};
+    if (mapping == MAP_FAILED) {
+        int error = errno; MPCDiagnosticStage(@"jit-mmap-failed", @{@"errno": @(error)});
+        return @{@"status": @"failed", @"stage": @"mmap-rw", @"errno": @(error), @"linux_execution": @NO};
+    }
     // mov w0, #42; ret. Executes only our fixed, local diagnostic bytes.
     const uint32_t code[] = {0x52800540, 0xd65f03c0};
     memcpy(mapping, code, sizeof(code));
     sys_icache_invalidate(mapping, sizeof(code));
+    if (!MPCDiagnosticStage(@"jit-before-mprotect-rx", @{})) {
+        munmap(mapping, size);
+        return @{@"status": @"failed", @"stage": @"diagnostic-write", @"linux_execution": @NO};
+    }
     if (mprotect(mapping, size, PROT_READ | PROT_EXEC)) {
         int error = errno;
+        MPCDiagnosticStage(@"jit-mprotect-failed", @{@"errno": @(error)});
         munmap(mapping, size);
         return @{@"status": @"failed", @"stage": @"mprotect-rx", @"errno": @(error), @"linux_execution": @NO};
     }
+    if (!MPCDiagnosticStage(@"jit-before-execute", @{})) {
+        munmap(mapping, size);
+        return @{@"status": @"failed", @"stage": @"diagnostic-write", @"linux_execution": @NO};
+    }
     int result = reinterpret_cast<int (*)(void)>(mapping)();
+    MPCDiagnosticStage(@"jit-returned", @{@"returned": @(result)});
     munmap(mapping, size);
     return @{@"status": result == 42 ? @"passed" : @"failed", @"returned": @(result),
              @"execution": @"native-arm64-local-jit-stub", @"linux_execution": @NO};

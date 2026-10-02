@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "scope": "official-steamos-arm-metadata-inspection",
+  "manifest": {
+    "product": "steamos",
+    "release": "holo",
+    "variant": "vr",
+    "branch": "main",
+    "arch": "aarch64",
+    "gitsha": "a6407ffdeb2447ed4e0b124a7c848394d953e2ea",
+    "perforce_revision": "unknown",
+    "version": "0.5.0",
+    "steamvr_version": "2.17.10",
+    "steamvr_depot_id": "25380729",
+    "steam_build_timestamp": "1789506314",
+    "buildid": "20260921.6090922"
+  },
+  "downloads": {
+    "manifest.json": {
+      "sha256": "57b0943f0116c2163ddd355a50ec9c41dca254598dbf33a351b300067d15c595",
+      "bytes": 360,
+      "url": "https://steamdeck-images.steamos.cloud/vr/20260921.6090922/deckard-20260921.6090922-0.5.0.manifest.json"
+    },
+    "raucb": {
+      "sha256": "8d413afc087069418540f05a2f78a72bfc74771023c1f3dc08b47277b5717f15",
+      "bytes": 2270147,
+      "url": "https://steamdeck-images.steamos.cloud/vr/20260921.6090922/deckard-20260921.6090922-0.5.0.raucb"
+    }
+  },
+  "rauc_manifest": {
+    "update": {
+      "compatible": "steamos-aarch64",
+      "version": "20260921.6090922",
+      "build": "builder@runner-x7ifm5rfq-project-1230-concurrent-0 Mon Sep 21 09:09:22 AM PDT 2026"
+    },
+    "bundle": {
+      "format": "plain"
+    },
+    "image.rootfs": {
+      "sha256": "5c53ff2ed7dc78f313a19fc9224aa07e7fb63271b811a4ada295441a0361e6a8",
+      "size": "10737418240",
+      "filename": "rootfs.img.caibx"
+    }
+  },
+  "indexes": [
+    {
+      "filename": "rootfs.img.caibx",
+      "sha256": "26e3841a5ff5ed6a97eed03ca9379ee3e66420700ec62c7670fe9a8032b3dd5c",
+      "index_bytes": 3535584,
+      "image_bytes": 10737418240,
+      "chunks": 88387,
+      "feature_flags": 11529215046068470000,
+      "min_chunk": 16384,
+      "avg_chunk": 65536,
+      "max_chunk": 262144
+    }
+  ],
+  "store_url": "https://steamdeck-images.steamos.cloud/vr/20260921.6090922/deckard-20260921.6090922-0.5.0.castr/",
+  "sample_chunks": [
+    {
+      "index_record": 0,
+      "id": "9cce348615247e608466a2fb533aa96d225e018c65c9e4bb9f0fd7470c439d76",
+      "raw_bytes": 262144,
+      "download_bytes": 365,
+      "sha512_256_verified": true
+    },
+    {
+      "index_record": 44193,
+      "id": "a5369ab807277f5fa7b033b31cdb129da26c69702651498f30d5f92d45f02b8e",
+      "raw_bytes": 57444,
+      "download_bytes": 57458,
+      "sha512_256_verified": true
+    },
+    {
+      "index_record": 88386,
+      "id": "958b1c35348b200701cd9ded1dfb6b515fd742abf9bdee52f1ea0c1d6cb548ef",
+      "raw_bytes": 118182,
+      "download_bytes": 26,
+      "sha512_256_verified": true
+    }
+  ],
+  "all_chunks_verified": false,
+  "signature_authenticated": false,
+  "rootfs_reconstructed": false,
+  "linux_boot_verified": false,
+  "phone_tested": false,
+  "limitation": "Pinned HTTPS bundle bytes and internal format were checked. RAUC CMS certificate authentication and full image/chunk verification remain required. Metadata listing is not OS execution.",
+  "evidence_run": "https://github.com/aghjkshdsj/My-pc/actions/runs/37018663739"
+}
