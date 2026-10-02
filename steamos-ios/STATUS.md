@@ -1,172 +1,110 @@
 # Verified state and next work — 2026-10-02
 
-The complete user objective is **not complete**. No architecture substitution
-was approved or adopted. The owner confirmed iPhone 15 Pro Max / iOS 27.0.1,
-iLoader signing and StikDebug JIT. A private owner-supplied native host report
-has been received and checked; native Metal/CPU/storage correctness passed.
-The owner reports termination during JIT and Linux checks, with no saved result
-for either. The cause, Linux boot, guest Metal transport and gameplay performance
-remain unverified. Raw device evidence is kept outside the public upload allowlist.
+The complete SteamOS ARM/FEX product is **unfinished**. No architecture
+substitution was approved or adopted. Previous projects, applications, disks,
+credentials and game data are preserved. The fresh source and Xcode target use
+no Madeira, old VM app or native-preview application implementation. Attached
+documents and scripts were treated as reference material.
 
-## Preserved state and fresh implementation
+## Physical phone evidence
 
-- Read the complete handoff, all four archive docs, core build/client/session
-  scripts, previous performance/build reviews, graphics implementation and
-  filtered Dokimon logs. Attached scripts were reference material and were not run.
-- Inspected the local no-commit/no-remote Git state and remote main/branches/CI.
-  Previous projects, apps, user disks, credentials and game data remain preserved.
-- New `steamos-ios` source/Xcode target and `codex/steamos-ios-fresh` branch,
-  based on main `3aa9fdb4b72d7127c4fe9c077aaf613937da293f`. No Madeira,
-  old VM application or current native-preview code is a build input.
-- All 3,672 archive files have CRC, size, SHA-256 and component assignments.
-  Inventory/source-isolation checks passed; whole-vendor-source semantic audit
-  is not claimed. The component ledger covers every archive group and service.
-- The owner explicitly approved ongoing source/tests/workflow uploads, builds
-  and probe prereleases on this branch. Private phone reports, old projects,
-  credentials and user games remain excluded.
-- New native probes record device/build/pages/signing, five checksummed CPU trials,
-  a 720p Metal compute/readback result and a unique temporary 32 MiB storage test.
-  They do not demonstrate a guest game or sustained performance.
+Owner-supplied reports identify iPhone 15 Pro Max (iPhone16,2), iOS 27.0.1
+build 24A446 and 16 KiB host pages. iLoader and StikDebug 3.1.10/universal.js
+are owner-confirmed. Raw reports remain private and outside the public allowlist.
 
-## Verified builds and Linux-gate prerelease
+- Earlier native CPU, Metal compute/readback and temporary storage correctness
+  passed. These are not guest graphics or game measurements.
+- Three build 4000006 native ARM64 JIT checks executed the generated local stub
+  and returned 42. Source/device/scope consistency was checked against the exact
+  independently verified IPA. This is not cryptographic remote attestation.
+- One repeated JIT preparation was interrupted before universal RX preparation
+  returned. Its cause beyond that stage is not established.
+- The latest actual Linux attempt passed its native JIT precheck and payload
+  hashes, loaded QEMU and found required exports. Initialization failed:
+  `allocate 1003421696 bytes for jit buffer: Operation not permitted`.
+  The kernel serial log was empty. **Linux has not booted on the phone.**
+- Recovery exports preserved pending markers, native stages and engine output.
+  Actual presentation of the reopen sharing popup has not been directly observed
+  by the developer.
 
-[Linux-gate-2 IPA](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-linux-gate-2/MyPCSteamOS-Linux-Gate.ipa):
-build 4000003, source `38f401c524f98bc000002cdc81bb000c9502f1e3`,
-7,999,301 bytes, SHA-256
-`d7eb3db958794bcf653b10e0d7b199a745ce61ba1cb2b1dae6169b61d5652430`.
-[Release sources and receipts](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-2).
+## Prepared fix and required retest
 
-The independently downloaded public IPA passed complete ZIP CRC, ARM64 physical
-iOS Mach-O, bundle/source identity, all four engine dependency resolutions and
-kernel/initramfs SHA-256 checks. Packaging success does **not** mark a phone gate
-passed. Its disposable initramfs is not SteamOS or an architecture substitution.
+Build 4000007 requests `tcg,thread=multi,split-wx=on,tb-size=32`.
+The pinned release engine defaults split-WX off, selecting MAP_JIT on Darwin.
+Its default cache uses up to one eighth of physical RAM, matching the roughly
+957 MiB allocation denied on the phone. Forced split-WX selects the Darwin
+RX/writable-alias path; the requested cache is 32 MiB. Its legacy region callback
+is configured separately through the universal debugger protocol while attached.
 
-| Verified result | Evidence | Limit |
+Repeated native JIT checks execute one retained successfully prepared host-page
+region again; cached receipts never count as new execution. The UI shows the
+last durably saved stage and a readable result. **The fix needs new phone
+evidence and is not a verified successful boot.**
+
+Primary sources: [allocator](https://github.com/utmapp/qemu/blob/v10.0.12-utm/tcg/region.c),
+[TCG defaults](https://github.com/utmapp/qemu/blob/v10.0.12-utm/accel/tcg/tcg-all.c).
+
+Latest independently verified public IPA before this fix:
+[Linux-gate-5 / build 4000006](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-5),
+source `dac0d7d6d4f8c10100e986cf67e9adc3668e792b`, 8,069,591 bytes, SHA-256
+`adc3e7abd2afc736bd424ed66bd6a32cdcdbd9f6921deefc5dc56225055d100a`.
+[Build 37024755837](https://github.com/aghjkshdsj/My-pc/actions/runs/37024755837)
+passed actual ARM64 iOS compilation and hosted abrupt-exit recovery tests.
+Independent ZIP CRC, physical-iOS Mach-O, dependency closure, payload hashes
+and compiled universal ABI wrappers passed.
+
+The disposable Linux gate uses Linux 6.12.111 / BusyBox 1.38.0, 2 vCPUs,
+512 MiB RAM, no persistent disk/network/GPU. It checks signals, mmap/protection,
+pthread/TLS/futex, fork/exec, checksum and a fresh serial nonce. QEMU TCG is
+**software system emulation**, not public iOS hardware virtualization. FEX later
+adds x86-to-guest-ARM compatibility inside Linux. This gate is not a substitute
+for the requested SteamOS product.
+
+## Build and graphics evidence
+
+| Result | Evidence | Remaining limit |
 |---|---|---|
-| Fresh Release ARM64 iOS host/adapter/CPU probe build | [37015555146](https://github.com/aghjkshdsj/My-pc/actions/runs/37015555146) | Compile/package, not phone execution |
-| Source-built QEMU 10.0.12-utm iOS TCG engine with required exports | [37014232362](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232362) | No Hypervisor or GPU; four needed frameworks |
-| Hosted ARM Linux kernel ABI test | [36966305447](https://github.com/aghjkshdsj/My-pc/actions/runs/36966305447) | Hosted Linux 6.8, not an iPhone |
-| Source-built Linux 6.12.111 / BusyBox 1.38.0 kernel ABI gate | [37014232445](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232445) | Hosted TCG; kernel/ELF ARM64, 4 KiB pages, all four ABI checks and exit marker passed |
-| GL shader correctness and software-renderer rejection | [37014783465](https://github.com/aghjkshdsj/My-pc/actions/runs/37014783465) | Hosted llvmpipe: 1,843,200 pixels, zero errors/mismatches; software rejected, no Metal claim |
-| Four-framework Linux-gate-2 assembly/publication | [37016891655](https://github.com/aghjkshdsj/My-pc/actions/runs/37016891655) | Independent public IPA verification passed; phone result pending |
-| Evidence consistency/rejection tests | 13 local unit tests and source-isolation check passed | Synthetic fixtures only, never counted as device evidence |
+| Source-built ARM64 iOS QEMU engine/dependencies | [37014232362](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232362) | Phone loader passed; kernel execution failed at allocation |
+| Source-built Linux/BusyBox ABI gate | [37014232445](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232445) | Hosted TCG boot passed; not phone boot |
+| Hosted GL/Vulkan diagnostics | [37035517982](https://github.com/aghjkshdsj/My-pc/actions/runs/37035517982) | Software rendering only; explicitly rejected as acceleration |
+| Native iOS MoltenVK compile/package | [37036404372](https://github.com/aghjkshdsj/My-pc/actions/runs/37036404372) | Not in IPA or executed on phone; loader/import behavior needs checking |
+| Hosted Venus serialization attempt | [37037502542](https://github.com/aghjkshdsj/My-pc/actions/runs/37037502542) | Renderer compiled after C11 label fix; client aborted; transport unverified |
 
-The new `Host/LinuxGate.mm` requires native JIT, verifies bundled payloads,
-loads the source-built QEMU library and boots a new nonce in a generic ARM virt
-machine: TCG, 2 vCPUs, 512 MiB, no display/network/persistent disk. Serial and
-pending receipts survive engine failure. One initialization per process; close
-and relaunch after timeout or before another boot.
+Vulkan rendered two 1280×720 images, checked all 1,843,200 pixels, channel sum
+1,219,256,320 and synchronization validation. Zero mismatches/errors passed
+on Mesa llvmpipe/lavapipe; software-as-acceleration was rejected with exit 20.
+Receipt: `evidence/primary/hosted-vulkan-diagnostic.json`. No swapchain,
+presentation, guest transport or game performance is implied.
 
-Resolved build failures: extern-C linkage; gettext/CoreFoundation/iconv static
-linking (restored shared dependencies); BusyBox init exit marker (explicit
-BusyBox echo). No failed check was waived. Corresponding engine/kernel/BusyBox
-source, configs, patches, recipes and applicable notices accompany the release.
+MoltenVK revision `05604465d691118cfd20f53a48ecf1aad9c12f93` and seven pinned
+dependencies produced a physical-iOS ARM64 library and corresponding source.
+Receipt: `evidence/primary/hosted-moltenvk-build.json`. Its IOKit load command
+needs classification and phone loading evidence before integration.
+The latest GL classification rerun failed its second Xvfb startup; isolated
+automatic display selection is prepared. Venus failure output will expose
+renderer/client/validation logs. Neither failure was waived.
 
-## Resolved external metadata, unfinished full inputs
+## Complete inputs and component coverage
 
-- Valve stable ARM manifest version **1788652215** is pinned with SHA-256.
-  All **35** package URLs returned expected HEAD sizes, totaling
-  **1,008,581,976 bytes**. The complete client has not been downloaded, hash/ZIP
-  verified, installed or launched. Manifest signature authentication remains open.
-  See `evidence/primary/steam-package-plan.json`.
-- Official ARM rootfs metadata **20260921.6090922 / 0.5.0** is resolved.
-  The pinned RAUC bundle contains `rootfs.img.caibx`: 88,387 chunk records,
-  reconstructed size **10,737,418,240 bytes**, image SHA-256
-  `5c53ff2ed7dc78f313a19fc9224aa07e7fb63271b811a4ada295441a0361e6a8`.
-  Three downloaded/decompressed chunk samples passed actual **SHA-512/256** checks.
-  [Metadata run 37018663739](https://github.com/aghjkshdsj/My-pc/actions/runs/37018663739).
-  See `evidence/primary/valve-rootfs-metadata.json`.
-- Full rootfs reconstruction, all-chunk/image verification, Valve RAUC CMS trust,
-  generic-virt boot compatibility and package/runtime integration remain open.
-  No Valve binary, rootfs, Steam account or game depot was published in our release.
-- Apple's current Hypervisor/Virtualization metadata is macOS-only; no supported
-  public iOS hardware-virtualization path has been demonstrated. StikDebug is
-  a JIT precondition, not EL2 access. The current Linux route is software TCG;
-  FEX inside it adds x86-to-guest-ARM translation.
-- Current upstream Darwin virgl/Venus shared-memory emulation is a reuse candidate,
-  not a verified graphics bridge. Exact GL/Vulkan/Metal presentation and feature
-  tests are still required. Linux gamescope, Plasma, Steam/CEF, FEX/Proton,
-  audio/input/storage/downloads/overlays/plugins are unfinished.
+The full handoff, archive docs/core scripts and prior build/performance lessons
+were reviewed. All 3,672 archive files have CRC, size, SHA-256 and a component
+assignment. [Coverage](docs/COMPONENTS.md) accounts for all 19 groups plus
+Game Mode, desktop/compositor, input, audio, storage/downloads, FEX/Proton,
+overlays/plugins, lifecycle and external dependencies. Source presence does not
+complete a product feature. [Performance](docs/PERFORMANCE.md) and
+[licensing/provenance](docs/PROVENANCE.md) remain applicable.
 
-## Required phone evidence and next implementation
+Official stable ARM manifest 1788652215 resolves 35 package URLs totaling
+1,008,581,976 bytes with expected HEAD sizes. Full download/hash/signature
+authentication, installation and Steam execution remain open.
+Official rootfs 20260921.6090922 / 0.5.0 resolves a 10,737,418,240-byte image,
+88,387 chunk records and three hash-verified samples. Complete reconstruction,
+image hash, RAUC CMS trust and generic-virt compatibility remain open.
+No Valve/game/credential data has been redistributed.
 
-Crash recovery implementation passed hosted abrupt-exit tests and an actual
-ARM64 iOS build in [37021915308](https://github.com/aghjkshdsj/My-pc/actions/runs/37021915308)
-and was published as Linux-gate-3 / build 4000004. It has a durable pending
-marker before unsafe calls, fsynced stage/output capture, a reopen Share logs
-prompt, retained logs after Later/cancel and manual diagnostic sharing. Hosted
-abrupt-exit/recovery and iOS compile/package checks are required before release;
-the popup still needs verification on the phone. This change instruments the
-JIT/Linux failure and does not claim that its cause is fixed.
-
-Builds 4000005/4000006 add Enable JIT in StikDebug with actual bundle ID/PID
-and universal.js, observed get-task-allow/current debugger checks, RX/writable
-alias preparation through the universal protocol, a fixed callback for the
-pinned QEMU allocator's legacy 0x69 region breakpoint, and detach after QEMU's
-initial code allocation. The supplied old host report contained no JIT/Linux
-receipt. The previous RW-to-RX probe and QEMU breakpoint mismatch are source
-findings, not a proven crash diagnosis. Updated phone JIT/boot results are needed.
-
-Final [Linux-gate-5 / build 4000006](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-5)
-passed [run 37024755837](https://github.com/aghjkshdsj/My-pc/actions/runs/37024755837):
-13 evidence tests; real hosted subprocess abrupt exit with fsynced stage/output;
-reopen/completed/timeout marker behavior; cancelled/retained exports; corrupt and
-stale markers; path/symlink exclusion; bounded tails; exact StikDebug URL fields;
-and actual ARM64 iOS Release compilation. The share sheet waits for the recovery
-alert dismissal and prevents duplicate requests.
-
-Independent public IPA verification: 8,069,591 bytes, SHA-256
-`adc3e7abd2afc736bd424ed66bd6a32cdcdbd9f6921deefc5dc56225055d100a`,
-source `dac0d7d6d4f8c10100e986cf67e9adc3668e792b`. Complete ZIP CRC, physical-iOS
-ARM64 executable/frameworks, dependency closure and bundled kernel hashes passed.
-The three compiled universal ABI wrappers also contain their exact ARM64
-command/breakpoint/return sequences. These build checks are not phone JIT,
-Linux boot, UI-popup or gameplay proof. No private report was uploaded.
-
-Install Linux-gate-5 / build 4000006 with iLoader. Run Metal/storage/native CPU probes,
-tap **Enable JIT in StikDebug**, confirm its request for **My-pc SteamOS Probe**,
-return to the app, run the JIT check, then **Run Linux kernel
-gate** in the foreground for up to three minutes. Use **Share device report** to
-return the JSON. If the app terminates, preserve its new `LinuxGate-*` folder's
-serial/pending report and reopen to use **Share logs**; do not report a successful boot.
-
-`tools/verify_device_report.py` compares private owner-supplied evidence with the
-exact verified IPA, checks OS/source/payload/nonce/serial/engine/ABI consistency
-and preserves all SteamOS/game/performance gates as false. It is not cryptographic
-remote attestation and does not upload reports. Native-versus-guest microbenchmark
-ratios, when available, are not gameplay FPS.
-
-After the physical CPU gate: debug any phone loader/JIT/kernel failure, build
-the upstream graphics engines through fresh adapters, prove guest GL and Vulkan
-to Metal including moving presentation, then integrate authenticated SteamOS,
-actual ARM Steam/CEF, Game Mode/desktop and FEX games. Follow the component and
-performance ledgers through 720p base-frame and 20-minute thermal measurements.
-**Steam usable under 60 seconds and Hollow Knight 60–80 base FPS are unverified.**
-
-## Vulkan diagnostic preparation
-
-The fresh guest Vulkan diagnostic renders two RGBA8 images at 1280×720 using
-vertex/fragment shaders, a render pass and explicit image/copy/host-read barriers.
-It compares all 1,843,200 pixels and independently checks the channel sum. It
-records device extensions, selected features/limits, format and memory flags,
-and validation errors. Optional portability enumeration/subset support is handled.
-It has no window/swapchain or transport; Metal/presentation/game claims stay false.
-The hosted ARM pipeline uses lavapipe with synchronization validation and requires
-exit 20 when software is offered as acceleration.
-
-[Hosted run 37035517982](https://github.com/aghjkshdsj/My-pc/actions/runs/37035517982)
-passed both GL and Vulkan jobs at source `c192f16aa271492f709e5512f153fc0a02ce3f0c`.
-Vulkan rendered and checked 1,843,200 pixels with zero mismatches, channel sum
-1,219,256,320, zero validation errors and an empty validation log. The actual
-driver was Mesa llvmpipe/lavapipe (LLVM 20.1.2); acceleration mode rejected it
-with exit 20. The receipt records 161 device extensions and executable/SPIR-V
-hashes in `evidence/primary/hosted-vulkan-diagnostic.json`. Artifact 11239860581
-is 20,025 bytes, ZIP SHA-256
-`a6cfed5c0047b0dcf4e570a67ef704e6238eef333fee9cbd91d6371ced829758`.
-The three new false-evidence tests and the source/evidence workflow passed.
-
-Fresh iOS MoltenVK engine preparation pins the upstream engine plus all seven
-shader/header/tool dependencies, replaces online dependency updates with exact
-revision checks, and builds only ARM64 iOS without app/UI, private Hypervisor or
-unrelated platform targets. The hosted engine build/packaging result is pending.
-No new physical phone JIT/Linux report was available at this checkpoint.
+Next: pass the physical Linux gate; prove real guest GL and Vulkan transport
+to Metal and moving presentation; integrate authenticated SteamOS, actual ARM
+Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
+Native host/Metal optimization does not remove guest TCG translation costs.
+**Steam usable under 60 seconds and Hollow Knight 60–80 base rendered FPS at
+1280×720, including sustained thermal/frame-pacing measurements, are unverified.**

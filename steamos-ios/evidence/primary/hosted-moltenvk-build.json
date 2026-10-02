@@ -1,0 +1,45 @@
+{
+  "kind": "source-built-arm64-ios-moltenvk-engine",
+  "revision": "05604465d691118cfd20f53a48ecf1aad9c12f93",
+  "binary_bytes": 4837960,
+  "binary_sha256": "28276729e49021f50f1956a2eb51f5b95bec6a58b3ec59fe5f3206eda5dda41c",
+  "physical_ios_macho": true,
+  "imports": [
+    "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+    "/System/Library/Frameworks/UIKit.framework/UIKit",
+    "/System/Library/Frameworks/Foundation.framework/Foundation",
+    "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+    "/System/Library/Frameworks/Metal.framework/Metal",
+    "/usr/lib/libc++.1.dylib",
+    "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+    "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+    "/usr/lib/libSystem.B.dylib",
+    "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+    "/usr/lib/libobjc.A.dylib"
+  ],
+  "files": {
+    "MoltenVK-iOS-Framework.tar.gz": {
+      "bytes": 1430110,
+      "sha256": "17665e978ab4746bfdfbb114e2deb6bface9b30f6a4b2e5656ef3271388c06c7"
+    },
+    "MoltenVK-Corresponding-Source.tar.gz": {
+      "bytes": 11112829,
+      "sha256": "f8dbf297209fdf1293f63297775cb3e239c02bb45c93b7de667aa27776fe35a7"
+    }
+  },
+  "source_commit": "54d88e1aff81c298dc915209668c57d31c72ec28",
+  "workflow_run": "37036404372",
+  "phone_tested": false,
+  "guest_transport_verified": false,
+  "metal_execution_verified": false,
+  "steamos_verified": false,
+  "gameplay_verified": false,
+  "schema": 1,
+  "scope": "hosted-arm64-physical-ios-engine-build",
+  "artifact": {
+    "id": 11240651821,
+    "bytes": 12568014,
+    "zip_sha256": "f0f738d84e90fda9761a35318e78e31984565dff44ebb8c933ac2470b9442c08"
+  },
+  "import_check_limit": "IOKit load command requires weak/strong classification and actual iOS loader verification; no phone execution claimed"
+}

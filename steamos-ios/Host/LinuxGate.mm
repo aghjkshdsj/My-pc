@@ -53,6 +53,7 @@ NSDictionary *MPCLinuxKernelProbe(void) {
         MPCDiagnosticStage(@"linux-jit-precondition", @{});
         NSDictionary *jit = MPCExecuteJITProbe();
         if (![jit[@"status"] isEqual:@"passed"]) return @{@"status": @"skipped", @"stage": @"jit-precondition", @"jit": jit, @"linux_execution": @NO};
+        if (!MPCConfigureQEMUJIT()) return failure(@"qemu-jit-callback", @"Enable StikDebug universal.js for this current process before the engine allocates executable regions.");
         NSData *receiptData = [NSData dataWithContentsOfFile:[payload stringByAppendingPathComponent:@"payload-receipt.json"]];
         NSError *error = nil;
         NSDictionary *receipt = receiptData ? [NSJSONSerialization JSONObjectWithData:receiptData options:0 error:&error] : nil;
@@ -88,7 +89,7 @@ NSDictionary *MPCLinuxKernelProbe(void) {
             return failure(@"create-run-directory", error.localizedDescription);
         NSString *serial = [[directory URLByAppendingPathComponent:@"serial.log"] path];
         NSArray<NSString *> *arguments = @[@"qemu-system-aarch64", @"-machine", @"virt", @"-cpu", @"max",
-            @"-accel", @"tcg,thread=multi", @"-smp", @"2", @"-m", @"512", @"-nodefaults", @"-display", @"none",
+            @"-accel", @"tcg,thread=multi,split-wx=on,tb-size=32", @"-smp", @"2", @"-m", @"512", @"-nodefaults", @"-display", @"none",
             @"-chardev", [NSString stringWithFormat:@"file,id=serial0,path=%@", serial], @"-serial", @"chardev:serial0",
             @"-monitor", @"none", @"-kernel", image, @"-initrd", initramfs, @"-append",
             [@"console=ttyAMA0 rdinit=/init panic=1 mpc_run=" stringByAppendingString:nonce], @"-no-reboot"];
@@ -96,11 +97,13 @@ NSDictionary *MPCLinuxKernelProbe(void) {
             @"status": @"running", @"run": nonce, @"device": MPCPlatformFacts(),
             @"source_commit": [NSBundle.mainBundle objectForInfoDictionaryKey:@"MPCSourceCommit"] ?: @"unknown",
             @"engine": @"qemu-10.0.12-utm-aarch64-tcg", @"hardware_virtualization": @NO,
+            @"requested_jit_cache_mib": @32, @"split_wx_requested": @YES,
             @"payload": receipt, @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO,
             @"serial_file": @"serial.log"} mutableCopy];
         NSURL *reportURL = [directory URLByAppendingPathComponent:@"linux-test.json"];
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
         MPCDiagnosticStage(@"linux-pending-receipt-saved", @{@"run": nonce, @"relative_directory": directory.lastPathComponent});
+        MPCDiagnosticStage(@"linux-engine-configuration", @{@"jit_cache_mib": @32, @"split_wx": @YES, @"vcpus": @2, @"guest_ram_mib": @512});
         std::vector<std::string> values;
         for (NSString *arg in arguments) values.emplace_back(arg.UTF8String);
         double start = NSProcessInfo.processInfo.systemUptime;
@@ -113,6 +116,7 @@ NSDictionary *MPCLinuxKernelProbe(void) {
                 argv.push_back(nullptr);
                 MPCDiagnosticStage(@"linux-before-qemu-init", @{});
                 initialize(static_cast<int>(argv.size() - 1), argv.data());
+                MPCDiagnosticStage(@"linux-qemu-init-returned", @{});
                 // QEMU's initial TCG regions have been prepared. Release the
                 // debugger before the workload; new regions would need reattach.
                 MPCDetachJITDebugger();

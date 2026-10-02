@@ -20,11 +20,13 @@ final class ProbeModel: ObservableObject {
     @Published var engineNeedsRelaunch = false
     @Published var jitActivationMessage = ""
     @Published var preparingLogShare = false
+    @Published var testStatus = ""
     private var requestedStikDebug = false
     private var facts: [String: Any] = [:]
     private let journal = RecoveryJournal(documents: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0])
     private var recoveryChecked = false
     private var recoveredSnapshot: Data?
+    private var activeRunID: String?
 
     func checkRecovery() {
         guard !recoveryChecked else { return }
@@ -106,8 +108,10 @@ final class ProbeModel: ObservableObject {
     func run(kind: String) {
         guard !busy && !engineNeedsRelaunch else { return }
         busy = true
+        testStatus = "Starting \(kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : "host probes")…"
         exportURL = nil
         let runID = UUID().uuidString
+        activeRunID = runID
         let before = MPCPlatformFacts()
         let controllers = GCController.controllers().map { ["vendor": $0.vendorName ?? "unknown", "extended_gamepad": $0.extendedGamepad != nil] as [String: Any] }
         var prepared = false
@@ -124,11 +128,21 @@ final class ProbeModel: ObservableObject {
             }
         } catch {
             report = "Test not started: \(error.localizedDescription)"
+            testStatus = report
             if prepared, let data = try? JSONSerialization.data(withJSONObject: ["status": "not-started", "reason": report]) {
                 try? journal.complete(runID: runID, result: data)
             }
             busy = false
+            activeRunID = nil
             return
+        }
+        Task { @MainActor in
+            while busy && activeRunID == runID {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                if busy && activeRunID == runID, let snapshot = journal.pendingSnapshot(), let stage = journal.lastStage(snapshot) {
+                    testStatus = "Running: \(stage)"
+                }
+            }
         }
         Task.detached(priority: .userInitiated) {
             MPCDiagnosticStage("probe-entering", ["kind": kind])
@@ -146,6 +160,15 @@ final class ProbeModel: ObservableObject {
     }
 
     private func finish(runID: String, before: [AnyHashable: Any], controllers: [[String: Any]], tests: [String: Any]) {
+        if let jit = tests["jit"] as? [String: Any] {
+            testStatus = jit["status"] as? String == "passed"
+                ? "ARM64 JIT passed: code returned 42. Run the Linux kernel gate next."
+                : "JIT \(jit["status"] ?? "failed"): \(jit["reason"] ?? jit["stage"] ?? "See the saved report.")"
+        } else if let linux = tests["linux"] as? [String: Any] {
+            testStatus = linux["linux_execution"] as? Bool == true
+                ? "Linux kernel and ABI gate passed. SteamOS and game graphics remain unfinished."
+                : "Linux \(linux["status"] ?? "failed"): \(linux["reason"] ?? linux["stage"] ?? "See the saved report and logs.")"
+        } else { testStatus = "Host probes finished. See the saved measurements below." }
         facts.merge(tests) { _, new in new }
         engineNeedsRelaunch = (tests["linux"] as? [String: Any])?["status"] as? String == "timed-out-engine-still-running"
         let linux = (facts["linux"] as? [String: Any])?["linux_execution"] as? Bool == true
@@ -170,6 +193,7 @@ final class ProbeModel: ObservableObject {
             exportURL = url
         } catch { report = "Could not export report: \(error.localizedDescription)" }
         busy = false
+        activeRunID = nil
     }
 }
 
@@ -194,6 +218,7 @@ struct ProbeScreen: View {
                         .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
                     Text("The Linux gate requires an engine-bearing build and StikDebug. Keep the app open for up to three minutes. Relaunch before repeating a Linux boot.").font(.callout)
                     if model.busy { ProgressView("Collecting measurements…") }
+                    if !model.testStatus.isEmpty { Text(model.testStatus).font(.callout).textSelection(.enabled) }
                     if model.engineNeedsRelaunch { Text("The Linux engine timed out and may still be running. Share the logs, then close and relaunch before another test.").font(.callout) }
                     if let url = model.exportURL { ShareLink("Share device report", item: url) }
                     Button("Share saved diagnostic logs") { model.shareRecovery() }

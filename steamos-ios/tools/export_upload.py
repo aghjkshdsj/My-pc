@@ -9,7 +9,7 @@ paths = [root / '.gitignore', root / 'README.md', root / 'LICENSE', root / 'STAT
 for folder in ['Host', 'Guest', 'tools', 'tests', 'docs', 'MyPCSteamOS.xcodeproj']:
     paths += sorted(p for p in (root / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
 paths += [root / 'evidence' / name for name in ['archive-summary.json', 'archive-files.csv']]
-paths += [root / 'evidence/primary' / name for name in ['receipts.json', 'steam-arm-stable.vdf', 'steam-arm-beta.vdf', 'steam-package-plan.json', 'valve-rootfs-metadata.json', 'hosted-vulkan-diagnostic.json']]
+paths += [root / 'evidence/primary' / name for name in ['receipts.json', 'steam-arm-stable.vdf', 'steam-arm-beta.vdf', 'steam-package-plan.json', 'valve-rootfs-metadata.json', 'hosted-vulkan-diagnostic.json', 'hosted-moltenvk-build.json']]
 paths += [root.parent / '.github/workflows' / name for name in ['steamos-ios-probe.yml', 'steamos-linux-kernel-gate.yml', 'steamos-ios-engine.yml', 'steamos-linux-source-gate.yml', 'steamos-graphics-diagnostic.yml', 'steamos-ios-linux-prerelease.yml', 'steamos-rootfs-inspect.yml', 'steamos-evidence.yml', 'steamos-ios-moltenvk.yml', 'steamos-venus-transport.yml']]
 paths = sorted(set(paths))
 rows = [{'path': p.relative_to(root.parent).as_posix(), 'mode': '100644', 'type': 'blob',

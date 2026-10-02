@@ -12,6 +12,13 @@
 #include <errno.h>
 #include <vector>
 #include <time.h>
+#include <mutex>
+
+// Retain one successfully prepared mapping for this process. Repeated checks
+// execute it again; they never treat a cached receipt as fresh code execution.
+static std::mutex jitRegionMutex;
+static void *retainedJITRX = nullptr;
+static void *retainedJITWritable = nullptr;
 
 extern "C" kern_return_t mach_vm_remap(vm_map_t, mach_vm_address_t *, mach_vm_size_t,
     mach_vm_offset_t, int, vm_map_t, mach_vm_address_t, boolean_t, vm_prot_t *, vm_prot_t *, vm_inherit_t);
@@ -97,6 +104,21 @@ BOOL MPCDetachJITDebugger(void) {
     return NO;
 #endif
 }
+BOOL MPCConfigureQEMUJIT(void) {
+#if defined(__aarch64__)
+    NSDictionary *signing = codeSigning();
+    if (![signing[@"debugged"] boolValue] || ![signing[@"debugger_attached"] boolValue]) {
+        MPCDiagnosticStage(@"linux-qemu-callback-debugger-unavailable", signing);
+        return NO;
+    }
+    static const char callback[] = "legacyCommands[0x69] = JIT26PrepareRegion;";
+    if (!MPCDiagnosticStage(@"linux-before-configure-qemu-region-callback", @{})) return NO;
+    configureDebuggerCallbacks(callback, sizeof(callback) - 1);
+    return MPCDiagnosticStage(@"linux-qemu-region-callback-configured", @{});
+#else
+    return NO;
+#endif
+}
 NSDictionary *MPCPlatformFacts(void) {
     struct utsname info = {};
     uname(&info);
@@ -119,14 +141,26 @@ NSDictionary *MPCPlatformFacts(void) {
              @"public_ios_hypervisor_api": @NO};
 }
 NSDictionary *MPCExecuteJITProbe(void) {
+    std::lock_guard<std::mutex> lock(jitRegionMutex);
     MPCDiagnosticStage(@"jit-signing-query", @{});
     NSDictionary *signing = codeSigning();
     MPCDiagnosticStage(@"jit-signing-result", signing);
-    if (![signing[@"debugged"] boolValue] || ![signing[@"debugger_attached"] boolValue]) {
+    if (![signing[@"debugged"] boolValue] || (!retainedJITRX && ![signing[@"debugger_attached"] boolValue])) {
         return @{@"status": @"skipped", @"reason": @"Use Enable JIT in StikDebug for this running app with universal.js. An attached script debugger is required before preparing new executable regions.",
                  @"code_signing": signing, @"linux_execution": @NO};
     }
 #if defined(__aarch64__)
+    if (retainedJITRX) {
+        if (!MPCDiagnosticStage(@"jit-before-execute-retained-region", @{}))
+            return @{@"status": @"failed", @"stage": @"diagnostic-write", @"linux_execution": @NO};
+        int result = reinterpret_cast<int (*)(void)>(retainedJITRX)();
+        MPCDiagnosticStage(@"jit-returned", @{@"returned": @(result), @"rx_region_reused": @YES});
+        return @{@"status": result == 42 ? @"passed" : @"failed", @"returned": @(result),
+            @"execution": @"native-arm64-local-jit-stub", @"protocol": @"stikdebug-universal-prepared-rx-writable-alias",
+            @"rx_region_reused": @YES, @"mapping_retained_for_process": @YES,
+            @"writable_alias_retained": @(retainedJITWritable != nullptr),
+            @"qemu_region_callback": @"configured-separately-at-linux-init", @"linux_execution": @NO};
+    }
     size_t size = static_cast<size_t>(getpagesize());
     if (!MPCDiagnosticStage(@"jit-before-mmap-rx", @{@"bytes": @(size)}))
         return @{@"status": @"failed", @"stage": @"diagnostic-write", @"linux_execution": @NO};
@@ -154,11 +188,7 @@ NSDictionary *MPCExecuteJITProbe(void) {
         munmap(reinterpret_cast<void *>(rx), size); munmap(mapping, size);
         return @{@"status": @"failed", @"stage": @"universal-prepare-return", @"linux_execution": @NO};
     }
-    // The pinned QEMU allocator uses brk 0x69. Configure that one fixed region
-    // callback through universal's command API; never execute user scripts.
-    static const char callback[] = "legacyCommands[0x69] = JIT26PrepareRegion;";
-    MPCDiagnosticStage(@"jit-before-configure-qemu-region-callback", @{});
-    configureDebuggerCallbacks(callback, sizeof(callback) - 1);
+    MPCDiagnosticStage(@"jit-universal-prepare-returned", @{});
     MPCDiagnosticStage(@"jit-before-mprotect-writable-alias", @{});
     if (mprotect(mapping, size, PROT_READ | PROT_WRITE)) {
         int error = errno;
@@ -176,10 +206,16 @@ NSDictionary *MPCExecuteJITProbe(void) {
     }
     int result = reinterpret_cast<int (*)(void)>(rx)();
     MPCDiagnosticStage(@"jit-returned", @{@"returned": @(result)});
-    munmap(reinterpret_cast<void *>(rx), size); munmap(mapping, size);
+    if (result == 42) {
+        retainedJITRX = reinterpret_cast<void *>(rx);
+        retainedJITWritable = mapping;
+    } else {
+        munmap(reinterpret_cast<void *>(rx), size); munmap(mapping, size);
+    }
     return @{@"status": result == 42 ? @"passed" : @"failed", @"returned": @(result),
              @"execution": @"native-arm64-local-jit-stub", @"protocol": @"stikdebug-universal-prepared-rx-writable-alias",
-             @"qemu_region_callback": @"universal-configured-legacy-0x69", @"debugger_kept_for_engine_regions": @YES,
+             @"rx_region_reused": @NO, @"mapping_retained_for_process": @(result == 42),
+             @"qemu_region_callback": @"configured-separately-at-linux-init", @"debugger_kept_for_engine_regions": @YES,
              @"linux_execution": @NO};
 #else
     return @{@"status": @"skipped", @"reason": @"ARM64 device required", @"linux_execution": @NO};

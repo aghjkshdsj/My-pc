@@ -28,7 +28,11 @@ universal executable-region protocol. 8,069,591 bytes, SHA-256
 Source commit `dac0d7d6d4f8c10100e986cf67e9adc3668e792b`.
 [Corresponding source and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-5).
 Hosted recovery tests and iOS compilation passed; the public IPA was independently
-downloaded and checked. Updated phone JIT/Linux/recovery UI results remain pending.
+downloaded and checked. Three native ARM64 JIT checks returned 42 on the phone;
+Linux loaded QEMU but failed its roughly 957 MiB JIT allocation before kernel
+output. Build 4000007 prepares separate RX/writable mappings and a 32 MiB cache,
+retains the native JIT region for repeat execution, and displays saved stages.
+New phone Linux evidence and direct recovery-popup observation remain pending.
 
 The owner confirmed iPhone 15 Pro Max, iOS 27.0.1, iLoader and StikDebug on
 2026-10-02. The probe records the actual OS build, page size, code-signing state,

@@ -18,9 +18,9 @@ jobs:
           gcc -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/tests/renderer_classification.c -o /tmp/mpc-renderer-classification
           /tmp/mpc-renderer-classification
           gcc -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/Guest/gl_gate.c $(sdl2-config --cflags --libs) -lGL -o /tmp/mpc-gl-gate
-          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run /tmp/mpc-gl-gate --allow-software-diagnostic
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a /tmp/mpc-gl-gate --allow-software-diagnostic
           set +e
-          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run /tmp/mpc-gl-gate
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a /tmp/mpc-gl-gate
           result=$?
           set -e
           test "$result" -eq 20

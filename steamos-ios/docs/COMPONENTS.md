@@ -16,12 +16,15 @@ Linux engine adapter, source-built kernel/initramfs, Linux ABI validator and
 guest GL shader diagnostic and a new Vulkan render/readback diagnostic. Hosted
 Linux CPU, GL and Vulkan diagnostic/rejection tests passed. Vulkan's two hosted
 720p images matched every pixel with zero validation errors; the software driver
-was explicitly rejected as acceleration. Native iOS MoltenVK engine build is pending.
+was explicitly rejected as acceleration. Native iOS MoltenVK compiled and packaged,
+but is not integrated or executed on the phone. Hosted Venus serialization is
+currently failing with an aborted client; it is not a completed transport.
 The source-built CPU engine, recovery and StikDebug adapter are packaged in Linux-gate-5.
 Official rootfs/index metadata and 35 ARM client package URLs are resolved;
 full rootfs/client verification, installation and execution remain open.
-The actual iPhone kernel/GPU/Steam/game
-gates remain open. See `STATUS.md` for run identities and failures/fixes.
+Three native ARM64 JIT checks passed on the actual iPhone. Its Linux attempt
+loaded the engine but failed JIT-buffer allocation before kernel output; the
+kernel/GPU/Steam/game gates remain open. See `STATUS.md` for evidence and fixes.
 
 | Archive component | Files | Disposition and dependency | Acceptance |
 |---|---:|---|---|

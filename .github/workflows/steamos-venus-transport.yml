@@ -17,7 +17,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends gcc meson ninja-build pkg-config libepoxy-dev libdrm-dev libvulkan-dev mesa-vulkan-drivers glslang-tools spirv-tools vulkan-validationlayers
       - name: Source-build pinned renderer and run real serialized Vulkan draws
-        run: python3 steamos-ios/tools/run_venus_transport.py
+        run: |
+          set +e
+          python3 steamos-ios/tools/run_venus_transport.py
+          result=$?
+          set -e
+          if [ "$result" -ne 0 ]; then
+            for log in steamos-ios/out/venus-transport/{server,diagnostic,validation}.log; do
+              if [ -f "$log" ]; then cat "$log"; fi
+            done
+          fi
+          exit "$result"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

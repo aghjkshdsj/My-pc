@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('payload', type=pathlib.Path)
     args = parser.parse_args()
     nonce = uuid.uuid4().hex
-    command = ['qemu-system-aarch64', '-machine', 'virt', '-cpu', 'max', '-accel', 'tcg,thread=multi',
+    command = ['qemu-system-aarch64', '-machine', 'virt', '-cpu', 'max', '-accel', 'tcg,thread=multi,split-wx=on,tb-size=32',
                '-smp', '2', '-m', '512', '-nodefaults', '-nographic', '-serial', 'stdio', '-monitor', 'none',
                '-kernel', str(args.payload / 'Image'), '-initrd', str(args.payload / 'initramfs.cpio.gz'),
                '-append', 'console=ttyAMA0 rdinit=/init panic=1 mpc_run=' + nonce, '-no-reboot']
