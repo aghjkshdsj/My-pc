@@ -75,12 +75,22 @@ def prepare(output):
     finish_source = finish.read_text()
     assert finish_source.count('make --quiet clean') == 1
     finish.write_text(finish_source.replace('make --quiet clean', ': # New source tree needs no macOS clean target'))
+    # The upstream iOS dynamic target unnecessarily links the macOS IOKit
+    # framework. Do not ship that required macOS install-name in an iOS engine.
+    project = source / 'MoltenVK/MoltenVK.xcodeproj/project.pbxproj'
+    project_text = project.read_text()
+    link = '\t\t\t\tA9F4D9902B8E7D66004AD576 /* IOKit.framework in Frameworks */,\n'
+    assert project_text.count(link) == 1
+    project.write_text(project_text.replace(link, ''))
+    (output / 'ios-framework-link.patch').write_text(git(source, 'diff', '--',
+        'MoltenVK/MoltenVK.xcodeproj/project.pbxproj', capture=True))
     receipt = {'kind': 'fresh-ios-moltenvk-engine-preparation', 'revision': REVISION,
                'original_fetch_git_blob': blob(original), 'derived_fetch_sha256': hashlib.sha256(derived.encode()).hexdigest(),
                'dependencies': {name: {'repository': repo, 'commit': rev}
                                 for name, (repo, rev) in DEPENDENCIES.items()},
                'changes': ['check pre-fetched exact dependency commits', 'unsigned ARM64 iOS 26 dependency builds',
-                           'skip unrelated macOS clean in a fresh tree'],
+                           'skip unrelated macOS clean in a fresh tree',
+                           'remove IOKit from the iOS dynamic target framework phase'],
                'application_base': 'fresh-steamos-ios', 'phone_tested': False}
     (output / 'source-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
 
@@ -94,6 +104,7 @@ def package(output):
     imports = macho_platform(binary, 6)
     assert all(x.startswith('/System/Library/Frameworks/') or x.startswith('/usr/lib/') for x in imports), imports
     assert not any('Hypervisor' in x or 'PrivateFrameworks' in x for x in imports)
+    assert not any('IOKit' in x for x in imports), 'Unexpected macOS IOKit dependency in iOS engine'
     nm = subprocess.check_output(['nm', '-gU', str(framework / 'MoltenVK')], text=True)
     for symbol in ['_vkCreateInstance', '_vkCreateDevice', '_vkCreateGraphicsPipelines',
                    '_vkCmdDraw', '_vkGetMemoryHostPointerPropertiesEXT']:
@@ -111,6 +122,7 @@ def package(output):
     shutil.copy2(source / 'fetchDependencies-pinned', source_dir)
     shutil.copy2(source / 'Scripts/package_ext_libs_finish.sh', source_dir / 'package_ext_libs_finish.modified.sh')
     shutil.copy2(output / 'source-receipt.json', source_dir)
+    shutil.copy2(output / 'ios-framework-link.patch', source_dir)
     shutil.copy2(__file__, source_dir)
     workflow = pathlib.Path(__file__).resolve().parents[2] / '.github/workflows/steamos-ios-moltenvk.yml'
     shutil.copy2(workflow, source_dir)

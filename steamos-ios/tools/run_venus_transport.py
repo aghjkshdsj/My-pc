@@ -35,6 +35,21 @@ def main():
     renderer.write_text(original.replace('angle_done:\n', 'angle_done: ;\n'))
     (output / 'renderer-c11.patch').write_text(subprocess.check_output(
         ['git', '-C', str(source), 'diff', '--', 'src/vrend/vrend_renderer.c'], text=True))
+    # Exercise the existing external-host-memory branch needed by MoltenVK.
+    # Lavapipe's native opaque-fd export is not mmapable through this vtest
+    # protocol. This scoped test policy is explicit; it changes no phone engine.
+    physical = source / 'src/venus/vkr_physical_device.c'
+    text = physical.read_text()
+    old = '''physical_dev->is_dma_buf_emulated = !physical_dev->EXT_external_memory_dma_buf &&
+                                       !physical_dev->KHR_external_memory_fd &&
+                                       physical_dev->EXT_external_memory_host;'''
+    new = '''physical_dev->is_dma_buf_emulated = physical_dev->EXT_external_memory_host &&
+      (getenv("MPC_TEST_FORCE_EXTERNAL_HOST") ||
+       (!physical_dev->EXT_external_memory_dma_buf && !physical_dev->KHR_external_memory_fd));'''
+    assert text.count(old) == 1
+    physical.write_text(text.replace(old, new))
+    (output / 'external-host-test.patch').write_text(subprocess.check_output(
+        ['git', '-C', str(source), 'diff', '--', 'src/venus/vkr_physical_device.c'], text=True))
     run('meson', 'setup', str(source / 'build'), str(source), '--buildtype=release',
         '-Dvenus=true', '-Dneptune=false', '-Dvtest=true', '-Dtests=false', '-Dplatforms=[]',
         '-Drender-server-mode=thread', '-Drender-server-worker=thread')
@@ -52,7 +67,7 @@ def main():
     assert len(lvp) == len(venus) == 1, (lvp, venus)
     socket = pathlib.Path('/tmp/.virgl_test')
     assert not socket.exists(), 'Never replace an existing server socket'
-    server_environment = dict(os.environ, VK_DRIVER_FILES=str(lvp[0]))
+    server_environment = dict(os.environ, VK_DRIVER_FILES=str(lvp[0]), MPC_TEST_FORCE_EXTERNAL_HOST='1')
     server_environment.pop('VN_DEBUG', None)
     client_environment = dict(os.environ, VK_DRIVER_FILES=str(venus[0]), VN_DEBUG='vtest')
     server_binary = source / 'build/vtest/virgl_test_server'
@@ -85,11 +100,14 @@ def main():
                 try: server.wait(timeout=5)
                 except subprocess.TimeoutExpired: server.kill(); server.wait(timeout=5)
     files = [output / name for name in ['vk-gate', 'vertex.spv', 'fragment.spv', 'diagnostic.log', 'validation.log',
-                                        'rejection.log', 'rejection-validation.log', 'server.log', 'virglrenderer-source.tar', 'renderer-c11.patch']]
+                                        'rejection.log', 'rejection-validation.log', 'server.log', 'virglrenderer-source.tar',
+                                        'renderer-c11.patch', 'external-host-test.patch']]
     files += [server_binary, lvp[0], venus[0]]
     receipt = {'scope': 'hosted-linux-arm64-venus-vtest-software-diagnostic',
                'transport': 'Mesa Venus vtest -> pinned virglrenderer -> lavapipe',
                'renderer_commit': REVISION, 'server_options': server_command[1:],
+               'memory_policy': 'explicit test override: existing VK_EXT_external_memory_host/POSIX-shm branch',
+               'unmodified_linux_native_fd_path_passed': False,
                'source_commit': os.environ.get('GITHUB_SHA'),
                'workflow_run': os.environ.get('GITHUB_RUN_ID'), 'diagnostic': rows[0],
                'expected_channel_sum': expected, 'software_rejection_exit': rejected.returncode,
