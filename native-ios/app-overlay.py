@@ -137,6 +137,8 @@ def runtime_overlay(source):
     source = once(source, 'count <= 256)', 'count <= (desktop ? 16384 : 256))')
     source = once(source, 'size <= 64 * 1024 * 1024', 'size <= (desktop ? 512 : 64) * 1024 * 1024')
     source = once(source, 'total <= 256 * 1024 * 1024', 'total <= (desktop ? 1024 : 256) * 1024 * 1024')
+    source = once(source, '        madeira_seed_prefix_if_needed(prefix.path)\n',
+                  '        madeira_seed_prefix_if_needed(prefix.path)\n        try NativeSteamDesktopLaunch.restoreLibraryDiscovery(prefix: prefix)\n')
     return source
 
 def project_overlay(source):
