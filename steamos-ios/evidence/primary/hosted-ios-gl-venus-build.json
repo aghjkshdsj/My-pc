@@ -1,0 +1,151 @@
+{
+  "schema": 1,
+  "scope": "source-built-native-ios-gl-venus-engine-compile-only",
+  "source_commit": "7281f4759ba47cfcfc492a4093ee56b5bf9730d9",
+  "workflow_run": "37078312649",
+  "pins": {
+    "virglrenderer": "5d26f605f50f8e22002ec6db5fb775e1992d4e96",
+    "libepoxy": "bf98587477fe68d07b93319ece7b40a7d0e2eabe"
+  },
+  "angle_input": {
+    "schema": 1,
+    "scope": "source-built-native-ios-angle-engine-compile-only",
+    "source_commit": "b925d37b18d0bb4d7721ea1aedc059b43f9240a1",
+    "workflow_run": "37077105285",
+    "engine_repository": "https://github.com/utmapp/WebKit.git",
+    "engine_commit": "ed78ab6e1a37f4f11583a0bd038f22ec91f3ff10",
+    "source_paths": [
+      "Source/ThirdParty/ANGLE",
+      "Configurations",
+      "Tools/ccache"
+    ],
+    "source_application_reused": false,
+    "xcode_version": "Xcode 26.6\nBuild version 17F113",
+    "sdk_version": "26.5",
+    "command": [
+      "xcodebuild",
+      "archive",
+      "-project",
+      "ANGLE.xcodeproj",
+      "-scheme",
+      "ANGLE",
+      "-sdk",
+      "iphoneos",
+      "-arch",
+      "arm64",
+      "-configuration",
+      "Release",
+      "-archivePath",
+      "/Users/runner/work/My-pc/My-pc/steamos-ios/out/ios-angle/ANGLE.xcarchive",
+      "CODE_SIGNING_ALLOWED=NO",
+      "CODE_SIGNING_REQUIRED=NO",
+      "USE_INTERNAL_SDK=NO",
+      "WEBCORE_LIBRARY_DIR=/usr/local/lib",
+      "NORMAL_UMBRELLA_FRAMEWORKS_DIR=",
+      "IPHONEOS_DEPLOYMENT_TARGET=26.0",
+      "GCC_OPTIMIZATION_LEVEL=3",
+      "ANGLE_ALLOWABLE_CLIENTS=",
+      "WK_USE_CCACHE=YES"
+    ],
+    "public_ios_sdk": true,
+    "metal_owner_identity_enabled": false,
+    "physical_ios_arm64": true,
+    "metal_backend_compiled": true,
+    "egl_dispatch_framework_path": "@rpath/GLESv2.framework/GLESv2",
+    "opengl_es_backend_compiled": true,
+    "phone_tested": false,
+    "linux_graphics_verified": false,
+    "metal_runtime_verified": false,
+    "presentation_verified": false,
+    "gameplay_verified": false,
+    "required_exports": {
+      "EGL": [
+        "eglGetProcAddress",
+        "eglGetPlatformDisplay",
+        "eglInitialize",
+        "eglCreateContext"
+      ],
+      "GLESv2": [
+        "glGetString",
+        "glDrawArrays",
+        "glReadPixels",
+        "glFenceSync"
+      ]
+    },
+    "imports": {
+      "EGL": [
+        "/usr/lib/libc++.1.dylib",
+        "/usr/lib/libSystem.B.dylib"
+      ],
+      "GLESv2": [
+        "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+        "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+        "/System/Library/Frameworks/Foundation.framework/Foundation",
+        "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+        "/System/Library/Frameworks/Metal.framework/Metal",
+        "/usr/lib/libz.1.dylib",
+        "/usr/lib/libobjc.A.dylib",
+        "/usr/lib/libc++.1.dylib",
+        "/usr/lib/libSystem.B.dylib",
+        "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
+      ]
+    },
+    "files": {
+      "Frameworks/EGL.framework/EGL": {
+        "bytes": 75984,
+        "sha256": "13ee7d880bc87c3095deca5dd6353d7a794e051657116e3557523ca72a007c55"
+      },
+      "Frameworks/GLESv2.framework/GLESv2": {
+        "bytes": 6729168,
+        "sha256": "13619c5bd7286a39adaf9fdc7582787f0c6a53ac15279c6d75a0d55f92e1e780"
+      },
+      "ANGLE-Upstream-Source.tar": {
+        "bytes": 92364800,
+        "sha256": "ea973691ebccaa529f001ea5eda69ceb1790311b5a7675b6558447190b35d07c"
+      },
+      "public-ios-angle.patch": {
+        "bytes": 20088,
+        "sha256": "1778f4ece053964e43b4870ec7649025e299cac1cdf472554646a86cc530b9a0"
+      }
+    }
+  },
+  "physical_ios_arm64": true,
+  "egl_backend_compiled": true,
+  "venus_backend_compiled": true,
+  "same_process_thread_renderer": true,
+  "phone_tested": false,
+  "linux_graphics_verified": false,
+  "memory_import_verified": false,
+  "metal_runtime_verified": false,
+  "presentation_verified": false,
+  "files": {
+    "ios-arm64.cross": {
+      "bytes": 1711,
+      "sha256": "d0fac0e4ba94364d8a1ab78051c6984445bf49aeb2fa87adb0222154852d6c3f"
+    },
+    "ios-egl-dispatch.patch": {
+      "bytes": 681,
+      "sha256": "3ed429a4fde7f5391de6bd25221b85fdcdd833a4a2cdf55ef7d594ed22ffbd30"
+    },
+    "ios-vulkan-loader.patch": {
+      "bytes": 542,
+      "sha256": "44685f61af8dddab61579521246e21a0b68ee200c32f7bc0d00cd3dfe4722466"
+    },
+    "virglrenderer-source.tar": {
+      "bytes": 17909760,
+      "sha256": "64894d65871603793b696bc7f21b0d17375007fb26e7a47028cf7252fa7d5f3c"
+    },
+    "libepoxy-source.tar": {
+      "bytes": 3614720,
+      "sha256": "36e30e2070a34b6f51b2bb194dd78c464a08d688bdabf5682906f85315487f47"
+    },
+    "Frameworks/epoxy.0.framework/epoxy.0": {
+      "bytes": 1346728,
+      "sha256": "1ce43b8386c32d836fa5ce877b5d048c8fb07ce577b11346c97ddcdcc7ae5164"
+    },
+    "Frameworks/virglrenderer.1.framework/virglrenderer.1": {
+      "bytes": 3007328,
+      "sha256": "0796b72ae0a69b226bd69a49d0747e28462673ab5870f17d936fd4e9d2775154"
+    }
+  }
+}

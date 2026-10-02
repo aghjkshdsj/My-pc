@@ -18,6 +18,20 @@ def transform(name, text):
                        "  headless_deps = host_os == 'darwin' ? [egl, opengl, pixman] : [egl, opengl, gbm, pixman]\n"
                        '  egl_headless_ss.add(when: headless_deps,')
     if name == 'ui/egl-helpers.c':
+        # Request an ES3 root context for our virgl GLES diagnostics. Preserve
+        # the upstream ES2 default on other hosts; require ES3 for this path.
+        text = replace(text, '        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,',
+                       '#ifdef __APPLE__\n'
+                       '        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,\n'
+                       '#else\n'
+                       '        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,\n'
+                       '#endif')
+        text = replace(text, '        EGL_CONTEXT_CLIENT_VERSION, 2,',
+                       '#ifdef __APPLE__\n'
+                       '        EGL_CONTEXT_CLIENT_VERSION, 3,\n'
+                       '#else\n'
+                       '        EGL_CONTEXT_CLIENT_VERSION, 2,\n'
+                       '#endif')
         text = replace(text, 'int qemu_egl_init_dpy_cocoa(DisplayGLMode mode)\n{\n'
                             '    EGLDisplay dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);',
                        'int qemu_egl_init_dpy_cocoa(DisplayGLMode mode)\n{\n'
@@ -73,6 +87,7 @@ def patch(source, output):
     (output / 'qemu-angle-metal-diagnostic.patch').write_text(''.join(patches), encoding='utf-8')
     receipt = {'schema': 1, 'scope': 'darwin-qemu-angle-metal-headless-diagnostic-adapter-source',
                'files': files, 'metal_backend_explicitly_requested': True,
+               'root_gles_version_requested': 3,
                'steady_state_presenter': False, 'phone_tested': False,
                'guest_graphics_verified': False, 'presentation_verified': False}
     (output / 'gpu-adapter-source.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')

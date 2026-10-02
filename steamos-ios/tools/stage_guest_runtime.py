@@ -30,7 +30,12 @@ def package(path):
     for name in candidates:
         result = subprocess.run(['dpkg-query', '-S', name], text=True, capture_output=True)
         if result.returncode == 0:
-            owners = [line.rsplit(': ', 1)[0] for line in result.stdout.splitlines() if ': ' in line]
+            # dpkg-query also prints usr-merge diversion notices. Those are
+            # not ownership records; continue to the resolved file if needed.
+            owners = [line.rsplit(': ', 1)[0] for line in result.stdout.splitlines()
+                      if ': ' in line and not line.startswith('diversion by ')]
+            if not owners:
+                continue
             assert len(owners) == 1, (path, owners)
             owner = owners[0]
             fields = capture('dpkg-query', '-W', '-f=${binary:Package}\t${Version}\t${source:Package}\t${source:Version}', owner).split('\t')
