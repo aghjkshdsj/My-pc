@@ -120,6 +120,7 @@ NSDictionary *MPCLinuxKernelProbe(void) {
         run[@"engine_finished"] = @(finished.load());
         run[@"engine_status"] = @(engineStatus.load());
         NSString *text = [NSString stringWithContentsOfFile:serial encoding:NSUTF8StringEncoding error:&error] ?: @"";
+        run[@"serial_tail"] = text.length > 16000 ? [text substringFromIndex:text.length - 16000] : text;
         NSMutableArray<NSDictionary *> *guestRows = [NSMutableArray array];
         for (NSString *line in [text componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
             NSRange marker = [line rangeOfString:@"MPC_LINUX_ABI "];

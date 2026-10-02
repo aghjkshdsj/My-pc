@@ -8,7 +8,26 @@ import plistlib
 import struct
 import zipfile
 
-def verify(path, commit):
+def macho_platform(binary, filetype):
+    magic, cpu, subtype, actual_type, ncmds, sizeofcmds, flags, reserved = struct.unpack_from('<8I', binary)
+    assert magic == 0xfeedfacf and cpu == 0x100000c and actual_type == filetype, 'Expected ARM64 Mach-O kind'
+    assert 32 + sizeofcmds <= len(binary) and ncmds <= 1024
+    offset, ios = 32, False
+    imports = []
+    for _ in range(ncmds):
+        command, size = struct.unpack_from('<II', binary, offset)
+        assert size >= 8 and offset + size <= 32 + sizeofcmds
+        if command == 0x32:
+            ios = struct.unpack_from('<I', binary, offset + 8)[0] == 2
+        if command in [0xc, 0x80000018, 0x8000001f]:
+            name_offset = struct.unpack_from('<I', binary, offset + 8)[0]
+            assert 24 <= name_offset < size
+            imports.append(binary[offset + name_offset:offset + size].split(b'\0', 1)[0].decode())
+        offset += size
+    assert ios, 'Mach-O must target physical iOS'
+    return imports
+
+def verify(path, commit, linux_gate=False):
     with zipfile.ZipFile(path) as z:
         assert z.testzip() is None, 'IPA ZIP CRC failed'
         prefix = 'Payload/MyPCSteamOSProbe.app/'
@@ -16,21 +35,36 @@ def verify(path, commit):
         assert info['CFBundleIdentifier'] == 'com.aghjkshdsj.mypc.steamos.probe'
         assert info['MPCSourceCommit'] == commit
         binary = z.read(prefix + info['CFBundleExecutable'])
-        magic, cpu, subtype, filetype, ncmds, sizeofcmds, flags, reserved = struct.unpack_from('<8I', binary)
-        assert magic == 0xfeedfacf and cpu == 0x100000c and filetype == 2, 'Expected ARM64 Mach-O executable'
-        assert 32 + sizeofcmds <= len(binary) and ncmds <= 1024
-        offset, ios = 32, False
-        for _ in range(ncmds):
-            command, size = struct.unpack_from('<II', binary, offset)
-            assert size >= 8 and offset + size <= 32 + sizeofcmds
-            if command == 0x32:
-                ios = struct.unpack_from('<I', binary, offset + 8)[0] == 2
-            offset += size
-        assert ios, 'Mach-O must target physical iOS'
+        macho_platform(binary, 2)
         assert not any('Madeira' in p or 'NativeSteam' in p for p in z.namelist()), 'Old app contamination'
-        return {'schema': 1, 'kind': 'ios-host-probe-only', 'commit': commit, 'build': info['CFBundleVersion'],
+        engine = prefix + 'Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu'
+        frameworks = []
+        if linux_gate:
+            assert engine in z.namelist(), 'Missing Linux engine'
+            for name in z.namelist():
+                if not name.startswith(prefix + 'Frameworks/') or not name.endswith('.framework/Info.plist'): continue
+                metadata = plistlib.loads(z.read(name))
+                executable = name.rsplit('/', 1)[0] + '/' + metadata['CFBundleExecutable']
+                imports = macho_platform(z.read(executable), 6)
+                for dependency in imports:
+                    if dependency.startswith('/usr/lib/') or dependency.startswith('/System/Library/'): continue
+                    assert dependency.startswith('@rpath/') and 'Hypervisor' not in dependency, dependency
+                    assert prefix + 'Frameworks/' + dependency[len('@rpath/'):] in z.namelist(), dependency
+                frameworks.append(executable)
+            payload = prefix + 'LinuxGate/'
+            receipt = json.loads(z.read(payload + 'payload-receipt.json'))
+            assert receipt['kind'] == 'disposable-linux-abi-gate' and receipt['steamos'] is False
+            for name in ['Image', 'initramfs.cpio.gz']:
+                data = z.read(payload + name)
+                assert len(data) == receipt['files'][name]['bytes']
+                assert hashlib.sha256(data).hexdigest() == receipt['files'][name]['sha256']
+            assert z.read(payload + 'Image')[56:60] == b'ARMd'
+        else:
+            assert engine not in z.namelist(), 'Engine-bearing IPA needs explicit Linux gate verification'
+        return {'schema': 1, 'kind': 'ios-linux-kernel-gate' if linux_gate else 'ios-host-probe-only', 'commit': commit, 'build': info['CFBundleVersion'],
                 'bundle_id': info['CFBundleIdentifier'], 'sha256': hashlib.file_digest(path.open('rb'), 'sha256').hexdigest(),
                 'bytes': path.stat().st_size, 'zip_crc': 'passed', 'arm64_ios': True,
+                'linux_gate_bundled': linux_gate, 'engine_frameworks_checked': frameworks,
                 'linux_boot_verified': False, 'game_graphics_verified': False, 'phone_performance_verified': False}
 
 if __name__ == '__main__':
@@ -38,8 +72,9 @@ if __name__ == '__main__':
     parser.add_argument('ipa', type=pathlib.Path)
     parser.add_argument('commit')
     parser.add_argument('--receipt', type=pathlib.Path)
+    parser.add_argument('--linux-gate', action='store_true')
     args = parser.parse_args()
-    result = verify(args.ipa, args.commit)
+    result = verify(args.ipa, args.commit, args.linux_gate)
     text = json.dumps(result, indent=2) + '\n'
     if args.receipt:
         args.receipt.write_text(text, encoding='utf-8')

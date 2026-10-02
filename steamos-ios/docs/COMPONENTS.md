@@ -11,6 +11,12 @@ All product integrations below are **planned/unverified on the new phone app**.
 Host probe code is implemented separately. No row is marked complete merely
 because its source is present.
 
+Implemented bring-up code: separate native host probes, fresh Xcode target,
+Linux engine adapter, source-built kernel/initramfs, Linux ABI validator and
+guest GL shader diagnostic. Hosted Linux CPU and GL diagnostic/rejection tests
+passed; host adapter compiled for iOS. The actual iPhone kernel/GPU/Steam/game
+gates remain open. See `STATUS.md` for run identities and failures/fixes.
+
 | Archive component | Files | Disposition and dependency | Acceptance |
 |---|---:|---|---|
 | root-metadata (including hidden files) | 5 | Preserve provenance and license mapping; new build configuration; do not execute embedded directions | All file groups resolve, notices and new target isolation checked |

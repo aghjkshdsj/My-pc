@@ -9,6 +9,7 @@ NSDictionary *MPCExecuteJITProbe(void);
 NSDictionary *MPCMetalProbe(void);
 NSDictionary *MPCStorageProbe(void);
 NSDictionary *MPCLinuxKernelProbe(void);
+NSDictionary *MPCNativeCPUProbe(void);
 #ifdef __cplusplus
 }
 #endif

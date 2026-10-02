@@ -2,7 +2,7 @@ name: Fresh Linux ARM kernel execution gate
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Guest/**', 'steamos-ios/tools/*kernel*', 'steamos-ios/tools/make_initramfs.py', '.github/workflows/steamos-linux-kernel-gate.yml']
+    paths: ['steamos-ios/Guest/abi_probe.c', 'steamos-ios/Guest/init', 'steamos-ios/tools/*kernel*', 'steamos-ios/tools/make_initramfs.py', '.github/workflows/steamos-linux-kernel-gate.yml']
   workflow_dispatch:
 permissions:
   contents: read

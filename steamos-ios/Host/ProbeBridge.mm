@@ -11,6 +11,35 @@
 #include <unistd.h>
 #include <errno.h>
 #include <vector>
+#include <time.h>
+
+static double threadCPUSeconds() {
+    struct timespec value = {};
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value)) return -1;
+    return value.tv_sec + value.tv_nsec / 1e9;
+}
+NSDictionary *MPCNativeCPUProbe(void) {
+    NSMutableArray *trials = [NSMutableArray array];
+    BOOL correct = YES;
+    for (int trial = 0; trial < 5; ++trial) {
+        uint64_t value = 1;
+        double cpuStart = threadCPUSeconds();
+        double wallStart = NSProcessInfo.processInfo.systemUptime;
+        for (int i = 0; i < 1000000; ++i) {
+            value ^= value >> 12; value ^= value << 25; value ^= value >> 27;
+            value *= UINT64_C(2685821657736338717);
+        }
+        double wallMS = (NSProcessInfo.processInfo.systemUptime - wallStart) * 1000;
+        double cpuEnd = threadCPUSeconds();
+        correct = correct && value == UINT64_C(0x1d250c45a7bbc87e);
+        [trials addObject:@{@"wall_ms": @(wallMS),
+            @"thread_cpu_ms": cpuStart >= 0 && cpuEnd >= 0 ? @((cpuEnd - cpuStart) * 1000) : [NSNull null],
+            @"checksum": [NSString stringWithFormat:@"%016llx", (unsigned long long)value]}];
+    }
+    return @{@"status": correct ? @"passed" : @"failed", @"execution": @"native-ios-arm64",
+        @"algorithm": @"same-xorshift64star-as-linux-abi-gate", @"iterations_per_trial": @1000000,
+        @"trials": trials, @"linux_execution": @NO, @"game_performance": @NO};
+}
 
 static double nowSeconds() { return NSProcessInfo.processInfo.systemUptime; }
 static NSString *systemString(const char *name) {

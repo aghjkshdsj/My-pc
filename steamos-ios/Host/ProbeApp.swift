@@ -25,7 +25,7 @@ final class ProbeModel: ObservableObject {
             switch kind {
             case "linux": tests = ["linux": MPCLinuxKernelProbe()]
             case "jit": tests = ["jit": MPCExecuteJITProbe()]
-            default: tests = ["metal": MPCMetalProbe(), "storage": MPCStorageProbe()]
+            default: tests = ["native_cpu": MPCNativeCPUProbe(), "metal": MPCMetalProbe(), "storage": MPCStorageProbe()]
             }
             await self.finish(runID: runID, before: before, controllers: controllers, tests: tests)
         }
