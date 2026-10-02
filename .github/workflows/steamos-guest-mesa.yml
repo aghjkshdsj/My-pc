@@ -2,7 +2,7 @@ name: Fresh ARM Linux Mesa guest userspace
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/tools/build_guest_mesa.py', '.github/workflows/steamos-guest-mesa.yml']
+    paths: ['steamos-ios/tools/build_guest_mesa.py', 'steamos-ios/tools/run_mesa_without_gpu.py', '.github/workflows/steamos-guest-mesa.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,5 +29,6 @@ jobs:
             steamos-ios/out/guest-mesa/Guest-Mesa-*.tar.gz
             steamos-ios/out/guest-mesa/receipt.json
             steamos-ios/out/guest-mesa/missing-device.log
+            steamos-ios/out/guest-mesa/missing-device-receipt.json
             steamos-ios/out/guest-mesa/build/meson-logs/meson-log.txt
           retention-days: 14

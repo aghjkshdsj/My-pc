@@ -6,6 +6,7 @@ import os
 import pathlib
 import platform
 import subprocess
+import sys
 import tarfile
 import urllib.request
 
@@ -88,19 +89,31 @@ def build():
         run('spirv-val', '--target-env', 'vulkan1.1', str(output / filename))
     # The hosted build has no virtio GPU. Pin the exact new driver and require
     # failure before any graphics receipt; a system software ICD must not pass.
-    assert not pathlib.Path('/dev/dri').exists(), 'Dedicated missing-GPU test host required'
     missing_icd = output / 'missing-device-icd.json'
     missing = json.loads(json.dumps(icd))
     missing['ICD']['library_path'] = str(venus)
     missing_icd.write_text(json.dumps(missing) + '\n', encoding='utf-8')
-    environment = dict(os.environ, VK_DRIVER_FILES=str(missing_icd),
-                       LD_LIBRARY_PATH=str(staging / 'usr/lib'))
-    environment.pop('VN_DEBUG', None)
-    result = subprocess.run([str(executable), str(output / 'vertex.spv'), str(output / 'fragment.spv')],
-                            env=environment, capture_output=True, text=True, timeout=30)
-    assert result.returncode == 3 and 'Vulkan call failed:' in result.stderr
-    assert 'MPC_VK_DIAGNOSTIC' not in result.stdout and 'MPC_VK_REJECTED' not in result.stdout
-    (output / 'missing-device.log').write_text(result.stdout + result.stderr, encoding='utf-8')
+    parent_namespace = os.readlink('/proc/self/ns/mnt')
+    result = subprocess.run(['sudo', 'unshare', '--mount', '--propagation', 'private', '--',
+                             sys.executable, str(PROJECT / 'tools/run_mesa_without_gpu.py'), parent_namespace,
+                             str(executable), str(output / 'vertex.spv'), str(output / 'fragment.spv'),
+                             str(missing_icd), str(staging / 'usr/lib')],
+                            check=True, capture_output=True, text=True, timeout=40)
+    negative = json.loads(result.stdout)
+    assert negative['parent_mount_namespace'] == parent_namespace
+    assert negative['mount_namespace'] != parent_namespace and negative['drm_device_nodes'] == []
+    assert negative['returncode'] in [3, 6]
+    if negative['returncode'] == 3:
+        assert any('Vulkan call failed: ' + call in negative['stderr']
+                   for call in ['vkCreateInstance(', 'vkEnumeratePhysicalDevices('])
+    else:
+        # With validation disabled, vk_gate returns 6 for zero physical devices
+        # before shaders/receipts. A private namespace with no DRM nodes and the
+        # exact virtio-only ICD makes this the intentional missing-device case.
+        assert not negative['stdout'].strip()
+    assert 'MPC_VK_DIAGNOSTIC' not in negative['stdout'] and 'MPC_VK_REJECTED' not in negative['stdout']
+    (output / 'missing-device.log').write_text(negative['stdout'] + negative['stderr'], encoding='utf-8')
+    (output / 'missing-device-receipt.json').write_text(json.dumps(negative, indent=2) + '\n', encoding='utf-8')
     # External Linux runtime libraries/loader remain dependencies, not secretly
     # included in this archive. Their exact packages are recorded for payload work.
     runtime = [p for p in staging.rglob('*') if p.is_file() and not p.is_symlink()
@@ -113,7 +126,8 @@ def build():
                'source_commit': os.environ.get('GITHUB_SHA'), 'workflow_run': os.environ.get('GITHUB_RUN_ID'),
                'upstream_url': url, 'upstream_sha256': SOURCE_SHA, 'mesa_version': VERSION,
                'meson_options': options, 'linux_arm64': True, 'virgl_compiled': True, 'venus_compiled': True,
-               'missing_device_exit': result.returncode, 'external_linux_dependencies': dependencies,
+               'missing_device_exit': negative['returncode'], 'missing_device_test': negative,
+               'external_linux_dependencies': dependencies,
                'kernel_boot_tested': False, 'phone_tested': False, 'guest_shader_verified': False,
                'metal_verified': False, 'presentation_verified': False, 'steamos_verified': False,
                'gameplay_verified': False,
@@ -128,6 +142,7 @@ def build():
     with tarfile.open(output / 'Guest-Mesa-Corresponding-Source.tar.gz', 'w:gz') as archive:
         for path in [upstream, receipt_path, directory / 'meson-info/intro-buildoptions.json',
                      directory / 'meson-logs/meson-log.txt', PROJECT / 'tools/build_guest_mesa.py',
+                     PROJECT / 'tools/run_mesa_without_gpu.py',
                      PROJECT / 'Guest/vk_gate.c', PROJECT / 'Guest/renderer_classification.h',
                      PROJECT / 'Guest/vk_gate.vert', PROJECT / 'Guest/vk_gate.frag',
                      PROJECT.parent / '.github/workflows/steamos-guest-mesa.yml']:
