@@ -10,6 +10,7 @@ NSDictionary *MPCMetalProbe(void);
 NSDictionary *MPCStorageProbe(void);
 NSDictionary *MPCLinuxKernelProbe(void);
 NSDictionary *MPCNativeCPUProbe(void);
+NSDictionary *MPCNativeVulkanProbe(NSString *diagnosticDirectory);
 BOOL MPCStartDiagnosticCapture(NSString *directory);
 BOOL MPCDiagnosticStage(NSString *stage, NSDictionary *details);
 void MPCStopDiagnosticCapture(void);

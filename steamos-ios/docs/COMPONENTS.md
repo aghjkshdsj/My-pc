@@ -17,14 +17,16 @@ guest GL shader diagnostic and a new Vulkan render/readback diagnostic. Hosted
 Linux CPU, GL and Vulkan diagnostic/rejection tests passed. Vulkan's two hosted
 720p images matched every pixel with zero validation errors; the software driver
 was explicitly rejected as acceleration. Native iOS MoltenVK compiled and packaged,
-but is not integrated or executed on the phone. Hosted Venus serialization is
-currently failing with an aborted client; it is not a completed transport.
+and its unneeded macOS IOKit dependency was removed in a verified rebuild.
+Native phone execution is pending. Hosted Venus serialized draws passed through
+the external-host SHM branch under an explicit test policy; the unmodified fd
+route failed. This is software Linux testing, not a completed guest Metal path.
 The source-built CPU engine, recovery and StikDebug adapter are packaged in Linux-gate-5.
 Official rootfs/index metadata and 35 ARM client package URLs are resolved;
 full rootfs/client verification, installation and execution remain open.
-Three native ARM64 JIT checks passed on the actual iPhone. Its Linux attempt
-loaded the engine but failed JIT-buffer allocation before kernel output; the
-kernel/GPU/Steam/game gates remain open. See `STATUS.md` for evidence and fixes.
+Native ARM64 JIT and Linux 6.12.111 boot/ABI checks passed on the actual iPhone
+in build 4000007. The recorded kernel-plus-test run took 691.06 ms; it is not
+SteamOS startup or gameplay. GPU/Steam/game gates remain open. See `STATUS.md`.
 
 | Archive component | Files | Disposition and dependency | Acceptance |
 |---|---:|---|---|

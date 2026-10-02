@@ -2,7 +2,7 @@ name: Fresh iPhone Linux gate prerelease
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', '.github/workflows/steamos-ios-linux-prerelease.yml', 'steamos-ios/tools/bundle_linux_gate.py']
+    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', '.github/workflows/steamos-ios-linux-prerelease.yml', 'steamos-ios/tools/bundle_linux_gate.py', 'steamos-ios/tools/bundle_native_vulkan.py']
   workflow_dispatch:
 permissions:
   contents: write
@@ -19,12 +19,16 @@ jobs:
         run: |
           gh api repos/aghjkshdsj/My-pc/actions/runs/37014232362 > engine-run.json
           gh api repos/aghjkshdsj/My-pc/actions/runs/37014232445 > guest-run.json
+          gh api repos/aghjkshdsj/My-pc/actions/runs/37056046870 > graphics-run.json
           python3 - <<'PY'
           import json
           for name in ['engine-run.json', 'guest-run.json']:
               row=json.load(open(name))
               assert row['conclusion']=='success'
               assert row['head_sha']=='33c54e5be2d022bc19bcf3e1a448163016dc84af'
+          graphics=json.load(open('graphics-run.json'))
+          assert graphics['conclusion']=='success'
+          assert graphics['head_sha']=='5f9805fded4390780798c25b8a7465db36234fe3'
           PY
       - uses: actions/download-artifact@v4
         with:
@@ -38,6 +42,20 @@ jobs:
           run-id: 37014232445
           github-token: ${{ github.token }}
           path: steamos-ios/out/guest-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-iOS-MoltenVK-Engine
+          run-id: 37056046870
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/graphics-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: hosted-arm-vulkan-diagnostic
+          run-id: 37035517982
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/shader-artifact
+      - name: Stage exact graphics engine, official headers and checked shaders
+        run: python3 steamos-ios/tools/bundle_native_vulkan.py prepare steamos-ios/out/graphics-artifact steamos-ios/out/shader-artifact
       - name: Verify crash recovery and evidence boundaries
         run: |
           python3 -m unittest discover -s steamos-ios/tests -p 'test_*.py' -v
@@ -60,15 +78,17 @@ jobs:
           guest="$(find steamos-ios/out/guest-artifact -name Linux-Gate-Payload.tar.gz -print -quit)"
           test -n "$engine"; test -n "$guest"
           python3 steamos-ios/tools/bundle_linux_gate.py "$(dirname "$engine")" "$(dirname "$guest")" "$app"
+          python3 steamos-ios/tools/bundle_native_vulkan.py bundle "$app"
           # Retain upstream COPYING/LICENSE files next to the actual binaries.
           tar -xOf "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" build-iOS-arm64/qemu-10.0.12-utm/COPYING > "$app/QEMU-COPYING"
           cp steamos-ios/LICENSE "$app/Fresh-Source-LICENSE"
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Linux-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --build 4000007 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --build 4000008 --receipt steamos-ios/out/package/verification.json
           cp "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" steamos-ios/out/package/
           cp "$(dirname "$guest")/Linux-Gate-Corresponding-Source.tar.gz" steamos-ios/out/package/
+          cp steamos-ios/out/graphics-artifact/MoltenVK-Corresponding-Source.tar.gz steamos-ios/out/package/
           git archive --format=tar.gz -o steamos-ios/out/package/MyPCSteamOS-Fresh-Source.tar.gz HEAD steamos-ios ':(glob).github/workflows/steamos-*.yml'
-          cp engine-run.json guest-run.json steamos-ios/out/package/
+          cp engine-run.json guest-run.json graphics-run.json steamos-ios/out/package/
           (cd steamos-ios/out/package && shasum -a 256 *.ipa *.tar.gz *.json > SHA256SUMS)
       - name: Publish and redownload the verified Linux gate
         env:
@@ -78,13 +98,17 @@ jobs:
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
           Fresh native ARM64 iOS host plus QEMU TCG Linux kernel bring-up.
 
+          Build 4000008 adds an actual native Vulkan-to-Metal offscreen shader gate through the source-built MoltenVK engine. It checks two 1280x720 images, 1,843,200 pixels and an independent channel checksum. Use Run native Vulkan → Metal check and share its saved report. The engine is loaded inside durable diagnostic capture, not at app startup. Diagnostic errors return a failed result; partial resources after abort require close/relaunch. This is a native host-engine test; Linux guest graphics, moving presentation, SteamOS, Steam/FEX and game performance remain unfinished. Validation-layer availability is recorded rather than assumed.
+
+          The owner-supplied build 4000007 reports passed the Linux kernel/ABI gate on iPhone 15 Pro Max, iOS 27.0.1 build 24A446. The recorded 0.69-second kernel-plus-test run is not Steam startup or gameplay. Repeated native JIT checks also passed. Raw phone reports remain private. This package includes the 32 MiB split-WX fix and supersedes the misversioned Linux-gate-6 package.
+
           This gate boots a disposable source-built Linux 6.12.111 / BusyBox 1.38.0 initramfs and checks guest signals, mmap/protection, pthread/TLS/futex, fork/exec and CPU checksum. It has no persistent disk, networking, SteamOS image, Steam/FEX client/game or guest GPU. Metal host probes remain separate. Phone boot/performance is unverified until a new device receipt is returned.
 
           Install with iLoader, enable StikDebug for My-pc SteamOS Probe, run the host probes, then Run Linux kernel gate. Keep the app foreground for up to three minutes. Close/relaunch before repeating Linux boot. Share device report; Linux serial and pending receipts are in the app's Files documents directory if it terminates or times out. Existing projects, game data and apps are not inputs.
 
           Crash recovery: a pending-test marker and fsynced native stage/output logs are saved before risky JIT/engine calls. If a test ends without a result, reopening offers Share logs. Later or cancelling sharing preserves the files; Share saved diagnostic logs remains available. A pending run alone cannot distinguish a crash, OS termination and force-close. The diagnostic export is private and never uploaded automatically.
 
-          Build 4000007 addresses the observed QEMU initialization failure: the prior phone attempt loaded the engine but was denied an approximately 957 MiB MAP_JIT buffer, with empty kernel serial output. Linux now explicitly requests split-wx=on and tb-size=32 (32 MiB), selecting the Darwin RX/writable-alias allocator. Native JIT re-executes one retained successfully prepared region on repeat checks. QEMU's legacy callback is configured separately while StikDebug is attached. The UI shows the last durably saved stage and readable result. These changes require a new physical phone receipt; Linux boot is not yet verified.
+          The previous QEMU initialization failure denied an approximately 957 MiB MAP_JIT buffer. Linux now explicitly requests split-wx=on and tb-size=32 (32 MiB), selecting the Darwin RX/writable-alias allocator. Native JIT re-executes one retained successfully prepared region on repeat checks. QEMU's legacy callback is configured separately while StikDebug is attached. The UI shows saved stages and readable results. Build 4000007 passed the phone Linux gate; this new graphics-bearing package still needs its own phone report.
 
           Enable JIT in StikDebug opens the official enable-jit route with this running app's bundle ID/PID and universal.js. Confirm StikDebug's request if prompted. Linux initialization detaches after its initial TCG allocation. URL opening or a debugger flag is not called JIT success; actual code must return 42. Three native ARM64 JIT checks passed on build 4000006; that does not demonstrate Linux, Steam or Metal guest graphics.
 
@@ -95,11 +119,11 @@ jobs:
           gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "My-pc fresh iPhone Linux gate ${GITHUB_RUN_NUMBER}" --notes-file steamos-ios/out/package/release-notes.md \
             steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa steamos-ios/out/package/verification.json \
             steamos-ios/out/package/SHA256SUMS steamos-ios/out/package/*-Source.tar.gz \
-            steamos-ios/out/package/engine-run.json steamos-ios/out/package/guest-run.json
+            steamos-ios/out/package/engine-run.json steamos-ios/out/package/guest-run.json steamos-ios/out/package/graphics-run.json
           mkdir steamos-ios/out/redownload-linux
           gh release download "$tag" --dir steamos-ios/out/redownload-linux --pattern MyPCSteamOS-Linux-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --build 4000007
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --build 4000008
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()

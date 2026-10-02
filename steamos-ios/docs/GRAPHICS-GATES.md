@@ -33,17 +33,22 @@ guest transport, Metal, SteamOS or gameplay evidence.
 
 Remaining integration steps:
 
-1. Receive and verify the current phone JIT/Linux recovery report; resolve its
-   actual failing stage before adding another unsafe execution path.
+1. Phone JIT/Linux execution passed in build 4000007. The 32 MiB split-WX cache
+   resolved the recorded allocation failure. Next run the separate native
+   MoltenVK offscreen shader gate; it does not demonstrate Linux graphics.
 2. Source-build pinned Darwin virgl/Venus, ANGLE and MoltenVK engines with public
    iOS frameworks. Audit their external-host-memory path, ownership, alignment,
    cache coherency, fences and resource teardown. Reuse engine code under its
    license without adopting any old app or upstream application as our base.
    The independent MoltenVK iOS workflow is now prepared, with exact commits for
    the engine and all seven external dependencies, a source-only archive and
-   physical-iOS Mach-O/import/export checks. Build 37036404372 passed, but no
-   phone loader or Vulkan-to-Metal result exists. An exact compiled-artifact
-   audit classifies required and weak imports before integration. Pinned UTM's
+   physical-iOS Mach-O/import/export checks. Audit found an unneeded required
+   macOS IOKit import; build 37056046870 passed after removing that iOS target's
+   framework link. No phone loader or Vulkan-to-Metal result exists yet.
+   Hosted run 37056046909 passed actual Venus serialized shader draws through
+   the existing external-host/POSIX SHM path under an explicit test override.
+   The native Linux fd route failed export. Neither result proves the Darwin
+   bridge, virtio guest kernel or Metal. Pinned UTM's
    complete recipe also builds private Hypervisor, Neptune/D3D and macOS-specific
    KosmicKrisp: those calls are not our iOS build plan. Venus/ANGLE need their own
    narrowed recipe and a fresh display adapter before guest integration.

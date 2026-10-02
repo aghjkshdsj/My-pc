@@ -19,15 +19,21 @@ are owner-confirmed. Raw reports remain private and outside the public allowlist
   independently verified IPA. This is not cryptographic remote attestation.
 - One repeated JIT preparation was interrupted before universal RX preparation
   returned. Its cause beyond that stage is not established.
-- The latest actual Linux attempt passed its native JIT precheck and payload
+- The build 4000006 Linux attempt passed its native JIT precheck and payload
   hashes, loaded QEMU and found required exports. Initialization failed:
   `allocate 1003421696 bytes for jit buffer: Operation not permitted`.
-  The kernel serial log was empty. **Linux has not booted on the phone.**
+  The kernel serial log was empty. This failure is preserved as historical evidence.
+- **Build 4000007 booted Linux 6.12.111 on the actual phone.** Signals,
+  mmap/protection, pthread/TLS/futex, fork/exec and checksum passed with zero
+  failures and engine exit 0. The embedded and separately saved serial/receipt
+  agree with the exact IPA/payload/source. Recorded kernel-plus-ABI time:
+  691.06 ms. This is one disposable-kernel run, not SteamOS startup or game FPS.
+  Fresh and retained-region native JIT checks also returned 42.
 - Recovery exports preserved pending markers, native stages and engine output.
   Actual presentation of the reopen sharing popup has not been directly observed
   by the developer.
 
-## Prepared fix and required retest
+## Verified CPU fix and next native graphics gate
 
 Build 4000007 requests `tcg,thread=multi,split-wx=on,tb-size=32`.
 The pinned release engine defaults split-WX off, selecting MAP_JIT on Darwin.
@@ -38,20 +44,24 @@ is configured separately through the universal debugger protocol while attached.
 
 Repeated native JIT checks execute one retained successfully prepared host-page
 region again; cached receipts never count as new execution. The UI shows the
-last durably saved stage and a readable result. **The fix needs new phone
-evidence and is not a verified successful boot.**
+last durably saved stage and a readable result. The owner-supplied build 4000007
+logs passed the physical Linux evidence checker. Raw device evidence remains private.
+Build 4000008 prepares a native offscreen Vulkan-to-Metal shader check; its iOS
+build/package and actual phone execution remain pending.
 
 Primary sources: [allocator](https://github.com/utmapp/qemu/blob/v10.0.12-utm/tcg/region.c),
 [TCG defaults](https://github.com/utmapp/qemu/blob/v10.0.12-utm/accel/tcg/tcg-all.c).
 
-Latest independently verified public IPA before this fix:
-[Linux-gate-5 / build 4000006](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-5),
-source `dac0d7d6d4f8c10100e986cf67e9adc3668e792b`, 8,069,591 bytes, SHA-256
-`adc3e7abd2afc736bd424ed66bd6a32cdcdbd9f6921deefc5dc56225055d100a`.
-[Build 37024755837](https://github.com/aghjkshdsj/My-pc/actions/runs/37024755837)
+Latest independently verified public IPA:
+[Linux-gate-7 / build 4000007](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-7),
+source `f18e3c3d91ba8bdf6b55c6e6cb7a33db4ea65841`, 8,075,687 bytes, SHA-256
+`ec52d95d65e434911d21e77e218649d5da99786342afa9b7c7ebbda72b1e411c`.
+[Build 37055171760](https://github.com/aghjkshdsj/My-pc/actions/runs/37055171760)
 passed actual ARM64 iOS compilation and hosted abrupt-exit recovery tests.
 Independent ZIP CRC, physical-iOS Mach-O, dependency closure, payload hashes
-and compiled universal ABI wrappers passed.
+and compiled universal ABI wrappers passed. The compiled 32 MiB split-WX
+argument was checked. Linux-gate-6 was misversioned by an old packaging override;
+it is superseded by gate-7. Packaging now requires the intended build identity.
 
 The disposable Linux gate uses Linux 6.12.111 / BusyBox 1.38.0, 2 vCPUs,
 512 MiB RAM, no persistent disk/network/GPU. It checks signals, mmap/protection,
@@ -64,11 +74,11 @@ for the requested SteamOS product.
 
 | Result | Evidence | Remaining limit |
 |---|---|---|
-| Source-built ARM64 iOS QEMU engine/dependencies | [37014232362](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232362) | Phone loader passed; kernel execution failed at allocation |
-| Source-built Linux/BusyBox ABI gate | [37014232445](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232445) | Hosted TCG boot passed; not phone boot |
+| Source-built ARM64 iOS QEMU engine/dependencies | [37014232362](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232362) | Phone loader and CPU gate passed after allocation configuration fix |
+| Source-built Linux/BusyBox ABI gate | [37014232445](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232445) | Hosted and build 4000007 phone boot passed; no SteamOS image yet |
 | Hosted GL/Vulkan diagnostics | [37035517982](https://github.com/aghjkshdsj/My-pc/actions/runs/37035517982) | Software rendering only; explicitly rejected as acceleration |
-| Native iOS MoltenVK compile/package | [37036404372](https://github.com/aghjkshdsj/My-pc/actions/runs/37036404372) | Not in IPA or executed on phone; loader/import behavior needs checking |
-| Hosted Venus serialization attempt | [37037502542](https://github.com/aghjkshdsj/My-pc/actions/runs/37037502542) | Renderer compiled after C11 label fix; client aborted; transport unverified |
+| Corrected native iOS MoltenVK compile/package | [37056046870](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046870) | Unneeded IOKit link removed; actual phone loader/rendering pending |
+| Hosted Venus external-host SHM test | [37056046909](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046909) | Real serialized draws passed under explicit test override; software Linux host, not phone Metal |
 
 Vulkan rendered two 1280×720 images, checked all 1,843,200 pixels, channel sum
 1,219,256,320 and synchronization validation. Zero mismatches/errors passed
@@ -78,11 +88,17 @@ presentation, guest transport or game performance is implied.
 
 MoltenVK revision `05604465d691118cfd20f53a48ecf1aad9c12f93` and seven pinned
 dependencies produced a physical-iOS ARM64 library and corresponding source.
-Receipt: `evidence/primary/hosted-moltenvk-build.json`. Its IOKit load command
-needs classification and phone loading evidence before integration.
-The latest GL classification rerun failed its second Xvfb startup; isolated
-automatic display selection is prepared. Venus failure output will expose
-renderer/client/validation logs. Neither failure was waived.
+Receipt: `evidence/primary/hosted-moltenvk-build.json`. The first compiled engine
+had a required macOS IOKit load command. The corrected source-built iOS target
+omits that framework; its final imports contain no IOKit. Both engine variants
+and the original failure remain documented. Actual phone loading is still required.
+The GL classification rerun passed with isolated Xvfb display selection.
+Venus-only server configuration resolved its excluded-EGL initialization failure.
+The unmodified Linux-native fd route then failed resource export; the explicit
+external-host-memory test policy exercises the existing POSIX SHM branch instead.
+That real draw test passed 1,843,200 pixels, zero mismatches/validation errors and
+software rejection exit 20. Receipt: `evidence/primary/hosted-venus-shm-diagnostic.json`.
+No unmodified fd-path, Darwin bridge, virtio guest, Metal or presentation pass is implied.
 
 ## Complete inputs and component coverage
 
@@ -102,7 +118,7 @@ Official rootfs 20260921.6090922 / 0.5.0 resolves a 10,737,418,240-byte image,
 image hash, RAUC CMS trust and generic-virt compatibility remain open.
 No Valve/game/credential data has been redistributed.
 
-Next: pass the physical Linux gate; prove real guest GL and Vulkan transport
+Next: verify the native MoltenVK shader gate on the phone; prove real guest GL and Vulkan transport
 to Metal and moving presentation; integrate authenticated SteamOS, actual ARM
 Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
 Native host/Metal optimization does not remove guest TCG translation costs.

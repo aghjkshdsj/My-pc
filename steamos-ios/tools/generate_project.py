@@ -13,11 +13,11 @@ def generate():
     project, target, group, product, products = map(ident, ['project', 'target', 'group', 'product', 'products'])
     sources, frameworks, resources = map(ident, ['sources', 'frameworks', 'resources'])
     objects = []
-    files = ['Host/ProbeApp.swift', 'Host/ProbeBridge.mm', 'Host/LinuxGate.mm', 'Host/RecoveryJournal.swift', 'Host/ProbeRecovery.mm', 'Host/StikDebugRequest.swift', 'Host/ProbeBridge.h', 'Host/Info.plist']
+    files = ['Host/ProbeApp.swift', 'Host/ProbeBridge.mm', 'Host/LinuxGate.mm', 'Host/NativeVulkan.mm', 'Host/NativeVulkanDraw.c', 'Host/RecoveryJournal.swift', 'Host/ProbeRecovery.mm', 'Host/StikDebugRequest.swift', 'Host/ProbeBridge.h', 'Host/Info.plist']
     for path in files:
-        kind = {'swift':'sourcecode.swift','mm':'sourcecode.cpp.objcpp','h':'sourcecode.c.h','plist':'text.plist.xml'}[path.rsplit('.',1)[1]]
+        kind = {'swift':'sourcecode.swift','mm':'sourcecode.cpp.objcpp','c':'sourcecode.c.c','h':'sourcecode.c.h','plist':'text.plist.xml'}[path.rsplit('.',1)[1]]
         objects.append(f'{ident(path)} = {{isa = PBXFileReference; lastKnownFileType = {kind}; path = "{path}"; sourceTree = "<group>"; }};')
-    compiled = [path for path in files if path.endswith(('.swift', '.mm'))]
+    compiled = [path for path in files if path.endswith(('.swift', '.mm', '.c'))]
     for path in compiled:
         objects.append(f'{ident("build:"+path)} = {{isa = PBXBuildFile; fileRef = {ident(path)}; }};')
     objects += [
@@ -39,6 +39,7 @@ INFOPLIST_FILE = Host/Info.plist; GENERATE_INFOPLIST_FILE = NO;
 SWIFT_VERSION = 5.0; SWIFT_OBJC_BRIDGING_HEADER = Host/ProbeBridge.h;
 SWIFT_OPTIMIZATION_LEVEL = "{optimization}"; SWIFT_COMPILATION_MODE = wholemodule;
 GCC_OPTIMIZATION_LEVEL = 2; ENABLE_DEBUG_DYLIB = NO; CODE_SIGN_STYLE = Automatic;
+HEADER_SEARCH_PATHS = "$(inherited) $(SRCROOT)/out/native-vulkan/headers";
 MPC_SOURCE_COMMIT = "local-unrecorded"; OTHER_LDFLAGS = "$(inherited) -framework Metal -framework GameController -framework UIKit";
 LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 '''

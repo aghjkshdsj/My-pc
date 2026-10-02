@@ -60,6 +60,39 @@ def validate_jit(report, expected_commit, expected_build, ios_version, machine=N
             'cryptographic_device_attestation': False}
 
 
+def validate_native_vulkan(report, expected_commit, expected_build, payload, ios_version, machine=None):
+    require(report.get('scope') == 'physical-ios-host-probe' and report.get('schema') == 1, 'Expected a physical iOS report')
+    require(report.get('source_commit') == expected_commit and report.get('build') == expected_build, 'Graphics source/build differs from IPA')
+    before, after = report.get('before', {}), report.get('after', {})
+    keys = ('device_machine', 'ios_version', 'os_build', 'host_page_bytes')
+    require(all(before.get(k) == after.get(k) for k in keys), 'Mixed graphics device/OS identity')
+    require(str(before.get('device_machine', '')).startswith('iPhone') and before.get('ios_version') == ios_version,
+            'Unexpected graphics phone identity')
+    require(machine is None or before.get('device_machine') == machine, 'Unexpected graphics machine')
+    require(before.get('os_build') not in (None, '', 'unknown') and before.get('host_page_bytes') in (4096, 16384), 'Missing graphics OS/page evidence')
+    gate = report.get('tests', {}).get('native_vulkan', {})
+    require(gate.get('scope') == 'physical-ios-native-vulkan-offscreen-gate' and gate.get('status') == 'passed' and
+            gate.get('exit_status') == 0 and gate.get('native_vulkan_to_metal_verified') is True, 'Native Vulkan draw did not pass')
+    require(gate.get('payload') == payload and gate.get('path') == 'native-ios-arm64-vulkan-MoltenVK-Metal-offscreen', 'Wrong graphics engine or shaders')
+    require(gate.get('linux_graphics') is False and gate.get('presentation_verified') is False and gate.get('gameplay_verified') is False,
+            'Native offscreen evidence claims guest/presentation/game completion')
+    draw = gate.get('diagnostic', {})
+    expected = {'machine': before['device_machine'], 'software': False, 'vendor_id': 0x106b, 'device_type': 1,
+                'width': 1280, 'height': 720, 'shader_phases': 2, 'pixels_checked': 1843200,
+                'mismatches': 0, 'channel_sum': 1219256320, 'validation_errors': 0}
+    require(all(draw.get(k) == v for k, v in expected.items()), 'Wrong graphics identity, pixels or checksum')
+    require(measurement(gate.get('elapsed_ms')), 'Invalid graphics elapsed time')
+    require(report.get('acceptance', {}).get('native_vulkan_to_metal_offscreen') is True, 'Graphics acceptance disagrees')
+    for key in ('steam_arm_client', 'fex_game', 'linux_game_graphics_to_metal', 'steam_under_60_seconds', 'hollow_knight_60_to_80_base_fps'):
+        require(report.get('acceptance', {}).get(key) is False, 'Native offscreen receipt claims product gate: ' + key)
+    return {'scope': 'owner-supplied-iphone-native-vulkan-evidence-consistency-check', 'source_commit': expected_commit,
+            'build': expected_build, 'device': {k: before[k] for k in keys},
+            'native_vulkan_to_metal_offscreen_verified': True, 'pixels_checked': draw['pixels_checked'],
+            'elapsed_ms': gate['elapsed_ms'], 'validation_layer_observed': draw.get('validation_enabled', False),
+            'linux_graphics_to_metal_verified': False, 'presentation_verified': False, 'gameplay_verified': False,
+            'cryptographic_device_attestation': False}
+
+
 def validate(report, expected_commit, expected_build, payload, ios_version, machine=None):
     require(report.get('schema') == 1 and report.get('scope') == 'physical-ios-host-probe',
             'Expected an exported physical iOS probe report, not hosted evidence')
@@ -134,15 +167,17 @@ if __name__ == '__main__':
     parser.add_argument('commit')
     parser.add_argument('--ios-version', default='27.0.1')
     parser.add_argument('--machine')
-    parser.add_argument('--gate', choices=['jit', 'linux'], default='linux')
+    parser.add_argument('--gate', choices=['jit', 'linux', 'native-vulkan'], default='linux')
     args = parser.parse_args()
     require(__debug__, 'Run this verifier without python -O; IPA/guest checks use assertions')
-    package = verify_ipa(args.ipa, args.commit, linux_gate=True)
+    package = verify_ipa(args.ipa, args.commit, linux_gate=True, native_vulkan=args.gate == 'native-vulkan')
     with zipfile.ZipFile(args.ipa) as archive:
         payload = json.loads(archive.read('Payload/MyPCSteamOSProbe.app/LinuxGate/payload-receipt.json'))
+        native_payload = json.loads(archive.read('Payload/MyPCSteamOSProbe.app/NativeVulkan/payload-receipt.json')) if args.gate == 'native-vulkan' else None
     report = json.loads(args.report.read_text(encoding='utf-8-sig'))
-    result = validate_jit(report, args.commit, package['build'], args.ios_version, args.machine) if args.gate == 'jit' else \
-        validate(report, args.commit, package['build'], payload, args.ios_version, args.machine)
+    if args.gate == 'jit': result = validate_jit(report, args.commit, package['build'], args.ios_version, args.machine)
+    elif args.gate == 'native-vulkan': result = validate_native_vulkan(report, args.commit, package['build'], native_payload, args.ios_version, args.machine)
+    else: result = validate(report, args.commit, package['build'], payload, args.ios_version, args.machine)
     result['report_sha256'] = hashlib.file_digest(args.report.open('rb'), 'sha256').hexdigest()
     result['verified_ipa_sha256'] = package['sha256']
     print(json.dumps(result, indent=2))

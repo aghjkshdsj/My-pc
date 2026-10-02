@@ -115,12 +115,14 @@ final class ProbeModel: ObservableObject {
         let before = MPCPlatformFacts()
         let controllers = GCController.controllers().map { ["vendor": $0.vendorName ?? "unknown", "extended_gamepad": $0.extendedGamepad != nil] as [String: Any] }
         var prepared = false
+        var diagnosticDirectory = ""
         do {
             let run = PendingProbe(runID: runID, kind: kind,
                 startedUTC: ISO8601DateFormatter().string(from: Date()),
                 sourceCommit: Bundle.main.object(forInfoDictionaryKey: "MPCSourceCommit") as? String ?? "unknown",
                 build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown")
             let folder = try journal.begin(run, before: before)
+            diagnosticDirectory = folder.path
             prepared = true
             guard MPCStartDiagnosticCapture(folder.path) else {
                 throw NSError(domain: "ProbeCapture", code: 1,
@@ -144,12 +146,14 @@ final class ProbeModel: ObservableObject {
                 }
             }
         }
+        let diagnosticPath = diagnosticDirectory
         Task.detached(priority: .userInitiated) {
             MPCDiagnosticStage("probe-entering", ["kind": kind])
             let tests: [String: Any]
             switch kind {
             case "linux": tests = ["linux": MPCLinuxKernelProbe()]
             case "jit": tests = ["jit": MPCExecuteJITProbe()]
+            case "vulkan": tests = ["native_vulkan": MPCNativeVulkanProbe(diagnosticPath)]
             default: tests = ["native_cpu": MPCNativeCPUProbe(), "metal": MPCMetalProbe(), "storage": MPCStorageProbe()]
             }
             MPCDiagnosticStage("probe-returned", ["kind": kind])
@@ -168,9 +172,14 @@ final class ProbeModel: ObservableObject {
             testStatus = linux["linux_execution"] as? Bool == true
                 ? "Linux kernel and ABI gate passed. SteamOS and game graphics remain unfinished."
                 : "Linux \(linux["status"] ?? "failed"): \(linux["reason"] ?? linux["stage"] ?? "See the saved report and logs.")"
+        } else if let vulkan = tests["native_vulkan"] as? [String: Any] {
+            testStatus = vulkan["native_vulkan_to_metal_verified"] as? Bool == true
+                ? "Native Vulkan → Metal shader check passed. Linux graphics and presentation remain unfinished."
+                : "Native Vulkan \(vulkan["status"] ?? "failed"): \(vulkan["reason"] ?? vulkan["stage"] ?? "See the saved logs.")"
         } else { testStatus = "Host probes finished. See the saved measurements below." }
         facts.merge(tests) { _, new in new }
-        engineNeedsRelaunch = (tests["linux"] as? [String: Any])?["status"] as? String == "timed-out-engine-still-running"
+        engineNeedsRelaunch = (tests["linux"] as? [String: Any])?["status"] as? String == "timed-out-engine-still-running" ||
+            (tests["native_vulkan"] as? [String: Any])?["requires_relaunch"] as? Bool == true
         let linux = (facts["linux"] as? [String: Any])?["linux_execution"] as? Bool == true
         let result: [String: Any] = [
             "schema": 1, "run_id": runID, "collected_utc": ISO8601DateFormatter().string(from: Date()),
@@ -178,7 +187,9 @@ final class ProbeModel: ObservableObject {
             "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
             "scope": "physical-ios-host-probe", "before": before, "after": MPCPlatformFacts(),
             "controllers_observed": controllers, "tests": facts,
-            "acceptance": ["linux_kernel_boot": linux, "steam_arm_client": false, "fex_game": false,
+            "acceptance": ["linux_kernel_boot": linux,
+                           "native_vulkan_to_metal_offscreen": (facts["native_vulkan"] as? [String: Any])?["native_vulkan_to_metal_verified"] as? Bool == true,
+                           "steam_arm_client": false, "fex_game": false,
                            "linux_game_graphics_to_metal": false, "steam_under_60_seconds": false,
                            "hollow_knight_60_to_80_base_fps": false],
             "limitations": "Host Metal and JIT checks do not demonstrate Linux execution. The separate Linux gate, when bundled, validates only a disposable Linux kernel and ABI smoke. SteamOS, guest graphics, Steam, FEX and game performance remain unverified. Controller enumeration is not an input test."
@@ -189,7 +200,8 @@ final class ProbeModel: ObservableObject {
             let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let url = directory.appendingPathComponent("MyPCSteamOS-Probe-\(runID).json")
             try data.write(to: url, options: .atomic)
-            try journal.complete(runID: runID, result: data, clearPending: !engineNeedsRelaunch)
+            try journal.complete(runID: runID, result: data,
+                clearPending: (tests["linux"] as? [String: Any])?["status"] as? String != "timed-out-engine-still-running")
             exportURL = url
         } catch { report = "Could not export report: \(error.localizedDescription)" }
         busy = false
@@ -216,10 +228,13 @@ struct ProbeScreen: View {
                         .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
                     Button("Run Linux kernel gate") { model.run(kind: "linux") }
                         .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
+                    Button("Run native Vulkan → Metal check") { model.run(kind: "vulkan") }
+                        .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
+                    Text("The graphics-engine build tests two 720p shader images offscreen. Linux graphics, moving presentation and games require separate tests.").font(.callout)
                     Text("The Linux gate requires an engine-bearing build and StikDebug. Keep the app open for up to three minutes. Relaunch before repeating a Linux boot.").font(.callout)
                     if model.busy { ProgressView("Collecting measurements…") }
                     if !model.testStatus.isEmpty { Text(model.testStatus).font(.callout).textSelection(.enabled) }
-                    if model.engineNeedsRelaunch { Text("The Linux engine timed out and may still be running. Share the logs, then close and relaunch before another test.").font(.callout) }
+                    if model.engineNeedsRelaunch { Text("This test requires a fresh app process. Share the saved logs, then close and relaunch before another test.").font(.callout) }
                     if let url = model.exportURL { ShareLink("Share device report", item: url) }
                     Button("Share saved diagnostic logs") { model.shareRecovery() }
                         .buttonStyle(.bordered).disabled(model.busy || model.preparingLogShare)

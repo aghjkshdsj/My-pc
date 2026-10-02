@@ -27,7 +27,7 @@ def macho_platform(binary, filetype):
     assert ios, 'Mach-O must target physical iOS'
     return imports
 
-def verify(path, commit, linux_gate=False, expected_build=None):
+def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=False):
     with zipfile.ZipFile(path) as z:
         assert z.testzip() is None, 'IPA ZIP CRC failed'
         prefix = 'Payload/MyPCSteamOSProbe.app/'
@@ -63,10 +63,24 @@ def verify(path, commit, linux_gate=False, expected_build=None):
             assert z.read(payload + 'Image')[56:60] == b'ARMd'
         else:
             assert engine not in z.namelist(), 'Engine-bearing IPA needs explicit Linux gate verification'
+        if native_vulkan:
+            from bundle_native_vulkan import BINARY_SHA, SHADERS
+            assert b'Missing Vulkan export:' in binary, 'Native draw adapter was not compiled with Vulkan headers'
+            vk = prefix + 'NativeVulkan/'
+            inputs = json.loads(z.read(vk + 'payload-receipt.json'))
+            assert inputs['scope'] == 'bundled-native-ios-vulkan-diagnostic'
+            assert inputs['engine_run'] == 37056046870
+            molten = z.read(prefix + 'Frameworks/MoltenVK.framework/MoltenVK')
+            assert hashlib.sha256(molten).hexdigest() == BINARY_SHA
+            assert not any('IOKit' in x for x in macho_platform(molten, 6))
+            for name, sha in SHADERS.items():
+                assert hashlib.sha256(z.read(vk + name)).hexdigest() == sha
+                assert len(z.read(vk + name)) == inputs['files'][name]['bytes']
+            assert inputs['files']['MoltenVK']['sha256'] == BINARY_SHA
         return {'schema': 1, 'kind': 'ios-linux-kernel-gate' if linux_gate else 'ios-host-probe-only', 'commit': commit, 'build': info['CFBundleVersion'],
                 'bundle_id': info['CFBundleIdentifier'], 'sha256': hashlib.file_digest(path.open('rb'), 'sha256').hexdigest(),
                 'bytes': path.stat().st_size, 'zip_crc': 'passed', 'arm64_ios': True,
-                'linux_gate_bundled': linux_gate, 'engine_frameworks_checked': frameworks,
+                'linux_gate_bundled': linux_gate, 'native_vulkan_bundled': native_vulkan, 'engine_frameworks_checked': frameworks,
                 'linux_boot_verified': False, 'game_graphics_verified': False, 'phone_performance_verified': False}
 
 if __name__ == '__main__':
@@ -76,8 +90,9 @@ if __name__ == '__main__':
     parser.add_argument('--receipt', type=pathlib.Path)
     parser.add_argument('--linux-gate', action='store_true')
     parser.add_argument('--build', help='Require the intended app build number')
+    parser.add_argument('--native-vulkan', action='store_true')
     args = parser.parse_args()
-    result = verify(args.ipa, args.commit, args.linux_gate, args.build)
+    result = verify(args.ipa, args.commit, args.linux_gate, args.build, args.native_vulkan)
     text = json.dumps(result, indent=2) + '\n'
     if args.receipt:
         args.receipt.write_text(text, encoding='utf-8')

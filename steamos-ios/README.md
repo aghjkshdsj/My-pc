@@ -21,18 +21,19 @@ pending; hosted ARM kernel tests and iOS build/package checks passed.
 `d7eb3db958794bcf653b10e0d7b199a745ce61ba1cb2b1dae6169b61d5652430`).
 [Exact source, checksums and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-2).
 
-Latest: [Linux-gate-5 / build 4000006 IPA](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-linux-gate-5/MyPCSteamOS-Linux-Gate.ipa),
-with reopen-and-share recovery, an in-app StikDebug activation button and the
-universal executable-region protocol. 8,069,591 bytes, SHA-256
-`adc3e7abd2afc736bd424ed66bd6a32cdcdbd9f6921deefc5dc56225055d100a`.
-Source commit `dac0d7d6d4f8c10100e986cf67e9adc3668e792b`.
-[Corresponding source and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-5).
+Latest: [Linux-gate-7 / build 4000007 IPA](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-linux-gate-7/MyPCSteamOS-Linux-Gate.ipa),
+with reopen-and-share recovery, StikDebug activation, retained JIT mappings and
+a 32 MiB split-WX engine cache. 8,075,687 bytes, SHA-256
+`ec52d95d65e434911d21e77e218649d5da99786342afa9b7c7ebbda72b1e411c`.
+Source commit `f18e3c3d91ba8bdf6b55c6e6cb7a33db4ea65841`.
+[Corresponding source and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-7).
 Hosted recovery tests and iOS compilation passed; the public IPA was independently
-downloaded and checked. Three native ARM64 JIT checks returned 42 on the phone;
-Linux loaded QEMU but failed its roughly 957 MiB JIT allocation before kernel
-output. Build 4000007 prepares separate RX/writable mappings and a 32 MiB cache,
-retains the native JIT region for repeat execution, and displays saved stages.
-New phone Linux evidence and direct recovery-popup observation remain pending.
+downloaded and checked. Build 4000007 passed actual iPhone native JIT and Linux
+kernel/ABI checks. The recorded 691.06 ms kernel-plus-test run is software TCG
+emulation, not SteamOS startup, hardware virtualization or game performance.
+Build 4000008 prepares a native Vulkan-to-Metal offscreen shader gate through
+the corrected source-built MoltenVK engine. Its build and phone test are pending.
+Linux guest graphics and moving presentation remain separate unfinished gates.
 
 The owner confirmed iPhone 15 Pro Max, iOS 27.0.1, iLoader and StikDebug on
 2026-10-02. The probe records the actual OS build, page size, code-signing state,
