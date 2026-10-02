@@ -1,0 +1,38 @@
+name: Read accepted guest graphics payload provenance
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['.github/workflows/steamos-guest-gpu-artifact-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  artifact-provenance:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Graphics-Payload
+          run-id: 37079133580
+          github-token: ${{ github.token }}
+          path: guest-input
+      - name: Verify exact accepted payload and print its complete public receipt
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, tarfile
+          root = pathlib.Path('guest-input')
+          receipt = json.loads((root / 'payload/payload-receipt.json').read_text(encoding='utf-8'))
+          assert receipt['source_commit'] == 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'
+          assert int(receipt['workflow_run']) == 37079133580
+          assert receipt['scope'] == 'linux-arm64-graphics-payload-missing-3d-boot-controls'
+          assert receipt['linux_runtime_boot_verified'] and receipt['runtime_dependency_closure_verified']
+          assert not any(receipt[name] for name in ['phone_tested', 'guest_shader_verified', 'metal_verified', 'presentation_verified', 'gameplay_verified'])
+          with tarfile.open(root / 'Guest-GPU-Payload.tar.gz') as archive:
+              for name, expected in receipt['files'].items():
+                  data = archive.extractfile('payload/' + name).read()
+                  assert len(data) == expected['bytes'] and hashlib.sha256(data).hexdigest() == expected['sha256']
+          print(json.dumps(receipt, indent=2))
+          print('MPC_SOURCE_ARCHIVE_SHA256=' + hashlib.file_digest((root / 'Guest-GPU-Corresponding-Source.tar.gz').open('rb'), 'sha256').hexdigest())
+          PY
