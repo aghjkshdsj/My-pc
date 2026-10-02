@@ -2,7 +2,7 @@ name: Fresh SteamOS iOS host probe
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/**', '.github/workflows/steamos-ios-probe.yml']
+    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', 'steamos-ios/tools/package_probe.sh', 'steamos-ios/tools/verify_ipa.py', '.github/workflows/steamos-ios-probe.yml']
   workflow_dispatch:
 permissions:
   contents: read

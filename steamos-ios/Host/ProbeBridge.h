@@ -8,6 +8,7 @@ NSDictionary *MPCPlatformFacts(void);
 NSDictionary *MPCExecuteJITProbe(void);
 NSDictionary *MPCMetalProbe(void);
 NSDictionary *MPCStorageProbe(void);
+NSDictionary *MPCLinuxKernelProbe(void);
 #ifdef __cplusplus
 }
 #endif
