@@ -7,6 +7,7 @@ import pathlib
 import plistlib
 import shutil
 import tarfile
+from verify_ipa import macho_platform
 
 def digest(path):
     with path.open('rb') as file: return hashlib.file_digest(file, 'sha256').hexdigest()
@@ -38,7 +39,22 @@ def bundle(engine, guest, app):
     extract_checked(guest / 'Linux-Gate-Payload.tar.gz', payload_stage)
     frameworks = framework_stage / 'Frameworks'
     assert (frameworks / 'qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu').exists()
-    shutil.copytree(frameworks, app / 'Frameworks', dirs_exist_ok=True)
+    needed, pending = set(), ['qemu-aarch64-softmmu']
+    while pending:
+        name = pending.pop()
+        if name in needed: continue
+        directory = frameworks / (name + '.framework')
+        info = plistlib.loads((directory / 'Info.plist').read_bytes())
+        binary = directory / info['CFBundleExecutable']
+        for dependency in macho_platform(binary.read_bytes(), 6):
+            if dependency.startswith('/usr/lib/') or dependency.startswith('/System/Library/'): continue
+            assert dependency.startswith('@rpath/') and 'Hypervisor' not in dependency
+            parts = pathlib.PurePosixPath(dependency[len('@rpath/'):]).parts
+            assert len(parts) == 2 and parts[0].endswith('.framework') and '..' not in parts
+            pending.append(parts[0][:-len('.framework')])
+        needed.add(name)
+    for name in sorted(needed):
+        shutil.copytree(frameworks / (name + '.framework'), app / 'Frameworks' / (name + '.framework'))
     for metadata in (app / 'Frameworks').glob('*.framework/Info.plist'):
         value = plistlib.loads(metadata.read_bytes())
         value['CFBundlePackageType'] = 'FMWK'
@@ -52,6 +68,7 @@ def bundle(engine, guest, app):
     # nonce and guest result; it never accepts this file as device evidence.
     inputs = {'schema': 1, 'scope': 'bundled-disposable-linux-cpu-gate',
         'phone_boot_verified': False, 'steamos': False, 'graphics_tested': False,
+        'retained_engine_frameworks': sorted(needed),
         'source_assets': {name: digest(folder / name) for folder, name in [
             (engine, 'CPU-Engine-Corresponding-Source.tar.gz'),
             (guest, 'Linux-Gate-Corresponding-Source.tar.gz')]}}
