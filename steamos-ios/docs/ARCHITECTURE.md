@@ -10,7 +10,7 @@ software system emulation and Linux userspace compatibility are distinct:
 | Path | Execution and ABI | Current evidence | Decision |
 |---|---|---|---|
 | Hardware Linux VM | ARM instructions execute as a guest under EL2; Linux implements ELF, syscalls, processes, futex, signals and IPC | Apple's current documentation metadata lists **macOS only** for Hypervisor and Virtualization. Ordinary sideloaded UTM lists no hypervisor. No valid iPhone entitlement/API path has been demonstrated | Unavailable through the documented public iOS API. Do not infer availability from the A17 Pro ISA, StikDebug or Memory+ |
-| QEMU TCG Linux machine | ARM64 iOS engine dynamically translates the guest ARM CPU, MMU and privileged instructions. Guest Linux supplies the ABI. FEX then translates x86 games to guest ARM, itself executed through TCG | Previous app/reference reports establish this class of path, not a new phone result. A new minimal Linux-kernel probe is required | The available Linux-kernel route to test. **Software emulation**, even when guest and host are ARM64. Performance risk is high |
+| QEMU TCG Linux machine | ARM64 iOS engine dynamically translates the guest ARM CPU, MMU and privileged instructions. Guest Linux supplies the ABI. FEX then translates x86 games to guest ARM, itself executed through TCG | Fresh build 4000007 booted Linux 6.12.111 and passed signals, mmap/protection, TLS/pthread/futex and fork/exec on the actual phone in 691.06 ms | Demonstrated disposable Linux-kernel route. **Software emulation**, even when guest and host are ARM64. This is not SteamOS startup or game performance |
 | Linux userspace compatibility runtime | Native ARM instruction execution would still need an ELF loader, Linux ABI and memory model, signal/exception and syscall interception, process isolation and Linux services on Darwin | No such complete runtime has been demonstrated for the proprietary ARM Steam/CEF process tree here. FEXCore alone does not supply it | Research option only; adopting it requires the owner's agreement |
 | Bare-metal Linux on iPhone | Replace/boot another kernel and provide Apple GPU/device drivers | No supported path established; outside the authorized app installation scope | Not implemented |
 
@@ -39,11 +39,21 @@ kernel/initramfs and verifies a new guest nonce/ABI/checksum receipt. Host and
 guest diagnostics compile/test separately. Other session/graphics/input/audio
 modules remain design boundaries, not claimed implementations.
 
-Linux-gate-2 has been independently downloaded and checked for ARM64 physical
-iOS, all framework dependencies, payload hashes and complete ZIP CRC. Hosted
-Linux kernel checks passed; no phone receipt has been received. It has no
-SteamOS image, Steam/FEX, persistent disk, networking or guest GPU. This gate
-does not close the requested environment or performance requirements.
+The independently verified Linux-gate-7 passed physical-phone Linux execution;
+Linux-gate-10 separately passed the native Vulkan-to-Metal offscreen shader gate
+on Apple A17 Pro: both 720p images, all 1,843,200 pixels and zero mismatches.
+Phone Vulkan validation layers were disabled. Both prerequisites are separate
+from guest graphics, presentation, SteamOS startup and games. The existing IPA
+still has no SteamOS image, Steam/FEX, persistent disk, networking or guest GPU.
+It does not close the requested environment or performance requirements.
+
+The separate graphics-capable Linux kernel now enables built-in generic PCI,
+virtio PCI/MMIO and DRM virtio-GPU. Hosted ARM TCG run 37067848259 passed the
+real 720p resource allocation, mapping, guest CPU pattern, transfer ioctl and
+teardown. The same kernel correctly failed when the GPU device was absent.
+This 2D device test reports no 3D/blob/context/host-visible capabilities and
+cannot establish a shader, host pixel contents, Venus or Metal. Its kernel is
+kept separate from the phone-verified CPU payload.
 
 The machine uses an upstream generic ARM `virt` kernel and virtio devices, not
 the archive's SM8550 device tree, ABL or Qualcomm kernel. Once CPU/graphics gates
@@ -98,6 +108,24 @@ alignment/lifetime, guest mapping under TCG, format/tiling, coherency, fences,
 resource destruction and scanout must pass on iOS. Code availability is not a
 successful phone test. UTM's older Graphics.md is stale relative to its 2026
 build source/release announcement; do not use it to assert Venus is absent.
+
+The current QEMU engine was explicitly built without OpenGL/virglrenderer.
+Its pinned `virtio-gpu-gl` device requires a GL-enabled display; Venus does not
+remove that dependency. The native Venus-only library also excludes EGL.
+Integration needs an EGL-enabled epoxy/virgl renderer and ANGLE Metal context
+adapter, then a QEMU engine build enabling those actual libraries. The upstream
+`egl_init` helper does not initialize a Darwin headless context; compilation
+alone will not solve this. An explicit Metal backend must be selected and checked
+at runtime. Headless diagnostic readback is permitted for correctness only;
+steady-state display needs the fresh Metal presenter and explicit resource/fence
+ownership, without per-frame full-image CPU copies.
+
+Pinned renderer `src/mesa/util/anon_file.c` uses `shm_open` on Apple and supports
+an app-group prefix through `APP_SANDBOX_GROUP_ID`. Our ordinary iLoader
+app has no demonstrated shared-memory entitlement/path. This is an unresolved
+runtime dependency, not a demonstrated phone failure. Test allocation/mapping
+and Vulkan host-pointer import on the phone before assuming that an advertised
+`VK_EXT_external_memory_host` extension makes Venus memory sharing work.
 
 Neptune forwards D3D commands through virtio to native DXMT/D3DMetal backends;
 it is a separate Windows-game transport, not a substitute for the Vulkan

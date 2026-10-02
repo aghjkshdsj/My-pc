@@ -1,0 +1,256 @@
+{
+  "schema": 1,
+  "scope": "hosted-arm-linux-virtio-gpu-kernel-device-test",
+  "source_commit": "6ab4df9f78ec307e026f378658673efa3ebeeec2",
+  "workflow_run": "37067848259",
+  "engine_version": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)",
+  "device_test_passed": true,
+  "missing_device_rejected": true,
+  "physical_iphone": false,
+  "steamos": false,
+  "linux_gpu_shader_verified": false,
+  "metal_verified": false,
+  "venus_transport_verified": false,
+  "presentation_verified": false,
+  "gameplay_verified": false,
+  "payload": {
+    "schema": 1,
+    "kind": "disposable-linux-virtio-gpu-kernel-gate",
+    "steamos": false,
+    "phone_tested": false,
+    "gpu_shader_verified": false,
+    "metal_verified": false,
+    "presentation_verified": false,
+    "files": {
+      "Image": {
+        "bytes": 3805192,
+        "sha256": "5945ac10f6eee547435c617f75820bc0d248592f559d0a1e25005b73f9c4b9c0"
+      },
+      "initramfs.cpio.gz": {
+        "bytes": 1104654,
+        "sha256": "50ded9b52f5a975d69ec086da8fe324f65fcdf84a830ea70571c58d911ec6618"
+      }
+    },
+    "sources": {
+      "Guest/abi_probe.c": "bb24235164183df0b837b7393420448e590dcff2c88e7b284c0a4ee767cb6158",
+      "Guest/gpu_kernel_probe.c": "ca5b6d96799068bc39901540699a57754dbd74f77657079e60bbbc885214ad78",
+      "Guest/init-gpu-kernel": "9e50bfb84d8d8c2ad74c56eab34451d24580d45ae44ee733eece2e05a3b4ffaa"
+    }
+  },
+  "device": {
+    "command": [
+      "qemu-system-aarch64",
+      "-machine",
+      "virt",
+      "-cpu",
+      "max",
+      "-accel",
+      "tcg,thread=multi,split-wx=on,tb-size=32",
+      "-smp",
+      "2",
+      "-m",
+      "512",
+      "-nodefaults",
+      "-display",
+      "none",
+      "-serial",
+      "stdio",
+      "-monitor",
+      "none",
+      "-kernel",
+      "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/Image",
+      "-initrd",
+      "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/initramfs.cpio.gz",
+      "-append",
+      "console=ttyAMA0 rdinit=/init panic=1 mpc_run=577e2a6944e948199327ddbd66fbe575",
+      "-no-reboot",
+      "-device",
+      "virtio-gpu-pci"
+    ],
+    "engine_exit": 0,
+    "serial_sha256": "c0e8edc3348441a77e30ce4202ea43fadba079fa2ccc57d1d0f665f8d9a65bfd",
+    "abi": {
+      "schema": 1,
+      "run": "577e2a6944e948199327ddbd66fbe575",
+      "kernel": "6.12.111",
+      "machine": "aarch64",
+      "elf_arch": "aarch64",
+      "page_bytes": 4096,
+      "signals": true,
+      "mmap_protection": true,
+      "pthread_tls_futex": true,
+      "fork_exec": true,
+      "checksum": "1d250c45a7bbc87e",
+      "cpu_ms": 4.166752,
+      "wall_ms": 4.432016,
+      "failures": 0
+    },
+    "kernel_gpu": {
+      "schema": 1,
+      "scope": "linux-virtio-gpu-kernel-device",
+      "run": "577e2a6944e948199327ddbd66fbe575",
+      "machine": "aarch64",
+      "kernel": "6.12.111",
+      "driver": "virtio_gpu",
+      "stage": "complete",
+      "exit_code": 0,
+      "errno": 0,
+      "page_bytes": 4096,
+      "width": 1280,
+      "height": 720,
+      "mapped_bytes": 3686400,
+      "mapped_sum": 470016000,
+      "mismatches": 0,
+      "mapped_resource_verified": true,
+      "transfer_ioctl_completed": true,
+      "resource_closed": true,
+      "wall_ms": 59.605,
+      "parameters": {
+        "1": {
+          "supported": true,
+          "value": 0
+        },
+        "2": {
+          "supported": true,
+          "value": 1
+        },
+        "3": {
+          "supported": true,
+          "value": 0
+        },
+        "4": {
+          "supported": true,
+          "value": 0
+        },
+        "5": {
+          "supported": true,
+          "value": 0
+        },
+        "6": {
+          "supported": true,
+          "value": 0
+        },
+        "7": {
+          "supported": true,
+          "value": 0
+        },
+        "8": {
+          "supported": true,
+          "value": 0
+        }
+      },
+      "gpu_shader_verified": false,
+      "host_pixels_verified": false,
+      "metal_verified": false,
+      "presentation_verified": false,
+      "gameplay_verified": false
+    }
+  },
+  "missing_device": {
+    "command": [
+      "qemu-system-aarch64",
+      "-machine",
+      "virt",
+      "-cpu",
+      "max",
+      "-accel",
+      "tcg,thread=multi,split-wx=on,tb-size=32",
+      "-smp",
+      "2",
+      "-m",
+      "512",
+      "-nodefaults",
+      "-display",
+      "none",
+      "-serial",
+      "stdio",
+      "-monitor",
+      "none",
+      "-kernel",
+      "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/Image",
+      "-initrd",
+      "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/initramfs.cpio.gz",
+      "-append",
+      "console=ttyAMA0 rdinit=/init panic=1 mpc_run=32dc601706bd47d38f9b959edebdf094",
+      "-no-reboot"
+    ],
+    "engine_exit": 0,
+    "serial_sha256": "ee84da8be4b6ca2d7e6174a3a833110203b7d7401bc501183c47e368fcba0cfb",
+    "abi": {
+      "schema": 1,
+      "run": "32dc601706bd47d38f9b959edebdf094",
+      "kernel": "6.12.111",
+      "machine": "aarch64",
+      "elf_arch": "aarch64",
+      "page_bytes": 4096,
+      "signals": true,
+      "mmap_protection": true,
+      "pthread_tls_futex": true,
+      "fork_exec": true,
+      "checksum": "1d250c45a7bbc87e",
+      "cpu_ms": 4.250672,
+      "wall_ms": 4.530448,
+      "failures": 0
+    },
+    "kernel_gpu": {
+      "schema": 1,
+      "scope": "linux-virtio-gpu-kernel-device",
+      "run": "32dc601706bd47d38f9b959edebdf094",
+      "machine": "aarch64",
+      "kernel": "6.12.111",
+      "driver": "",
+      "stage": "open-drm",
+      "exit_code": 1,
+      "errno": 2,
+      "page_bytes": 4096,
+      "width": 1280,
+      "height": 720,
+      "mapped_bytes": 3686400,
+      "mapped_sum": 0,
+      "mismatches": 0,
+      "mapped_resource_verified": false,
+      "transfer_ioctl_completed": false,
+      "resource_closed": false,
+      "wall_ms": 2.802,
+      "parameters": {
+        "1": {
+          "supported": false,
+          "value": 0
+        },
+        "2": {
+          "supported": false,
+          "value": 0
+        },
+        "3": {
+          "supported": false,
+          "value": 0
+        },
+        "4": {
+          "supported": false,
+          "value": 0
+        },
+        "5": {
+          "supported": false,
+          "value": 0
+        },
+        "6": {
+          "supported": false,
+          "value": 0
+        },
+        "7": {
+          "supported": false,
+          "value": 0
+        },
+        "8": {
+          "supported": false,
+          "value": 0
+        }
+      },
+      "gpu_shader_verified": false,
+      "host_pixels_verified": false,
+      "metal_verified": false,
+      "presentation_verified": false,
+      "gameplay_verified": false
+    }
+  }
+}

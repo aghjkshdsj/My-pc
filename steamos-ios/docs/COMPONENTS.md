@@ -32,6 +32,12 @@ passed its separate physical phone offscreen gate. The native iOS Venus renderer
 compiled and passed iOS platform/API/dependency checks in run 37064765557;
 actual phone loader/shared-memory/guest integration remain open. Guest graphics,
 moving presentation and gameplay remain unverified.
+The new separate graphics kernel passed real hosted ARM virtio-GPU allocation,
+mapping, transfer ioctl and cleanup, including rejection with the device removed
+(run 37067848259). It is a 2D driver test and does not establish host pixels,
+guest shader acceleration or phone guest graphics. ANGLE source integration and
+the EGL-enabled QEMU bridge are under development; no new GPU-bearing phone
+IPA or physical guest shader result is claimed.
 Official rootfs/index metadata and 35 ARM client package URLs are resolved;
 full rootfs/client verification, installation and execution remain open.
 Native ARM64 JIT and Linux 6.12.111 boot/ABI checks passed on the actual iPhone

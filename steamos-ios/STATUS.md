@@ -113,8 +113,9 @@ passed real missing/corrupt shader errors without terminating the test process,
 plus the real two-image draw through dynamically loaded Vulkan functions. Only
 the hosted fixture permits its software driver; production source is unchanged
 and rejects software. These tests do not count as physical Metal evidence.
-The phone step is **Run native Vulkan → Metal check**, then share its report.
-No StikDebug is required for this native graphics test.
+The native phone check has passed; no repeat of build 4000010 is required.
+The next phone gate must exercise guest graphics and the native memory/context
+bridge after its implementation and independent IPA checks.
 
 Build 4000009 corrects a signing compatibility issue in build 4000008's runtime
 engine check: iLoader can change whole-file framework hashes while signing.
@@ -191,3 +192,32 @@ Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
 Native host/Metal optimization does not remove guest TCG translation costs.
 **Steam usable under 60 seconds and Hollow Knight 60â€“80 base rendered FPS at
 1280×720, including sustained thermal/frame-pacing measurements, are unverified.**
+
+
+## Current guest graphics implementation
+
+A fresh graphics-capable Linux 6.12.111 kernel now includes generic PCI, virtio
+PCI/MMIO and DRM virtio-GPU. It is kept separate from the phone-verified CPU
+kernel and uses the same source-pinned Linux/BusyBox archives. Hosted ARM TCG
+[run 37067848259](https://github.com/aghjkshdsj/My-pc/actions/runs/37067848259),
+source `6ab4df9f78ec307e026f378658673efa3ebeeec2`, passed real DRM driver/version
+queries, 1280×720 resource allocation/map, CPU pattern verification, transfer
+ioctl completion and resource cleanup. The same guest correctly failed at
+`open-drm` with ENOENT when the GPU was removed, with fresh separate nonces. Both
+boots retained all Linux ABI checks. Receipt: `evidence/primary/hosted-gpu-kernel-test.json`.
+The first hosted attempt caught missing explicit BusyBox echo paths, after
+the device operations succeeded; the corrected full run passed. This 2D test
+does not establish host pixel contents, shaders, Venus, Metal or phone execution.
+35 local evidence rejection tests and source isolation checks passed.
+
+A new standalone ANGLE source recipe checks out only the pinned engine, common
+configuration and ccache recipe paths. It uses the public iOS SDK, disables
+private Metal ownership identity and retains original source/licenses plus every
+patch. The first actual Xcode build exposed removed libc++ assertion settings
+and a constant shift warning. Targeted hardening/`if constexpr` compatibility
+repairs are rebuilding. A subsequent Clang style warning about redundant
+virtual declarations is retained but is no longer promoted to an error; other
+warnings-as-errors remain enabled. ANGLE compilation is not yet accepted. The QEMU GPU
+engine/display-context adapter, EGL-enabled renderer, host-memory import, guest
+Mesa/Venus shader draw and moving Metal presentation remain unfinished. The
+latest phone IPA is still build 4000010; no new phone test is requested yet.

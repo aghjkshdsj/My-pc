@@ -62,6 +62,14 @@ Remaining integration steps:
    KosmicKrisp: those calls are not our iOS build plan. Venus/ANGLE need their own
    narrowed recipe and a fresh display adapter before guest integration.
 3. Build guest Mesa virgl/Venus with the matching virtio GPU blob/context protocol.
+   A separate graphics-capable kernel and device diagnostic now passed hosted
+   ARM TCG run 37067848259: driver detection, 1280×720 resource allocation/map,
+   guest CPU pattern checks, transfer ioctl and teardown. Removing the GPU from
+   the same guest produced the required missing-device rejection. This exercises
+   the 2D protocol only, with 3D/blob/host-visible/context flags absent; there is
+   no guest shader or independently verified host pixel result. Source:
+   `6ab4df9f78ec307e026f378658673efa3ebeeec2`. The payload is separate from the
+   working CPU baseline. Receipt: `evidence/primary/hosted-gpu-kernel-test.json`.
    Run these same GL/Vulkan diagnostics inside the phone guest and correlate
    fresh guest receipts with host Metal command completion and source identities.
 4. Present moving guest-origin frames through a fresh Metal display adapter;
@@ -77,3 +85,11 @@ Primary specification references used for the new diagnostic:
 [validation feature selection](https://docs.vulkan.org/refpages/latest/refpages/source/VkValidationFeaturesEXT.html),
 and [portability](https://docs.vulkan.org/guide/latest/portability.html).
 These describe API requirements, not successful iPhone execution.
+
+Pinned QEMU integration references:
+[virtio GPU requirements](https://www.qemu.org/docs/master/system/devices/virtio/virtio-gpu.html),
+[GL device realization](https://github.com/utmapp/qemu/blob/v10.0.12-utm/hw/display/virtio-gpu-gl.c),
+[renderer and blob mapping](https://github.com/utmapp/qemu/blob/v10.0.12-utm/hw/display/virtio-gpu-virgl.c),
+[Darwin EGL initialization](https://github.com/utmapp/qemu/blob/v10.0.12-utm/ui/egl-helpers.c),
+[Apple shared-memory backing](https://github.com/utmapp/virglrenderer/blob/5d26f605f50f8e22002ec6db5fb775e1992d4e96/src/mesa/util/anon_file.c).
+These identify implementation work and runtime tests still required.
