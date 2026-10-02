@@ -1,0 +1,24 @@
+name: Fresh guest GL diagnostic rejection checks
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/gl_gate.c', '.github/workflows/steamos-graphics-diagnostic.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gl-diagnostic:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc libsdl2-dev libgl-dev xvfb xauth
+      - name: Check actual shader pixels and reject software as acceleration
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/Guest/gl_gate.c $(sdl2-config --cflags --libs) -lGL -o /tmp/mpc-gl-gate
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run /tmp/mpc-gl-gate --allow-software-diagnostic
+          set +e
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run /tmp/mpc-gl-gate
+          result=$?
+          set -e
+          test "$result" -eq 20
