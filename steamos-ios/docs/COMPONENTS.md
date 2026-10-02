@@ -97,3 +97,14 @@ Linux 6.12.111 and BusyBox 1.38.0 are already source-built and packaged with
 corresponding source in the disposable Linux gate. Each remaining input needs
 a resolved version/source/checksum and
 license receipt before redistribution. No game or account data is in the build.
+
+
+Graphics implementation now includes a separately source-built GPU-capable guest
+kernel with hosted 2D DRM allocation/map/transfer and missing-device rejection,
+plus Mesa 26.2.2 ARM Linux virgl/Venus libraries and an isolated missing-GPU
+rejection in run 37074804870. These do not close the GPU/compositor rows: no
+phone guest shader, host memory-import, moving presentation or Steam/game result
+exists yet. The native ANGLE build remains under compiler repair; the separate
+EGL/Metal QEMU adapter and full EGL/Venus renderer recipe are prepared. Runtime
+loader/library packaging and corresponding-source closure remain external-input
+work before a complete guest payload can be published.

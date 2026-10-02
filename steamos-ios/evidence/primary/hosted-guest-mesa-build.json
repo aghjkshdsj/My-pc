@@ -1,0 +1,241 @@
+{
+  "schema": 1,
+  "scope": "source-built-linux-arm64-guest-mesa-userspace-compile-only",
+  "source_commit": "9ddc641f25d83a230affb90c7e59174a041bde30",
+  "workflow_run": "37074804870",
+  "upstream_url": "https://archive.mesa3d.org/mesa-26.2.2.tar.xz",
+  "upstream_sha256": "eeb29ca7e56cfaa8e8a79538dcf834e3b18e501c31bef5145e959ea437cc4216",
+  "mesa_version": "26.2.2",
+  "meson_options": [
+    "--prefix=/usr",
+    "--libdir=lib",
+    "--buildtype=release",
+    "--wrap-mode=nofallback",
+    "-Dgallium-drivers=virgl",
+    "-Dvulkan-drivers=virtio",
+    "-Dplatforms=[]",
+    "-Dglx=disabled",
+    "-Degl=enabled",
+    "-Dgbm=enabled",
+    "-Dglvnd=disabled",
+    "-Dllvm=disabled",
+    "-Dgallium-rusticl=false",
+    "-Dvideo-codecs=[]",
+    "-Dvalgrind=disabled",
+    "-Dlibunwind=disabled",
+    "-Dzstd=disabled",
+    "-Dbuild-tests=false"
+  ],
+  "linux_arm64": true,
+  "virgl_compiled": true,
+  "venus_compiled": true,
+  "missing_device_exit": 3,
+  "missing_device_test": {
+    "scope": "hosted-linux-private-namespace-missing-drm-device",
+    "parent_mount_namespace": "mnt:[4026531832]",
+    "mount_namespace": "mnt:[4026532263]",
+    "drm_device_nodes": [],
+    "driver_files": "/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-mesa/missing-device-icd.json",
+    "returncode": 3,
+    "stdout": "",
+    "stderr": "Vulkan call failed: vkEnumeratePhysicalDevices(instance, &device_count, NULL) = -3\n",
+    "guest_kernel_tested": false,
+    "phone_tested": false,
+    "graphics_verified": false
+  },
+  "external_linux_dependencies": {
+    "libvulkan_virtio.so": "linux-vdso.so.1 (0x0000ffe4ce3be000)\n\tlibz.so.1 => /lib/aarch64-linux-gnu/libz.so.1 (0x0000ffe4ce180000)\n\tlibdrm.so.2 => /lib/aarch64-linux-gnu/libdrm.so.2 (0x0000ffe4ce140000)\n\tlibexpat.so.1 => /lib/aarch64-linux-gnu/libexpat.so.1 (0x0000ffe4ce0f0000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ffe4ce040000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ffe4cde80000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffe4ce370000)",
+    "libgallium-26.2.2.so": "linux-vdso.so.1 (0x0000ff8832246000)\n\tlibdrm.so.2 => /lib/aarch64-linux-gnu/libdrm.so.2 (0x0000ff8830e50000)\n\tlibexpat.so.1 => /lib/aarch64-linux-gnu/libexpat.so.1 (0x0000ff8830e00000)\n\tlibz.so.1 => /lib/aarch64-linux-gnu/libz.so.1 (0x0000ff8830dc0000)\n\tlibstdc++.so.6 => /lib/aarch64-linux-gnu/libstdc++.so.6 (0x0000ff8830b30000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ff8830a80000)\n\tlibgcc_s.so.1 => /lib/aarch64-linux-gnu/libgcc_s.so.1 (0x0000ff8830a40000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ff8830880000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ff8832200000)",
+    "libEGL.so.1.0.0": "linux-vdso.so.1 (0x0000ff03b112a000)\n\tlibgallium-26.2.2.so => not found\n\tlibgbm.so.1 => /lib/aarch64-linux-gnu/libgbm.so.1 (0x0000ff03b1050000)\n\tlibexpat.so.1 => /lib/aarch64-linux-gnu/libexpat.so.1 (0x0000ff03b1000000)\n\tlibdrm.so.2 => /lib/aarch64-linux-gnu/libdrm.so.2 (0x0000ff03b0fc0000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ff03b0f10000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ff03b0d50000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ff03b10e0000)",
+    "libGLESv1_CM.so.1.1.0": "linux-vdso.so.1 (0x0000ff03fa1cc000)\n\tlibgallium-26.2.2.so => not found",
+    "libgbm.so.1.0.0": "linux-vdso.so.1 (0x0000ff072e73c000)\n\tlibdrm.so.2 => /lib/aarch64-linux-gnu/libdrm.so.2 (0x0000ff072e690000)\n\tlibexpat.so.1 => /lib/aarch64-linux-gnu/libexpat.so.1 (0x0000ff072e640000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ff072e590000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ff072e3d0000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ff072e700000)",
+    "libGLESv2.so.2.0.0": "linux-vdso.so.1 (0x0000ff9660f7c000)\n\tlibgallium-26.2.2.so => not found",
+    "dri_gbm.so": "linux-vdso.so.1 (0x0000ff5814acc000)\n\tlibgallium-26.2.2.so => not found\n\tlibdrm.so.2 => /lib/aarch64-linux-gnu/libdrm.so.2 (0x0000ff5814a10000)\n\tlibexpat.so.1 => /lib/aarch64-linux-gnu/libexpat.so.1 (0x0000ff58149c0000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ff5814910000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ff5814750000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ff5814a90000)",
+    "vk-gate": "linux-vdso.so.1 (0x0000ffefb831c000)\n\tlibvulkan.so.1 => /lib/aarch64-linux-gnu/libvulkan.so.1 (0x0000ffefb8200000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ffefb8040000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffefb82e0000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ffefb7f90000)"
+  },
+  "kernel_boot_tested": false,
+  "phone_tested": false,
+  "guest_shader_verified": false,
+  "metal_verified": false,
+  "presentation_verified": false,
+  "steamos_verified": false,
+  "gameplay_verified": false,
+  "files": {
+    "mesa-26.2.2.tar.xz": {
+      "bytes": 68533264,
+      "sha256": "eeb29ca7e56cfaa8e8a79538dcf834e3b18e501c31bef5145e959ea437cc4216"
+    },
+    "vk-gate": {
+      "bytes": 74864,
+      "sha256": "c7726e5ed8d5b78364367a34b5625970a2c0fec631909671873dd47c4f0160b6"
+    },
+    "vertex.spv": {
+      "bytes": 1136,
+      "sha256": "58a13742238c0651b8eeda455ba8962c12f41d9d627cd90480d3ed38cdf90a5c"
+    },
+    "fragment.spv": {
+      "bytes": 1392,
+      "sha256": "7c117856eaaa2b8d37c47a569e861713550c7563ebdfc880b2a389667d57e368"
+    },
+    "staging/usr/include/gbm.h": {
+      "bytes": 19165,
+      "sha256": "95f3b4a6ee5175c7cc5d47368d4efb100063fe49e5a6f5b19030ac2ceed73b81"
+    },
+    "staging/usr/include/gbm_backend_abi.h": {
+      "bytes": 11460,
+      "sha256": "4eacf82b37a754dc5e64c89ab9c8a32ad8b96bfac12e91f7e217e7fa5c5602c5"
+    },
+    "staging/usr/lib/libvulkan_virtio.so": {
+      "bytes": 1860688,
+      "sha256": "12673473308f638eeb69180d4440a2166e5e3ce95301eff912d8599ae7eaedb4"
+    },
+    "staging/usr/lib/libgallium-26.2.2.so": {
+      "bytes": 22155136,
+      "sha256": "ebc06a038c96691c47e8fb4e829b33a1f3e5435e73dc6f1c28430075b51f59a6"
+    },
+    "staging/usr/lib/libEGL.so.1.0.0": {
+      "bytes": 381520,
+      "sha256": "c0f725124c42dd23c95e1c414a6dd42564ec9c3672a6b8670dc49b0e49c2b502"
+    },
+    "staging/usr/lib/libGLESv1_CM.so.1.1.0": {
+      "bytes": 78408,
+      "sha256": "6b7510aac66d069d3be89ae197088c9c22b56c769db80e8181cbce69783155a9"
+    },
+    "staging/usr/lib/libgbm.so.1.0.0": {
+      "bytes": 75640,
+      "sha256": "d176e8971413cc57c0fc220f00ec8f86b8383c0a7c92f02ab02e1b1dd9a04f4c"
+    },
+    "staging/usr/lib/libGLESv2.so.2.0.0": {
+      "bytes": 93296,
+      "sha256": "372ccf35bca357c0e82f9931f19d4d560513ead1bab86d23b0f4834753cbc91c"
+    },
+    "staging/usr/include/GLES/glplatform.h": {
+      "bytes": 634,
+      "sha256": "c6bcc0caaf56609c494efb327e8e9e2845630f6b58641ddde71eacd2c2790d21"
+    },
+    "staging/usr/include/GLES/glext.h": {
+      "bytes": 52710,
+      "sha256": "f9d9dc4d8006925c5a0dd37a7f91a0fb87d066ba5b057384f6dea8ffeac79dbe"
+    },
+    "staging/usr/include/GLES/gl.h": {
+      "bytes": 30603,
+      "sha256": "6b576206efbee73c0ba9716f8bbeb23496de17e735d0aa9e5eb00d73976db185"
+    },
+    "staging/usr/include/GLES/egl.h": {
+      "bytes": 399,
+      "sha256": "6f27d0fbd2190b179cad9df81cea0eb9524281543fdfb86134c06175009db092"
+    },
+    "staging/usr/include/EGL/eglext_angle.h": {
+      "bytes": 19926,
+      "sha256": "df92523469632129b6b0c37bcade9fa8cc449e23e487beda2cc130b4e4bd1df5"
+    },
+    "staging/usr/include/EGL/eglext.h": {
+      "bytes": 72948,
+      "sha256": "efc117e5cbbf21fa4f2e9dbfb3899eedb3235c0152a2f6d9ca4510b7505e400f"
+    },
+    "staging/usr/include/EGL/eglmesaext.h": {
+      "bytes": 2129,
+      "sha256": "e9119482f23bfa6a4fd006278d16434328fa91abcb6c55033959c262644d85f4"
+    },
+    "staging/usr/include/EGL/egl.h": {
+      "bytes": 19286,
+      "sha256": "f5f41711f5d7517eb50d63726d786d471a3e84a52b94fd9aca9b6262b629347c"
+    },
+    "staging/usr/include/EGL/eglplatform.h": {
+      "bytes": 5239,
+      "sha256": "25b5391655effcf363a38fa00c3154f356a3eab3d35dc067847875513cf1e441"
+    },
+    "staging/usr/include/GLES2/gl2.h": {
+      "bytes": 42930,
+      "sha256": "80f2c16d6543bc5ed3f9431c21fd4825d29af1dd82beab2edf31e377e6e70995"
+    },
+    "staging/usr/include/GLES2/gl2ext.h": {
+      "bytes": 250982,
+      "sha256": "4530230062731e45cd7ea0c931eec6f846434e0295a618b8761f09c972d3c669"
+    },
+    "staging/usr/include/GLES2/gl2platform.h": {
+      "bytes": 642,
+      "sha256": "f5da0747540a50be5f44aad264aae45bdf157a192c40f17487dd9a2f99c71b6c"
+    },
+    "staging/usr/include/KHR/khrplatform.h": {
+      "bytes": 11131,
+      "sha256": "7b1e01aaa7ad8f6fc34b5c7bdf79ebf5189bb09e2c4d2e79fc5d350623d11e83"
+    },
+    "staging/usr/include/GL/glext.h": {
+      "bytes": 859012,
+      "sha256": "e7d514287e81e5403c14b02c2bab9d870589353642a8748da4213b9a55dbf56f"
+    },
+    "staging/usr/include/GL/gl.h": {
+      "bytes": 79877,
+      "sha256": "f09313b53505928802f07d1b7fa9d40e7abe7728db389ec8fab348778073e4f1"
+    },
+    "staging/usr/include/GL/glcorearb.h": {
+      "bytes": 430995,
+      "sha256": "087622fc4b933fc0e5e4f7aa6071111720acd085de039159de0f2d06b91d7486"
+    },
+    "staging/usr/include/GLES3/gl32.h": {
+      "bytes": 127284,
+      "sha256": "e580e7db6bfc6b86860ae6b02fa27eb9acfe6726bab71f9c268568cdbf80baea"
+    },
+    "staging/usr/include/GLES3/gl3.h": {
+      "bytes": 81600,
+      "sha256": "c61394d5166fc7f92db132d4cda66517d3e5e8c14b88267f0529ef298c2333d1"
+    },
+    "staging/usr/include/GLES3/gl3ext.h": {
+      "bytes": 741,
+      "sha256": "5730da902cec04b86f93152a219b379eabbf4eac97387f271fb8141fdfe4c5c5"
+    },
+    "staging/usr/include/GLES3/gl3platform.h": {
+      "bytes": 642,
+      "sha256": "a9e060dae5a2b11c5a889b679692b7089a10a7e03ebfbb6cf28217f6e322fb08"
+    },
+    "staging/usr/include/GLES3/gl31.h": {
+      "bytes": 106404,
+      "sha256": "612fc3a3c483baa3b04dfa6be3cb44217ad5ebb92c3af05531dcac2c159b177a"
+    },
+    "staging/usr/include/GL/internal/dri_interface.h": {
+      "bytes": 82567,
+      "sha256": "03a91da7f918a5a70643ec64b750f19a90832230235d6b66076daf3fbf489149"
+    },
+    "staging/usr/share/drirc.d/00-mesa-defaults.conf": {
+      "bytes": 36328,
+      "sha256": "c325c4027540b7315d8f83a74d3f4a21ea6f5e02f009195882c1c0a22631e1cd"
+    },
+    "staging/usr/share/drirc.d/00-venus-defaults.conf": {
+      "bytes": 85,
+      "sha256": "ce709012a58813853bd3e8129c91110c3fbb49c5d93ce04730966650eb95eba9"
+    },
+    "staging/usr/share/drirc.d/00-virtio_gpu-defaults.conf": {
+      "bytes": 274,
+      "sha256": "74a293c45f4247f1b3d383d5519f158ce7eee53e6765922355521c863cfd0959"
+    },
+    "staging/usr/share/vulkan/icd.d/virtio_icd.aarch64.json": {
+      "bytes": 177,
+      "sha256": "4617d49fbfcd7c9eb4e7a06c21186037ba9c6db945949da29a8007721f72e2c5"
+    },
+    "staging/usr/lib/gbm/dri_gbm.so": {
+      "bytes": 150136,
+      "sha256": "8fd2e1acd518c5900dd5903c2793ebab3bea220b95ee41cf378ed36ad281f7c3"
+    },
+    "staging/usr/lib/pkgconfig/glesv2.pc": {
+      "bytes": 220,
+      "sha256": "23ad3725fc3f6baf5cf806b1e4a50c27295a098b3140f1d17aeee048da1bae21"
+    },
+    "staging/usr/lib/pkgconfig/dri.pc": {
+      "bytes": 201,
+      "sha256": "ebe9090a71ba5030f2e46e72eec60aede17aa9ae0706ef71b23fb2ccc2cc4dd4"
+    },
+    "staging/usr/lib/pkgconfig/egl.pc": {
+      "bytes": 240,
+      "sha256": "cb3e2f7b51d6a161df16744bf6b98a41bc8b3ae95f1928ddaf48bf0fdb0772c8"
+    },
+    "staging/usr/lib/pkgconfig/gbm.pc": {
+      "bytes": 197,
+      "sha256": "83e399a712114bf31a29fa606b0b0c8eaa9a41f8faba3309690eb34bc2e6b7fe"
+    },
+    "staging/usr/lib/pkgconfig/glesv1_cm.pc": {
+      "bytes": 229,
+      "sha256": "a04f7e39a0f3c621c48c2ed0d7790de4ef144a5267734df06c5cc9d5245f507a"
+    }
+  }
+}

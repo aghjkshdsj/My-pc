@@ -21,6 +21,7 @@ paths += [root.parent / '.github/workflows/steamos-ios-angle.yml']
 paths += [root / 'evidence/primary/hosted-gpu-kernel-test.json']
 paths += [root.parent / '.github/workflows/steamos-ios-gl-venus.yml']
 paths += [root.parent / '.github/workflows/steamos-guest-mesa.yml']
+paths += [root / 'evidence/primary/hosted-guest-mesa-build.json']
 paths = sorted(set(paths))
 rows = [{'path': p.relative_to(root.parent).as_posix(), 'mode': '100644', 'type': 'blob',
          'content': p.read_text(encoding='utf-8')} for p in paths]

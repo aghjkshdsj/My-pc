@@ -190,7 +190,7 @@ Next: integrate the compiled native Venus renderer and prove real guest GL and V
 to Metal and moving presentation; integrate authenticated SteamOS, actual ARM
 Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
 Native host/Metal optimization does not remove guest TCG translation costs.
-**Steam usable under 60 seconds and Hollow Knight 60â€“80 base rendered FPS at
+**Steam usable under 60 seconds and Hollow Knight 60–80 base rendered FPS at
 1280×720, including sustained thermal/frame-pacing measurements, are unverified.**
 
 
@@ -213,11 +213,34 @@ does not establish host pixel contents, shaders, Venus, Metal or phone execution
 A new standalone ANGLE source recipe checks out only the pinned engine, common
 configuration and ccache recipe paths. It uses the public iOS SDK, disables
 private Metal ownership identity and retains original source/licenses plus every
-patch. The first actual Xcode build exposed removed libc++ assertion settings
-and a constant shift warning. Targeted hardening/`if constexpr` compatibility
-repairs are rebuilding. A subsequent Clang style warning about redundant
-virtual declarations is retained but is no longer promoted to an error; other
-warnings-as-errors remain enabled. ANGLE compilation is not yet accepted. The QEMU GPU
-engine/display-context adapter, EGL-enabled renderer, host-memory import, guest
-Mesa/Venus shader draw and moving Metal presentation remain unfinished. The
-latest phone IPA is still build 4000010; no new phone test is requested yet.
+patch. Actual Xcode builds exposed removed libc++ assertion settings, a constant
+shift and intentional object-byte copies newly diagnosed by Clang. Targeted
+hardening, `if constexpr` and reviewed explicit-copy repairs preserve assertions,
+object bytes and hash padding. Guards check the reviewed value types; the
+redundant-virtual style warning stays visible without becoming an error. All
+other warnings-as-errors remain enabled. ANGLE compilation is not yet accepted.
+
+The separate QEMU GPU recipe, Darwin EGL/Metal root-context adapter and dependency
+stager/source collector are implemented but not yet cross-compiled. The adapter
+explicitly selects ANGLE Metal and GLES; its upstream headless readback is a
+correctness diagnostic, not the planned steady-state presenter. The prepared
+EGL-enabled virgl/Venus recipe will consume only an accepted ANGLE build.
+
+A new ARM Linux Mesa 26.2.2 recipe pins the official 68,533,264-byte archive to
+SHA-256 `eeb29ca7e56cfaa8e8a79538dcf834e3b18e501c31bef5145e959ea437cc4216`.
+Only virgl/Venus drivers are selected. Hosted run 37074804870, source
+`9ddc641f25d83a230affb90c7e59174a041bde30`, passed actual ARM64 ELF library,
+unified Gallium/compiled-virgl, ICD and shader compilation checks. The exact new
+Venus ICD correctly failed physical-device enumeration with Vulkan -3/exit 3 in
+a verified separate mount namespace with no DRM device nodes. Two earlier audit
+failures caught an obsolete alias assumption and the host DRM-directory precondition;
+both are retained. Receipt: `evidence/primary/hosted-guest-mesa-build.json`.
+This is guest userspace, not a complete initramfs or SteamOS image. The full Mesa
+source and exact recipe/settings are retained. External Linux loader/libraries
+and their package/source versions are recorded separately; staging-directory
+library lookup and source/license closure remain guest-payload work. No guest
+shader or phone graphics result is implied by this compile/negative test.
+
+Phone host-memory import, guest Mesa/Venus shader draws and moving Metal
+presentation remain unfinished. The latest phone IPA is still build 4000010;
+no new phone test is requested yet.

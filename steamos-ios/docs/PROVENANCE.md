@@ -100,3 +100,21 @@ without an EGL/GLX backend or Neptune/private Hypervisor. Its successful compile
 is not phone import/serialization/graphics evidence. The separate MoltenVK
 physical-phone offscreen check passed in build 4000010. ANGLE and the complete
 guest transport/presentation stack remain unfinished.
+
+
+The separate ANGLE build retains the exact reviewed engine/configuration paths,
+complete tracked source/license files and the compatibility patch. ANGLE BSD
+terms, Apple configuration notices and third-party per-file notices remain in
+that source; selecting an engine from WebKit does not reuse a WebKit application.
+Public-SDK build settings remove Metal ownership identity and WebCore-only client
+restrictions. Actual compilation is still under repair and has not established
+runtime acceptance.
+
+Guest Mesa is independently source-built from the official 26.2.2 release and its
+[published checksum](https://docs.mesa3d.org/relnotes/26.2.2.html), using only virgl
+and Venus drivers. Its full release source, actual Meson settings and fresh recipe
+are retained. Mesa includes per-file licenses beyond its project-level MIT label.
+The separate guest userspace archive does not bundle Ubuntu's external dynamic
+libraries or ELF loader; their exact package/source versions are recorded for the
+subsequent image and license closure. Source inspection or library compilation
+cannot establish a guest shader, phone Metal, presentation or game result.
