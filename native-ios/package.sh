@@ -47,6 +47,10 @@ for repository in [runtime] + [p.parent for p in runtime.rglob('.git') if p.pare
     for item in subprocess.check_output(['git', '-C', str(repository), 'ls-files', '-z']).decode().split('\0'):
         if item and (repository / item).is_file(): paths.append(repository / item)
 paths.extend([runtime / '.mypc-native-overlay.json'])
+paths.extend(runtime / item for item in (
+    'app/Madeira/NativeSteamDesktop.swift',
+    'app/Madeira/Assets.xcassets/SteamLogo.imageset/SteamLogo.svg',
+    'app/Madeira/Assets.xcassets/SteamLogo.imageset/Contents.json'))
 archive = driver / 'out/MyPC-NativeSteam-Sources.tar.gz'
 with tarfile.open(archive, 'w:gz') as output:
     for path in sorted(set(paths)):
@@ -54,8 +58,11 @@ with tarfile.open(archive, 'w:gz') as output:
     for path in driver.iterdir():
         if path.is_file(): output.add(path, arcname='driver/' + path.name, recursive=False)
     for path in sorted((driver / 'tests').rglob('*')):
-        if path.is_file() and path.suffix in ('.py', '.c'):
+        if path.is_file() and path.suffix in ('.py', '.c', '.swift', '.json', '.txt'):
             output.add(path, arcname='driver/tests/' + path.relative_to(driver / 'tests').as_posix(), recursive=False)
+    for path in sorted((driver / 'branding').rglob('*')):
+        if path.is_file():
+            output.add(path, arcname='driver/branding/' + path.relative_to(driver / 'branding').as_posix(), recursive=False)
     workflow = driver.parent / '.github/workflows/native-ios-steam.yml'
     output.add(workflow, arcname='driver/native-ios-steam.yml', recursive=False)
 digest = hashlib.sha256(archive.read_bytes()).hexdigest()

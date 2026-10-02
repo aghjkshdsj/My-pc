@@ -39,6 +39,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 ../test-protocols.py
+      - name: Test desktop Steam setup and shared library policy
+        run: python3 native-ios/test-steam-desktop.py
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -232,6 +234,10 @@ jobs:
           tag="native-ios-steam-preview-${GITHUB_RUN_NUMBER}"
           printf '%s\n' \
             'Native iOS Steam sign-in, library and downloads; ARM64EC Wine + FEX + Metal game runtime.' \
+            '' \
+            'Adds Launch Steam beside Desktop, with matching button styling and the original blue PC app icon. This opens the full Windows x64 Steam client through Wine/FEX, separate from the Linux ARM64 client in preview 33. Enable JIT first; the initial desktop launch downloads and verifies Valve packages, then asks you to sign in in Steam. The native library stays available as the faster interface.' \
+            '' \
+            'Desktop Steam installs separately from the pinned native game-launch helper and includes the existing native Windows download folder in its library configuration. CEF rendering, Steam updates and game launches through the desktop client still need phone testing; desktop compatibility is experimental.' \
             '' \
             'Includes a fix for Dokimon Quest: II failing before its first window with Wine error c0000018: small x64 executables with stripped relocation records can claim their required image address. The actual patched placement functions pass ASan/UBSan regression checks with host VM stubs; successful gameplay still needs phone testing.' \
             '' \

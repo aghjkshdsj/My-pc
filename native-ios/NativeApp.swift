@@ -4,6 +4,54 @@ import SwiftUI
 import UIKit
 import Darwin
 
+@MainActor
+final class NativeSteamDesktopModel: ObservableObject {
+    static let shared = NativeSteamDesktopModel()
+    @Published var presented = false
+    @Published private(set) var busy = false
+    @Published private(set) var status = ""
+    private var task: Task<Void, Never>?
+    func run(_ operation: @escaping @MainActor () async throws -> Void) {
+        guard !busy else { return }
+        busy = true; presented = true; status = "Preparing desktop Steam…"
+        task = Task {
+            defer { busy = false; task = nil }
+            do { try await operation(); presented = false }
+            catch is CancellationError {
+                status = "Setup cancelled. Tap Launch Steam to try again."
+                SteamOwnedLibrary.shared.dockEnded()
+            } catch {
+                status = error.localizedDescription
+                LogStore.shared.log("[desktop-steam] not started: \(status)", level: .error)
+                SteamOwnedLibrary.shared.dockEnded()
+            }
+        }
+    }
+    func progress(_ value: String) { status = value }
+    func cancel() { task?.cancel() }
+}
+
+struct NativeSteamDesktopSetupView: View {
+    @ObservedObject private var model = NativeSteamDesktopModel.shared
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image("SteamLogo").renderingMode(.template).resizable().scaledToFit().frame(width: 60, height: 60)
+                Text("Desktop Steam").font(.title2.bold())
+                Text("The first launch downloads the full Windows Steam client from Valve. Sign in in Steam's own window once it opens.")
+                    .font(.subheadline).multilineTextAlignment(.center).foregroundStyle(.secondary)
+                if model.busy { ProgressView() }
+                Text(model.status).multilineTextAlignment(.center).accessibilityLabel(model.status)
+                Text("Desktop Steam is experimental on iOS. It may take longer to open than the native library.")
+                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                if model.busy { Button("Cancel setup", role: .cancel) { model.cancel() } }
+                else { Button("Done") { model.presented = false }.buttonStyle(.borderedProminent) }
+            }.padding(28).frame(maxWidth: 500).frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationTitle("Launch Steam").navigationBarTitleDisplayMode(.inline)
+        }.interactiveDismissDisabled(model.busy)
+    }
+}
+
 @main
 struct MadeiraApp: App {
     init() { NativePerformance.begin() }

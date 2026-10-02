@@ -15,3 +15,4 @@ test "$(git -C "$runtime" rev-parse HEAD)" = "$source_commit"
 test "$(git -C "$runtime" remote get-url origin)" = "$source_url"
 git -C "$runtime" submodule update --init --recursive --depth 1
 python3 "$driver/prepare.py" "$runtime"
+python3 "$driver/app-overlay.py" "$runtime"

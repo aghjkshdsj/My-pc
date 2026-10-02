@@ -5,6 +5,25 @@ the iOS Steam account, library and content-download frontend and runs Windows
 games through native ARM64EC Wine, FEX and DXMT/Metal. Its app target contains
 no QEMU, Linux guest, virgl, guest filesystem or VM startup.
 
+**Launch Steam**, beside **Desktop**, opens the full **Windows x64 Steam client
+inside Wine/FEX**, not the Linux ARM64 client from preview 33. The first launch
+downloads Valve's current `steam_client_win64` distribution (about 340 MiB
+compressed at implementation time), verifies every package size/SHA-256 and
+ZIP CRC, and installs it as `C:\SteamDesktop` in one rename. Setup supports
+cancellation and preserves existing conflicting files. Enable JIT first and
+sign in in Steam's own window. Its CEF interface is experimental on iOS; phone
+testing of login, rendering, updates and games remains required.
+
+The desktop client is separate from the pinned native game-launch helper.
+Its library configuration includes the existing native Windows download folder;
+owner-added desktop library configuration is preserved after first setup.
+The native account connection logs off before a desktop session. Client
+discovery registry keys naming `SteamDesktop` are restored for the next native
+game launch. No account token is written to the desktop launch command.
+The app name is My-pc Native and its icon is the original blue PC icon from
+preview 33. The Steam button uses Valve's Steam mark and the Desktop button's
+Liquid Metal/system capsule style, including controller navigation.
+
 The existing Steam ARM64 preview remains on `codex/steam-arm-metal`.
 `com.aghjkshdsj.mypc.native` is a separate app identity: installing this preview
 does not replace that app or migrate/delete its Linux disk, account or games.
@@ -20,6 +39,12 @@ an attributed port of the referenced native implementation, not a claim to have
 rewritten Valve's proprietary client, Wine or FEX from scratch. The supplied
 0.1.0 ZIP informed the architecture; the pinned public source contains later
 account handoff and launch fixes.
+
+`app-overlay.py` applies only Swift, Xcode project and asset changes after the
+native compiler-input overlay. Native component caches depend on the pinned
+runtime and C build inputs; app source is freshly compiled and typechecked.
+`test-steam-desktop.py` compiles the actual Foundation manifest, ZIP, PE and
+registry policy at `-O` against captured public metadata and hostile fixtures.
 
 The source keeps its GPL-3.0-or-later / Madeira Converter Exception notices,
 the Wine LGPL notices and other component notices. Release source archives
