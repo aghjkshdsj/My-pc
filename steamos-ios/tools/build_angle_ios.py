@@ -58,8 +58,19 @@ def build():
     # for an ordinary application and must not enter this engine build.
     assert text.count(' ANGLE_ENABLE_METAL_OWNERSHIP_IDENTITY ') == 1
     config.write_text(text.replace(' ANGLE_ENABLE_METAL_OWNERSHIP_IDENTITY ', ' '), encoding='utf-8')
+    common = source / 'Configurations/CommonBase.xcconfig'
+    text = common.read_text(encoding='utf-8')
+    assert text.count('-D_LIBCPP_ENABLE_ASSERTIONS=1') == 5
+    common.write_text(text.replace('-D_LIBCPP_ENABLE_ASSERTIONS=1',
+                                  '-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE'), encoding='utf-8')
+    bitset = engine / 'src/common/bitset_utils.h'
+    text = bitset.read_text(encoding='utf-8')
+    old = '    if (priv::kDefaultBitSetSize < 64)\n'
+    assert text.count(old) == 1
+    # The discarded 64-bit branch must not compile a shift by 64 under Clang.
+    bitset.write_text(text.replace(old, '    if constexpr (priv::kDefaultBitSetSize < 64)\n'), encoding='utf-8')
     patch = output / 'public-ios-angle.patch'
-    patch.write_text(capture('git', '-C', str(source), 'diff', '--', DIRECTORIES[0]) + '\n', encoding='utf-8')
+    patch.write_text(capture('git', '-C', str(source), 'diff', '--', *DIRECTORIES) + '\n', encoding='utf-8')
     archive = output / 'ANGLE.xcarchive'
     settings = ['CODE_SIGNING_ALLOWED=NO', 'CODE_SIGNING_REQUIRED=NO', 'USE_INTERNAL_SDK=NO',
                 'WEBCORE_LIBRARY_DIR=/usr/local/lib', 'NORMAL_UMBRELLA_FRAMEWORKS_DIR=',
