@@ -34,8 +34,10 @@ guest transport, Metal, SteamOS or gameplay evidence.
 Remaining integration steps:
 
 1. Phone JIT/Linux execution passed in build 4000007. The 32 MiB split-WX cache
-   resolved the recorded allocation failure. Next run the separate native
-   MoltenVK offscreen shader gate; it does not demonstrate Linux graphics.
+   resolved the recorded allocation failure. Build 4000010 subsequently passed
+   the native MoltenVK offscreen gate on the actual phone: both 720p images, all
+   1,843,200 pixels, zero mismatches and expected checksum on Apple A17 Pro GPU.
+   Phone validation layers were disabled. This does not demonstrate Linux graphics.
 2. Source-build pinned Darwin virgl/Venus, ANGLE and MoltenVK engines with public
    iOS frameworks. Audit their external-host-memory path, ownership, alignment,
    cache coherency, fences and resource teardown. Reuse engine code under its
@@ -44,7 +46,11 @@ Remaining integration steps:
    the engine and all seven external dependencies, a source-only archive and
    physical-iOS Mach-O/import/export checks. Audit found an unneeded required
    macOS IOKit import; build 37056046870 passed after removing that iOS target's
-   framework link. No phone loader or Vulkan-to-Metal result exists yet.
+   framework link. The physical phone native Vulkan-to-Metal gate passed in
+   build 4000010. The new independent Venus iOS workflow narrows the renderer to
+   Venus, public Metal/Foundation, same-process threads and pinned epoxy dispatch.
+   Its framework loader patch and exact corresponding source are retained.
+   Actual native renderer compile/import/serialization remain unverified.
    Hosted run 37056046909 passed actual Venus serialized shader draws through
    the existing external-host/POSIX SHM path under an explicit test override.
    The native Linux fd route failed export. Neither result proves the Darwin

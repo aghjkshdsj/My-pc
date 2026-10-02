@@ -22,7 +22,13 @@ teardown; it is not a per-frame GPU measurement and cannot be converted into
 game FPS. The reported app footprint afterward was 90,212,072 bytes and thermal
 state Nominal, both point-in-time observations without peak or sustained data.
 Build 4000010 saves a dedicated structured draw receipt to resolve that gap;
-its compiled package and hosted regression passed, with new phone proof pending.
+its compiled package and hosted regression passed. The later build 4000010 phone
+receipt passed native Vulkan-to-Metal correctness: two 720p images, 1,843,200
+pixels, zero mismatches and checksum 1,219,256,320 on Apple A17 Pro GPU. Its
+complete setup/draw/readback/teardown took 497.20 ms, not steady-state frame time
+or game FPS. Footprint afterward was 90,097,360 bytes and thermal state Nominal.
+Validation layers were disabled. No peak-memory or sustained thermal conclusion
+is drawn from this one run.
 
 | Path | Initial budget / experiment | Evidence required |
 |---|---|---|

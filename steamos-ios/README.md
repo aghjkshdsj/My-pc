@@ -1,4 +1,4 @@
-# My-pc SteamOS iOS â€” fresh bring-up
+# My-pc SteamOS iOS — fresh bring-up
 
 This source directory and `MyPCSteamOS.xcodeproj` are new. The project links no
 Madeira, previous VM app, Wine, FEX or previous native-preview code. Existing
@@ -34,28 +34,33 @@ emulation, not SteamOS startup, hardware virtualization or game performance.
 Build 4000010 packages a native Vulkan-to-Metal offscreen shader gate through
 the corrected source-built MoltenVK engine. Actual iOS compile, recovery and
 31 evidence tests passed; the independently downloaded IPA passed identity,
-payload, dependency and CRC checks. Its physical graphics test is pending.
+payload, dependency and CRC checks. The build 4000010 owner-supplied iPhone report
+also passed the native Vulkan-to-Metal offscreen gate: Apple A17 Pro GPU, two
+1280×720 images, 1,843,200 pixels, zero mismatches and the exact channel sum.
+The 497.20 ms complete native test is not game FPS. Phone validation layers
+were not enabled; source/report consistency is not cryptographic attestation.
 Linux guest graphics and moving presentation remain separate unfinished gates.
 
 [Latest graphics-bearing IPA: Linux-gate-10 / build 4000010](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-linux-gate-10/MyPCSteamOS-Linux-Gate.ipa).
 9,528,852 bytes, SHA-256
 `3d11c3815b5108406019074787975d53426edb21fa085fc61643a378abf69dba`.
 Source `208647c2f7c18f32fcf894771756c0fbeb487374`.
-Install with iLoader and run **native Vulkan â†’ Metal check** once; no JIT is
+Install with iLoader and run **native Vulkan → Metal check** once; no JIT is
 needed for this host graphics test. Share its saved device report or recovery
 logs. Corresponding source and verification accompany the prerelease.
 This supersedes build 4000008, whose phone report failed the whole-file MoltenVK
 hash check before loading the renderer. The corrected gate verifies executable
 code identity independently of iLoader's signing metadata; complete original
 unsigned IPA and shader hashes remain exact. The correction has passed compilation,
-offline verification and signing-metadata simulation, with phone rendering pending.
+offline verification and signing-metadata simulation; build 4000010 subsequently
+passed native offscreen phone rendering.
 The returned build 4000009 phone report passed engine identity and draw exit 0,
 but its pixel/renderer diagnostic was empty and was rejected as incomplete proof.
 Build 4000010 saves a dedicated fsynced JSON receipt and preserves it in recovery
 sharing, independently of engine stdout/stderr. Its actual ARM64 iOS compile,
 31 evidence tests, recovery/export tests, five real hosted Vulkan adapter cases
-and independent public IPA checks passed. Physical phone graphics acceptance
-remains pending.
+and independent public IPA checks passed. Physical phone native offscreen
+acceptance passed separately. Linux guest graphics and moving presentation remain open.
 
 The owner confirmed iPhone 15 Pro Max, iOS 27.0.1, iLoader and StikDebug on
 2026-10-02. The probe records the actual OS build, page size, code-signing state,
@@ -80,7 +85,7 @@ new app's Documents directory and are never automatically uploaded.
 
 Crash recovery builds save a pending-test marker before JIT or engine execution,
 plus fsynced native stage logs and available engine stdout/stderr. Reopen after
-an interrupted test to see **Previous test stopped â€” share logs**. Choose
+an interrupted test to see **Previous test stopped — share logs**. Choose
 **Share logs** to export one diagnostic JSON. **Later** and cancelling the share
 sheet preserve the files; **Share saved diagnostic logs** stays available.
 The export includes bounded known probe reports and kernel serial logs only.

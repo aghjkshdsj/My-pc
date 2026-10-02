@@ -1,0 +1,37 @@
+name: Fresh native iOS Venus renderer engine
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/build_venus_ios.py', '.github/workflows/steamos-ios-venus.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  ios-venus-engine:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native cross-build tools
+        run: brew install meson ninja pkg-config
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-iOS-MoltenVK-Engine
+          run-id: 37056046870
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/graphics-artifact
+      - name: Source-build and verify physical iOS Venus renderer
+        run: python3 steamos-ios/tools/build_venus_ios.py steamos-ios/out/graphics-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iOS-Venus-Engine
+          path: |
+            steamos-ios/out/ios-venus/receipt.json
+            steamos-ios/out/ios-venus/renderer-exports.txt
+            steamos-ios/out/ios-venus/Venus-*.tar.gz
+            steamos-ios/out/ios-venus/*.cross
+            steamos-ios/out/ios-venus/*.patch
+            steamos-ios/out/ios-venus/**/meson-logs/meson-log.txt
+          retention-days: 14

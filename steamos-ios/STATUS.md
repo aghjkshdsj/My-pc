@@ -1,4 +1,4 @@
-# Verified state and next work â€” 2026-10-02
+# Verified state and next work — 2026-10-02
 
 The complete SteamOS ARM/FEX product is **unfinished**. No architecture
 substitution was approved or adopted. Previous projects, applications, disks,
@@ -48,7 +48,14 @@ last durably saved stage and a readable result. The owner-supplied build 4000007
 logs passed the physical Linux evidence checker. Raw device evidence remains private.
 Build 4000010 packages a native offscreen Vulkan-to-Metal shader check. Its
 actual ARM64 iOS compile, recovery tests, 31 evidence tests and independent public
-IPA checks passed. Actual phone rendering through this graphics gate remains pending.
+IPA checks passed. The owner-supplied build 4000010 report now passes the physical
+native Vulkan-to-Metal offscreen evidence check on iPhone16,2 / iOS 27.0.1.
+The Apple A17 Pro GPU rendered both 1280×720 images: 1,843,200 checked pixels,
+zero mismatches and channel sum 1,219,256,320. Engine/shader/source identity
+matched the exact IPA. Native setup/draw/readback/teardown took 497.20 ms.
+Khronos/synchronization validation was not enabled on the phone; zero reported
+validation errors is not a validation-layer pass. No cryptographic device
+attestation, Linux graphics, presentation, Steam or gameplay completion is implied.
 The supplied build 4000008 phone report failed the whole-file MoltenVK hash check
 at `payload-sha256`, before loading the renderer. It does not show a render failure.
 The supplied build 4000009 report passed executable-code identity, loaded MoltenVK
@@ -63,7 +70,11 @@ recovery/export tests, 31 evidence tests and independent public IPA verification
 passed. The real hosted Vulkan adapter regression passed five cases: missing and
 corrupt shaders, complete draw receipt despite invalid UTF-8 stdout, preserved
 existing receipt and missing destination directory. These are software hosted
-Vulkan tests, not phone Metal proof. The new phone graphics result is pending.
+Vulkan tests, not phone Metal proof. The separate owner-supplied phone result
+is recorded above; its raw JSON and signing identifiers remain private.
+A fresh source-pinned native iOS Venus engine build is prepared next, with
+same-process threads and a framework loader adapter. Its actual iOS compile,
+shared-memory import and guest transport remain unverified.
 
 Primary sources: [allocator](https://github.com/utmapp/qemu/blob/v10.0.12-utm/tcg/region.c),
 [TCG defaults](https://github.com/utmapp/qemu/blob/v10.0.12-utm/accel/tcg/tcg-all.c).
@@ -95,7 +106,7 @@ passed real missing/corrupt shader errors without terminating the test process,
 plus the real two-image draw through dynamically loaded Vulkan functions. Only
 the hosted fixture permits its software driver; production source is unchanged
 and rejects software. These tests do not count as physical Metal evidence.
-The phone step is **Run native Vulkan â†’ Metal check**, then share its report.
+The phone step is **Run native Vulkan → Metal check**, then share its report.
 No StikDebug is required for this native graphics test.
 
 Build 4000009 corrects a signing compatibility issue in build 4000008's runtime
@@ -104,7 +115,8 @@ The new gate checks ARM64/physical-iOS identity and the engine's executable
 __TEXT,__text section against original provenance. Offline unsigned IPA hashes
 and complete shader hashes remain exact. Signing-metadata/code-tamper rejection
 tests passed. The corrected public IPA was independently downloaded and verified;
-its native phone graphics result is pending. A simulated signing-metadata change
+its initial phone receipt was incomplete; build 4000010 later passed the native
+offscreen gate. A simulated signing-metadata change
 preserved the actual engine code identity while changing its full-file hash.
 That simulation is not phone signing or rendering evidence. Build 4000008 is
 superseded by build 4000009; no previous application or user data was deleted.
@@ -123,10 +135,10 @@ for the requested SteamOS product.
 | Source-built ARM64 iOS QEMU engine/dependencies | [37014232362](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232362) | Phone loader and CPU gate passed after allocation configuration fix |
 | Source-built Linux/BusyBox ABI gate | [37014232445](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232445) | Hosted and build 4000007 phone boot passed; no SteamOS image yet |
 | Hosted GL/Vulkan diagnostics | [37035517982](https://github.com/aghjkshdsj/My-pc/actions/runs/37035517982) | Software rendering only; explicitly rejected as acceleration |
-| Corrected native iOS MoltenVK compile/package | [37056046870](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046870) | Phone load and draw return 0 observed in build 4000009; pixel/GPU receipt missing, accepted rendering pending |
+| Corrected native iOS MoltenVK compile/package | [37056046870](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046870) | Build 4000010 phone GPU/pixel gate passed; no Linux guest transport or presentation |
 | Hosted Venus external-host SHM test | [37056046909](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046909) | Real serialized draws passed under explicit test override; software Linux host, not phone Metal |
 
-Vulkan rendered two 1280Ã—720 images, checked all 1,843,200 pixels, channel sum
+Vulkan rendered two 1280×720 images, checked all 1,843,200 pixels, channel sum
 1,219,256,320 and synchronization validation. Zero mismatches/errors passed
 on Mesa llvmpipe/lavapipe; software-as-acceleration was rejected with exit 20.
 Receipt: `evidence/primary/hosted-vulkan-diagnostic.json`. No swapchain,
@@ -138,7 +150,8 @@ Receipt: `evidence/primary/hosted-moltenvk-build.json`. The first compiled engin
 had a required macOS IOKit load command. The corrected source-built iOS target
 omits that framework; its final imports contain no IOKit. Both engine variants
 and the original failure remain documented. Phone loading and draw return 0 were
-observed in build 4000009, with complete GPU/pixel evidence still required.
+observed in build 4000009; build 4000010 subsequently passed the complete native
+GPU/pixel gate, without demonstrating Linux graphics or presentation.
 The GL classification rerun passed with isolated Xvfb display selection.
 Venus-only server configuration resolved its excluded-EGL initialization failure.
 The unmodified Linux-native fd route then failed resource export; the explicit
@@ -165,9 +178,9 @@ Official rootfs 20260921.6090922 / 0.5.0 resolves a 10,737,418,240-byte image,
 image hash, RAUC CMS trust and generic-virt compatibility remain open.
 No Valve/game/credential data has been redistributed.
 
-Next: verify the native MoltenVK shader gate on the phone; prove real guest GL and Vulkan transport
+Next: source-build the native Venus renderer and prove real guest GL and Vulkan transport
 to Metal and moving presentation; integrate authenticated SteamOS, actual ARM
 Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
 Native host/Metal optimization does not remove guest TCG translation costs.
 **Steam usable under 60 seconds and Hollow Knight 60â€“80 base rendered FPS at
-1280Ã—720, including sustained thermal/frame-pacing measurements, are unverified.**
+1280×720, including sustained thermal/frame-pacing measurements, are unverified.**

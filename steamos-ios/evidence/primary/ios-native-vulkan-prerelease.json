@@ -26,12 +26,12 @@
   "compiled_jit_configuration_and_universal_abi_verified": true,
   "moltenvk_not_required_at_app_startup": true,
   "no_iokit_or_private_framework_imports": true,
-  "phone_native_vulkan_verified": false,
+  "phone_native_vulkan_verified": true,
   "workflow_run": 37062587594,
   "hosted_adapter_test_run": 37062587136,
   "synthetic_evidence_tests_passed": 31,
   "hosted_adapter_cases_passed": 5,
-  "scope": "independently-verified-public-ios-prerelease-no-phone-graphics-proof",
+  "scope": "independently-verified-public-ios-prerelease-plus-sanitized-owner-supplied-native-offscreen-result",
   "supersedes_build": "4000009",
   "historical_phone_result": {
     "build": "4000008",
@@ -49,5 +49,33 @@
     "diagnostic_empty": true,
     "native_vulkan_verified": false,
     "limit": "Complete pixel/GPU receipt is missing; exact mixed-output failure cause is unproven. Raw report remains private."
+  },
+  "physical_phone_result": {
+    "build": "4000010",
+    "source_commit": "208647c2f7c18f32fcf894771756c0fbeb487374",
+    "device": {
+      "device_machine": "iPhone16,2",
+      "ios_version": "27.0.1",
+      "os_build": "24A446",
+      "host_page_bytes": 16384
+    },
+    "renderer": "Apple A17 Pro GPU",
+    "native_vulkan_to_metal_offscreen_verified": true,
+    "pixels_checked": 1843200,
+    "elapsed_ms": 497.1979999972973,
+    "validation_enabled": false,
+    "synchronization_validation_requested": false,
+    "physical_footprint_after_bytes": 90097360,
+    "thermal_state_after": 0,
+    "linux_graphics_to_metal_verified": false,
+    "presentation_verified": false,
+    "gameplay_verified": false,
+    "cryptographic_device_attestation": false,
+    "width": 1280,
+    "height": 720,
+    "shader_phases": 2,
+    "mismatches": 0,
+    "channel_sum": 1219256320,
+    "scope": "owner-supplied-iphone-native-offscreen-evidence-consistency-check"
   }
 }
