@@ -6,6 +6,6 @@
 abi_status=$?
 /mpc-gpu-kernel
 gpu_status=$?
-echo "MPC_LINUX_EXIT=$abi_status"
-echo "MPC_GPU_KERNEL_EXIT=$gpu_status"
+/bin/busybox echo "MPC_LINUX_EXIT=$abi_status"
+/bin/busybox echo "MPC_GPU_KERNEL_EXIT=$gpu_status"
 /bin/busybox poweroff -f
