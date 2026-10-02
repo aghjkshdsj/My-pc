@@ -1,0 +1,35 @@
+name: Fresh iOS MoltenVK graphics engine
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/prepare_moltenvk.py', '.github/workflows/steamos-ios-moltenvk.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios-moltenvk:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve exact graphics engine and shader dependencies
+        run: python3 steamos-ios/tools/prepare_moltenvk.py prepare steamos-ios/out/moltenvk-engine
+      - name: Build only native ARM64 iOS dependencies and engine
+        run: |
+          cd steamos-ios/out/moltenvk-engine/MoltenVK
+          bash fetchDependencies-pinned --ios -v
+          xcodebuild build -project MoltenVKPackaging.xcodeproj -scheme 'MoltenVK Package (iOS only)' -sdk iphoneos -destination 'generic/platform=iOS' -configuration Release CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=26.0 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES > ../engine-build.log 2>&1
+      - name: Verify iOS binary, imports, host-memory API and corresponding source
+        run: python3 steamos-ios/tools/prepare_moltenvk.py package steamos-ios/out/moltenvk-engine
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iOS-MoltenVK-Engine
+          path: |
+            steamos-ios/out/moltenvk-engine/source-receipt.json
+            steamos-ios/out/moltenvk-engine/engine-receipt.json
+            steamos-ios/out/moltenvk-engine/engine-build.log
+            steamos-ios/out/moltenvk-engine/engine-exports.txt
+            steamos-ios/out/moltenvk-engine/MoltenVK-*.tar.gz
+            steamos-ios/out/moltenvk-engine/SHA256SUMS
+          retention-days: 14

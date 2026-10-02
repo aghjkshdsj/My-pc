@@ -24,6 +24,10 @@ Hosted CI pins its ICD to lavapipe, enables Khronos validation including
 synchronization validation, compiles/validates SPIR-V, verifies 1,843,200 pixels,
 and requires the same device to be rejected with exit 20 in acceleration mode.
 Its artifact retains executable/shaders, hashes, logs and a scoped JSON receipt.
+The [first hosted run](https://github.com/aghjkshdsj/My-pc/actions/runs/37035517982)
+passed: zero pixel mismatches, correct independent sum, zero validation errors,
+empty validation log, and rejection code 20. Its scoped receipt and 161 advertised
+extensions are retained in `evidence/primary/hosted-vulkan-diagnostic.json`.
 Validation or pixel errors fail the job. A software receipt never becomes phone,
 guest transport, Metal, SteamOS or gameplay evidence.
 
@@ -35,6 +39,12 @@ Remaining integration steps:
    iOS frameworks. Audit their external-host-memory path, ownership, alignment,
    cache coherency, fences and resource teardown. Reuse engine code under its
    license without adopting any old app or upstream application as our base.
+   The independent MoltenVK iOS workflow is now prepared, with exact commits for
+   the engine and all seven external dependencies, a source-only archive and
+   physical-iOS Mach-O/import/export checks. Its result is pending. Pinned UTM's
+   complete recipe also builds private Hypervisor, Neptune/D3D and macOS-specific
+   KosmicKrisp: those calls are not our iOS build plan. Venus/ANGLE need their own
+   narrowed recipe and a fresh display adapter before guest integration.
 3. Build guest Mesa virgl/Venus with the matching virtio GPU blob/context protocol.
    Run these same GL/Vulkan diagnostics inside the phone guest and correlate
    fresh guest receipts with host Metal command completion and source identities.

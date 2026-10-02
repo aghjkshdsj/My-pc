@@ -63,6 +63,16 @@ old dependency versions and runtime assumptions in upstream recipes must be
 audited rather than executed blindly. UTM's private/decompiled Hypervisor shim
 is not used as evidence of supported iPhone virtualization.
 
+The new **separate MoltenVK iOS build** locks the reviewed engine revision above
+and its seven exact ExternalRevisions commits in `tools/prepare_moltenvk.py`.
+Its upstream fetch script is narrowed to checks of already fetched commits;
+dependency builds are ARM64/iOS 26/unsigned, and the unrelated macOS clean target
+is skipped. Engine and dependencies retain their complete tracked source/license
+files in separate source archives, along with every modified recipe and workflow.
+This is low-level engine reuse, not an upstream application base. It does not
+resolve the still-unbuilt virgl/Venus/ANGLE stack or establish Metal execution.
+MoltenVK's Apache-2.0 license remains separate from dependencies' exact terms.
+
 Current Valve ARM stable manifest is version `1788652215`, matching the archive;
 the publicbeta manifest has changed. Preserve the retrieved manifest digests
 and choose **steamdeck_stable** for initial reproducibility. Installation and

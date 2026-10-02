@@ -152,6 +152,21 @@ records device extensions, selected features/limits, format and memory flags,
 and validation errors. Optional portability enumeration/subset support is handled.
 It has no window/swapchain or transport; Metal/presentation/game claims stay false.
 The hosted ARM pipeline uses lavapipe with synchronization validation and requires
-exit 20 when software is offered as acceleration. This workflow is newly prepared;
-its compile, rendering and rejection result are pending. No new physical phone
-JIT/Linux report was available at this checkpoint.
+exit 20 when software is offered as acceleration.
+
+[Hosted run 37035517982](https://github.com/aghjkshdsj/My-pc/actions/runs/37035517982)
+passed both GL and Vulkan jobs at source `c192f16aa271492f709e5512f153fc0a02ce3f0c`.
+Vulkan rendered and checked 1,843,200 pixels with zero mismatches, channel sum
+1,219,256,320, zero validation errors and an empty validation log. The actual
+driver was Mesa llvmpipe/lavapipe (LLVM 20.1.2); acceleration mode rejected it
+with exit 20. The receipt records 161 device extensions and executable/SPIR-V
+hashes in `evidence/primary/hosted-vulkan-diagnostic.json`. Artifact 11239860581
+is 20,025 bytes, ZIP SHA-256
+`a6cfed5c0047b0dcf4e570a67ef704e6238eef333fee9cbd91d6371ced829758`.
+The three new false-evidence tests and the source/evidence workflow passed.
+
+Fresh iOS MoltenVK engine preparation pins the upstream engine plus all seven
+shader/header/tool dependencies, replaces online dependency updates with exact
+revision checks, and builds only ARM64 iOS without app/UI, private Hypervisor or
+unrelated platform targets. The hosted engine build/packaging result is pending.
+No new physical phone JIT/Linux report was available at this checkpoint.

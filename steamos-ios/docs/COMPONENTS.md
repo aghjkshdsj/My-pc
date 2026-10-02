@@ -14,7 +14,9 @@ because its source is present.
 Implemented bring-up code: separate native host probes, fresh Xcode target,
 Linux engine adapter, source-built kernel/initramfs, Linux ABI validator and
 guest GL shader diagnostic and a new Vulkan render/readback diagnostic. Hosted
-Linux CPU and GL diagnostic/rejection tests passed; the Vulkan pipeline is pending.
+Linux CPU, GL and Vulkan diagnostic/rejection tests passed. Vulkan's two hosted
+720p images matched every pixel with zero validation errors; the software driver
+was explicitly rejected as acceleration. Native iOS MoltenVK engine build is pending.
 The source-built CPU engine, recovery and StikDebug adapter are packaged in Linux-gate-5.
 Official rootfs/index metadata and 35 ARM client package URLs are resolved;
 full rootfs/client verification, installation and execution remain open.
