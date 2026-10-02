@@ -167,7 +167,16 @@ def build(kernel_artifact, mesa_artifact):
     with tarfile.open(output / 'Guest-GPU-Payload.tar.gz', 'w:gz') as archive:
         archive.add(payload, arcname='payload')
     with tarfile.open(output / 'Guest-GPU-Corresponding-Source.tar.gz', 'w:gz') as archive:
-        archive.add(output / 'runtime-source', arcname='runtime-source')
+        # APT's root-owned lock is not corresponding source. Retain the source
+        # packages/configuration and readable signed/index metadata explicitly.
+        source = output / 'runtime-source'
+        for name in ['packages', 'apt-sourceparts']:
+            archive.add(source / name, arcname='runtime-source/' + name)
+        for path in sorted((source / 'apt-lists').iterdir()):
+            if path.is_file() and path.name != 'lock':
+                archive.add(path, arcname='runtime-source/apt-lists/' + path.name)
+        archive.add(temporary / 'external-linux-packages.tsv', arcname='Mesa-build-distribution-packages.tsv')
+        archive.add(payload / 'payload-receipt.json', arcname='payload-receipt.json')
         archive.add(kernel_artifact / 'GPU-Kernel-Corresponding-Source.tar.gz', arcname='GPU-Kernel-Corresponding-Source.tar.gz')
         archive.add(mesa_artifact / 'Guest-Mesa-Corresponding-Source.tar.gz', arcname='Guest-Mesa-Corresponding-Source.tar.gz')
         for name in ['tools/build_guest_gpu_payload.py', 'tools/stage_guest_runtime.py', 'tools/make_initramfs.py',
