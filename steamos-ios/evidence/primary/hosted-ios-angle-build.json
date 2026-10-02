@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "scope": "source-built-native-ios-angle-engine-compile-only",
+  "source_commit": "8fc4d429b8fd3158ddb9f9c0f2f51414e2e84f8f",
+  "workflow_run": "37075043878",
+  "engine_repository": "https://github.com/utmapp/WebKit.git",
+  "engine_commit": "ed78ab6e1a37f4f11583a0bd038f22ec91f3ff10",
+  "source_paths": [
+    "Source/ThirdParty/ANGLE",
+    "Configurations",
+    "Tools/ccache"
+  ],
+  "source_application_reused": false,
+  "xcode_version": "Xcode 26.6\nBuild version 17F113",
+  "sdk_version": "26.5",
+  "command": [
+    "xcodebuild",
+    "archive",
+    "-project",
+    "ANGLE.xcodeproj",
+    "-scheme",
+    "ANGLE",
+    "-sdk",
+    "iphoneos",
+    "-arch",
+    "arm64",
+    "-configuration",
+    "Release",
+    "-archivePath",
+    "/Users/runner/work/My-pc/My-pc/steamos-ios/out/ios-angle/ANGLE.xcarchive",
+    "CODE_SIGNING_ALLOWED=NO",
+    "CODE_SIGNING_REQUIRED=NO",
+    "USE_INTERNAL_SDK=NO",
+    "WEBCORE_LIBRARY_DIR=/usr/local/lib",
+    "NORMAL_UMBRELLA_FRAMEWORKS_DIR=",
+    "IPHONEOS_DEPLOYMENT_TARGET=26.0",
+    "GCC_OPTIMIZATION_LEVEL=3",
+    "ANGLE_ALLOWABLE_CLIENTS=",
+    "WK_USE_CCACHE=YES"
+  ],
+  "public_ios_sdk": true,
+  "metal_owner_identity_enabled": false,
+  "physical_ios_arm64": true,
+  "metal_backend_compiled": true,
+  "opengl_es_backend_compiled": true,
+  "phone_tested": false,
+  "linux_graphics_verified": false,
+  "metal_runtime_verified": false,
+  "presentation_verified": false,
+  "gameplay_verified": false,
+  "required_exports": {
+    "EGL": [
+      "eglGetProcAddress",
+      "eglGetPlatformDisplay",
+      "eglInitialize",
+      "eglCreateContext"
+    ],
+    "GLESv2": [
+      "glGetString",
+      "glDrawArrays",
+      "glReadPixels",
+      "glFenceSync"
+    ]
+  },
+  "imports": {
+    "EGL": [
+      "/usr/lib/libc++.1.dylib",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "GLESv2": [
+      "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+      "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+      "/System/Library/Frameworks/Foundation.framework/Foundation",
+      "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+      "/System/Library/Frameworks/Metal.framework/Metal",
+      "/usr/lib/libz.1.dylib",
+      "/usr/lib/libobjc.A.dylib",
+      "/usr/lib/libc++.1.dylib",
+      "/usr/lib/libSystem.B.dylib",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
+    ]
+  },
+  "files": {
+    "Frameworks/EGL.framework/EGL": {
+      "bytes": 76120,
+      "sha256": "037c87bd58d31c014cc6addb6deb28aefa6c063c61ac860913714e3bd323bb04"
+    },
+    "Frameworks/GLESv2.framework/GLESv2": {
+      "bytes": 6729168,
+      "sha256": "4a0a9c1bb22bc4aa9d2fd22224e2a2ced0b8201522be66643a1edbed87dd2215"
+    },
+    "ANGLE-Upstream-Source.tar": {
+      "bytes": 92364800,
+      "sha256": "ea973691ebccaa529f001ea5eda69ceb1790311b5a7675b6558447190b35d07c"
+    },
+    "public-ios-angle.patch": {
+      "bytes": 17938,
+      "sha256": "ceebb9054b6462662bbfc7e65d3485df6af7872c6325d32b6603ec635ea53348"
+    }
+  }
+}

@@ -1,0 +1,47 @@
+name: Fresh iOS EGL and Venus renderer engines
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/build_gl_venus_ios.py', '.github/workflows/steamos-ios-gl-venus.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  gl-venus-ios:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native cross-build tools
+        run: brew install meson ninja pkg-config
+      - name: Install pinned host code-generator dependency
+        run: |
+          python3 -m venv steamos-ios/out/gl-venus-host-tools
+          steamos-ios/out/gl-venus-host-tools/bin/python -m pip install PyYAML==6.0.3
+          echo "$PWD/steamos-ios/out/gl-venus-host-tools/bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-iOS-MoltenVK-Engine
+          run-id: 37056046870
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/moltenvk-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-iOS-ANGLE-Engine
+          run-id: 37075043878
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/angle-artifact
+      - name: Build and audit EGL-enabled physical-iOS renderer
+        run: python3 steamos-ios/tools/build_gl_venus_ios.py steamos-ios/out/moltenvk-artifact steamos-ios/out/angle-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iOS-GL-Venus-Engines
+          path: |
+            steamos-ios/out/ios-gl-venus/GL-Venus-*.tar.gz
+            steamos-ios/out/ios-gl-venus/receipt.json
+            steamos-ios/out/ios-gl-venus/*.cross
+            steamos-ios/out/ios-gl-venus/*.patch
+            steamos-ios/out/ios-gl-venus/**/meson-logs/meson-log.txt
+          retention-days: 14
