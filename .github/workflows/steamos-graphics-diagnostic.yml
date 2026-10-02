@@ -2,7 +2,7 @@ name: Fresh guest GL and Vulkan diagnostic rejection checks
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Guest/gl_gate.c', 'steamos-ios/Guest/vk_gate.*', 'steamos-ios/Guest/renderer_classification.h', 'steamos-ios/tools/verify_graphics_diagnostic.py', 'steamos-ios/tests/test_graphics_evidence.py', 'steamos-ios/tests/renderer_classification.c', '.github/workflows/steamos-graphics-diagnostic.yml']
+    paths: ['steamos-ios/Guest/gl_gate.c', 'steamos-ios/Guest/vk_gate.*', 'steamos-ios/Guest/renderer_classification.h', 'steamos-ios/tools/verify_graphics_diagnostic.py', 'steamos-ios/tests/test_graphics_evidence.py', 'steamos-ios/tests/renderer_classification.c', 'steamos-ios/tests/run_native_vulkan_adapter.py', '.github/workflows/steamos-graphics-diagnostic.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -51,8 +51,14 @@ jobs:
           python3 steamos-ios/tools/verify_graphics_diagnostic.py /tmp/mpc-vulkan --source "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
           python3 -m unittest discover -s steamos-ios/tests -p test_graphics_evidence.py -v
           cat /tmp/mpc-vulkan/receipt.json
+      - name: Verify dynamic Vulkan adapter survives missing and corrupt shaders
+        run: python3 steamos-ios/tests/run_native_vulkan_adapter.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: hosted-arm-vulkan-diagnostic
-          path: /tmp/mpc-vulkan
+          path: |
+            /tmp/mpc-vulkan
+            steamos-ios/out/native-vulkan-adapter-tests/*.json
+            steamos-ios/out/native-vulkan-adapter-tests/*.stdout
+            steamos-ios/out/native-vulkan-adapter-tests/*.stderr
