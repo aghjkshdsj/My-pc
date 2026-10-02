@@ -93,6 +93,23 @@ def build():
     text = text.replace('memset(this, 0, sizeof(*this));', 'memset(static_cast<void *>(this), 0, sizeof(*this));')
     text = text.replace('memcpy(this, &src, sizeof(*this));', 'memcpy(static_cast<void *>(this), &src, sizeof(*this));')
     state_cache.write_text(text, encoding='utf-8')
+    core_types = engine / 'src/libANGLE/angletypes.cpp'
+    text = core_types.read_text(encoding='utf-8')
+    include = '#include "libANGLE/angletypes.h"'
+    assert text.count(include) == 1
+    text = text.replace(include, include + '\n#include <type_traits>')
+    for name, copies in [('RasterizerState', 2), ('BlendState', 1), ('DepthStencilState', 2), ('SamplerState', 0)]:
+        constructor = name + '::' + name + '()\n{\n'
+        zero = 'memset(this, 0, sizeof(' + name + '));'
+        copy = 'memcpy(this, &other, sizeof(' + name + '));'
+        assert text.count(constructor) == text.count(zero) == 1
+        assert text.count(copy) == copies
+        text = text.replace(constructor, constructor +
+                            '    static_assert(std::is_trivially_destructible_v<' + name + '> &&\n'
+                            '                  !std::is_polymorphic_v<' + name + '>);\n')
+        text = text.replace(zero, zero.replace('(this,', '(static_cast<void *>(this),'))
+        text = text.replace(copy, copy.replace('(this,', '(static_cast<void *>(this),'))
+    core_types.write_text(text, encoding='utf-8')
     patch = output / 'public-ios-angle.patch'
     patch.write_text(capture('git', '-C', str(source), 'diff', '--', *DIRECTORIES) + '\n', encoding='utf-8')
     archive = output / 'ANGLE.xcarchive'
