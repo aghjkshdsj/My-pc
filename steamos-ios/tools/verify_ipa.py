@@ -27,6 +27,29 @@ def macho_platform(binary, filetype):
     assert ios, 'Mach-O must target physical iOS'
     return imports
 
+def macho_text(binary):
+    macho_platform(binary, 6)
+    ncmds, sizeofcmds = struct.unpack_from('<II', binary, 16)
+    cursor, found = 32, []
+    for _ in range(ncmds):
+        command, size = struct.unpack_from('<II', binary, cursor)
+        if command == 0x19:
+            assert size >= 72
+            count = struct.unpack_from('<I', binary, cursor + 64)[0]
+            assert count <= 1024 and 72 + count * 80 <= size
+            for index in range(count):
+                section = cursor + 72 + index * 80
+                name, segment = struct.unpack_from('<16s16s', binary, section)
+                if name.rstrip(b'\0') != b'__text' or segment.rstrip(b'\0') != b'__TEXT': continue
+                length = struct.unpack_from('<Q', binary, section + 40)[0]
+                offset = struct.unpack_from('<I', binary, section + 48)[0]
+                assert length > 0 and offset >= 32 + sizeofcmds and offset + length <= len(binary)
+                found.append({'bytes': length, 'sha256': hashlib.sha256(binary[offset:offset + length]).hexdigest()})
+        cursor += size
+    assert len(found) == 1, 'Expected one executable text section'
+    return found[0]
+
+
 def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=False):
     with zipfile.ZipFile(path) as z:
         assert z.testzip() is None, 'IPA ZIP CRC failed'
@@ -77,6 +100,7 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                 assert hashlib.sha256(z.read(vk + name)).hexdigest() == sha
                 assert len(z.read(vk + name)) == inputs['files'][name]['bytes']
             assert inputs['files']['MoltenVK']['sha256'] == BINARY_SHA
+            assert inputs['engine_text_section'] == macho_text(molten)
         return {'schema': 1, 'kind': 'ios-linux-kernel-gate' if linux_gate else 'ios-host-probe-only', 'commit': commit, 'build': info['CFBundleVersion'],
                 'bundle_id': info['CFBundleIdentifier'], 'sha256': hashlib.file_digest(path.open('rb'), 'sha256').hexdigest(),
                 'bytes': path.stat().st_size, 'zip_crc': 'passed', 'arm64_ios': True,

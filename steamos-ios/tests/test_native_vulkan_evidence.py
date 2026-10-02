@@ -16,14 +16,15 @@ class NativeVulkanEvidenceTests(unittest.TestCase):
         return {'schema': 1, 'scope': 'physical-ios-host-probe', 'source_commit': 'fixture', 'build': 'fixture',
                 'before': device, 'after': copy.deepcopy(device), 'tests': {'native_vulkan': {
                 'scope': 'physical-ios-native-vulkan-offscreen-gate', 'status': 'passed', 'exit_status': 0,
-                'native_vulkan_to_metal_verified': True, 'payload': {'fixture': True}, 'elapsed_ms': 1,
+                'native_vulkan_to_metal_verified': True, 'payload': {'fixture': True, 'engine_text_section': {'bytes': 1, 'sha256': 'fixture'}}, 'elapsed_ms': 1,
+                'engine_text_section_matches': True, 'engine_text_section': {'bytes': 1, 'sha256': 'fixture'},
                 'path': 'native-ios-arm64-vulkan-MoltenVK-Metal-offscreen', 'diagnostic': draw,
                 'linux_graphics': False, 'presentation_verified': False, 'gameplay_verified': False}},
                 'acceptance': dict(native_vulkan_to_metal_offscreen=True, steam_arm_client=False, fex_game=False,
                 linux_game_graphics_to_metal=False, steam_under_60_seconds=False, hollow_knight_60_to_80_base_fps=False)}
 
     def check(self, row):
-        return validate_native_vulkan(row, 'fixture', 'fixture', {'fixture': True}, '27.0.1')
+        return validate_native_vulkan(row, 'fixture', 'fixture', {'fixture': True, 'engine_text_section': {'bytes': 1, 'sha256': 'fixture'}}, '27.0.1')
 
     def test_valid_fixture_keeps_guest_and_game_gates_false(self):
         result = self.check(self.fixture())

@@ -1,7 +1,18 @@
 # Performance budget and device procedure
 
-These are **budgets and hypotheses**, not achieved measurements. Target device:
+The table below contains **budgets and hypotheses**, not achieved targets. Target device:
 owner-confirmed iPhone 15 Pro Max / iOS 27.0.1, with iLoader and StikDebug.
+
+Measured CPU bring-up baseline, build 4000007: owner-supplied iPhone16,2 / iOS
+27.0.1 build 24A446 evidence passed exact IPA/source/payload/serial consistency.
+Linux 6.12.111 boot plus all four ABI checks completed in **691.06 ms**, with
+guest checksum workload wall 4.031 ms and thread CPU 3.716 ms. Configuration:
+software QEMU TCG, 2 guest vCPUs, 512 MiB RAM, 32 MiB split-WX cache; guest pages
+4 KiB on a 16 KiB host. The app's reported physical footprint after the gate
+was 139,348,024 bytes, a point-in-time reading rather than a peak or memory limit.
+Thermal state was Fair; no 20-minute sustained test was performed. A single tiny
+kernel/checksum run is not SteamOS/Steam launch timing, FEX overhead, game FPS
+or a guarantee of sustained performance. Raw reports remain private.
 
 | Path | Initial budget / experiment | Evidence required |
 |---|---|---|

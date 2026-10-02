@@ -83,7 +83,7 @@ jobs:
           tar -xOf "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" build-iOS-arm64/qemu-10.0.12-utm/COPYING > "$app/QEMU-COPYING"
           cp steamos-ios/LICENSE "$app/Fresh-Source-LICENSE"
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Linux-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --build 4000008 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --build 4000009 --receipt steamos-ios/out/package/verification.json
           cp "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" steamos-ios/out/package/
           cp "$(dirname "$guest")/Linux-Gate-Corresponding-Source.tar.gz" steamos-ios/out/package/
           cp steamos-ios/out/graphics-artifact/MoltenVK-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -98,7 +98,7 @@ jobs:
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
           Fresh native ARM64 iOS host plus QEMU TCG Linux kernel bring-up.
 
-          Build 4000008 adds an actual native Vulkan-to-Metal offscreen shader gate through the source-built MoltenVK engine. It checks two 1280x720 images, 1,843,200 pixels and an independent channel checksum. Use Run native Vulkan → Metal check and share its saved report. The engine is loaded inside durable diagnostic capture, not at app startup. Diagnostic errors return a failed result; partial resources after abort require close/relaunch. This is a native host-engine test; Linux guest graphics, moving presentation, SteamOS, Steam/FEX and game performance remain unfinished. Validation-layer availability is recorded rather than assumed.
+          Build 4000009 uses signing-compatible executable-section verification (iLoader can change whole framework-file hashes) and adds an actual native Vulkan-to-Metal offscreen shader gate through the source-built MoltenVK engine. It checks two 1280x720 images, 1,843,200 pixels and an independent channel checksum. Use Run native Vulkan → Metal check and share its saved report. The engine is loaded inside durable diagnostic capture, not at app startup. Diagnostic errors return a failed result; partial resources after abort require close/relaunch. This is a native host-engine test; Linux guest graphics, moving presentation, SteamOS, Steam/FEX and game performance remain unfinished. Validation-layer availability is recorded rather than assumed.
 
           The owner-supplied build 4000007 reports passed the Linux kernel/ABI gate on iPhone 15 Pro Max, iOS 27.0.1 build 24A446. The recorded 0.69-second kernel-plus-test run is not Steam startup or gameplay. Repeated native JIT checks also passed. Raw phone reports remain private. This package includes the 32 MiB split-WX fix and supersedes the misversioned Linux-gate-6 package.
 
@@ -123,7 +123,7 @@ jobs:
           mkdir steamos-ios/out/redownload-linux
           gh release download "$tag" --dir steamos-ios/out/redownload-linux --pattern MyPCSteamOS-Linux-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --build 4000008
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --build 4000009
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()

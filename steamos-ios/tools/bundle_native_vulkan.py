@@ -9,7 +9,7 @@ import shutil
 import tarfile
 
 from bundle_linux_gate import extract_checked
-from verify_ipa import macho_platform
+from verify_ipa import macho_platform, macho_text
 
 FRAMEWORK_SHA = '6f34d5e31466d6fd096ddf48a270228606cd5f249089cef1fe06dbea522d3c68'
 SOURCE_SHA = '4547b750ec6e45ba5cccce0342e8af275ee2ed657eab020732b65961ac489e28'
@@ -55,6 +55,8 @@ def prepare(engine, shaders):
                'engine_recipe_commit': '5f9805fded4390780798c25b8a7465db36234fe3',
                'header_commit': '6aefb8eb95c8e170d0805fd0f2d02832ec1e099a', 'shader_run': 37035517982,
                'source_archive_sha256': SOURCE_SHA, 'files': files,
+               'engine_text_section': macho_text(binary.read_bytes()),
+               'runtime_engine_verification': 'ARM64 iOS executable __TEXT,__text; full-file hash is pre-signing provenance',
                'phone_tested': False, 'linux_graphics_verified': False, 'gameplay_verified': False}
     (payload / 'payload-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt, indent=2))

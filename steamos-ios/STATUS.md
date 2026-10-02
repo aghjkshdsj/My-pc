@@ -46,13 +46,14 @@ Repeated native JIT checks execute one retained successfully prepared host-page
 region again; cached receipts never count as new execution. The UI shows the
 last durably saved stage and a readable result. The owner-supplied build 4000007
 logs passed the physical Linux evidence checker. Raw device evidence remains private.
-Build 4000008 prepares a native offscreen Vulkan-to-Metal shader check; its iOS
-build/package and actual phone execution remain pending.
+Build 4000008 packages a native offscreen Vulkan-to-Metal shader check. Its
+actual ARM64 iOS compile, recovery tests, 26 evidence tests and independent public
+IPA checks passed. Actual phone execution of this graphics gate remains pending.
 
 Primary sources: [allocator](https://github.com/utmapp/qemu/blob/v10.0.12-utm/tcg/region.c),
 [TCG defaults](https://github.com/utmapp/qemu/blob/v10.0.12-utm/accel/tcg/tcg-all.c).
 
-Latest independently verified public IPA:
+Phone-verified CPU baseline:
 [Linux-gate-7 / build 4000007](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-7),
 source `f18e3c3d91ba8bdf6b55c6e6cb7a33db4ea65841`, 8,075,687 bytes, SHA-256
 `ec52d95d65e434911d21e77e218649d5da99786342afa9b7c7ebbda72b1e411c`.
@@ -62,6 +63,32 @@ Independent ZIP CRC, physical-iOS Mach-O, dependency closure, payload hashes
 and compiled universal ABI wrappers passed. The compiled 32 MiB split-WX
 argument was checked. Linux-gate-6 was misversioned by an old packaging override;
 it is superseded by gate-7. Packaging now requires the intended build identity.
+
+Latest independently verified graphics-bearing IPA:
+[Linux-gate-8 / build 4000008](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-8),
+source `396f76d0f8c2de55be9ea3e492865fb656b544f7`, 9,526,560 bytes, SHA-256
+`8283101d2a224cbb54cbdf5b25e665889e78744be8316364877dfdee1f8c57d9`.
+[Build 37058292884](https://github.com/aghjkshdsj/My-pc/actions/runs/37058292884)
+passed actual ARM64 iOS compilation, recovery tests and 26 evidence checks.
+Independent verification checked all five frameworks, exact engine/shader/kernel
+hashes, source/build identity, compiled native adapter, universal ABI wrappers,
+ZIP CRC and absence of IOKit/private-framework imports. MoltenVK is loaded inside
+diagnostic capture rather than as a required app-startup dependency.
+
+[Hosted adapter run 37058894960](https://github.com/aghjkshdsj/My-pc/actions/runs/37058894960)
+passed real missing/corrupt shader errors without terminating the test process,
+plus the real two-image draw through dynamically loaded Vulkan functions. Only
+the hosted fixture permits its software driver; production source is unchanged
+and rejects software. These tests do not count as physical Metal evidence.
+The phone step is **Run native Vulkan → Metal check**, then share its report.
+No StikDebug is required for this native graphics test.
+
+Build 4000009 corrects a signing compatibility issue in build 4000008's runtime
+engine check: iLoader can change whole-file framework hashes while signing.
+The new gate checks ARM64/physical-iOS identity and the engine's executable
+__TEXT,__text section against original provenance. Offline unsigned IPA hashes
+and complete shader hashes remain exact. Signing-metadata/code-tamper rejection
+tests passed; the corrected build and phone result are pending.
 
 The disposable Linux gate uses Linux 6.12.111 / BusyBox 1.38.0, 2 vCPUs,
 512 MiB RAM, no persistent disk/network/GPU. It checks signals, mmap/protection,

@@ -74,6 +74,8 @@ def validate_native_vulkan(report, expected_commit, expected_build, payload, ios
     require(gate.get('scope') == 'physical-ios-native-vulkan-offscreen-gate' and gate.get('status') == 'passed' and
             gate.get('exit_status') == 0 and gate.get('native_vulkan_to_metal_verified') is True, 'Native Vulkan draw did not pass')
     require(gate.get('payload') == payload and gate.get('path') == 'native-ios-arm64-vulkan-MoltenVK-Metal-offscreen', 'Wrong graphics engine or shaders')
+    require(gate.get('engine_text_section_matches') is True and gate.get('engine_text_section') == payload.get('engine_text_section'),
+            'Signed engine executable code does not match bundled provenance')
     require(gate.get('linux_graphics') is False and gate.get('presentation_verified') is False and gate.get('gameplay_verified') is False,
             'Native offscreen evidence claims guest/presentation/game completion')
     draw = gate.get('diagnostic', {})

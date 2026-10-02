@@ -31,9 +31,19 @@ Hosted recovery tests and iOS compilation passed; the public IPA was independent
 downloaded and checked. Build 4000007 passed actual iPhone native JIT and Linux
 kernel/ABI checks. The recorded 691.06 ms kernel-plus-test run is software TCG
 emulation, not SteamOS startup, hardware virtualization or game performance.
-Build 4000008 prepares a native Vulkan-to-Metal offscreen shader gate through
-the corrected source-built MoltenVK engine. Its build and phone test are pending.
+Build 4000008 packages a native Vulkan-to-Metal offscreen shader gate through
+the corrected source-built MoltenVK engine. Actual iOS compile, recovery and
+26 evidence tests passed; the independently downloaded IPA passed identity,
+payload, dependency and CRC checks. Its physical graphics test is pending.
 Linux guest graphics and moving presentation remain separate unfinished gates.
+
+[Latest graphics-bearing IPA: Linux-gate-8 / build 4000008](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-linux-gate-8/MyPCSteamOS-Linux-Gate.ipa).
+9,526,560 bytes, SHA-256
+`8283101d2a224cbb54cbdf5b25e665889e78744be8316364877dfdee1f8c57d9`.
+Source `396f76d0f8c2de55be9ea3e492865fb656b544f7`.
+Install with iLoader and run **native Vulkan → Metal check** once; no JIT is
+needed for this host graphics test. Share its saved device report or recovery
+logs. Corresponding source and verification accompany the prerelease.
 
 The owner confirmed iPhone 15 Pro Max, iOS 27.0.1, iLoader and StikDebug on
 2026-10-02. The probe records the actual OS build, page size, code-signing state,
