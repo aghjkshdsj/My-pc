@@ -27,13 +27,15 @@ def macho_platform(binary, filetype):
     assert ios, 'Mach-O must target physical iOS'
     return imports
 
-def verify(path, commit, linux_gate=False):
+def verify(path, commit, linux_gate=False, expected_build=None):
     with zipfile.ZipFile(path) as z:
         assert z.testzip() is None, 'IPA ZIP CRC failed'
         prefix = 'Payload/MyPCSteamOSProbe.app/'
         info = plistlib.loads(z.read(prefix + 'Info.plist'))
         assert info['CFBundleIdentifier'] == 'com.aghjkshdsj.mypc.steamos.probe'
         assert info['MPCSourceCommit'] == commit
+        if expected_build is not None:
+            assert info['CFBundleVersion'] == expected_build, 'IPA build differs from the intended prerelease'
         binary = z.read(prefix + info['CFBundleExecutable'])
         macho_platform(binary, 2)
         assert not any('Madeira' in p or 'NativeSteam' in p for p in z.namelist()), 'Old app contamination'
@@ -73,8 +75,9 @@ if __name__ == '__main__':
     parser.add_argument('commit')
     parser.add_argument('--receipt', type=pathlib.Path)
     parser.add_argument('--linux-gate', action='store_true')
+    parser.add_argument('--build', help='Require the intended app build number')
     args = parser.parse_args()
-    result = verify(args.ipa, args.commit, args.linux_gate)
+    result = verify(args.ipa, args.commit, args.linux_gate, args.build)
     text = json.dumps(result, indent=2) + '\n'
     if args.receipt:
         args.receipt.write_text(text, encoding='utf-8')

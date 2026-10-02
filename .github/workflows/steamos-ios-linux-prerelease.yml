@@ -64,7 +64,7 @@ jobs:
           tar -xOf "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" build-iOS-arm64/qemu-10.0.12-utm/COPYING > "$app/QEMU-COPYING"
           cp steamos-ios/LICENSE "$app/Fresh-Source-LICENSE"
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Linux-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --build 4000007 --receipt steamos-ios/out/package/verification.json
           cp "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" steamos-ios/out/package/
           cp "$(dirname "$guest")/Linux-Gate-Corresponding-Source.tar.gz" steamos-ios/out/package/
           git archive --format=tar.gz -o steamos-ios/out/package/MyPCSteamOS-Fresh-Source.tar.gz HEAD steamos-ios ':(glob).github/workflows/steamos-*.yml'
@@ -99,7 +99,7 @@ jobs:
           mkdir steamos-ios/out/redownload-linux
           gh release download "$tag" --dir steamos-ios/out/redownload-linux --pattern MyPCSteamOS-Linux-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --build 4000007
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()
