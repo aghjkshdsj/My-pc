@@ -1,0 +1,33 @@
+name: Fresh source-built iOS ANGLE engine
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/build_angle_ios.py', '.github/workflows/steamos-ios-angle.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  angle-ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure Xcode Metal compiler is available
+        run: |
+          if ! xcrun --sdk iphoneos metal --version; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun --sdk iphoneos metal --version
+      - name: Build only pinned EGL and GLES engines with the public iOS SDK
+        run: python3 steamos-ios/tools/build_angle_ios.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iOS-ANGLE-Engine
+          path: |
+            steamos-ios/out/ios-angle/ANGLE-*.tar.gz
+            steamos-ios/out/ios-angle/receipt.json
+            steamos-ios/out/ios-angle/*-exports.txt
+            steamos-ios/out/ios-angle/xcodebuild.log
+            steamos-ios/out/ios-angle/public-ios-angle.patch
+          retention-days: 14
