@@ -29,7 +29,8 @@ build 4000009 passed compilation/package verification and phone engine identity,
 loading and draw return 0. Its missing pixel/GPU receipt prevents graphics acceptance.
 Build 4000010 implements independently verified structured receipt capture and
 passed its separate physical phone offscreen gate. The native iOS Venus renderer
-build is prepared; actual compile/shared-memory/guest integration remain open. Guest graphics,
+compiled and passed iOS platform/API/dependency checks in run 37064765557;
+actual phone loader/shared-memory/guest integration remain open. Guest graphics,
 moving presentation and gameplay remain unverified.
 Official rootfs/index metadata and 35 ARM client package URLs are resolved;
 full rootfs/client verification, installation and execution remain open.

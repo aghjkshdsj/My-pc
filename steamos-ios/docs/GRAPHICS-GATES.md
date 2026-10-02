@@ -50,7 +50,10 @@ Remaining integration steps:
    build 4000010. The new independent Venus iOS workflow narrows the renderer to
    Venus, public Metal/Foundation, same-process threads and pinned epoxy dispatch.
    Its framework loader patch and exact corresponding source are retained.
-   Actual native renderer compile/import/serialization remain unverified.
+   Native renderer compilation passed in run 37064765557 with physical-iOS
+   platform, dependency closure and required public API checks. Exact source,
+   patch, recipe/config and licenses are retained. Actual phone renderer loading,
+   memory import and guest serialization remain unverified.
    Hosted run 37056046909 passed actual Venus serialized shader draws through
    the existing external-host/POSIX SHM path under an explicit test override.
    The native Linux fd route failed export. Neither result proves the Darwin

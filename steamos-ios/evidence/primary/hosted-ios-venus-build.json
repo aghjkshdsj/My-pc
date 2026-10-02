@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "scope": "source-built-native-ios-venus-engine-compile-only",
+  "source_commit": "e8a730eb608c56fac7f03456444b83f07a6f4414",
+  "workflow_run": "37064765557",
+  "pins": {
+    "virglrenderer": {
+      "repository": "https://github.com/utmapp/virglrenderer.git",
+      "commit": "5d26f605f50f8e22002ec6db5fb775e1992d4e96"
+    },
+    "libepoxy": {
+      "repository": "https://github.com/utmapp/libepoxy.git",
+      "commit": "bf98587477fe68d07b93319ece7b40a7d0e2eabe"
+    }
+  },
+  "vulkan_header_commit": "6aefb8eb95c8e170d0805fd0f2d02832ec1e099a",
+  "moltenvk_corresponding_source_sha256": "4547b750ec6e45ba5cccce0342e8af275ee2ed657eab020732b65961ac489e28",
+  "required_exports": [
+    "virgl_renderer_init",
+    "virgl_renderer_get_cap_set",
+    "virgl_renderer_fill_caps",
+    "virgl_renderer_context_create_with_flags",
+    "virgl_renderer_submit_cmd",
+    "virgl_renderer_resource_create_blob",
+    "virgl_renderer_resource_map",
+    "virgl_renderer_resource_unmap"
+  ],
+  "host_python_dependencies": [
+    "PyYAML==6.0.3"
+  ],
+  "physical_ios_arm64": true,
+  "same_process_thread_renderer": true,
+  "egl_glx_backend_built": false,
+  "hardware_virtualization": false,
+  "phone_tested": false,
+  "linux_graphics_verified": false,
+  "shared_memory_import_verified": false,
+  "presentation_verified": false,
+  "gameplay_verified": false,
+  "files": {
+    "ios-arm64.cross": {
+      "bytes": 1392,
+      "sha256": "a6ed0927c4252afcf637bc55452ccd2e26d1df17036c6f90dc2212e9bd4d512d"
+    },
+    "ios-framework-loader.patch": {
+      "bytes": 542,
+      "sha256": "44685f61af8dddab61579521246e21a0b68ee200c32f7bc0d00cd3dfe4722466"
+    },
+    "virglrenderer-source.tar": {
+      "bytes": 17909760,
+      "sha256": "64894d65871603793b696bc7f21b0d17375007fb26e7a47028cf7252fa7d5f3c"
+    },
+    "libepoxy-source.tar": {
+      "bytes": 3614720,
+      "sha256": "36e30e2070a34b6f51b2bb194dd78c464a08d688bdabf5682906f85315487f47"
+    },
+    "Frameworks/epoxy.0.framework/epoxy.0": {
+      "bytes": 1286888,
+      "sha256": "31b9987812b810c8f6d0efa6f7d63381c684ac95a93134b071a9ecbb5137ba82"
+    },
+    "Frameworks/virglrenderer.1.framework/virglrenderer.1": {
+      "bytes": 3004832,
+      "sha256": "ebf3c3c0b9cdb1f2bff92b691401c93bdcea8649c1fc4a7cb0deb34b8eeb508a"
+    }
+  }
+}

@@ -57,8 +57,9 @@ Primary revision reviewed: UTM `7eadb056ae0f91d979059544d0ddcd2d5a40be92`
 `ed78ab6e1a37f4f11583a0bd038f22ec91f3ff10`, MoltenVK
 `05604465d691118cfd20f53a48ecf1aad9c12f93` and other dependencies.
 The CPU engine and its build inputs are pinned in the published recipes and
-receipts; graphics revisions remain **review candidates**, not a completed
-graphics source lock. Older HTTP URLs,
+receipts. MoltenVK and the native Venus renderer now have separate exact source
+locks and build receipts; ANGLE and remaining graphics dependencies retain
+review-candidate status. Older HTTP URLs,
 old dependency versions and runtime assumptions in upstream recipes must be
 audited rather than executed blindly. UTM's private/decompiled Hypervisor shim
 is not used as evidence of supported iPhone virtualization.
@@ -70,7 +71,8 @@ dependency builds are ARM64/iOS 26/unsigned, and the unrelated macOS clean targe
 is skipped. Engine and dependencies retain their complete tracked source/license
 files in separate source archives, along with every modified recipe and workflow.
 This is low-level engine reuse, not an upstream application base. It does not
-resolve the still-unbuilt virgl/Venus/ANGLE stack or establish Metal execution.
+complete the virgl/Venus/ANGLE guest stack or itself establish Metal execution.
+The separate physical-phone offscreen result later passed in build 4000010.
 MoltenVK's Apache-2.0 license remains separate from dependencies' exact terms.
 
 Current Valve ARM stable manifest is version `1788652215`, matching the archive;
@@ -85,3 +87,16 @@ See [Valve stable manifest](https://client-update.steamstatic.com/steam_client_s
 [UTM source pins](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/patches/sources),
 [Darwin Venus shared-memory implementation](https://github.com/utmapp/virglrenderer/blob/5d26f605f50f8e22002ec6db5fb775e1992d4e96/src/venus/vkr_device_memory.c)
 and [FEX forwarding documentation](https://wiki.fex-emu.com/index.php/Development:Setting_up_Library_Forwarding).
+
+The fresh native iOS Venus renderer build pins virglrenderer
+`5d26f605f50f8e22002ec6db5fb775e1992d4e96` and libepoxy
+`bf98587477fe68d07b93319ece7b40a7d0e2eabe`, with the previously verified
+Vulkan-Headers source. These are engine sources, not an application implementation
+base. MIT and per-file notices are preserved in complete tracked-source archives,
+along with the framework-loader patch, cross-build recipe/config and exact receipt.
+The host-only generator dependency is PyYAML 6.0.3; it is not an iOS runtime module.
+Build 37064765557 produced two ARM64 iOS frameworks using public Metal/Foundation,
+without an EGL/GLX backend or Neptune/private Hypervisor. Its successful compile
+is not phone import/serialization/graphics evidence. The separate MoltenVK
+physical-phone offscreen check passed in build 4000010. ANGLE and the complete
+guest transport/presentation stack remain unfinished.

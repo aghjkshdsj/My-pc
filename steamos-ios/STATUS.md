@@ -72,9 +72,16 @@ corrupt shaders, complete draw receipt despite invalid UTF-8 stdout, preserved
 existing receipt and missing destination directory. These are software hosted
 Vulkan tests, not phone Metal proof. The separate owner-supplied phone result
 is recorded above; its raw JSON and signing identifiers remain private.
-A fresh source-pinned native iOS Venus engine build is prepared next, with
-same-process threads and a framework loader adapter. Its actual iOS compile,
-shared-memory import and guest transport remain unverified.
+The source-pinned native iOS Venus renderer compiled successfully in
+[run 37064765557](https://github.com/aghjkshdsj/My-pc/actions/runs/37064765557),
+source `e8a730eb608c56fac7f03456444b83f07a6f4414`. Both ARM64 physical-iOS
+frameworks passed platform/dependency and eight required renderer-export checks.
+The renderer uses same-process threads and an explicit MoltenVK framework loader
+adapter. The first run stopped at missing host PyYAML; pinned PyYAML 6.0.3 resolved
+that code-generation dependency. Exact source, patch, cross recipe/config and
+license-containing source archives accompany the binary artifact. This is compile
+evidence only: no phone Venus load, host-memory import, guest transport or
+presentation result is implied. Receipt: `evidence/primary/hosted-ios-venus-build.json`.
 
 Primary sources: [allocator](https://github.com/utmapp/qemu/blob/v10.0.12-utm/tcg/region.c),
 [TCG defaults](https://github.com/utmapp/qemu/blob/v10.0.12-utm/accel/tcg/tcg-all.c).
@@ -178,7 +185,7 @@ Official rootfs 20260921.6090922 / 0.5.0 resolves a 10,737,418,240-byte image,
 image hash, RAUC CMS trust and generic-virt compatibility remain open.
 No Valve/game/credential data has been redistributed.
 
-Next: source-build the native Venus renderer and prove real guest GL and Vulkan transport
+Next: integrate the compiled native Venus renderer and prove real guest GL and Vulkan transport
 to Metal and moving presentation; integrate authenticated SteamOS, actual ARM
 Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
 Native host/Metal optimization does not remove guest TCG translation costs.

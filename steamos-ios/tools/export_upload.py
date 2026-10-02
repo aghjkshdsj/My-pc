@@ -14,6 +14,7 @@ paths += [root.parent / '.github/workflows' / name for name in ['steamos-ios-pro
 paths += [root.parent / '.github/workflows/steamos-moltenvk-artifact-audit.yml']
 paths += [root / 'evidence/primary/hosted-venus-shm-diagnostic.json']
 paths += [root / 'evidence/primary/ios-native-vulkan-prerelease.json']
+paths += [root / 'evidence/primary/hosted-ios-venus-build.json']
 paths += [root.parent / '.github/workflows/steamos-ios-venus.yml']
 paths = sorted(set(paths))
 rows = [{'path': p.relative_to(root.parent).as_posix(), 'mode': '100644', 'type': 'blob',
