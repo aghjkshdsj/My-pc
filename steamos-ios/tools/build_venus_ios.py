@@ -13,6 +13,7 @@ import pathlib
 import plistlib
 import shutil
 import subprocess
+import sys
 import tarfile
 
 from bundle_native_vulkan import SOURCE_SHA
@@ -158,6 +159,7 @@ def build(artifact):
                'pins': {name: {'repository': repository, 'commit': revision} for name, (repository, revision) in PINS.items()},
                'vulkan_header_commit': '6aefb8eb95c8e170d0805fd0f2d02832ec1e099a',
                'moltenvk_corresponding_source_sha256': SOURCE_SHA, 'required_exports': required,
+               'host_python_dependencies': capture(sys.executable, '-m', 'pip', 'freeze').splitlines(),
                'physical_ios_arm64': True, 'same_process_thread_renderer': True,
                'egl_glx_backend_built': False, 'hardware_virtualization': False,
                'phone_tested': False, 'linux_graphics_verified': False, 'shared_memory_import_verified': False,

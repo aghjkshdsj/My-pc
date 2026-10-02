@@ -15,6 +15,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install native cross-build tools
         run: brew install meson ninja pkg-config
+      - name: Install pinned host code-generator dependency
+        run: |
+          python3 -m venv steamos-ios/out/venus-host-tools
+          steamos-ios/out/venus-host-tools/bin/python -m pip install PyYAML==6.0.3
+          echo "$PWD/steamos-ios/out/venus-host-tools/bin" >> "$GITHUB_PATH"
       - uses: actions/download-artifact@v4
         with:
           name: Fresh-iOS-MoltenVK-Engine
