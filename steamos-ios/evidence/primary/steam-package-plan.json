@@ -1,0 +1,548 @@
+{
+  "schema": 1,
+  "platform": "linuxarm64",
+  "version": "1788652215",
+  "manifest_sha256": "a609d5d1407c6d947fdb9a9c806a0ef9f085312296f76d79b87f398115c36319",
+  "package_count": 35,
+  "zip_download_bytes": 1008581976,
+  "packages": [
+    {
+      "name": "tenfoot_images_all",
+      "file": "tenfoot_images_all.zip.86419c7a56c12dd107b5e0d46f50c8a9b121f3cc",
+      "bytes": 6582204,
+      "sha256": "990676bc29d01736477c6b571b5048258a6156284ef242503112fc68567cbf01",
+      "url": "https://client-update.steamstatic.com/tenfoot_images_all.zip.86419c7a56c12dd107b5e0d46f50c8a9b121f3cc",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 6582204,
+        "final_url": "https://client-update.steamstatic.com/tenfoot_images_all.zip.86419c7a56c12dd107b5e0d46f50c8a9b121f3cc",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "steamui_websrc_all",
+      "file": "steamui_websrc_all.zip.d57af3a7bc6e1d54ca67e721a41d263befa5125c",
+      "bytes": 33250084,
+      "sha256": "791e7069a239ffb07366193b17ed93fe9c3b6e131fd766c505e3a7029e9c5f57",
+      "url": "https://client-update.steamstatic.com/steamui_websrc_all.zip.d57af3a7bc6e1d54ca67e721a41d263befa5125c",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 33250084,
+        "final_url": "https://client-update.steamstatic.com/steamui_websrc_all.zip.d57af3a7bc6e1d54ca67e721a41d263befa5125c",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "resources_misc_all",
+      "file": "resources_misc_all.zip.99ed79ed868d732d8e9e9a45444b8f003191e3dd",
+      "bytes": 4317962,
+      "sha256": "187e562403c7544af7162e08baf7677d030ad6f60947c2cdc7dcbcbf0a7a7fe6",
+      "url": "https://client-update.steamstatic.com/resources_misc_all.zip.99ed79ed868d732d8e9e9a45444b8f003191e3dd",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 4317962,
+        "final_url": "https://client-update.steamstatic.com/resources_misc_all.zip.99ed79ed868d732d8e9e9a45444b8f003191e3dd",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "resources_hidpi_all",
+      "file": "resources_hidpi_all.zip.a110d78e994c028dc1c412951e87a0c4e9c819f7",
+      "bytes": 98371,
+      "sha256": "5bdb97ec734f035c1d06a59b62980028b1b05b920c544ae3673b1a515d3d507e",
+      "url": "https://client-update.steamstatic.com/resources_hidpi_all.zip.a110d78e994c028dc1c412951e87a0c4e9c819f7",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 98371,
+        "final_url": "https://client-update.steamstatic.com/resources_hidpi_all.zip.a110d78e994c028dc1c412951e87a0c4e9c819f7",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "resources_all",
+      "file": "resources_all.zip.213fe769fd8484a0d149453c5655e70c1d13b086",
+      "bytes": 4301386,
+      "sha256": "769840cdb2b22ad9798a1a3950de2fe82b8b5d3d37389dcc9b1393f77480d67b",
+      "url": "https://client-update.steamstatic.com/resources_all.zip.213fe769fd8484a0d149453c5655e70c1d13b086",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 4301386,
+        "final_url": "https://client-update.steamstatic.com/resources_all.zip.213fe769fd8484a0d149453c5655e70c1d13b086",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "strings_en_all",
+      "file": "strings_en_all.zip.071a3f6839c3b8d574731101f2862d5ed72ab2e4",
+      "bytes": 114329,
+      "sha256": "fe73301f09a423c3114575b54b929c5cc0d1aacc80f1067259e551ffd1c82a07",
+      "url": "https://client-update.steamstatic.com/strings_en_all.zip.071a3f6839c3b8d574731101f2862d5ed72ab2e4",
+      "alternative_vzip_present": false,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 114329,
+        "final_url": "https://client-update.steamstatic.com/strings_en_all.zip.071a3f6839c3b8d574731101f2862d5ed72ab2e4",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "strings_all",
+      "file": "strings_all.zip.9c6cdbadbbf194703f40a5eef735ce7b99eb10dc",
+      "bytes": 4014695,
+      "sha256": "23e192629927ca1fcfda167b3cf55ed69fd212515fc0547eee268325b24d41a4",
+      "url": "https://client-update.steamstatic.com/strings_all.zip.9c6cdbadbbf194703f40a5eef735ce7b99eb10dc",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 4014695,
+        "final_url": "https://client-update.steamstatic.com/strings_all.zip.9c6cdbadbbf194703f40a5eef735ce7b99eb10dc",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "public_all",
+      "file": "public_all.zip.4909469e2596e887494f0882fc39a493ac6c6925",
+      "bytes": 31197822,
+      "sha256": "e8a1c9234c44e513d9c4ac094168b96bfa9e39b02fab8683cd793d2509f5ea94",
+      "url": "https://client-update.steamstatic.com/public_all.zip.4909469e2596e887494f0882fc39a493ac6c6925",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 31197822,
+        "final_url": "https://client-update.steamstatic.com/public_all.zip.4909469e2596e887494f0882fc39a493ac6c6925",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_hardware_all",
+      "file": "bins_hardware_all.zip.0f397d26ddd470318a9dfd8ba019f6e64bb53875",
+      "bytes": 374820,
+      "sha256": "c90da4bd9e6dc122317f54887633839e22871974656fd0c337c60b44522ff2b3",
+      "url": "https://client-update.steamstatic.com/bins_hardware_all.zip.0f397d26ddd470318a9dfd8ba019f6e64bb53875",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 374820,
+        "final_url": "https://client-update.steamstatic.com/bins_hardware_all.zip.0f397d26ddd470318a9dfd8ba019f6e64bb53875",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "steamui_websrc_sounds_all",
+      "file": "steamui_websrc_sounds_all.zip.74727ca40ef88c5012bb631488fd285418dce825",
+      "bytes": 4676203,
+      "sha256": "c823bd39d234e7d9a5fdb5ec6605eae3f175e52bb847725e8826ff526a61641c",
+      "url": "https://client-update.steamstatic.com/steamui_websrc_sounds_all.zip.74727ca40ef88c5012bb631488fd285418dce825",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 4676203,
+        "final_url": "https://client-update.steamstatic.com/steamui_websrc_sounds_all.zip.74727ca40ef88c5012bb631488fd285418dce825",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "steamui_websrc_movies_all",
+      "file": "steamui_websrc_movies_all.zip.40e78cdda48e9a8a74baf614e0cdc7a6b96d26d1",
+      "bytes": 10900690,
+      "sha256": "885a32533327f0fd5ea98e6c6f13552e965cab4852dad7ce9ccf3d929d726b5b",
+      "url": "https://client-update.steamstatic.com/steamui_websrc_movies_all.zip.40e78cdda48e9a8a74baf614e0cdc7a6b96d26d1",
+      "alternative_vzip_present": false,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 10900690,
+        "final_url": "https://client-update.steamstatic.com/steamui_websrc_movies_all.zip.40e78cdda48e9a8a74baf614e0cdc7a6b96d26d1",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_linuxarm64",
+      "file": "bins_linuxarm64.zip.3b8e205cbcb82748f4950e2acd3e21fbdfac6e7b",
+      "bytes": 68984059,
+      "sha256": "fb40465c257d82480a020e50dcd5f1472ea82461aaf548e802a4f1715d7cbdf8",
+      "url": "https://client-update.steamstatic.com/bins_linuxarm64.zip.3b8e205cbcb82748f4950e2acd3e21fbdfac6e7b",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 68984059,
+        "final_url": "https://client-update.steamstatic.com/bins_linuxarm64.zip.3b8e205cbcb82748f4950e2acd3e21fbdfac6e7b",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_sdk_linuxarm64",
+      "file": "bins_sdk_linuxarm64.zip.4781145c2058f3a9d7e8a34ca12aeaa22db14fca",
+      "bytes": 34789755,
+      "sha256": "0f92a003b207567ffc85d7417086936d1fd0cb5447930aef29ef3da38e818aba",
+      "url": "https://client-update.steamstatic.com/bins_sdk_linuxarm64.zip.4781145c2058f3a9d7e8a34ca12aeaa22db14fca",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 34789755,
+        "final_url": "https://client-update.steamstatic.com/bins_sdk_linuxarm64.zip.4781145c2058f3a9d7e8a34ca12aeaa22db14fca",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_codecs_linuxarm64",
+      "file": "bins_codecs_linuxarm64.zip.e818c66109adfc94a31500228224433dc61756c4",
+      "bytes": 17607870,
+      "sha256": "0148fe212010859f9b27a7fb64c69647f2182e579db4717000afbe46b091c8fa",
+      "url": "https://client-update.steamstatic.com/bins_codecs_linuxarm64.zip.e818c66109adfc94a31500228224433dc61756c4",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 17607870,
+        "final_url": "https://client-update.steamstatic.com/bins_codecs_linuxarm64.zip.e818c66109adfc94a31500228224433dc61756c4",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_misc_linuxarm64",
+      "file": "bins_misc_linuxarm64.zip.9f72a3e4ded900751bd0de59f2df3b022047a50e",
+      "bytes": 37703430,
+      "sha256": "3f37415abdc2ee55757ecf09a4240d44268cd1f90cdb8cd48a7dd80f7fab033b",
+      "url": "https://client-update.steamstatic.com/bins_misc_linuxarm64.zip.9f72a3e4ded900751bd0de59f2df3b022047a50e",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 37703430,
+        "final_url": "https://client-update.steamstatic.com/bins_misc_linuxarm64.zip.9f72a3e4ded900751bd0de59f2df3b022047a50e",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_hardware_linuxarm64",
+      "file": "bins_hardware_linuxarm64.zip.da8814f3cc3788fd3789ce233dd86f107b2b244a",
+      "bytes": 10039405,
+      "sha256": "5ab880e76e725d674f877fac8728a37298903a65e7455f8fdf05a592d787e2b4",
+      "url": "https://client-update.steamstatic.com/bins_hardware_linuxarm64.zip.da8814f3cc3788fd3789ce233dd86f107b2b244a",
+      "alternative_vzip_present": false,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 10039405,
+        "final_url": "https://client-update.steamstatic.com/bins_hardware_linuxarm64.zip.da8814f3cc3788fd3789ce233dd86f107b2b244a",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "webkit_linuxarm64",
+      "file": "webkit_linuxarm64.zip.e228cb81d596d47e0b829467fd6cf62c298079d8",
+      "bytes": 124887415,
+      "sha256": "4030d3a85d036cea241a66bafa6ded53e37323dd46d961715756855cf785c02b",
+      "url": "https://client-update.steamstatic.com/webkit_linuxarm64.zip.e228cb81d596d47e0b829467fd6cf62c298079d8",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 124887415,
+        "final_url": "https://client-update.steamstatic.com/webkit_linuxarm64.zip.e228cb81d596d47e0b829467fd6cf62c298079d8",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "miles_linuxarm64",
+      "file": "miles_linuxarm64.zip.2ff534200d16e16de747d01e97f3f55753839aa3",
+      "bytes": 359623,
+      "sha256": "a4ceeda568ec4336b6d7f6661cfd7e0af2956bdbcd5607359cfc93ff091c42c3",
+      "url": "https://client-update.steamstatic.com/miles_linuxarm64.zip.2ff534200d16e16de747d01e97f3f55753839aa3",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 359623,
+        "final_url": "https://client-update.steamstatic.com/miles_linuxarm64.zip.2ff534200d16e16de747d01e97f3f55753839aa3",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "sdl3_linuxarm64",
+      "file": "sdl3_linuxarm64.zip.c5c90a261c46ea42555c55759e3a1972d0469f71",
+      "bytes": 16755943,
+      "sha256": "63a06161d99d11c4e6070a19be940003b1eb63d86ff6cafd15904cd96efae7f0",
+      "url": "https://client-update.steamstatic.com/sdl3_linuxarm64.zip.c5c90a261c46ea42555c55759e3a1972d0469f71",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 16755943,
+        "final_url": "https://client-update.steamstatic.com/sdl3_linuxarm64.zip.c5c90a261c46ea42555c55759e3a1972d0469f71",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "steam_linuxarm64",
+      "file": "steam_linuxarm64.zip.55d044443b222cf807fa4231aa75680ca6da6cee",
+      "bytes": 4352475,
+      "sha256": "fcc296bde0752efed53c4bffd1859ccbc1eda5b10276e580ad6f1726b5cb619d",
+      "url": "https://client-update.steamstatic.com/steam_linuxarm64.zip.55d044443b222cf807fa4231aa75680ca6da6cee",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 4352475,
+        "final_url": "https://client-update.steamstatic.com/steam_linuxarm64.zip.55d044443b222cf807fa4231aa75680ca6da6cee",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "runtime_scout_linuxarm64",
+      "file": "runtime_scout_linuxarm64.zip.96f38007c19d31769ada4b7e07966303be8fd58e",
+      "bytes": 63540407,
+      "sha256": "4db16f83f5a12fa60f24e1200e4c0939ab0cffba2d1c475bdfd1e17901083740",
+      "url": "https://client-update.steamstatic.com/runtime_scout_linuxarm64.zip.96f38007c19d31769ada4b7e07966303be8fd58e",
+      "alternative_vzip_present": false,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 63540407,
+        "final_url": "https://client-update.steamstatic.com/runtime_scout_linuxarm64.zip.96f38007c19d31769ada4b7e07966303be8fd58e",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "runtime_steamrt_linuxarm64",
+      "file": "runtime_steamrt_linuxarm64.zip.62af11e9aca46bf092ca68321af38fd38abaa066",
+      "bytes": 127458179,
+      "sha256": "5cebd17131a84f494562570c1b6a78cb561bf7459662324e751a8f8f5e707473",
+      "url": "https://client-update.steamstatic.com/runtime_steamrt_linuxarm64.zip.62af11e9aca46bf092ca68321af38fd38abaa066",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 127458179,
+        "final_url": "https://client-update.steamstatic.com/runtime_steamrt_linuxarm64.zip.62af11e9aca46bf092ca68321af38fd38abaa066",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_steamrt_linuxarm64",
+      "file": "bins_steamrt_linuxarm64.zip.c77ddc4a33390e52606a7e7a5ee27cc661b8f8d0",
+      "bytes": 109044421,
+      "sha256": "3cf60e573870d6c4977dd5adfcbc6f9d56becd50cd362a67cc2461b5a3476788",
+      "url": "https://client-update.steamstatic.com/bins_steamrt_linuxarm64.zip.c77ddc4a33390e52606a7e7a5ee27cc661b8f8d0",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 109044421,
+        "final_url": "https://client-update.steamstatic.com/bins_steamrt_linuxarm64.zip.c77ddc4a33390e52606a7e7a5ee27cc661b8f8d0",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_codecs_steamrt_linuxarm64",
+      "file": "bins_codecs_steamrt_linuxarm64.zip.b61e2dcec24b43cace19167a45134f01337a3816",
+      "bytes": 11693968,
+      "sha256": "48872b4d6ef56423fedc7e6b29d4366899de082928cc07488ba031f968dd3ce9",
+      "url": "https://client-update.steamstatic.com/bins_codecs_steamrt_linuxarm64.zip.b61e2dcec24b43cace19167a45134f01337a3816",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 11693968,
+        "final_url": "https://client-update.steamstatic.com/bins_codecs_steamrt_linuxarm64.zip.b61e2dcec24b43cace19167a45134f01337a3816",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_misc_steamrt_linuxarm64",
+      "file": "bins_misc_steamrt_linuxarm64.zip.baa75862df05243875fbc0f5d9c52c6ad9ca704d",
+      "bytes": 1080650,
+      "sha256": "67b6d63efa3a70500c5668cf71d78b3bf7046133ee8700b1371c1a1680317a8a",
+      "url": "https://client-update.steamstatic.com/bins_misc_steamrt_linuxarm64.zip.baa75862df05243875fbc0f5d9c52c6ad9ca704d",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 1080650,
+        "final_url": "https://client-update.steamstatic.com/bins_misc_steamrt_linuxarm64.zip.baa75862df05243875fbc0f5d9c52c6ad9ca704d",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "webkit_steamrt_linuxarm64",
+      "file": "webkit_steamrt_linuxarm64.zip.b4f55c0bf5ddb0d2768886083af4798710a90681",
+      "bytes": 10630,
+      "sha256": "9c16b3018e3ff358c2a6b60ca148ac46a4c10de626d9005c79be9b8e62d9a77e",
+      "url": "https://client-update.steamstatic.com/webkit_steamrt_linuxarm64.zip.b4f55c0bf5ddb0d2768886083af4798710a90681",
+      "alternative_vzip_present": false,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 10630,
+        "final_url": "https://client-update.steamstatic.com/webkit_steamrt_linuxarm64.zip.b4f55c0bf5ddb0d2768886083af4798710a90681",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "sdl3_steamrt_linuxarm64",
+      "file": "sdl3_steamrt_linuxarm64.zip.d1d45ad6ed8656ba07f162459b1098536e4bdf84",
+      "bytes": 690,
+      "sha256": "6a144ab788ff5431e465accd855412ee065d144d467e6111e1b7de2c85524f73",
+      "url": "https://client-update.steamstatic.com/sdl3_steamrt_linuxarm64.zip.d1d45ad6ed8656ba07f162459b1098536e4bdf84",
+      "alternative_vzip_present": false,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 690,
+        "final_url": "https://client-update.steamstatic.com/sdl3_steamrt_linuxarm64.zip.d1d45ad6ed8656ba07f162459b1098536e4bdf84",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "steam_steamrt_linuxarm64",
+      "file": "steam_steamrt_linuxarm64.zip.16dd68bd2cac9b3b4f46924ff750b2b062f0e04a",
+      "bytes": 4652132,
+      "sha256": "684b45055f1e8732574fd3edcbaa313432b359eaf34181e43c021deec3817754",
+      "url": "https://client-update.steamstatic.com/steam_steamrt_linuxarm64.zip.16dd68bd2cac9b3b4f46924ff750b2b062f0e04a",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 4652132,
+        "final_url": "https://client-update.steamstatic.com/steam_steamrt_linuxarm64.zip.16dd68bd2cac9b3b4f46924ff750b2b062f0e04a",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "webkit_linuxarm64_linuxarm64",
+      "file": "webkit_linuxarm64_linuxarm64.zip.c1d5fa58a564375f71b34bccaa51c19be1143137",
+      "bytes": 111396433,
+      "sha256": "b8687e0f20668d24055d8f2e9f6c4fbcbe84fbb99a7bc9de4595530be7029990",
+      "url": "https://client-update.steamstatic.com/webkit_linuxarm64_linuxarm64.zip.c1d5fa58a564375f71b34bccaa51c19be1143137",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 111396433,
+        "final_url": "https://client-update.steamstatic.com/webkit_linuxarm64_linuxarm64.zip.c1d5fa58a564375f71b34bccaa51c19be1143137",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "sdl3_linuxarm64_linuxarm64",
+      "file": "sdl3_linuxarm64_linuxarm64.zip.a1b8e025f2ede4ead9618ecfa032205b87e0bc96",
+      "bytes": 9589076,
+      "sha256": "3737913de71c1ec74cfd80eededa0dd6358dfc504233aa381ed91c0af2c0b61e",
+      "url": "https://client-update.steamstatic.com/sdl3_linuxarm64_linuxarm64.zip.a1b8e025f2ede4ead9618ecfa032205b87e0bc96",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 9589076,
+        "final_url": "https://client-update.steamstatic.com/sdl3_linuxarm64_linuxarm64.zip.a1b8e025f2ede4ead9618ecfa032205b87e0bc96",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "codecs_linuxarm64_linuxarm64",
+      "file": "codecs_linuxarm64_linuxarm64.zip.1b42568442a5238ca50cddedca932631b1865ccb",
+      "bytes": 11185943,
+      "sha256": "49a8bf59f30c31a244a289e4aae52ebfec341b69b5210adbdb54e0d59b9f41bd",
+      "url": "https://client-update.steamstatic.com/codecs_linuxarm64_linuxarm64.zip.1b42568442a5238ca50cddedca932631b1865ccb",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 11185943,
+        "final_url": "https://client-update.steamstatic.com/codecs_linuxarm64_linuxarm64.zip.1b42568442a5238ca50cddedca932631b1865ccb",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_linuxarm64_linuxarm64",
+      "file": "bins_linuxarm64_linuxarm64.zip.e59e82a5b6cbba6452d024d661c46e302b90376f",
+      "bytes": 109802834,
+      "sha256": "92fb6f8b0230713ca9b47b73bbf8576b2045cbde947462a6986d922c5c5b15ad",
+      "url": "https://client-update.steamstatic.com/bins_linuxarm64_linuxarm64.zip.e59e82a5b6cbba6452d024d661c46e302b90376f",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 109802834,
+        "final_url": "https://client-update.steamstatic.com/bins_linuxarm64_linuxarm64.zip.e59e82a5b6cbba6452d024d661c46e302b90376f",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_sdk_linuxarm64_linuxarm64",
+      "file": "bins_sdk_linuxarm64_linuxarm64.zip.9e39e51c8c8235e87475e00a978a6d2f5d095113",
+      "bytes": 15797465,
+      "sha256": "55fa4fb9d7871058157544a749100e73afcd9e68be2618e2b23a20eea8aa5173",
+      "url": "https://client-update.steamstatic.com/bins_sdk_linuxarm64_linuxarm64.zip.9e39e51c8c8235e87475e00a978a6d2f5d095113",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 15797465,
+        "final_url": "https://client-update.steamstatic.com/bins_sdk_linuxarm64_linuxarm64.zip.9e39e51c8c8235e87475e00a978a6d2f5d095113",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "bins_androidarm64_linuxarm64",
+      "file": "bins_androidarm64_linuxarm64.zip.a0be739e9a7b7b1750c02cbe23c79af2691687c7",
+      "bytes": 18018236,
+      "sha256": "d8c1a969da2463e5c7245fa5429a8dd9a6ffb4b673249a3f1cfcadbdab9ef7aa",
+      "url": "https://client-update.steamstatic.com/bins_androidarm64_linuxarm64.zip.a0be739e9a7b7b1750c02cbe23c79af2691687c7",
+      "alternative_vzip_present": true,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 18018236,
+        "final_url": "https://client-update.steamstatic.com/bins_androidarm64_linuxarm64.zip.a0be739e9a7b7b1750c02cbe23c79af2691687c7",
+        "length_matches": true
+      }
+    },
+    {
+      "name": "resource_linuxarm64_linuxarm64",
+      "file": "resource_linuxarm64_linuxarm64.zip.6e5691ac5a1a55a554250468a98c3f8e454fea4a",
+      "bytes": 2371,
+      "sha256": "f78280db38d95a74096a00f7d2bc3061286db135e9e61bbf963eb65de39d66fc",
+      "url": "https://client-update.steamstatic.com/resource_linuxarm64_linuxarm64.zip.6e5691ac5a1a55a554250468a98c3f8e454fea4a",
+      "alternative_vzip_present": false,
+      "download_verified": false,
+      "head": {
+        "status": 200,
+        "bytes": 2371,
+        "final_url": "https://client-update.steamstatic.com/resource_linuxarm64_linuxarm64.zip.6e5691ac5a1a55a554250468a98c3f8e454fea4a",
+        "length_matches": true
+      }
+    }
+  ],
+  "scope": "complete-client-manifest-plan",
+  "installed": false,
+  "linux_or_phone_executed": false,
+  "manifest_signature_sections": {
+    "kvsign2": {
+      "linuxarm64": "03660e905d5ce3f284414e97fdcf48e0c9dcababf3ec2dc777545e4243dea3b6b14f52519f2c84aec59cbbd6b0d820e9da84ca75d6dbf310f70da1d7c147a90f"
+    },
+    "kvsignatures": {
+      "linuxarm64": "930ca5c570702ec8d912a7ba24bb683b21b92beea9fa897d8ab8a00ae12480a7ad270ee1051c08af02edcc0d123baf46d0a30c496b50e66c74b4bfaff6a7e7855ba155f249cc64e1b1a62e0b2cadc45be49ee962d657f1dd47db515b384ff1de13b693025d5b5caf6215d633238b2ab4e671c66a63036897a21831c3d2a76940"
+    }
+  },
+  "valve_signature_verified": false,
+  "limitation": "No package binary is installed or redistributed by this tool; HEAD is availability, not digest verification. Plain ZIP chosen; Valve VZip decoding is not implemented."
+}

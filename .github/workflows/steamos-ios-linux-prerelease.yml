@@ -1,0 +1,100 @@
+name: Fresh iPhone Linux gate prerelease
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['.github/workflows/steamos-ios-linux-prerelease.yml', 'steamos-ios/tools/bundle_linux_gate.py']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  linux-gate-ipa:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact successful upstream build runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/aghjkshdsj/My-pc/actions/runs/37014232362 > engine-run.json
+          gh api repos/aghjkshdsj/My-pc/actions/runs/37014232445 > guest-run.json
+          python3 - <<'PY'
+          import json
+          for name in ['engine-run.json', 'guest-run.json']:
+              row=json.load(open(name))
+              assert row['conclusion']=='success'
+              assert row['head_sha']=='33c54e5be2d022bc19bcf3e1a448163016dc84af'
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-iOS-CPU-Engine
+          run-id: 37014232362
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/engine-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: Source-Built-ARM-Linux-Gate
+          run-id: 37014232445
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/guest-artifact
+      - name: Compile the fresh Release ARM64 app
+        run: |
+          python3 steamos-ios/tests/validate_sources.py
+          xcodebuild -project steamos-ios/MyPCSteamOS.xcodeproj -scheme MyPCSteamOSProbe \
+            -configuration Release -sdk iphoneos -destination generic/platform=iOS \
+            -derivedDataPath steamos-ios/out/xcode CODE_SIGNING_ALLOWED=NO \
+            MPC_SOURCE_COMMIT="$GITHUB_SHA" build
+      - name: Bundle, verify and collect corresponding source
+        run: |
+          mkdir -p steamos-ios/out/package/Payload
+          app=steamos-ios/out/package/Payload/MyPCSteamOSProbe.app
+          cp -R steamos-ios/out/xcode/Build/Products/Release-iphoneos/MyPCSteamOSProbe.app "$app"
+          engine="$(find steamos-ios/out/engine-artifact -name CPU-Engine-iOS-Frameworks.tar.gz -print -quit)"
+          guest="$(find steamos-ios/out/guest-artifact -name Linux-Gate-Payload.tar.gz -print -quit)"
+          test -n "$engine"; test -n "$guest"
+          python3 steamos-ios/tools/bundle_linux_gate.py "$(dirname "$engine")" "$(dirname "$guest")" "$app"
+          # Retain upstream COPYING/LICENSE files next to the actual binaries.
+          tar -xOf "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" build-iOS-arm64/qemu-10.0.12-utm/COPYING > "$app/QEMU-COPYING"
+          cp steamos-ios/LICENSE "$app/Fresh-Source-LICENSE"
+          (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Linux-Gate.ipa Payload)
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate --receipt steamos-ios/out/package/verification.json
+          cp "$(dirname "$engine")/CPU-Engine-Corresponding-Source.tar.gz" steamos-ios/out/package/
+          cp "$(dirname "$guest")/Linux-Gate-Corresponding-Source.tar.gz" steamos-ios/out/package/
+          git archive --format=tar.gz -o steamos-ios/out/package/MyPCSteamOS-Fresh-Source.tar.gz HEAD steamos-ios .github/workflows/steamos-ios-probe.yml .github/workflows/steamos-linux-kernel-gate.yml .github/workflows/steamos-ios-engine.yml .github/workflows/steamos-linux-source-gate.yml .github/workflows/steamos-graphics-diagnostic.yml .github/workflows/steamos-ios-linux-prerelease.yml
+          cp engine-run.json guest-run.json steamos-ios/out/package/
+          (cd steamos-ios/out/package && shasum -a 256 *.ipa *.tar.gz *.json > SHA256SUMS)
+      - name: Publish and redownload the verified Linux gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="steamos-ios-linux-gate-${GITHUB_RUN_NUMBER}"
+          cat > steamos-ios/out/package/release-notes.md <<'EOF'
+          Fresh native ARM64 iOS host plus QEMU TCG Linux kernel bring-up.
+
+          This gate boots a disposable source-built Linux 6.12.111 / BusyBox 1.38.0 initramfs and checks guest signals, mmap/protection, pthread/TLS/futex, fork/exec and CPU checksum. It has no persistent disk, networking, SteamOS image, Steam/FEX client/game or guest GPU. Metal host probes remain separate. Phone boot/performance is unverified until a new device receipt is returned.
+
+          Install with iLoader, enable StikDebug for My-pc SteamOS Probe, run the host probes, then Run Linux kernel gate. Keep the app foreground for up to three minutes. Close/relaunch before repeating Linux boot. Share device report; Linux serial and pending receipts are in the app's Files documents directory if it terminates or times out. Existing projects, game data and apps are not inputs.
+
+          QEMU is software system emulation through TCG, not iOS hardware virtualization. This is a disposable Linux test, not a replacement architecture for the requested SteamOS product. No Steam startup or Hollow Knight FPS target is claimed.
+
+          The unsigned IPA is verified for ARM64 physical iOS, all engine framework dependencies, payload hashes and complete ZIP CRC. Fresh host source, exact upstream engine corresponding source/patches/recipes, kernel/BusyBox source/configs, verification and checksum receipts accompany this prerelease. Upstream GPL and per-component licenses apply; the new source's MIT license does not replace them.
+          EOF
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "My-pc fresh iPhone Linux gate ${GITHUB_RUN_NUMBER}" --notes-file steamos-ios/out/package/release-notes.md \
+            steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa steamos-ios/out/package/verification.json \
+            steamos-ios/out/package/SHA256SUMS steamos-ios/out/package/*-Source.tar.gz \
+            steamos-ios/out/package/engine-run.json steamos-ios/out/package/guest-run.json
+          mkdir steamos-ios/out/redownload-linux
+          gh release download "$tag" --dir steamos-ios/out/redownload-linux --pattern MyPCSteamOS-Linux-Gate.ipa
+          cmp steamos-ios/out/package/MyPCSteamOS-Linux-Gate.ipa steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-linux/MyPCSteamOS-Linux-Gate.ipa "$GITHUB_SHA" --linux-gate
+          gh release edit "$tag" --draft=false
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iPhone-Linux-Gate
+          path: |
+            steamos-ios/out/package/*.ipa
+            steamos-ios/out/package/verification.json
+            steamos-ios/out/package/SHA256SUMS
+          retention-days: 14
