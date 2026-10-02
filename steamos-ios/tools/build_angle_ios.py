@@ -148,12 +148,28 @@ def build():
                         '                  std::is_trivially_destructible_v<GLES1StateEnabledBitSet>);\n'
                         '    memcpy(static_cast<void *>(this), &other, sizeof(GLES1ShaderState));')
     gles1_state.write_text(text, encoding='utf-8')
+    framebuffer = engine / 'src/libANGLE/renderer/metal/FrameBufferMtl.mm'
+    text = framebuffer.read_text(encoding='utf-8')
+    # BlitParams owns a shared texture reference. Copy the base subobject with
+    # C++ assignment so reference counts are retained; raw bytes are unsafe here.
+    for name in ['dsBlitParams', 'colorBlitParams']:
+        old = 'memcpy(&' + name + ', &baseParams, sizeof(baseParams));'
+        assert text.count(old) == 1
+        text = text.replace(old, 'static_cast<mtl::BlitParams &>(' + name + ') = baseParams;')
+    framebuffer.write_text(text, encoding='utf-8')
+    cache_wrapper = source / 'Tools/ccache/ccache-wrapper'
+    text = cache_wrapper.read_text(encoding='utf-8')
+    old = 'CCACHE_SLOPPINESS="pch_defines,time_macros" '
+    assert text.count(old) == 1
+    # Use strict cache inputs. Never ignore macro/PCH changes for this build.
+    cache_wrapper.write_text(text.replace(old, ''), encoding='utf-8')
     patch = output / 'public-ios-angle.patch'
     patch.write_text(capture('git', '-C', str(source), 'diff', '--', *DIRECTORIES) + '\n', encoding='utf-8')
     archive = output / 'ANGLE.xcarchive'
     settings = ['CODE_SIGNING_ALLOWED=NO', 'CODE_SIGNING_REQUIRED=NO', 'USE_INTERNAL_SDK=NO',
                 'WEBCORE_LIBRARY_DIR=/usr/local/lib', 'NORMAL_UMBRELLA_FRAMEWORKS_DIR=',
-                'IPHONEOS_DEPLOYMENT_TARGET=26.0', 'GCC_OPTIMIZATION_LEVEL=3', 'ANGLE_ALLOWABLE_CLIENTS=']
+                'IPHONEOS_DEPLOYMENT_TARGET=26.0', 'GCC_OPTIMIZATION_LEVEL=3', 'ANGLE_ALLOWABLE_CLIENTS=',
+                'WK_USE_CCACHE=YES']
     command = ['xcodebuild', 'archive', '-project', 'ANGLE.xcodeproj', '-scheme', 'ANGLE',
                '-sdk', 'iphoneos', '-arch', 'arm64', '-configuration', 'Release',
                '-archivePath', str(archive), *settings]

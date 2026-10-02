@@ -10,8 +10,20 @@ jobs:
   angle-ios:
     runs-on: macos-26
     timeout-minutes: 60
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/steamos-ios/out/angle-compiler-cache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPILERCHECK: content
     steps:
       - uses: actions/checkout@v4
+      - name: Install strict compiler cache
+        run: brew install ccache
+      - uses: actions/cache/restore@v4
+        id: compiler-cache
+        with:
+          path: steamos-ios/out/angle-compiler-cache
+          key: ${{ runner.os }}-angle-ed78ab6-public-ios-strict-${{ hashFiles('steamos-ios/tools/build_angle_ios.py') }}
+          restore-keys: ${{ runner.os }}-angle-ed78ab6-public-ios-strict-
       - name: Ensure Xcode Metal compiler is available
         run: |
           if ! xcrun --sdk iphoneos metal --version; then
@@ -20,6 +32,14 @@ jobs:
           xcrun --sdk iphoneos metal --version
       - name: Build only pinned EGL and GLES engines with the public iOS SDK
         run: python3 steamos-ios/tools/build_angle_ios.py
+      - name: Record compiler cache statistics
+        if: always()
+        run: ccache --show-stats
+      - uses: actions/cache/save@v4
+        if: always() && steps.compiler-cache.outputs.cache-hit != 'true'
+        with:
+          path: steamos-ios/out/angle-compiler-cache
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
