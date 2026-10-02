@@ -57,7 +57,12 @@ def build():
     # Owner identity uses non-public Metal ownership plumbing. It is unnecessary
     # for an ordinary application and must not enter this engine build.
     assert text.count(' ANGLE_ENABLE_METAL_OWNERSHIP_IDENTITY ') == 1
-    config.write_text(text.replace(' ANGLE_ENABLE_METAL_OWNERSHIP_IDENTITY ', ' '), encoding='utf-8')
+    # New Clang diagnoses redundant virtual keywords in upstream final classes.
+    # Keep that diagnostic visible, but do not promote this style warning to an
+    # error. All other upstream warnings-as-errors remain enabled.
+    text = text.replace(' ANGLE_ENABLE_METAL_OWNERSHIP_IDENTITY ', ' ')
+    text += '\nWARNING_CFLAGS = $(inherited) -Wno-error=unnecessary-virtual-specifier;\n'
+    config.write_text(text, encoding='utf-8')
     common = source / 'Configurations/CommonBase.xcconfig'
     text = common.read_text(encoding='utf-8')
     assert text.count('-D_LIBCPP_ENABLE_ASSERTIONS=1') == 5
