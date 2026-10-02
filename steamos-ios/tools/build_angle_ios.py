@@ -110,6 +110,28 @@ def build():
         text = text.replace(zero, zero.replace('(this,', '(static_cast<void *>(this),'))
         text = text.replace(copy, copy.replace('(this,', '(static_cast<void *>(this),'))
     core_types.write_text(text, encoding='utf-8')
+    shader_interface = engine / 'src/compiler/translator/ShaderLang.cpp'
+    text = shader_interface.read_text(encoding='utf-8')
+    include = '#include "GLSLANG/ShaderLang.h"'
+    assert text.count(include) == 1
+    text = text.replace(include, include + '\n#include <type_traits>')
+    # Reviewed shader option/resource structs contain scalar fields, fixed arrays
+    # and a non-owning hash-function pointer. Preserve upstream's comparable
+    # zeroed padding and its byte-copy semantics, with explicit compiler intent.
+    for name in ['ShCompileOptions', 'ShBuiltInResources']:
+        constructor = name + '::' + name + '()\n{\n'
+        assert text.count(constructor) == 1
+        text = text.replace(constructor, constructor +
+                            '    static_assert(std::is_trivially_destructible_v<' + name + '> &&\n'
+                            '                  !std::is_polymorphic_v<' + name + '>);\n')
+    assert text.count('memset(this, 0, sizeof(*this));') == 2
+    assert text.count('memcpy(this, &other, sizeof(*this));') == 4
+    assert text.count('memset(resources, 0, sizeof(*resources));') == 1
+    text = text.replace('memset(this, 0, sizeof(*this));', 'memset(static_cast<void *>(this), 0, sizeof(*this));')
+    text = text.replace('memcpy(this, &other, sizeof(*this));', 'memcpy(static_cast<void *>(this), &other, sizeof(*this));')
+    text = text.replace('memset(resources, 0, sizeof(*resources));',
+                        'memset(static_cast<void *>(resources), 0, sizeof(*resources));')
+    shader_interface.write_text(text, encoding='utf-8')
     patch = output / 'public-ios-angle.patch'
     patch.write_text(capture('git', '-C', str(source), 'diff', '--', *DIRECTORIES) + '\n', encoding='utf-8')
     archive = output / 'ANGLE.xcarchive'
