@@ -29,7 +29,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Fresh-iOS-ANGLE-Engine
-          run-id: 37075043878
+          run-id: 37077105285
           github-token: ${{ github.token }}
           path: steamos-ios/out/angle-artifact
       - name: Build and audit EGL-enabled physical-iOS renderer
@@ -43,5 +43,6 @@ jobs:
             steamos-ios/out/ios-gl-venus/receipt.json
             steamos-ios/out/ios-gl-venus/*.cross
             steamos-ios/out/ios-gl-venus/*.patch
+            steamos-ios/out/ios-gl-venus/virglrenderer/build/config.h
             steamos-ios/out/ios-gl-venus/**/meson-logs/meson-log.txt
           retention-days: 14

@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "scope": "source-built-native-ios-angle-engine-compile-only",
-  "source_commit": "b925d37b18d0bb4d7721ea1aedc059b43f9240a1",
-  "workflow_run": "37077105285",
+  "source_commit": "8fc4d429b8fd3158ddb9f9c0f2f51414e2e84f8f",
+  "workflow_run": "37075043878",
   "engine_repository": "https://github.com/utmapp/WebKit.git",
   "engine_commit": "ed78ab6e1a37f4f11583a0bd038f22ec91f3ff10",
   "source_paths": [
@@ -42,7 +42,6 @@
   "metal_owner_identity_enabled": false,
   "physical_ios_arm64": true,
   "metal_backend_compiled": true,
-  "egl_dispatch_framework_path": "@rpath/GLESv2.framework/GLESv2",
   "opengl_es_backend_compiled": true,
   "phone_tested": false,
   "linux_graphics_verified": false,
@@ -83,20 +82,20 @@
   },
   "files": {
     "Frameworks/EGL.framework/EGL": {
-      "bytes": 75984,
-      "sha256": "13ee7d880bc87c3095deca5dd6353d7a794e051657116e3557523ca72a007c55"
+      "bytes": 76120,
+      "sha256": "037c87bd58d31c014cc6addb6deb28aefa6c063c61ac860913714e3bd323bb04"
     },
     "Frameworks/GLESv2.framework/GLESv2": {
       "bytes": 6729168,
-      "sha256": "13619c5bd7286a39adaf9fdc7582787f0c6a53ac15279c6d75a0d55f92e1e780"
+      "sha256": "4a0a9c1bb22bc4aa9d2fd22224e2a2ced0b8201522be66643a1edbed87dd2215"
     },
     "ANGLE-Upstream-Source.tar": {
       "bytes": 92364800,
       "sha256": "ea973691ebccaa529f001ea5eda69ceb1790311b5a7675b6558447190b35d07c"
     },
     "public-ios-angle.patch": {
-      "bytes": 20088,
-      "sha256": "1778f4ece053964e43b4870ec7649025e299cac1cdf472554646a86cc530b9a0"
+      "bytes": 17938,
+      "sha256": "ceebb9054b6462662bbfc7e65d3485df6af7872c6325d32b6603ec635ea53348"
     }
   }
 }

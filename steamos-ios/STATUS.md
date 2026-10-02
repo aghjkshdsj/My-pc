@@ -218,13 +218,27 @@ shift and intentional object-byte copies newly diagnosed by Clang. Targeted
 hardening, `if constexpr` and reviewed explicit-copy repairs preserve assertions,
 object bytes and hash padding. Guards check the reviewed value types; the
 redundant-virtual style warning stays visible without becoming an error. All
-other warnings-as-errors remain enabled. ANGLE compilation is not yet accepted.
+other warnings-as-errors remain enabled. ANGLE compilation and ARM64 physical-iOS
+platform/export/import audits passed in run 37075043878, source
+`8fc4d429b8fd3158ddb9f9c0f2f51414e2e84f8f`. Neither framework requires IOKit,
+Hypervisor or a private framework. Receipt: `evidence/primary/hosted-ios-angle-build.json`.
+This is compile evidence only. A subsequent source inspection found that the EGL
+shim dynamically opens its GLES implementation without an explicit framework
+rpath. The fresh package uses an explicit `@rpath/GLESv2.framework/GLESv2` loader;
+its generated implementation and generator are now patched together. The revised
+engine passed run 37077105285, source `b925d37b18d0bb4d7721ea1aedc059b43f9240a1`,
+including the same physical-iOS exports and import closure. Phone loading and
+actual Metal context execution still require device evidence.
 
 The separate QEMU GPU recipe, Darwin EGL/Metal root-context adapter and dependency
 stager/source collector are implemented but not yet cross-compiled. The adapter
 explicitly selects ANGLE Metal and GLES; its upstream headless readback is a
 correctness diagnostic, not the planned steady-state presenter. The prepared
-EGL-enabled virgl/Venus recipe will consume only an accepted ANGLE build.
+EGL-enabled virgl/Venus recipe will consume only an accepted ANGLE build. Its first
+actual compile produced the EGL renderer object, but the final audit incorrectly
+expected a numeric value for a Meson boolean macro. The audit now accepts only
+the enabled bare-define or value-1 forms and checks the actual EGL compile command.
+No accepted complete GL/Venus engine or phone loader result is claimed yet.
 
 A new ARM Linux Mesa 26.2.2 recipe pins the official 68,533,264-byte archive to
 SHA-256 `eeb29ca7e56cfaa8e8a79538dcf834e3b18e501c31bef5145e959ea437cc4216`.

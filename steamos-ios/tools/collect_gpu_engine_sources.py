@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import plistlib
+import re
 import subprocess
 import tarfile
 
@@ -32,8 +33,9 @@ def collect(root, graphics_artifact):
     assert len(config_paths) == 1, config_paths
     config = config_paths[0].read_text(encoding='utf-8')
     for define in ['CONFIG_OPENGL', 'CONFIG_EGL', 'CONFIG_METAL', 'VIRGL_VERSION_MAJOR']:
-        assert '#define ' + define + ' 1' in config, define
-    assert '#define CONFIG_HVF 1' not in config and '#define CONFIG_HVF_PRIVATE 1' not in config
+        assert re.search(r'^#define[ \t]+' + define + r'(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE), define
+    for define in ['CONFIG_HVF', 'CONFIG_HVF_PRIVATE']:
+        assert not re.search(r'^#define[ \t]+' + define + r'(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE)
     data = engine.read_bytes()
     assert b'virtio-gpu-gl' in data and b'egl-headless' in data
     assert b'MPC ANGLE Metal root context creation failed' in data

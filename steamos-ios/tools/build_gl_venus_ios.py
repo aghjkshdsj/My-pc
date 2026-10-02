@@ -4,14 +4,15 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import shutil
 import tarfile
 
 from build_venus_ios import PROJECT, PINS, capture, clone, digest, framework, headers, run
 from verify_ipa import macho_platform
 
-ANGLE_RUN = 37075043878
-ANGLE_SOURCE = '8fc4d429b8fd3158ddb9f9c0f2f51414e2e84f8f'
+ANGLE_RUN = 37077105285
+ANGLE_SOURCE = 'b925d37b18d0bb4d7721ea1aedc059b43f9240a1'
 
 
 def angle_inputs(artifact, output):
@@ -20,6 +21,7 @@ def angle_inputs(artifact, output):
     assert receipt['source_commit'] == ANGLE_SOURCE and int(receipt['workflow_run']) == ANGLE_RUN
     assert receipt['engine_commit'] == 'ed78ab6e1a37f4f11583a0bd038f22ec91f3ff10'
     assert receipt['physical_ios_arm64'] is True and receipt['metal_owner_identity_enabled'] is False
+    assert receipt['egl_dispatch_framework_path'] == '@rpath/GLESv2.framework/GLESv2'
     # Copy only regular framework/header files, never trust archive paths/links.
     with tarfile.open(artifact / 'ANGLE-iOS-Frameworks.tar.gz') as archive:
         for member in archive.getmembers():
@@ -96,8 +98,12 @@ def build(moltenvk, angle):
                 framework(prefix / 'lib/libvirglrenderer.1.dylib', 'virglrenderer.1', output)]
     config = (renderer / 'build/config.h').read_text(encoding='utf-8')
     for define in ['ENABLE_VENUS', 'ENABLE_SAME_PROCESS_RENDER_SERVER', 'HAVE_EPOXY_EGL_H']:
-        assert '#define ' + define + ' 1' in config, define
-    assert '#define ENABLE_NEPTUNE 1' not in config
+        # Meson set(bool) emits a bare define; set(int) emits a value. Accept
+        # these enabled forms only, never an undef, zero or arbitrary token.
+        assert re.search(r'^#define[ \t]+' + define + r'(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE), define
+    assert not re.search(r'^#define[ \t]+ENABLE_NEPTUNE(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE)
+    compiled = json.loads((renderer / 'build/compile_commands.json').read_text(encoding='utf-8'))
+    assert any(row['file'].endswith('vrend_winsys_egl.c') for row in compiled)
     assert 'epoxy_has_egl=1' in (prefix / 'lib/pkgconfig/epoxy.pc').read_text(encoding='utf-8')
     for binary in binaries:
         dependencies = macho_platform(binary.read_bytes(), 6)

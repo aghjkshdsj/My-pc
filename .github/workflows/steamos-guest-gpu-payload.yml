@@ -1,0 +1,44 @@
+name: Fresh ARM Linux graphics payload and boot controls
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/build_guest_gpu_payload.py', 'steamos-ios/tools/stage_guest_runtime.py', 'steamos-ios/Guest/init-gpu-userspace', '.github/workflows/steamos-guest-gpu-payload.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  guest-gpu-payload:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM runtime and evidence tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils qemu-system-arm libc6 libdrm2 libexpat1 zlib1g libgcc-s1 libstdc++6 libvulkan1 dpkg-dev
+      - uses: actions/download-artifact@v4
+        with:
+          name: Source-Built-ARM-GPU-Kernel-Gate
+          run-id: 37067848259
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/gpu-kernel-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Mesa-Userspace
+          run-id: 37074804870
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/guest-mesa-artifact
+      - name: Verify archive and newc input rejection
+        run: python3 -m unittest discover -s steamos-ios/tests -p test_guest_gpu_payload.py -v
+      - name: Stage exact runtime, retain source, and boot real negative controls
+        run: python3 steamos-ios/tools/build_guest_gpu_payload.py steamos-ios/out/gpu-kernel-artifact steamos-ios/out/guest-mesa-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Linux-Graphics-Payload
+          path: |
+            steamos-ios/out/guest-gpu-payload/Guest-GPU-*.tar.gz
+            steamos-ios/out/guest-gpu-payload/payload/payload-receipt.json
+            steamos-ios/out/guest-gpu-payload/payload/*.log
+          retention-days: 14

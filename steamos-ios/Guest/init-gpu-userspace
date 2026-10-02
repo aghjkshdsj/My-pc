@@ -1,0 +1,23 @@
+#!/bin/busybox sh
+/bin/busybox mount -t proc proc /proc
+/bin/busybox mount -t sysfs sysfs /sys
+/bin/busybox mount -t devtmpfs devtmpfs /dev
+for token in $(/bin/busybox cat /proc/cmdline); do
+    case "$token" in mpc_run=*) nonce="${token#mpc_run=}";; esac
+done
+/bin/busybox echo "MPC_GPU_GUEST_RUN=$nonce"
+/mpc-abi
+abi_status=$?
+/mpc-gpu-kernel
+gpu_status=$?
+export LD_LIBRARY_PATH=/usr/lib
+export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/virtio_icd.aarch64.json
+export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
+export XDG_RUNTIME_DIR=/tmp
+unset VN_DEBUG
+/vk-gate /vertex.spv /fragment.spv
+vk_status=$?
+/bin/busybox echo "MPC_LINUX_EXIT=$abi_status"
+/bin/busybox echo "MPC_GPU_KERNEL_EXIT=$gpu_status"
+/bin/busybox echo "MPC_GPU_GUEST_EXIT=$vk_status"
+/bin/busybox poweroff -f

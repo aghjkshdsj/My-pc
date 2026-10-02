@@ -61,6 +61,11 @@ Remaining integration steps:
    complete recipe also builds private Hypervisor, Neptune/D3D and macOS-specific
    KosmicKrisp: those calls are not our iOS build plan. Venus/ANGLE need their own
    narrowed recipe and a fresh display adapter before guest integration.
+   ANGLE engine-only compilation passed in run 37075043878, including physical-iOS
+   ARM64 exports and public-framework imports. The EGL shim's dynamic GLES load is
+   not a Mach-O import: source inspection identified the framework-rpath correction,
+   now applied to its implementation and generator. Revised compile acceptance and
+   actual runtime selection of Metal are separate remaining checks.
 3. Build guest Mesa virgl/Venus with the matching virtio GPU blob/context protocol.
    A separate graphics-capable kernel and device diagnostic now passed hosted
    ARM TCG run 37067848259: driver detection, 1280×720 resource allocation/map,

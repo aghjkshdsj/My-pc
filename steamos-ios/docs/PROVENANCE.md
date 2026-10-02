@@ -58,8 +58,9 @@ Primary revision reviewed: UTM `7eadb056ae0f91d979059544d0ddcd2d5a40be92`
 `05604465d691118cfd20f53a48ecf1aad9c12f93` and other dependencies.
 The CPU engine and its build inputs are pinned in the published recipes and
 receipts. MoltenVK and the native Venus renderer now have separate exact source
-locks and build receipts; ANGLE and remaining graphics dependencies retain
-review-candidate status. Older HTTP URLs,
+locks and build receipts. ANGLE also has a successful physical-iOS compile
+receipt; its runtime loader and remaining graphics dependencies need integration
+and device evidence. Older HTTP URLs,
 old dependency versions and runtime assumptions in upstream recipes must be
 audited rather than executed blindly. UTM's private/decompiled Hypervisor shim
 is not used as evidence of supported iPhone virtualization.
@@ -107,8 +108,11 @@ complete tracked source/license files and the compatibility patch. ANGLE BSD
 terms, Apple configuration notices and third-party per-file notices remain in
 that source; selecting an engine from WebKit does not reuse a WebKit application.
 Public-SDK build settings remove Metal ownership identity and WebCore-only client
-restrictions. Actual compilation is still under repair and has not established
-runtime acceptance.
+restrictions. Actual public-SDK ARM64 iOS compilation, exports and public-framework
+imports passed in run 37075043878. This establishes compile acceptance only.
+The subsequent explicit framework-rpath dispatch adapter is preserved in both
+the generated EGL source and its generator; its revised build passed run 37077105285, with exact source, patches and hashes
+retained as a separate compile gate. No application source, runtime acceptance or guest GPU result is implied.
 
 Guest Mesa is independently source-built from the official 26.2.2 release and its
 [published checksum](https://docs.mesa3d.org/relnotes/26.2.2.html), using only virgl
