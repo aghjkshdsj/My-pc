@@ -1,6 +1,6 @@
 /* Linux Vulkan offscreen graphics diagnostic, not presentation or game FPS. */
 #include <vulkan/vulkan.h>
-#include <ctype.h>
+#include "renderer_classification.h"
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdatomic.h>
@@ -32,13 +32,7 @@ static void json_string(const char *value) {
     putchar('"');
 }
 static int software(const VkPhysicalDeviceProperties *p) {
-    char name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
-    size_t i;
-    for (i = 0; i + 1 < sizeof(name) && p->deviceName[i]; ++i)
-        name[i] = (char)tolower((unsigned char)p->deviceName[i]);
-    name[i] = 0;
-    return p->deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU || strstr(name, "lavapipe") ||
-           strstr(name, "llvmpipe") || strstr(name, "swiftshader") || strstr(name, "software");
+    return p->deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU || mpc_renderer_is_software(p->deviceName);
 }
 static uint32_t memory_type(const VkPhysicalDeviceMemoryProperties *p, uint32_t bits,
                             VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred) {

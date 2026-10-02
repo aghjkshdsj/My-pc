@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
+#include "renderer_classification.h"
 
 static GLuint shader(GLenum type, const char *source) {
     GLuint result = glCreateShader(type);
@@ -18,8 +19,7 @@ static GLuint shader(GLenum type, const char *source) {
     return result;
 }
 static int software(const char *renderer) {
-    return !renderer || strstr(renderer, "llvmpipe") || strstr(renderer, "softpipe") ||
-           strstr(renderer, "SwiftShader") || strstr(renderer, "Software Rasterizer");
+    return mpc_renderer_is_software(renderer);
 }
 static int draw_and_check(GLuint program, unsigned phase, unsigned char *pixels) {
     glUniform1ui(glGetUniformLocation(program, "phase"), phase);

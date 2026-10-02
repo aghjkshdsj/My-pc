@@ -26,5 +26,6 @@ jobs:
             steamos-ios/out/venus-transport/*.json
             steamos-ios/out/venus-transport/*.log
             steamos-ios/out/venus-transport/*.spv
+            steamos-ios/out/venus-transport/*.patch
             steamos-ios/out/venus-transport/virglrenderer-source.tar
             steamos-ios/out/venus-transport/virglrenderer/build/meson-logs/meson-log.txt

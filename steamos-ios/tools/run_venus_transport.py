@@ -27,6 +27,14 @@ def main():
     run('git', '-C', str(source), 'fetch', '--depth=1', 'origin', REVISION)
     run('git', '-C', str(source), 'checkout', '--detach', 'FETCH_HEAD')
     assert subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip() == REVISION
+    # GCC rejects a declaration immediately after this label in upstream C11.
+    # Add the required empty statement; keep every warning/error check enabled.
+    renderer = source / 'src/vrend/vrend_renderer.c'
+    original = renderer.read_text()
+    assert original.count('angle_done:\n') == 1
+    renderer.write_text(original.replace('angle_done:\n', 'angle_done: ;\n'))
+    (output / 'renderer-c11.patch').write_text(subprocess.check_output(
+        ['git', '-C', str(source), 'diff', '--', 'src/vrend/vrend_renderer.c'], text=True))
     run('meson', 'setup', str(source / 'build'), str(source), '--buildtype=release',
         '-Dvenus=true', '-Dneptune=false', '-Dvtest=true', '-Dtests=false', '-Dplatforms=[]',
         '-Drender-server-mode=thread', '-Drender-server-worker=thread')
@@ -74,7 +82,7 @@ def main():
                 try: server.wait(timeout=5)
                 except subprocess.TimeoutExpired: server.kill(); server.wait(timeout=5)
     files = [output / name for name in ['vk-gate', 'vertex.spv', 'fragment.spv', 'diagnostic.log', 'validation.log',
-                                        'rejection.log', 'rejection-validation.log', 'server.log', 'virglrenderer-source.tar']]
+                                        'rejection.log', 'rejection-validation.log', 'server.log', 'virglrenderer-source.tar', 'renderer-c11.patch']]
     files += [server_binary, lvp[0], venus[0]]
     receipt = {'scope': 'hosted-linux-arm64-venus-vtest-software-diagnostic',
                'transport': 'Mesa Venus vtest -> pinned virglrenderer -> lavapipe',
