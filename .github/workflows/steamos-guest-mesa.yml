@@ -1,0 +1,33 @@
+name: Fresh ARM Linux Mesa guest userspace
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/build_guest_mesa.py', '.github/workflows/steamos-guest-mesa.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guest-mesa-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM Linux build and shader tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc g++ ninja-build pkg-config python3-venv python3-mako python3-packaging bison flex libdrm-dev libexpat1-dev zlib1g-dev libvulkan-dev glslang-tools spirv-tools
+          python3 -m venv --system-site-packages steamos-ios/out/guest-mesa-build-tools
+          steamos-ios/out/guest-mesa-build-tools/bin/python -m pip install meson==1.8.3
+          echo "$PWD/steamos-ios/out/guest-mesa-build-tools/bin" >> "$GITHUB_PATH"
+      - name: Build pinned virtio Mesa drivers and reject missing GPU
+        run: python3 steamos-ios/tools/build_guest_mesa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Linux-Mesa-Userspace
+          path: |
+            steamos-ios/out/guest-mesa/Guest-Mesa-*.tar.gz
+            steamos-ios/out/guest-mesa/receipt.json
+            steamos-ios/out/guest-mesa/missing-device.log
+            steamos-ios/out/guest-mesa/build/meson-logs/meson-log.txt
+          retention-days: 14
