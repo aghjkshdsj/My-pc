@@ -74,6 +74,25 @@ def build():
     assert text.count(old) == 1
     # The discarded 64-bit branch must not compile a shift by 64 under Clang.
     bitset.write_text(text.replace(old, '    if constexpr (priv::kDefaultBitSetSize < 64)\n'), encoding='utf-8')
+    state_cache = engine / 'src/libANGLE/renderer/metal/mtl_state_cache.mm'
+    text = state_cache.read_text(encoding='utf-8')
+    include = '#include "libANGLE/renderer/metal/mtl_state_cache.h"'
+    assert text.count(include) == 1
+    text = text.replace(include, include + '\n#include <type_traits>')
+    # These four keys contain scalar/bitfield/array state, not owning objects.
+    # Preserve upstream's deterministic object bytes, including zeroed padding.
+    # Explicit void* expresses intentional object-byte operations to new Clang.
+    assert text.count('memset(this, 0, sizeof(*this));') == 4
+    assert text.count('memcpy(this, &src, sizeof(*this));') == 12
+    for name in ['DepthStencilDesc', 'SamplerDesc', 'RenderPipelineDesc', 'ProvokingVertexComputePipelineDesc']:
+        constructor = name + '::' + name + '()\n{\n'
+        assert text.count(constructor) == 1
+        text = text.replace(constructor, constructor +
+                            '    static_assert(std::is_trivially_destructible_v<' + name + '> &&\n'
+                            '                  !std::is_polymorphic_v<' + name + '>);\n')
+    text = text.replace('memset(this, 0, sizeof(*this));', 'memset(static_cast<void *>(this), 0, sizeof(*this));')
+    text = text.replace('memcpy(this, &src, sizeof(*this));', 'memcpy(static_cast<void *>(this), &src, sizeof(*this));')
+    state_cache.write_text(text, encoding='utf-8')
     patch = output / 'public-ios-angle.patch'
     patch.write_text(capture('git', '-C', str(source), 'diff', '--', *DIRECTORIES) + '\n', encoding='utf-8')
     archive = output / 'ANGLE.xcarchive'
