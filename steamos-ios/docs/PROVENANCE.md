@@ -1,0 +1,55 @@
+# Upstream engine reuse and licensing
+
+Starting the host from scratch does not remove the need for mature OS, CPU
+translation, graphics and compatibility engines. Valve's Steam/CEF client is
+proprietary ELF software; its unavailable source cannot be recompiled into an
+iOS Mach-O app by changing project settings. Metal is a GPU API, not a Linux ABI
+or general CPU execution mechanism.
+
+The fresh probe uses Apple system frameworks and new project source only.
+The later OS/graphics plan requires explicit engine integration; no third-party
+engine is currently linked into this probe.
+
+| Input | Reuse / source | License/distribution work before linking/shipping |
+|---|---|---|
+| Archive glue/overlays | Reference SHA-256 recorded; MaSieS4Fun SteamOS-Ubuntu lineage | Archive declares GPL-2.0; copied/adapted glue needs attribution, license and corresponding source |
+| Linux kernel | Generic ARM virt upstream source, not Qualcomm payload | GPL-2.0-only plus per-file terms; exact source/config/patches/build recipe |
+| QEMU/iOS port | Upstream QEMU and audited UTM low-level engine port, not UTM/Madeira app UI | GPL-2.0 and per-file dependency terms; publish exact modified corresponding source and recipes; review combined distribution obligations |
+| FEX | [FEX-Emu/FEX](https://github.com/FEX-Emu/FEX), Linux frontend/rootfs/thunks | Upstream MIT plus bundled dependencies/rootfs package licenses; pin Steam-provided version separately |
+| Gamescope | Valve plus relevant reviewed archive patches | BSD-2-Clause, subproject notices; preserve patch attribution |
+| Mesa/virglrenderer/ANGLE | Guest virgl/Venus, Darwin transport, Metal GL backend | Predominantly permissive but per-file/dependency licenses apply; exact licenses/SBOM, no assumption Qualcomm binary provenance covers host |
+| MoltenVK | [KhronosGroup/MoltenVK](https://github.com/KhronosGroup/MoltenVK) and evaluated UTM fork | Apache-2.0 and dependencies; license/NOTICE, shader conversion provenance |
+| Proton/Wine/DXVK/VKD3D | Actual Linux Proton from Valve's runtime | Mixed per-component terms (Wine/VKD3D LGPL family, DXVK zlib, Proton build glue separately); corresponding source and replacement/relink obligations as applicable |
+| Plasma/KDE/Qt/PipeWire/Flatpak/systemd | Official rootfs and compatible external packages | Mixed GPL/LGPL/MIT/etc; preserve package metadata, notices and applicable source/relink material |
+| Decky/plugins/Box64/InputPlumber/MangoHud/LSFG | Full external projects plus archive modifications | Read each exact revision's license; archive specifically identifies GPL-3.0-or-later plugins. Do not assume its root GPL-2.0 covers vendor code |
+| Valve SteamOS/client | Official update endpoints, legitimate installation/runtime | Proprietary components and Valve trademarks/terms; do not invent redistribution rights. Prefer user-side verified download where allowed; distro open-source portions still have separate source obligations |
+| Games / LSFG models | Owner-licensed inputs | No game depots, credentials or separately licensed proprietary model assets bundled without rights |
+
+This is an integration inventory, not a claim that all combined-license questions
+are settled. Confirm exact component versions and obligations before the first
+engine-bearing release. Downloading an archive or a public client manifest does
+not itself grant distribution rights. Full open-source licenses/notices will be
+shipped with the exact engine build, not replaced by this table.
+
+Primary revision reviewed: UTM `7eadb056ae0f91d979059544d0ddcd2d5a40be92`
+(2026-09-25). Its `patches/sources` pins QEMU `10.0.12-utm`, virglrenderer
+`5d26f605f50f8e22002ec6db5fb775e1992d4e96`, ANGLE/WebKit
+`ed78ab6e1a37f4f11583a0bd038f22ec91f3ff10`, MoltenVK
+`05604465d691118cfd20f53a48ecf1aad9c12f93` and other dependencies.
+These are **review candidates**, not a completed source lock. Older HTTP URLs,
+old dependency versions and runtime assumptions in upstream recipes must be
+audited rather than executed blindly. UTM's private/decompiled Hypervisor shim
+is not used as evidence of supported iPhone virtualization.
+
+Current Valve ARM stable manifest is version `1788652215`, matching the archive;
+the publicbeta manifest has changed. Preserve the retrieved manifest digests
+and choose **steamdeck_stable** for initial reproducibility. Installation and
+launch must not silently switch channels. Verify package SHA-256, size, ZIP CRC
+and path/symlink safety transactionally; do not propagate the archive's bootstrap
+and client-checksum inhibition as package verification.
+
+Primary receipts are timestamped; online `main` documentation may change.
+See [Valve stable manifest](https://client-update.steamstatic.com/steam_client_steamdeck_stable_linuxarm64),
+[UTM source pins](https://github.com/utmapp/UTM/blob/7eadb056ae0f91d979059544d0ddcd2d5a40be92/patches/sources),
+[Darwin Venus shared-memory implementation](https://github.com/utmapp/virglrenderer/blob/5d26f605f50f8e22002ec6db5fb775e1992d4e96/src/venus/vkr_device_memory.c)
+and [FEX forwarding documentation](https://wiki.fex-emu.com/index.php/Development:Setting_up_Library_Forwarding).

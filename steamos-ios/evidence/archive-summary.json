@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "archive_name": "SteamOS-ARM-SM8550-main.zip",
+  "sha256": "74644b0d98e7be56f931ec1d5c1be455f52841e216edef7a3597d9e67f1529e6",
+  "compressed_bytes": 64636960,
+  "entries": 4328,
+  "files": 3672,
+  "expanded_bytes": 166226171,
+  "zip_crc": "passed-all-files",
+  "component_counts": {
+    "BOX64": 5,
+    "Decky": 85,
+    "InputPlumber": 1,
+    "MESA-Easy-Manager": 30,
+    "MangoHud": 416,
+    "NO_Steam": 10,
+    "Proton-ARM-Easy-Manager": 25,
+    "SteamROMManager": 2,
+    "docs": 4,
+    "gamescope": 2304,
+    "image-assembly": 1,
+    "kernel": 385,
+    "lsfg-vk": 161,
+    "mesa-sm8550": 15,
+    "odin-overlay": 165,
+    "root-metadata": 5,
+    "scripts": 33,
+    "system-fixes": 13,
+    "ufs-install": 12
+  },
+  "limitations": "Every file was hashed and scanned. This is not a line-by-line semantic audit of every vendored implementation."
+}

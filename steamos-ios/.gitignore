@@ -1,0 +1,6 @@
+out/
+upstream/
+evidence/device/
+__pycache__/
+*.xcuserstate
+xcuserdata/

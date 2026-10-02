@@ -1,0 +1,96 @@
+[
+  {
+    "id": "apple-hypervisor",
+    "url": "https://developer.apple.com/tutorials/data/documentation/hypervisor.json",
+    "retrieved_utc": "2026-10-02T04:17:53.863247+00:00",
+    "http_status": 200,
+    "bytes": 61220,
+    "sha256": "1f14b624bdc7950d792915acd5d5a55ecbf19bfd2013dd3fdca111fdf48e9636",
+    "content_type": "application/json",
+    "last_modified": "Fri, 11 Sep 2026 20:39:43 GMT",
+    "platforms": [
+      {
+        "beta": false,
+        "introducedAt": "10.10",
+        "name": "macOS"
+      }
+    ],
+    "title": "Hypervisor"
+  },
+  {
+    "id": "apple-virtualization",
+    "url": "https://developer.apple.com/tutorials/data/documentation/virtualization.json",
+    "retrieved_utc": "2026-10-02T04:17:53.864695+00:00",
+    "http_status": 200,
+    "bytes": 34301,
+    "sha256": "4ff3def734df3a47bf65acc17d2bbf922f24635088a89160857941d73cf45d8b",
+    "content_type": "application/json",
+    "last_modified": "Fri, 11 Sep 2026 20:53:16 GMT",
+    "platforms": [
+      {
+        "beta": false,
+        "introducedAt": "11.0",
+        "name": "macOS"
+      }
+    ],
+    "title": "Virtualization"
+  },
+  {
+    "id": "steam-arm-stable",
+    "url": "https://client-update.steamstatic.com/steam_client_steamdeck_stable_linuxarm64",
+    "retrieved_utc": "2026-10-02T04:17:53.864695+00:00",
+    "http_status": 200,
+    "bytes": 12578,
+    "sha256": "a609d5d1407c6d947fdb9a9c806a0ef9f085312296f76d79b87f398115c36319",
+    "content_type": "application/octet-stream",
+    "last_modified": "Sun, 06 Sep 2026 06:44:26 GMT",
+    "contains_arm_package": true
+  },
+  {
+    "id": "steam-arm-beta",
+    "url": "https://client-update.steamstatic.com/steam_client_steamdeck_publicbeta_linuxarm64",
+    "retrieved_utc": "2026-10-02T04:17:53.864695+00:00",
+    "http_status": 200,
+    "bytes": 12582,
+    "sha256": "f674354408b640eb6f26c757eecd3590832f942319527b6cd3ede8f67a9192a8",
+    "content_type": "application/octet-stream",
+    "last_modified": "Fri, 02 Oct 2026 02:06:19 GMT",
+    "contains_arm_package": true
+  },
+  {
+    "id": "utm-build",
+    "url": "https://raw.githubusercontent.com/utmapp/UTM/main/scripts/build_dependencies.sh",
+    "retrieved_utc": "2026-10-02T04:17:54.178970+00:00",
+    "http_status": 200,
+    "bytes": 40995,
+    "sha256": "319ed3690fbc86eacad1abc6d4b800764086a5e6ee8810c0de887e37ea366f00",
+    "content_type": "text/plain; charset=utf-8",
+    "last_modified": null
+  },
+  {
+    "id": "utm-versions",
+    "url": "https://raw.githubusercontent.com/utmapp/UTM/main/scripts/versions.sh",
+    "retrieved_utc": "2026-10-02T04:17:54.198028+00:00",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "id": "kosmickrisp",
+    "url": "https://docs.mesa3d.org/drivers/kosmickrisp.html",
+    "retrieved_utc": "2026-10-02T04:17:54.258161+00:00",
+    "http_status": 200,
+    "bytes": 23467,
+    "sha256": "ce889a6c4076c83da781dcc4c12f91998a64d25f10d7d314b0686e2347e37aa8",
+    "content_type": "text/html; charset=utf-8",
+    "last_modified": "Thu, 01 Oct 2026 16:09:57 GMT"
+  },
+  {
+    "id": "venus",
+    "url": "https://docs.mesa3d.org/drivers/venus.html",
+    "retrieved_utc": "2026-10-02T04:17:54.351426+00:00",
+    "http_status": 200,
+    "bytes": 34618,
+    "sha256": "0c4747ab1dab68c37fd2fe9b8555015e4a65e69c6937d0a4b86b324fbdbb47bc",
+    "content_type": "text/html; charset=utf-8",
+    "last_modified": "Thu, 01 Oct 2026 16:09:58 GMT"
+  }
+]
