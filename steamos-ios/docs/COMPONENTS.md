@@ -18,15 +18,15 @@ Linux CPU, GL and Vulkan diagnostic/rejection tests passed. Vulkan's two hosted
 720p images matched every pixel with zero validation errors; the software driver
 was explicitly rejected as acceleration. Native iOS MoltenVK compiled and packaged,
 and its unneeded macOS IOKit dependency was removed in a verified rebuild.
-Native phone execution is pending. Hosted Venus serialized draws passed through
+Complete native phone GPU/pixel acceptance is pending. Hosted Venus serialized draws passed through
 the external-host SHM branch under an explicit test policy; the unmodified fd
 route failed. This is software Linux testing, not a completed guest Metal path.
-The source-built CPU engine, recovery and StikDebug adapter are packaged in Linux-gate-9,
+The source-built CPU engine, recovery and StikDebug adapter are packaged in Linux-gate-10,
 alongside a separate native offscreen Vulkan-to-Metal diagnostic. Build 4000008's
 phone attempt stopped at its pre-render framework hash check; the signing-compatible
 build 4000009 passed compilation/package verification and phone engine identity,
 loading and draw return 0. Its missing pixel/GPU receipt prevents graphics acceptance.
-Build 4000010 prepares independent structured receipt capture; guest graphics,
+Build 4000010 implements independently verified structured receipt capture; guest graphics,
 moving presentation and gameplay remain unverified.
 Official rootfs/index metadata and 35 ARM client package URLs are resolved;
 full rootfs/client verification, installation and execution remain open.

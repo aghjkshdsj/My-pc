@@ -1,4 +1,4 @@
-# Verified state and next work — 2026-10-02
+# Verified state and next work â€” 2026-10-02
 
 The complete SteamOS ARM/FEX product is **unfinished**. No architecture
 substitution was approved or adopted. Previous projects, applications, disks,
@@ -46,8 +46,8 @@ Repeated native JIT checks execute one retained successfully prepared host-page
 region again; cached receipts never count as new execution. The UI shows the
 last durably saved stage and a readable result. The owner-supplied build 4000007
 logs passed the physical Linux evidence checker. Raw device evidence remains private.
-Build 4000009 packages a native offscreen Vulkan-to-Metal shader check. Its
-actual ARM64 iOS compile, recovery tests, 30 evidence tests and independent public
+Build 4000010 packages a native offscreen Vulkan-to-Metal shader check. Its
+actual ARM64 iOS compile, recovery tests, 31 evidence tests and independent public
 IPA checks passed. Actual phone rendering through this graphics gate remains pending.
 The supplied build 4000008 phone report failed the whole-file MoltenVK hash check
 at `payload-sha256`, before loading the renderer. It does not show a render failure.
@@ -56,10 +56,14 @@ and returned from the native draw with exit 0 in 562.53 ms, without StikDebug.
 Its parsed diagnostic object was empty, so GPU identity/pixel/checksum acceptance
 remains false. This is not accepted as an offscreen graphics pass. The exact
 mixed-output capture/parsing failure cause is unproven without the saved output.
-Build 4000010 is prepared with a separate exclusive-create, flushed/fsynced JSON
-receipt, bounded engine output in reports and receipt-preserving recovery sharing.
-It retains all hardware/pixel checks. Local source checks and 31 evidence tests
-passed; its actual iOS compile, hosted draw regression and public IPA are pending.
+Build 4000010 saves a separate exclusive-create, flushed/fsynced JSON receipt,
+bounded engine output in reports and receipt-preserving recovery sharing. All
+hardware/pixel checks remain enforced. Actual ARM64 iOS compilation, hosted
+recovery/export tests, 31 evidence tests and independent public IPA verification
+passed. The real hosted Vulkan adapter regression passed five cases: missing and
+corrupt shaders, complete draw receipt despite invalid UTF-8 stdout, preserved
+existing receipt and missing destination directory. These are software hosted
+Vulkan tests, not phone Metal proof. The new phone graphics result is pending.
 
 Primary sources: [allocator](https://github.com/utmapp/qemu/blob/v10.0.12-utm/tcg/region.c),
 [TCG defaults](https://github.com/utmapp/qemu/blob/v10.0.12-utm/accel/tcg/tcg-all.c).
@@ -76,22 +80,22 @@ argument was checked. Linux-gate-6 was misversioned by an old packaging override
 it is superseded by gate-7. Packaging now requires the intended build identity.
 
 Latest independently verified graphics-bearing IPA:
-[Linux-gate-9 / build 4000009](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-9),
-source `2d557a6a8bc91bf21b77013558e16977684819eb`, 9,528,005 bytes, SHA-256
-`ef2a64948b06c2d81712dd980d6eb71bcd374efb1ef64efb0e308fd0bd86a05b`.
-[Build 37060102462](https://github.com/aghjkshdsj/My-pc/actions/runs/37060102462)
-passed actual ARM64 iOS compilation, recovery tests and 30 evidence checks.
+[Linux-gate-10 / build 4000010](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-10),
+source `208647c2f7c18f32fcf894771756c0fbeb487374`, 9,528,852 bytes, SHA-256
+`3d11c3815b5108406019074787975d53426edb21fa085fc61643a378abf69dba`.
+[Build 37062587594](https://github.com/aghjkshdsj/My-pc/actions/runs/37062587594)
+passed actual ARM64 iOS compilation, recovery tests and 31 evidence checks.
 Independent verification checked all five frameworks, exact engine/shader/kernel
 hashes, source/build identity, compiled native adapter, universal ABI wrappers,
 ZIP CRC and absence of IOKit/private-framework imports. MoltenVK is loaded inside
 diagnostic capture rather than as a required app-startup dependency.
 
-[Hosted adapter run 37058894960](https://github.com/aghjkshdsj/My-pc/actions/runs/37058894960)
+[Hosted adapter run 37062587136](https://github.com/aghjkshdsj/My-pc/actions/runs/37062587136)
 passed real missing/corrupt shader errors without terminating the test process,
 plus the real two-image draw through dynamically loaded Vulkan functions. Only
 the hosted fixture permits its software driver; production source is unchanged
 and rejects software. These tests do not count as physical Metal evidence.
-The phone step is **Run native Vulkan → Metal check**, then share its report.
+The phone step is **Run native Vulkan â†’ Metal check**, then share its report.
 No StikDebug is required for this native graphics test.
 
 Build 4000009 corrects a signing compatibility issue in build 4000008's runtime
@@ -122,7 +126,7 @@ for the requested SteamOS product.
 | Corrected native iOS MoltenVK compile/package | [37056046870](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046870) | Phone load and draw return 0 observed in build 4000009; pixel/GPU receipt missing, accepted rendering pending |
 | Hosted Venus external-host SHM test | [37056046909](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046909) | Real serialized draws passed under explicit test override; software Linux host, not phone Metal |
 
-Vulkan rendered two 1280×720 images, checked all 1,843,200 pixels, channel sum
+Vulkan rendered two 1280Ã—720 images, checked all 1,843,200 pixels, channel sum
 1,219,256,320 and synchronization validation. Zero mismatches/errors passed
 on Mesa llvmpipe/lavapipe; software-as-acceleration was rejected with exit 20.
 Receipt: `evidence/primary/hosted-vulkan-diagnostic.json`. No swapchain,
@@ -165,5 +169,5 @@ Next: verify the native MoltenVK shader gate on the phone; prove real guest GL a
 to Metal and moving presentation; integrate authenticated SteamOS, actual ARM
 Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
 Native host/Metal optimization does not remove guest TCG translation costs.
-**Steam usable under 60 seconds and Hollow Knight 60–80 base rendered FPS at
-1280×720, including sustained thermal/frame-pacing measurements, are unverified.**
+**Steam usable under 60 seconds and Hollow Knight 60â€“80 base rendered FPS at
+1280Ã—720, including sustained thermal/frame-pacing measurements, are unverified.**

@@ -14,6 +14,16 @@ Thermal state was Fair; no 20-minute sustained test was performed. A single tiny
 kernel/checksum run is not SteamOS/Steam launch timing, FEX overhead, game FPS
 or a guarantee of sustained performance. Raw reports remain private.
 
+Build 4000009 native Vulkan attempt: engine executable code matched provenance,
+MoltenVK loaded, and the native adapter returned exit 0 in **562.53 ms**. Its
+GPU/pixel diagnostic was empty, so this run is **incomplete graphics evidence**.
+The interval includes native Vulkan setup, two offscreen draws, readback and
+teardown; it is not a per-frame GPU measurement and cannot be converted into
+game FPS. The reported app footprint afterward was 90,212,072 bytes and thermal
+state Nominal, both point-in-time observations without peak or sustained data.
+Build 4000010 saves a dedicated structured draw receipt to resolve that gap;
+its compiled package and hosted regression passed, with new phone proof pending.
+
 | Path | Initial budget / experiment | Evidence required |
 |---|---|---|
 | Steam cold launch | <60 s external icon tap to responsive actual ARM client/library; planning allowance 5 s host, 15 s kernel/services, 30 s client/CEF, 10 s network margin | Cooled phone, 3 trials; first-time rootfs/client install and warm launch separate |
