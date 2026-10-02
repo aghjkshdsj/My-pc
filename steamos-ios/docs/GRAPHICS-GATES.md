@@ -41,7 +41,9 @@ Remaining integration steps:
    license without adopting any old app or upstream application as our base.
    The independent MoltenVK iOS workflow is now prepared, with exact commits for
    the engine and all seven external dependencies, a source-only archive and
-   physical-iOS Mach-O/import/export checks. Its result is pending. Pinned UTM's
+   physical-iOS Mach-O/import/export checks. Build 37036404372 passed, but no
+   phone loader or Vulkan-to-Metal result exists. An exact compiled-artifact
+   audit classifies required and weak imports before integration. Pinned UTM's
    complete recipe also builds private Hypervisor, Neptune/D3D and macOS-specific
    KosmicKrisp: those calls are not our iOS build plan. Venus/ANGLE need their own
    narrowed recipe and a fresh display adapter before guest integration.
