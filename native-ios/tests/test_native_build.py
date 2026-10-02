@@ -23,6 +23,7 @@ def load(name, path):
 
 prepare = load('native_prepare', ROOT / 'prepare.py')
 verifier = load('native_verify', ROOT / 'verify-ipa.py')
+wine_fixes = load('native_wine_fixes', ROOT / 'wine-build-fixes.py')
 
 
 class NativeBuildTests(unittest.TestCase):
@@ -43,6 +44,20 @@ class NativeBuildTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Only native-ios/runtime'):
                 prepare.prepare(root)
             self.assertEqual(list(root.iterdir()), before)
+
+    def test_wine_repairs_preflight_all_sources_before_writing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            unix = root / 'build/ntdll-unix'
+            unix.mkdir(parents=True)
+            server = unix / 'server_ios.c'
+            virtual = unix / 'virtual_ios.c'
+            server.write_text('pgw=%.1f XP_MS( ru.ri_page_wait_time_mach - pru.ri_page_wait_time_mach ),')
+            virtual.write_text('changed pinned source')
+            before = {p: p.read_bytes() for p in (server, virtual)}
+            with self.assertRaisesRegex(ValueError, 'fixed-base claim signature'):
+                wine_fixes.main(root)
+            self.assertEqual(before, {p: p.read_bytes() for p in (server, virtual)})
 
     def test_dxmt_directory_move_repairs_all_headers_and_preflights_missing_files(self):
         for missing in (False, True):

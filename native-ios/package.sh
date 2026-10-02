@@ -53,6 +53,9 @@ with tarfile.open(archive, 'w:gz') as output:
         output.add(path, arcname='runtime/' + path.relative_to(runtime).as_posix(), recursive=False)
     for path in driver.iterdir():
         if path.is_file(): output.add(path, arcname='driver/' + path.name, recursive=False)
+    for path in sorted((driver / 'tests').rglob('*')):
+        if path.is_file() and path.suffix in ('.py', '.c'):
+            output.add(path, arcname='driver/tests/' + path.relative_to(driver / 'tests').as_posix(), recursive=False)
     workflow = driver.parent / '.github/workflows/native-ios-steam.yml'
     output.add(workflow, arcname='driver/native-ios-steam.yml', recursive=False)
 digest = hashlib.sha256(archive.read_bytes()).hexdigest()

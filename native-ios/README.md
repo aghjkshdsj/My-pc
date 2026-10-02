@@ -80,3 +80,25 @@ executables. The Dock helper fails closed for unsupported client fingerprints
 or rejected authentication/licenses. The app closes its Steam library connection
 before the helper signs in, then resumes only after the game session ends.
 These checks and waits remain part of a real game launch.
+
+## Dokimon launch regression
+
+The owner's build-3000008 log confirms that Steam accepted Dokimon Quest: II
+(app 2019300), but Wine moved its 0xa88000-byte x64 executable away from
+0x140000000 and terminated it with `STATUS_CONFLICTING_ADDRESSES` (`c0000018`)
+before executing the game. Its PE characteristics are 0x23, including
+`IMAGE_FILE_RELOCS_STRIPPED`; this executable cannot be relocated. The reserved
+executable-window helper incorrectly treated every image below 64 MB as movable.
+
+`wine-build-fixes.py` permits a non-builtin x64 main executable with that flag
+to claim its preferred address even below the size floor. DLLs, relocatable
+images, WoW64 windows and anonymous allocations retain the original policy.
+The existing ownership, retirement, no-overwrite mapping and claim rollback
+remain active. `test-fixed-image.py` compiles the actual patched policy and claim
+functions under ASan/UBSan, exercising the reported executable size, exclusions,
+address bounds, live-owner rejection and the exact retired-interval handoff.
+Host VM operations are mocked; a successful phone launch is still required.
+
+The same log also records access violations in a Steam helper during shutdown,
+after the game's loader failure. Those are separate from the first failure and
+remain under investigation; this placement fix does not claim to resolve them.

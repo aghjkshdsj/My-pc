@@ -23,6 +23,8 @@ jobs:
         run: python3 -m unittest discover -s native-ios/tests -v
       - name: Check out locked native source
         run: bash native-ios/checkout-source.sh
+      - name: Test small fixed-base Windows executables and reservation ownership
+        run: python3 native-ios/test-fixed-image.py
       - name: Prepare host protocol test dependencies
         uses: actions/setup-python@v5
         with:
@@ -230,6 +232,8 @@ jobs:
           tag="native-ios-steam-preview-${GITHUB_RUN_NUMBER}"
           printf '%s\n' \
             'Native iOS Steam sign-in, library and downloads; ARM64EC Wine + FEX + Metal game runtime.' \
+            '' \
+            'Includes a fix for Dokimon Quest: II failing before its first window with Wine error c0000018: small x64 executables with stripped relocation records can claim their required image address. The actual patched placement functions pass ASan/UBSan regression checks with host VM stubs; successful gameplay still needs phone testing.' \
             '' \
             'Install My-pc Native alongside the existing Steam ARM64 preview. This build does not migrate or delete its Linux disk or games. Select Windows game downloads in the native library.' \
             '' \
