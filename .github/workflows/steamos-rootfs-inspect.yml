@@ -1,0 +1,25 @@
+name: Official SteamOS ARM rootfs metadata inspection
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/inspect_rootfs_metadata.py', '.github/workflows/steamos-rootfs-inspect.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rootfs-metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools
+      - run: python3 steamos-ios/tools/inspect_rootfs_metadata.py steamos-ios/out/rootfs-inspection
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Official-SteamOS-ARM-Metadata
+          path: |
+            steamos-ios/out/rootfs-inspection/rootfs-metadata.json
+            steamos-ios/out/rootfs-inspection/bundle-listing.txt
+            steamos-ios/out/rootfs-inspection/unpacked/manifest.raucm
+          retention-days: 14
