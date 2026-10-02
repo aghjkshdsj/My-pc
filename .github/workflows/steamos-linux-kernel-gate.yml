@@ -1,0 +1,46 @@
+name: Fresh Linux ARM kernel execution gate
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/**', 'steamos-ios/tools/*kernel*', 'steamos-ios/tools/make_initramfs.py', '.github/workflows/steamos-linux-kernel-gate.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-linux-tcg:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get signed distribution build inputs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc libc6-dev busybox-static qemu-system-arm
+          mkdir -p steamos-ios/out/kernel-inputs
+          image_package="$(apt-cache depends linux-image-virtual | awk '/Depends: linux-image-[0-9]/{print $2;exit}')"
+          test -n "$image_package"
+          apt-cache show "$image_package" > steamos-ios/out/kernel-inputs/kernel-package.txt
+          (cd steamos-ios/out/kernel-inputs && apt-get download "$image_package")
+          package="$(find steamos-ios/out/kernel-inputs -maxdepth 1 -name '*.deb' -print -quit)"
+          test -n "$package"
+          sha256sum "$package" > steamos-ios/out/kernel-inputs/download.sha256
+          dpkg-deb -x "$package" steamos-ios/out/kernel-inputs/unpacked
+      - name: Compile and boot real fresh ARM Linux
+        run: |
+          gcc -static -std=c11 -O2 -Wall -Wextra -Werror -pthread steamos-ios/Guest/abi_probe.c -o steamos-ios/out/kernel-inputs/mpc-abi
+          kernel="$(find steamos-ios/out/kernel-inputs/unpacked/boot -name 'vmlinuz-*' -print -quit)"
+          test -n "$kernel"
+          python3 steamos-ios/tools/make_initramfs.py "$kernel" /usr/bin/busybox steamos-ios/out/kernel-inputs/mpc-abi steamos-ios/out/kernel-payload
+          python3 steamos-ios/tests/test_kernel_evidence.py
+          python3 steamos-ios/tools/run_kernel_gate.py steamos-ios/out/kernel-payload
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Hosted-Linux-TCG-Evidence
+          path: |
+            steamos-ios/out/kernel-inputs/kernel-package.txt
+            steamos-ios/out/kernel-inputs/download.sha256
+            steamos-ios/out/kernel-payload/payload-receipt.json
+            steamos-ios/out/kernel-payload/serial.log
+            steamos-ios/out/kernel-payload/kernel-test.json
+          retention-days: 14

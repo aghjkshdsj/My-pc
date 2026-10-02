@@ -93,6 +93,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 1000000; ++i) { value ^= value >> 12; value ^= value << 25; value ^= value >> 27; value *= UINT64_C(2685821657736338717); }
     double cpu_ms = milliseconds(CLOCK_PROCESS_CPUTIME_ID) - cpu_start;
     double wall_ms = milliseconds(CLOCK_MONOTONIC) - wall_start;
+    failures += value != UINT64_C(0x1d250c45a7bbc87e);
 #if defined(__aarch64__)
     const char *elf = "aarch64";
 #elif defined(__x86_64__)
