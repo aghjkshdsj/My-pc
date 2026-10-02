@@ -2,7 +2,7 @@ name: Fresh source-built Linux ARM payload
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/tools/build_guest_gate.sh', '.github/workflows/steamos-linux-source-gate.yml']
+    paths: ['steamos-ios/tools/build_guest_gate.sh', 'steamos-ios/Guest/**', 'steamos-ios/tools/make_initramfs.py', 'steamos-ios/tools/run_kernel_gate.py', '.github/workflows/steamos-linux-source-gate.yml']
   workflow_dispatch:
 permissions:
   contents: read

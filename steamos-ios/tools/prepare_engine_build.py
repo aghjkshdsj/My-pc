@@ -70,11 +70,11 @@ def prepare(output):
     done
     clone "$LIBUCONTEXT_REPO" "$LIBUCONTEXT_COMMIT"''')
     source = replace_function(source, 'copy_private_headers', '    : # CPU gate uses no copied private framework headers.')
-    source = replace_function(source, 'build_qemu_dependencies', '''    build "$FFI_SRC" --disable-shared
-    build "$ICONV_SRC" --disable-shared
-    gl_cv_onwards_func_strchrnul=future build "$GETTEXT_SRC" --disable-java --disable-shared
-    meson_build "$GLIB_SRC" -Dtests=false -Ddtrace=disabled -Ddefault_library=static -Dintrospection=disabled
-    build "$PIXMAN_SRC" --disable-shared
+    source = replace_function(source, 'build_qemu_dependencies', '''    build "$FFI_SRC"
+    build "$ICONV_SRC"
+    gl_cv_onwards_func_strchrnul=future build "$GETTEXT_SRC" --disable-java
+    meson_build "$GLIB_SRC" -Dtests=false -Ddtrace=disabled -Dintrospection=disabled
+    build "$PIXMAN_SRC"
     meson_build "$LIBUCONTEXT_REPO" -Ddefault_library=static -Dfreestanding=true''')
     before_unpack = '    if [ -d "$DIR" ]; then\n        echo "${GREEN}Deleting existing build directory ${DIR}...${NC}"'
     assert source.count(before_unpack) == 1

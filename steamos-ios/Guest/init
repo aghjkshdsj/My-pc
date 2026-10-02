@@ -2,6 +2,6 @@
 /bin/busybox mount -t proc proc /proc || exit 90
 /mpc-abi
 result=$?
-echo "MPC_LINUX_EXIT=$result"
+/bin/busybox echo "MPC_LINUX_EXIT=$result"
 /bin/busybox poweroff -f
 exit "$result"

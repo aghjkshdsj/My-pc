@@ -49,5 +49,5 @@ jobs:
             steamos-ios/out/cpu-engine/engine-*.txt
             steamos-ios/out/cpu-engine/CPU-Engine-*.tar.gz
             steamos-ios/out/cpu-engine/SHA256SUMS
-            steamos-ios/out/cpu-engine/build-iOS-arm64/qemu-10.0.12-utm/build/meson-logs/meson-log.txt
+            steamos-ios/out/cpu-engine/build-iOS-arm64/**/meson-logs/meson-log.txt
           retention-days: 14
