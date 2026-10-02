@@ -123,11 +123,12 @@ The three compiled universal ABI wrappers also contain their exact ARM64
 command/breakpoint/return sequences. These build checks are not phone JIT,
 Linux boot, UI-popup or gameplay proof. No private report was uploaded.
 
-Install Linux-gate-2 with iLoader. Run Metal/storage/native CPU probes, enable
-StikDebug for **My-pc SteamOS Probe**, run the JIT check, then **Run Linux kernel
+Install Linux-gate-5 / build 4000006 with iLoader. Run Metal/storage/native CPU probes,
+tap **Enable JIT in StikDebug**, confirm its request for **My-pc SteamOS Probe**,
+return to the app, run the JIT check, then **Run Linux kernel
 gate** in the foreground for up to three minutes. Use **Share device report** to
 return the JSON. If the app terminates, preserve its new `LinuxGate-*` folder's
-serial/pending report; do not report a successful boot.
+serial/pending report and reopen to use **Share logs**; do not report a successful boot.
 
 `tools/verify_device_report.py` compares private owner-supplied evidence with the
 exact verified IPA, checks OS/source/payload/nonce/serial/engine/ABI consistency
@@ -141,3 +142,16 @@ to Metal including moving presentation, then integrate authenticated SteamOS,
 actual ARM Steam/CEF, Game Mode/desktop and FEX games. Follow the component and
 performance ledgers through 720p base-frame and 20-minute thermal measurements.
 **Steam usable under 60 seconds and Hollow Knight 60–80 base FPS are unverified.**
+
+## Vulkan diagnostic preparation
+
+The fresh guest Vulkan diagnostic renders two RGBA8 images at 1280×720 using
+vertex/fragment shaders, a render pass and explicit image/copy/host-read barriers.
+It compares all 1,843,200 pixels and independently checks the channel sum. It
+records device extensions, selected features/limits, format and memory flags,
+and validation errors. Optional portability enumeration/subset support is handled.
+It has no window/swapchain or transport; Metal/presentation/game claims stay false.
+The hosted ARM pipeline uses lavapipe with synchronization validation and requires
+exit 20 when software is offered as acceleration. This workflow is newly prepared;
+its compile, rendering and rejection result are pending. No new physical phone
+JIT/Linux report was available at this checkpoint.

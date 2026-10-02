@@ -1,8 +1,8 @@
-name: Fresh guest GL diagnostic rejection checks
+name: Fresh guest GL and Vulkan diagnostic rejection checks
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Guest/gl_gate.c', '.github/workflows/steamos-graphics-diagnostic.yml']
+    paths: ['steamos-ios/Guest/gl_gate.c', 'steamos-ios/Guest/vk_gate.*', 'steamos-ios/tools/verify_graphics_diagnostic.py', 'steamos-ios/tests/test_graphics_evidence.py', '.github/workflows/steamos-graphics-diagnostic.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,3 +22,35 @@ jobs:
           result=$?
           set -e
           test "$result" -eq 20
+  vulkan-diagnostic:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc libvulkan-dev mesa-vulkan-drivers glslang-tools spirv-tools vulkan-validationlayers
+      - name: Render two actual 720p images with synchronization validation
+        run: |
+          mkdir -p /tmp/mpc-vulkan
+          gcc -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/Guest/vk_gate.c -lvulkan -o /tmp/mpc-vulkan/vk-gate
+          glslangValidator -V --target-env vulkan1.1 steamos-ios/Guest/vk_gate.vert -o /tmp/mpc-vulkan/vertex.spv
+          glslangValidator -V --target-env vulkan1.1 steamos-ios/Guest/vk_gate.frag -o /tmp/mpc-vulkan/fragment.spv
+          spirv-val --target-env vulkan1.1 /tmp/mpc-vulkan/vertex.spv
+          spirv-val --target-env vulkan1.1 /tmp/mpc-vulkan/fragment.spv
+          mapfile -t icds < <(find /usr/share/vulkan/icd.d -maxdepth 1 -name 'lvp_icd*.json')
+          test "${#icds[@]}" -eq 1
+          export VK_DRIVER_FILES="${icds[0]}"
+          /tmp/mpc-vulkan/vk-gate /tmp/mpc-vulkan/vertex.spv /tmp/mpc-vulkan/fragment.spv --allow-software-diagnostic --require-validation > /tmp/mpc-vulkan/diagnostic.log 2> /tmp/mpc-vulkan/validation.log
+          set +e
+          /tmp/mpc-vulkan/vk-gate /tmp/mpc-vulkan/vertex.spv /tmp/mpc-vulkan/fragment.spv --require-validation > /tmp/mpc-vulkan/rejection.log 2> /tmp/mpc-vulkan/rejection-validation.log
+          result=$?
+          set -e
+          printf '%s\n' "$result" > /tmp/mpc-vulkan/rejection-exit-code.txt
+          test "$result" -eq 20
+          python3 steamos-ios/tools/verify_graphics_diagnostic.py /tmp/mpc-vulkan --source "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
+          python3 -m unittest discover -s steamos-ios/tests -p test_graphics_evidence.py -v
+          cat /tmp/mpc-vulkan/receipt.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hosted-arm-vulkan-diagnostic
+          path: /tmp/mpc-vulkan
