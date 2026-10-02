@@ -132,6 +132,22 @@ def build():
     text = text.replace('memset(resources, 0, sizeof(*resources));',
                         'memset(static_cast<void *>(resources), 0, sizeof(*resources));')
     shader_interface.write_text(text, encoding='utf-8')
+    gles1_state = engine / 'src/libANGLE/GLES1Renderer.cpp'
+    text = gles1_state.read_text(encoding='utf-8')
+    include = '#include "libANGLE/GLES1Renderer.h"'
+    assert text.count(include) == 1
+    text = text.replace(include, include + '\n#include <type_traits>')
+    old = '    memcpy(this, &other, sizeof(GLES1ShaderState));'
+    assert text.count(old) == 1
+    # This hashed key contains fixed scalar arrays/enums and a scalar bitset;
+    # its out-of-line defaulted destructor owns no resource. That destructor
+    # makes the whole key non-trivial, so guard its layout and bitset separately.
+    text = text.replace(old,
+                        '    static_assert(std::is_standard_layout_v<GLES1ShaderState> &&\n'
+                        '                  !std::is_polymorphic_v<GLES1ShaderState> &&\n'
+                        '                  std::is_trivially_destructible_v<GLES1StateEnabledBitSet>);\n'
+                        '    memcpy(static_cast<void *>(this), &other, sizeof(GLES1ShaderState));')
+    gles1_state.write_text(text, encoding='utf-8')
     patch = output / 'public-ios-angle.patch'
     patch.write_text(capture('git', '-C', str(source), 'diff', '--', *DIRECTORIES) + '\n', encoding='utf-8')
     archive = output / 'ANGLE.xcarchive'
