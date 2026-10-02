@@ -1,0 +1,30 @@
+name: Fresh Venus serialized graphics transport diagnostic
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/run_venus_transport.py', '.github/workflows/steamos-venus-transport.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hosted-arm-venus:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install hosted ARM renderer and diagnostic build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc meson ninja-build pkg-config libepoxy-dev libdrm-dev libvulkan-dev mesa-vulkan-drivers glslang-tools spirv-tools vulkan-validationlayers
+      - name: Source-build pinned renderer and run real serialized Vulkan draws
+        run: python3 steamos-ios/tools/run_venus_transport.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Hosted-ARM-Venus-Transport
+          path: |
+            steamos-ios/out/venus-transport/*.json
+            steamos-ios/out/venus-transport/*.log
+            steamos-ios/out/venus-transport/*.spv
+            steamos-ios/out/venus-transport/virglrenderer-source.tar
+            steamos-ios/out/venus-transport/virglrenderer/build/meson-logs/meson-log.txt
