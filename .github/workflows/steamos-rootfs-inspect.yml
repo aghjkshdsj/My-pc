@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools zstd
       - run: python3 steamos-ios/tools/inspect_rootfs_metadata.py steamos-ios/out/rootfs-inspection
       - uses: actions/upload-artifact@v4
         if: always()

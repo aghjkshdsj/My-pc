@@ -29,7 +29,7 @@ def inspect(output):
     assert len(manifests) == 1
     config = configparser.ConfigParser(interpolation=None)
     config.read(manifests[0])
-    indexes = []
+    indexes, samples = [], []
     for path in sorted((output / 'unpacked').rglob('*.caibx')):
         data = path.read_bytes()
         assert len(data) >= 104 and (len(data) - 64) % 40 == 0
@@ -40,9 +40,24 @@ def inspect(output):
         body = data[64:]
         assert struct.unpack_from('<Q', body, len(body) - 8)[0] == 0x4B4F050E5549ECD1
         previous = 0
+        selected = {0, ((len(body) // 40) - 2) // 2, (len(body) // 40) - 2}
         for offset in range(0, len(body) - 40, 40):
             end = struct.unpack_from('<Q', body, offset)[0]
             assert 0 < end - previous <= maximum
+            if offset // 40 in selected:
+                # caformat.h: 0x2000... selects SHA-512/256, which is not a
+                # truncated SHA-512 digest and is not SHA-256.
+                assert flags & 0x2000000000000000
+                chunk_id = body[offset + 8:offset + 40].hex()
+                url = BASE[:-1] + '.castr/' + chunk_id[:4] + '/' + chunk_id + '.cacnk'
+                with urllib.request.urlopen(url, timeout=30) as response: compressed = response.read(maximum + 65537)
+                assert len(compressed) <= maximum + 65536
+                raw = subprocess.check_output(['zstd', '-d', '-c'], input=compressed)
+                assert len(raw) == end - previous
+                assert hashlib.new('sha512_256', raw).hexdigest() == chunk_id
+                samples.append({'index_record': offset // 40, 'id': chunk_id,
+                    'raw_bytes': len(raw), 'download_bytes': len(compressed),
+                    'sha512_256_verified': True})
             previous = end
         indexes.append({'filename': path.relative_to(output / 'unpacked').as_posix(),
             'sha256': hashlib.sha256(data).hexdigest(), 'index_bytes': len(data),
@@ -53,6 +68,7 @@ def inspect(output):
         'manifest': external, 'downloads': receipts,
         'rauc_manifest': {section: dict(config[section]) for section in config.sections()},
         'indexes': indexes, 'store_url': BASE[:-1] + '.castr/',
+        'sample_chunks': samples, 'all_chunks_verified': False,
         'signature_authenticated': False, 'rootfs_reconstructed': False,
         'linux_boot_verified': False, 'phone_tested': False,
         'limitation': 'Pinned HTTPS bundle bytes and internal format were checked. RAUC CMS certificate authentication and full image/chunk verification remain required. Metadata listing is not OS execution.'}
