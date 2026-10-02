@@ -57,7 +57,10 @@ def main():
     client_environment = dict(os.environ, VK_DRIVER_FILES=str(venus[0]), VN_DEBUG='vtest')
     server_binary = source / 'build/vtest/virgl_test_server'
     with (output / 'server.log').open('w') as server_log:
-        server = subprocess.Popen([str(server_binary), '--venus', '--no-fork'],
+        # This is a Venus-only test. The upstream server otherwise enables its
+        # GL/EGL renderer too, which is deliberately absent from this build.
+        server_command = [str(server_binary), '--venus', '--no-virgl', '--no-fork']
+        server = subprocess.Popen(server_command,
                                   env=server_environment, stdout=server_log, stderr=server_log)
         try:
             deadline = time.monotonic() + 20
@@ -86,7 +89,8 @@ def main():
     files += [server_binary, lvp[0], venus[0]]
     receipt = {'scope': 'hosted-linux-arm64-venus-vtest-software-diagnostic',
                'transport': 'Mesa Venus vtest -> pinned virglrenderer -> lavapipe',
-               'renderer_commit': REVISION, 'source_commit': os.environ.get('GITHUB_SHA'),
+               'renderer_commit': REVISION, 'server_options': server_command[1:],
+               'source_commit': os.environ.get('GITHUB_SHA'),
                'workflow_run': os.environ.get('GITHUB_RUN_ID'), 'diagnostic': rows[0],
                'expected_channel_sum': expected, 'software_rejection_exit': rejected.returncode,
                'files': {p.name: {'bytes': p.stat().st_size, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in files},
