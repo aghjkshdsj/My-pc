@@ -13,6 +13,24 @@
 #include <vector>
 #include <time.h>
 
+extern "C" kern_return_t mach_vm_remap(vm_map_t, mach_vm_address_t *, mach_vm_size_t,
+    mach_vm_offset_t, int, vm_map_t, mach_vm_address_t, boolean_t, vm_prot_t *, vm_prot_t *, vm_inherit_t);
+
+#if defined(__aarch64__)
+// External debugger protocol ABI, not a CPU/Linux compatibility engine.
+// Universal script command 1 prepares an RX alias; command 2 configures the
+// upstream engine's legacy region callback; command 0 detaches after allocation.
+__attribute__((naked, noinline)) static void *prepareDebuggerRX(void *, size_t) {
+    __asm__("mov x16, #1\n brk #0xf00d\n ret");
+}
+__attribute__((naked, noinline)) static void configureDebuggerCallbacks(const char *, size_t) {
+    __asm__("mov x16, #2\n brk #0xf00d\n ret");
+}
+__attribute__((naked, noinline)) static void detachDebugger(void) {
+    __asm__("mov x16, #0\n brk #0xf00d\n ret");
+}
+#endif
+
 static double threadCPUSeconds() {
     struct timespec value = {};
     if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value)) return -1;
@@ -56,9 +74,28 @@ static NSDictionary *codeSigning() {
     uint32_t flags = 0;
     int result = query ? query(getpid(), 0, &flags, sizeof(flags)) : -1;
     int error = query && result ? errno : 0;
+    int name[] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()};
+    struct kinfo_proc process = {};
+    size_t processBytes = sizeof(process);
+    int tracedResult = sysctl(name, 4, &process, &processBytes, nullptr, 0);
     return @{@"query_available": @(query != nullptr), @"query_result": @(result),
              @"errno": @(error), @"flags": @(flags),
-             @"debugged": @(result == 0 && (flags & 0x10000000u) != 0)};
+             @"debugged": @(result == 0 && (flags & 0x10000000u) != 0),
+             @"get_task_allow": @(result == 0 && (flags & 0x4u) != 0),
+             @"traced_query_result": @(tracedResult),
+             @"debugger_attached": @(tracedResult == 0 && (process.kp_proc.p_flag & P_TRACED) != 0)};
+}
+
+BOOL MPCDetachJITDebugger(void) {
+#if defined(__aarch64__)
+    if (![codeSigning()[@"debugger_attached"] boolValue]) return NO;
+    if (!MPCDiagnosticStage(@"jit-before-debugger-detach", @{})) return NO;
+    detachDebugger();
+    MPCDiagnosticStage(@"jit-debugger-detach-returned", @{});
+    return YES;
+#else
+    return NO;
+#endif
 }
 NSDictionary *MPCPlatformFacts(void) {
     struct utsname info = {};
@@ -85,42 +122,65 @@ NSDictionary *MPCExecuteJITProbe(void) {
     MPCDiagnosticStage(@"jit-signing-query", @{});
     NSDictionary *signing = codeSigning();
     MPCDiagnosticStage(@"jit-signing-result", signing);
-    if (![signing[@"debugged"] boolValue]) {
-        return @{@"status": @"skipped", @"reason": @"Enable StikDebug for this app first. Debugged code-signing status was not observed.",
+    if (![signing[@"debugged"] boolValue] || ![signing[@"debugger_attached"] boolValue]) {
+        return @{@"status": @"skipped", @"reason": @"Use Enable JIT in StikDebug for this running app with universal.js. An attached script debugger is required before preparing new executable regions.",
                  @"code_signing": signing, @"linux_execution": @NO};
     }
 #if defined(__aarch64__)
     size_t size = static_cast<size_t>(getpagesize());
-    if (!MPCDiagnosticStage(@"jit-before-mmap-rw", @{@"bytes": @(size)}))
+    if (!MPCDiagnosticStage(@"jit-before-mmap-rx", @{@"bytes": @(size)}))
         return @{@"status": @"failed", @"stage": @"diagnostic-write", @"linux_execution": @NO};
-    void *mapping = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    void *mapping = mmap(nullptr, size, PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANON, -1, 0);
     if (mapping == MAP_FAILED) {
         int error = errno; MPCDiagnosticStage(@"jit-mmap-failed", @{@"errno": @(error)});
-        return @{@"status": @"failed", @"stage": @"mmap-rw", @"errno": @(error), @"linux_execution": @NO};
+        return @{@"status": @"failed", @"stage": @"mmap-rx", @"errno": @(error), @"linux_execution": @NO};
     }
-    // mov w0, #42; ret. Executes only our fixed, local diagnostic bytes.
-    const uint32_t code[] = {0x52800540, 0xd65f03c0};
-    memcpy(mapping, code, sizeof(code));
-    sys_icache_invalidate(mapping, sizeof(code));
-    if (!MPCDiagnosticStage(@"jit-before-mprotect-rx", @{})) {
+    mach_vm_address_t rx = 0;
+    vm_prot_t current = 0, maximum = 0;
+    MPCDiagnosticStage(@"jit-before-remap-rx-alias", @{});
+    kern_return_t remap = mach_vm_remap(mach_task_self(), &rx, size, 0, VM_FLAGS_ANYWHERE,
+        mach_task_self(), reinterpret_cast<mach_vm_address_t>(mapping), false, &current, &maximum, VM_INHERIT_NONE);
+    if (remap != KERN_SUCCESS) {
+        munmap(mapping, size);
+        return @{@"status": @"failed", @"stage": @"remap-rx-alias", @"mach_error": @(remap), @"linux_execution": @NO};
+    }
+    if (!MPCDiagnosticStage(@"jit-before-universal-prepare-rx", @{})) {
+        munmap(reinterpret_cast<void *>(rx), size);
         munmap(mapping, size);
         return @{@"status": @"failed", @"stage": @"diagnostic-write", @"linux_execution": @NO};
     }
-    if (mprotect(mapping, size, PROT_READ | PROT_EXEC)) {
+    void *prepared = prepareDebuggerRX(reinterpret_cast<void *>(rx), size);
+    if (prepared != reinterpret_cast<void *>(rx)) {
+        munmap(reinterpret_cast<void *>(rx), size); munmap(mapping, size);
+        return @{@"status": @"failed", @"stage": @"universal-prepare-return", @"linux_execution": @NO};
+    }
+    // The pinned QEMU allocator uses brk 0x69. Configure that one fixed region
+    // callback through universal's command API; never execute user scripts.
+    static const char callback[] = "legacyCommands[0x69] = JIT26PrepareRegion;";
+    MPCDiagnosticStage(@"jit-before-configure-qemu-region-callback", @{});
+    configureDebuggerCallbacks(callback, sizeof(callback) - 1);
+    MPCDiagnosticStage(@"jit-before-mprotect-writable-alias", @{});
+    if (mprotect(mapping, size, PROT_READ | PROT_WRITE)) {
         int error = errno;
         MPCDiagnosticStage(@"jit-mprotect-failed", @{@"errno": @(error)});
-        munmap(mapping, size);
-        return @{@"status": @"failed", @"stage": @"mprotect-rx", @"errno": @(error), @"linux_execution": @NO};
+        munmap(reinterpret_cast<void *>(rx), size); munmap(mapping, size);
+        return @{@"status": @"failed", @"stage": @"mprotect-writable-alias", @"errno": @(error), @"linux_execution": @NO};
     }
+    const uint32_t code[] = {0x52800540, 0xd65f03c0}; // Our fixed mov w0,#42; ret.
+    memcpy(mapping, code, sizeof(code));
+    sys_dcache_flush(mapping, sizeof(code));
+    sys_icache_invalidate(reinterpret_cast<void *>(rx), sizeof(code));
     if (!MPCDiagnosticStage(@"jit-before-execute", @{})) {
-        munmap(mapping, size);
+        munmap(reinterpret_cast<void *>(rx), size); munmap(mapping, size);
         return @{@"status": @"failed", @"stage": @"diagnostic-write", @"linux_execution": @NO};
     }
-    int result = reinterpret_cast<int (*)(void)>(mapping)();
+    int result = reinterpret_cast<int (*)(void)>(rx)();
     MPCDiagnosticStage(@"jit-returned", @{@"returned": @(result)});
-    munmap(mapping, size);
+    munmap(reinterpret_cast<void *>(rx), size); munmap(mapping, size);
     return @{@"status": result == 42 ? @"passed" : @"failed", @"returned": @(result),
-             @"execution": @"native-arm64-local-jit-stub", @"linux_execution": @NO};
+             @"execution": @"native-arm64-local-jit-stub", @"protocol": @"stikdebug-universal-prepared-rx-writable-alias",
+             @"qemu_region_callback": @"universal-configured-legacy-0x69", @"debugger_kept_for_engine_regions": @YES,
+             @"linux_execution": @NO};
 #else
     return @{@"status": @"skipped", @"reason": @"ARM64 device required", @"linux_execution": @NO};
 #endif

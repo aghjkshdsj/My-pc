@@ -33,7 +33,8 @@ and [upstream provenance](docs/PROVENANCE.md).
 ## Device step
 
 Install the probe alongside the older apps using iLoader. Run **Metal and storage
-probes**, enable StikDebug for **My-pc SteamOS Probe**, then run **ARM64 JIT check**.
+probes**, use **Enable JIT in StikDebug** in the updated app, confirm StikDebug's
+request if prompted, return here and run **ARM64 JIT check**.
 Then run **Linux kernel gate**, keep the app foreground for up to three minutes,
 and use **Share device report** to return the JSON. Close/relaunch before another
 Linux boot. If JIT execution terminates the
@@ -49,6 +50,15 @@ sheet preserve the files; **Share saved diagnostic logs** stays available.
 The export includes bounded known probe reports and kernel serial logs only.
 A pending marker cannot distinguish a crash, iOS termination and force-close;
 it is not an iOS crash stack. Logging does not itself fix a JIT or Linux failure.
+
+The updated JIT implementation matches `universal.js`: prepare RX regions through
+the external debugger, create a separate writable alias, configure the pinned
+QEMU engine's legacy-region callback through the universal command protocol,
+then detach after QEMU's initial TCG allocation. The button targets the current
+PID and actual signed bundle ID. Opening StikDebug is not reported as successful
+JIT; the native stub must execute and return 42. This correction is unverified on
+the phone. It does not change the Linux/SteamOS architecture or add a StikJIT
+framework/helper or pairing file to the app.
 
 ## Build
 

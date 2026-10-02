@@ -19,6 +19,15 @@ COPYING and the fresh source license accompany the binary. New authored project
 source is MIT; that does not replace the combined QEMU-bearing distribution's
 applicable GPL obligations or LGPL/per-file dependency requirements.
 
+The StikDebug activation button calls its documented external URL scheme;
+the native adapter implements the functional universal breakpoint ABI and one
+fixed callback configuration for QEMU's pre-existing region allocation. No
+StikDebug/StikJIT framework, helper, pairing data or full JavaScript source is
+redistributed. That project's AGPL license is not silently treated as MIT.
+Sources reviewed: [StikDebug 3.1.10 URL handler](https://github.com/StikDebug/StikDebug/blob/3.1.10/StikDebug/Views/HomeView.swift),
+[universal protocol](https://github.com/StikDebug/StikDebug/blob/3.1.10/StikDebug/Scripts/universal.js),
+and [integration guide](https://github.com/StikDebug/StikJIT/blob/main/INTEGRATION.md).
+
 | Input | Reuse / source | License/distribution work before linking/shipping |
 |---|---|---|
 | Archive glue/overlays | Reference SHA-256 recorded; MaSieS4Fun SteamOS-Ubuntu lineage | Archive declares GPL-2.0; copied/adapted glue needs attribution, license and corresponding source |

@@ -9,7 +9,8 @@
 <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.0.1</string>
-<key>CFBundleVersion</key><string>4000004</string>
+<key>CFBundleVersion</key><string>4000005</string>
+<key>LSApplicationQueriesSchemes</key><array><string>stikdebug</string></array>
 <key>MPCSourceCommit</key><string>$(MPC_SOURCE_COMMIT)</string>
 <key>LSRequiresIPhoneOS</key><true/>
 <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>

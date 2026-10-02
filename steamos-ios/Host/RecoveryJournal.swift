@@ -52,17 +52,25 @@ final class RecoveryJournal {
 
     func pendingSnapshot() -> Data? { try? Data(contentsOf: marker) }
 
+    func recordActivation(_ details: [String: Any]) throws {
+        try files.createDirectory(at: directory, withIntermediateDirectories: true)
+        var row = details
+        row["collected_utc"] = ISO8601DateFormatter().string(from: Date())
+        try durableWrite(JSONSerialization.data(withJSONObject: row, options: [.prettyPrinted, .sortedKeys]),
+                         to: directory.appendingPathComponent("stikdebug-request.json"))
+    }
+
     func pendingRun(_ snapshot: Data) throws -> PendingProbe {
         let run = try JSONDecoder().decode(PendingProbe.self, from: snapshot)
         _ = try runDirectory(run.runID)
         return run
     }
 
-    func complete(runID: String, result: Data) throws {
+    func complete(runID: String, result: Data, clearPending: Bool = true) throws {
         let folder = try runDirectory(runID)
         try durableWrite(result, to: folder.appendingPathComponent("result.json"))
         // Do not erase another run's marker or one whose identity is unreadable.
-        if let snapshot = pendingSnapshot(), let pending = try? pendingRun(snapshot), pending.runID == runID {
+        if clearPending, let snapshot = pendingSnapshot(), let pending = try? pendingRun(snapshot), pending.runID == runID {
             try files.removeItem(at: marker)
         }
     }
@@ -112,6 +120,9 @@ final class RecoveryJournal {
     func shareReport(snapshot: Data?) throws -> URL {
         var entries: [[String: Any]] = []
         var pending: Any = NSNull()
+        if var entry = try? textFile(directory.appendingPathComponent("stikdebug-request.json")) {
+            entry["relative_directory"] = "ProbeDiagnostics"; entries.append(entry)
+        }
         if let snapshot {
             pending = (try? JSONSerialization.jsonObject(with: snapshot)) ?? ["unreadable_marker": String(decoding: snapshot.prefix(4096), as: UTF8.self)]
         }

@@ -90,12 +90,22 @@ source, configs, patches, recipes and applicable notices accompany the release.
 
 ## Required phone evidence and next implementation
 
-Crash recovery implementation is prepared in build 4000004: a durable pending
+Crash recovery implementation passed hosted abrupt-exit tests and an actual
+ARM64 iOS build in [37021915308](https://github.com/aghjkshdsj/My-pc/actions/runs/37021915308)
+and was published as Linux-gate-3 / build 4000004. It has a durable pending
 marker before unsafe calls, fsynced stage/output capture, a reopen Share logs
 prompt, retained logs after Later/cancel and manual diagnostic sharing. Hosted
 abrupt-exit/recovery and iOS compile/package checks are required before release;
 the popup still needs verification on the phone. This change instruments the
 JIT/Linux failure and does not claim that its cause is fixed.
+
+The next build 4000005 adds Enable JIT in StikDebug with actual bundle ID/PID
+and universal.js, observed get-task-allow/current debugger checks, RX/writable
+alias preparation through the universal protocol, a fixed callback for the
+pinned QEMU allocator's legacy 0x69 region breakpoint, and detach after QEMU's
+initial code allocation. The supplied old host report contained no JIT/Linux
+receipt. The previous RW-to-RX probe and QEMU breakpoint mismatch are source
+findings, not a proven crash diagnosis. Updated phone JIT/boot results are needed.
 
 Install Linux-gate-2 with iLoader. Run Metal/storage/native CPU probes, enable
 StikDebug for **My-pc SteamOS Probe**, run the JIT check, then **Run Linux kernel

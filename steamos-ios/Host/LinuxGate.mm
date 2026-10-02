@@ -38,6 +38,7 @@ static NSDictionary *failure(NSString *stage, NSString *reason) {
 NSDictionary *MPCLinuxKernelProbe(void) {
     @autoreleasepool {
         MPCDiagnosticStage(@"linux-gate-starting", @{});
+        if (attempted.load()) return failure(@"one-run-per-process", @"Close and relaunch, then request StikDebug for the new process before another Linux boot.");
         NSString *framework = [NSBundle.mainBundle.privateFrameworksPath
                               stringByAppendingPathComponent:@"qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu"];
         NSString *payload = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"LinuxGate"];
@@ -112,6 +113,9 @@ NSDictionary *MPCLinuxKernelProbe(void) {
                 argv.push_back(nullptr);
                 MPCDiagnosticStage(@"linux-before-qemu-init", @{});
                 initialize(static_cast<int>(argv.size() - 1), argv.data());
+                // QEMU's initial TCG regions have been prepared. Release the
+                // debugger before the workload; new regions would need reattach.
+                MPCDetachJITDebugger();
                 MPCDiagnosticStage(@"linux-before-qemu-main-loop", @{});
                 int status = loop();
                 MPCDiagnosticStage(@"linux-before-qemu-cleanup", @{@"engine_status": @(status)});

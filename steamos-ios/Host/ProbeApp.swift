@@ -1,6 +1,7 @@
 import SwiftUI
 import GameController
 import UIKit
+import Darwin
 
 @main
 struct ProbeApp: App {
@@ -16,6 +17,9 @@ final class ProbeModel: ObservableObject {
     @Published var recoveryMessage = ""
     @Published var recoveredLogURL: URL?
     @Published var logShare: DiagnosticShare?
+    @Published var engineNeedsRelaunch = false
+    @Published var jitActivationMessage = ""
+    private var requestedStikDebug = false
     private var facts: [String: Any] = [:]
     private let journal = RecoveryJournal(documents: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0])
     private var recoveryChecked = false
@@ -28,7 +32,7 @@ final class ProbeModel: ObservableObject {
         recoveredSnapshot = snapshot
         let previous = try? journal.pendingRun(snapshot)
         let stage = journal.lastStage(snapshot) ?? "test preparation"
-        recoveryMessage = "The previous \(previous?.kind ?? "unknown") test ended without saving a result. Last saved stage: \(stage). Share its saved logs to investigate. A crash, iOS termination or force-close can cause this."
+        recoveryMessage = "The previous \(previous?.kind ?? "unknown") test did not finish normally. Last saved stage: \(stage). Share its saved logs to investigate. A crash, iOS termination or force-close can cause this."
         do { recoveredLogURL = try journal.shareReport(snapshot: snapshot) }
         catch { report = "Could not prepare recovery logs: \(error.localizedDescription)" }
         showRecovery = true
@@ -42,15 +46,53 @@ final class ProbeModel: ObservableObject {
 
     func shareRecovery() {
         do {
-            let url = try journal.shareReport(snapshot: recoveredSnapshot)
+            let url = try journal.shareReport(snapshot: recoveredSnapshot ?? journal.pendingSnapshot())
             recoveredLogURL = url
             acknowledgeRecovery()
             logShare = DiagnosticShare(url: url)
         } catch { report = "Could not prepare diagnostic logs: \(error.localizedDescription)" }
     }
 
+    func enableStikDebug() {
+        guard !busy && !engineNeedsRelaunch else { return }
+        let facts = MPCPlatformFacts()
+        let signing = facts["code_signing"] as? [String: Any]
+        guard signing?["get_task_allow"] as? Bool == true else {
+            jitActivationMessage = "This signing does not show get-task-allow. Install with signing that preserves the debugger entitlement."
+            return
+        }
+        do {
+            let url = try StikDebugRequest.make(bundleID: Bundle.main.bundleIdentifier ?? "", pid: getpid())
+            guard UIApplication.shared.canOpenURL(url) else {
+                jitActivationMessage = "StikDebug is unavailable. Install or open StikDebug, then return here."
+                return
+            }
+            requestedStikDebug = true
+            try journal.recordActivation(["scope": "stikdebug-url-request", "pid": getpid(),
+                "bundle_id": Bundle.main.bundleIdentifier ?? "unknown", "script": "universal.js",
+                "url_open_accepted": NSNull(), "jit_verified": false])
+            jitActivationMessage = "Opening StikDebug for this app. Confirm its JIT request if prompted, then return and run the ARM64 JIT check."
+            UIApplication.shared.open(url, options: [:]) { accepted in
+                Task { @MainActor in
+                    if !accepted { self.jitActivationMessage = "iOS could not open StikDebug. JIT was not enabled." }
+                    try? self.journal.recordActivation(["scope": "stikdebug-url-request", "pid": getpid(),
+                        "bundle_id": Bundle.main.bundleIdentifier ?? "unknown", "script": "universal.js",
+                        "url_open_accepted": accepted, "jit_verified": false])
+                }
+            }
+        } catch { jitActivationMessage = "Could not start StikDebug: \(error.localizedDescription)" }
+    }
+
+    func refreshJITAttachment() {
+        guard requestedStikDebug else { return }
+        let signing = MPCPlatformFacts()["code_signing"] as? [String: Any]
+        jitActivationMessage = signing?["debugger_attached"] as? Bool == true
+            ? "Debugger attached. Run the ARM64 JIT check to verify executable-region preparation."
+            : "Debugger attachment is not currently observed. Enable JIT in StikDebug, then run the check."
+    }
+
     func run(kind: String) {
-        guard !busy else { return }
+        guard !busy && !engineNeedsRelaunch else { return }
         busy = true
         exportURL = nil
         let runID = UUID().uuidString
@@ -85,13 +127,15 @@ final class ProbeModel: ObservableObject {
             default: tests = ["native_cpu": MPCNativeCPUProbe(), "metal": MPCMetalProbe(), "storage": MPCStorageProbe()]
             }
             MPCDiagnosticStage("probe-returned", ["kind": kind])
-            MPCStopDiagnosticCapture()
+            let linux = tests["linux"] as? [String: Any]
+            if linux?["status"] as? String != "timed-out-engine-still-running" { MPCStopDiagnosticCapture() }
             await self.finish(runID: runID, before: before, controllers: controllers, tests: tests)
         }
     }
 
     private func finish(runID: String, before: [AnyHashable: Any], controllers: [[String: Any]], tests: [String: Any]) {
         facts.merge(tests) { _, new in new }
+        engineNeedsRelaunch = (tests["linux"] as? [String: Any])?["status"] as? String == "timed-out-engine-still-running"
         let linux = (facts["linux"] as? [String: Any])?["linux_execution"] as? Bool == true
         let result: [String: Any] = [
             "schema": 1, "run_id": runID, "collected_utc": ISO8601DateFormatter().string(from: Date()),
@@ -110,7 +154,7 @@ final class ProbeModel: ObservableObject {
             let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let url = directory.appendingPathComponent("MyPCSteamOS-Probe-\(runID).json")
             try data.write(to: url, options: .atomic)
-            try journal.complete(runID: runID, result: data)
+            try journal.complete(runID: runID, result: data, clearPending: !engineNeedsRelaunch)
             exportURL = url
         } catch { report = "Could not export report: \(error.localizedDescription)" }
         busy = false
@@ -119,6 +163,7 @@ final class ProbeModel: ObservableObject {
 
 struct ProbeScreen: View {
     @StateObject private var model = ProbeModel()
+    @Environment(\.scenePhase) private var scenePhase
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -126,14 +171,18 @@ struct ProbeScreen: View {
                     Text("SteamOS platform bring-up").font(.title2.bold())
                     Text("This prerelease collects iPhone capabilities. Linux, SteamOS and the game graphics bridge are unfinished.")
                     Button("Run Metal and storage probes") { model.run(kind: "host") }
-                        .buttonStyle(.borderedProminent).disabled(model.busy)
-                    Text("Enable StikDebug for My-pc SteamOS Probe, return here, then run the JIT check.").font(.callout)
+                        .buttonStyle(.borderedProminent).disabled(model.busy || model.engineNeedsRelaunch)
+                    Button("Enable JIT in StikDebug") { model.enableStikDebug() }
+                        .buttonStyle(.borderedProminent).disabled(model.busy || model.engineNeedsRelaunch)
+                    Text("StikDebug will request JIT for this running app using universal.js. Confirm there if prompted, return here, then run the JIT check.").font(.callout)
+                    if !model.jitActivationMessage.isEmpty { Text(model.jitActivationMessage).font(.callout) }
                     Button("Run ARM64 JIT check") { model.run(kind: "jit") }
-                        .buttonStyle(.bordered).disabled(model.busy)
+                        .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
                     Button("Run Linux kernel gate") { model.run(kind: "linux") }
-                        .buttonStyle(.bordered).disabled(model.busy)
+                        .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
                     Text("The Linux gate requires an engine-bearing build and StikDebug. Keep the app open for up to three minutes. Relaunch before repeating a Linux boot.").font(.callout)
                     if model.busy { ProgressView("Collecting measurements…") }
+                    if model.engineNeedsRelaunch { Text("The Linux engine timed out and may still be running. Share the logs, then close and relaunch before another test.").font(.callout) }
                     if let url = model.exportURL { ShareLink("Share device report", item: url) }
                     Button("Share saved diagnostic logs") { model.shareRecovery() }
                         .buttonStyle(.bordered).disabled(model.busy)
@@ -142,6 +191,7 @@ struct ProbeScreen: View {
                 }.padding()
             }.navigationTitle("My-pc SteamOS Probe")
                 .task { model.checkRecovery() }
+                .onChange(of: scenePhase) { _, phase in if phase == .active { model.refreshJITAttachment() } }
                 .alert("Previous test stopped — share logs", isPresented: $model.showRecovery) {
                     Button("Share logs") { model.shareRecovery() }
                     Button("Later", role: .cancel) { model.acknowledgeRecovery() }

@@ -9,6 +9,15 @@ struct RecoveryJournalTests {
         try fm.createDirectory(at: documents, withIntermediateDirectories: false)
         defer { try? fm.removeItem(at: documents) } // This test's unique temporary directory only.
         let journal = RecoveryJournal(documents: documents)
+        let request = try StikDebugRequest.make(bundleID: "com.example.probe+fixture", pid: 123)
+        let route = URLComponents(url: request, resolvingAgainstBaseURL: false)!
+        precondition(route.scheme == "stikdebug" && route.host == "enable-jit")
+        let queries = Dictionary(uniqueKeysWithValues: route.queryItems!.map { ($0.name, $0.value!) })
+        precondition(queries == ["pid": "123", "bundle-id": "com.example.probe+fixture", "script-name": "universal.js"])
+        var invalidRequestRejected = false
+        do { _ = try StikDebugRequest.make(bundleID: "", pid: -1) } catch { invalidRequestRejected = true }
+        precondition(invalidRequestRejected)
+        try journal.recordActivation(["url_open_accepted": true, "jit_verified": false, "fixture": true])
         func begin(_ kind: String) throws -> (PendingProbe, URL) {
             let run = PendingProbe(runID: UUID().uuidString, kind: kind, startedUTC: "synthetic-fixture",
                                    sourceCommit: "synthetic-fixture", build: "synthetic-fixture")
@@ -46,6 +55,8 @@ struct RecoveryJournalTests {
         precondition(journal.pendingSnapshot() == nil)
 
         let (another, _) = try begin("linux-fixture")
+        try journal.complete(runID: another.runID, result: Data("{\"status\":\"timed-out-engine-still-running\"}".utf8), clearPending: false)
+        precondition(journal.pendingSnapshot() != nil) // An engine alive after timeout keeps recovery capture.
         let prior = journal.pendingSnapshot()!
         let marker = journal.directory.appendingPathComponent("pending-run.json")
         try Data("different-marker-fixture".utf8).write(to: marker, options: .atomic)
@@ -79,6 +90,6 @@ struct RecoveryJournalTests {
         let serial = entries.first { $0["name"] as? String == "serial.log" }!
         precondition(serial["tail_truncated"] as? Bool == true && (serial["text"] as! String).utf8.count == 131072)
         _ = another
-        print("RECOVERY_GATE_OK: abrupt-exit stages/output, reopen marker, completion, retained/cancelled share, stale/corrupt marker, path/symlink exclusion and bounded tails")
+        print("RECOVERY_GATE_OK: abrupt-exit stages/output, reopen marker, completion/timeout, retained/cancelled share, stale/corrupt marker, path/symlink exclusion, bounded tails and exact StikDebug request")
     }
 }

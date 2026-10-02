@@ -42,7 +42,7 @@ jobs:
         run: |
           python3 -m unittest discover -s steamos-ios/tests -p 'test_*.py' -v
           clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host steamos-ios/Host/ProbeRecovery.mm steamos-ios/tests/RecoveryCaptureTests.mm -o /tmp/mpc-capture-tests
-          swiftc steamos-ios/Host/RecoveryJournal.swift steamos-ios/tests/RecoveryJournalTests.swift -o /tmp/mpc-recovery-tests
+          swiftc steamos-ios/Host/RecoveryJournal.swift steamos-ios/Host/StikDebugRequest.swift steamos-ios/tests/RecoveryJournalTests.swift -o /tmp/mpc-recovery-tests
           /tmp/mpc-recovery-tests /tmp/mpc-capture-tests
       - name: Compile the fresh Release ARM64 app
         run: |
@@ -83,6 +83,8 @@ jobs:
           Install with iLoader, enable StikDebug for My-pc SteamOS Probe, run the host probes, then Run Linux kernel gate. Keep the app foreground for up to three minutes. Close/relaunch before repeating Linux boot. Share device report; Linux serial and pending receipts are in the app's Files documents directory if it terminates or times out. Existing projects, game data and apps are not inputs.
 
           New crash recovery: a pending-test marker and fsynced native stage/output logs are saved before risky JIT/engine calls. If a test ends without a result, reopening offers Share logs. Later or cancelling sharing preserves the files; Share saved diagnostic logs remains available. A pending run alone cannot distinguish a crash, OS termination and force-close. The diagnostic export is private and never uploaded automatically. This logging update does not claim to fix the underlying JIT/Linux crash.
+
+          Enable JIT in StikDebug opens the official enable-jit route with this running app's bundle ID/PID and universal.js. Confirm StikDebug's request if prompted. Native JIT now prepares RX regions through the universal protocol, creates a writable alias and configures the pinned QEMU engine's legacy-region callback through that protocol. Linux initialization detaches after its initial TCG allocation. URL opening or a debugger flag is not called JIT success; actual code must return 42 and a new guest receipt must pass. Physical JIT/Linux results remain pending.
 
           QEMU is software system emulation through TCG, not iOS hardware virtualization. This is a disposable Linux test, not a replacement architecture for the requested SteamOS product. No Steam startup or Hollow Knight FPS target is claimed.
 
