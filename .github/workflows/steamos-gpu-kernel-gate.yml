@@ -1,0 +1,33 @@
+name: Fresh ARM virtio-GPU kernel device gate
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/gpu_kernel_probe.c', 'steamos-ios/Guest/init-gpu-kernel', 'steamos-ios/tools/build_gpu_guest_gate.sh', 'steamos-ios/tools/make_gpu_initramfs.py', 'steamos-ios/tools/run_gpu_kernel_gate.py', '.github/workflows/steamos-gpu-kernel-gate.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gpu-kernel:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM Linux build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc libc6-dev make flex bison bc libssl-dev libelf-dev rsync qemu-system-arm
+      - name: Build graphics-capable kernel and test actual device ioctls
+        run: bash steamos-ios/tools/build_gpu_guest_gate.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Source-Built-ARM-GPU-Kernel-Gate
+          path: |
+            steamos-ios/out/source-gpu-guest/GPU-Kernel-*.tar.gz
+            steamos-ios/out/source-gpu-guest/SHA256SUMS
+            steamos-ios/out/source-gpu-guest/UPSTREAM-SHA256SUMS
+            steamos-ios/out/source-gpu-guest/kernel.config
+            steamos-ios/out/source-gpu-guest/busybox.config
+            steamos-ios/out/source-gpu-guest/payload/*.json
+            steamos-ios/out/source-gpu-guest/payload/*.log
+          retention-days: 14

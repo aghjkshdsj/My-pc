@@ -16,6 +16,7 @@ paths += [root / 'evidence/primary/hosted-venus-shm-diagnostic.json']
 paths += [root / 'evidence/primary/ios-native-vulkan-prerelease.json']
 paths += [root / 'evidence/primary/hosted-ios-venus-build.json']
 paths += [root.parent / '.github/workflows/steamos-ios-venus.yml']
+paths += [root.parent / '.github/workflows/steamos-gpu-kernel-gate.yml']
 paths = sorted(set(paths))
 rows = [{'path': p.relative_to(root.parent).as_posix(), 'mode': '100644', 'type': 'blob',
          'content': p.read_text(encoding='utf-8')} for p in paths]
