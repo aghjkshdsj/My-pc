@@ -21,7 +21,10 @@ and its unneeded macOS IOKit dependency was removed in a verified rebuild.
 Native phone execution is pending. Hosted Venus serialized draws passed through
 the external-host SHM branch under an explicit test policy; the unmodified fd
 route failed. This is software Linux testing, not a completed guest Metal path.
-The source-built CPU engine, recovery and StikDebug adapter are packaged in Linux-gate-5.
+The source-built CPU engine, recovery and StikDebug adapter are packaged in Linux-gate-9,
+alongside a separate native offscreen Vulkan-to-Metal diagnostic. Build 4000008's
+phone attempt stopped at its pre-render framework hash check; the signing-compatible
+build 4000009 passed compilation and package verification, with phone rendering pending.
 Official rootfs/index metadata and 35 ARM client package URLs are resolved;
 full rootfs/client verification, installation and execution remain open.
 Native ARM64 JIT and Linux 6.12.111 boot/ABI checks passed on the actual iPhone

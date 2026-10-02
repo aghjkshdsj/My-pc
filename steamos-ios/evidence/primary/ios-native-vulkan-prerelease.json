@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "kind": "ios-linux-kernel-gate",
-  "commit": "396f76d0f8c2de55be9ea3e492865fb656b544f7",
-  "build": "4000008",
+  "commit": "2d557a6a8bc91bf21b77013558e16977684819eb",
+  "build": "4000009",
   "bundle_id": "com.aghjkshdsj.mypc.steamos.probe",
-  "sha256": "8283101d2a224cbb54cbdf5b25e665889e78744be8316364877dfdee1f8c57d9",
-  "bytes": 9526560,
+  "sha256": "ef2a64948b06c2d81712dd980d6eb71bcd374efb1ef64efb0e308fd0bd86a05b",
+  "bytes": 9528005,
   "zip_crc": "passed",
   "arm64_ios": true,
   "linux_gate_bundled": true,
@@ -24,9 +24,20 @@
   "compiled_jit_configuration_and_universal_abi_verified": true,
   "moltenvk_not_required_at_app_startup": true,
   "no_iokit_or_private_framework_imports": true,
+  "simulated_signature_metadata_change_preserves_actual_engine_code_identity": true,
+  "simulation_is_not_phone_signing_or_rendering_evidence": true,
   "phone_native_vulkan_verified": false,
-  "workflow_run": 37058292884,
+  "workflow_run": 37060102462,
   "hosted_adapter_test_run": 37058894960,
-  "synthetic_evidence_tests_passed": 26,
-  "scope": "independently-verified-public-ios-prerelease-no-phone-graphics-proof"
+  "synthetic_evidence_tests_passed": 30,
+  "scope": "independently-verified-public-ios-prerelease-no-phone-graphics-proof",
+  "supersedes_build": "4000008",
+  "historical_phone_result": {
+    "build": "4000008",
+    "status": "failed",
+    "stage": "payload-sha256",
+    "input": "MoltenVK",
+    "renderer_started": false,
+    "limit": "Report has no copy of the signed engine; re-signing interpretation follows the runtime hash check and offline signing simulation."
+  }
 }
