@@ -5,6 +5,7 @@ import json
 import os
 import pathlib
 import plistlib
+import re
 import shutil
 import subprocess
 import tarfile
@@ -157,6 +158,26 @@ def build():
         assert text.count(old) == 1
         text = text.replace(old, 'static_cast<mtl::BlitParams &>(' + name + ') = baseParams;')
     framebuffer.write_text(text, encoding='utf-8')
+    # The iOS shim uses a runtime GLES dispatch library, so its path is absent
+    # from Mach-O import auditing. Our signed frameworks require explicit rpath
+    # lookup. Keep the generated implementation and its generator consistent.
+    dispatch_pattern = (r'    gEntryPointsLib = OpenSystemLibraryAndGetError\(ANGLE_DISPATCH_LIBRARY,\s*'
+                        r'angle::SearchType::ModuleDir, &errorOut\);')
+    dispatch_replacement = '''#if defined(ANGLE_PLATFORM_IOS_FAMILY)
+    const std::string dispatchPath = std::string("@rpath/") + ANGLE_DISPATCH_LIBRARY +
+                                     ".framework/" + ANGLE_DISPATCH_LIBRARY;
+    gEntryPointsLib = angle::OpenSystemLibraryWithExtensionAndGetError(
+        dispatchPath.c_str(), angle::SearchType::SystemDir, &errorOut);
+#else
+    gEntryPointsLib = OpenSystemLibraryAndGetError(ANGLE_DISPATCH_LIBRARY,
+                                                angle::SearchType::ModuleDir, &errorOut);
+#endif'''
+    for relative in ['src/libEGL/libEGL_autogen.cpp', 'scripts/generate_entry_points.py']:
+        path = engine / relative
+        text = path.read_text(encoding='utf-8')
+        text, count = re.subn(dispatch_pattern, lambda _: dispatch_replacement, text)
+        assert count == 1, relative
+        path.write_text(text, encoding='utf-8')
     cache_wrapper = source / 'Tools/ccache/ccache-wrapper'
     text = cache_wrapper.read_text(encoding='utf-8')
     old = 'CCACHE_SLOPPINESS="pch_defines,time_macros" '
@@ -217,6 +238,7 @@ def build():
             assert dependency.startswith('@rpath/'), dependency
             assert (output / 'Frameworks' / dependency.removeprefix('@rpath/')).is_file(), dependency
     assert '/System/Library/Frameworks/Metal.framework/Metal' in imports['GLESv2']
+    assert b'@rpath/' in binaries[0].read_bytes()
     receipt = {'schema': 1, 'scope': 'source-built-native-ios-angle-engine-compile-only',
                'source_commit': os.environ.get('GITHUB_SHA'), 'workflow_run': os.environ.get('GITHUB_RUN_ID'),
                'engine_repository': REPOSITORY, 'engine_commit': REVISION, 'source_paths': DIRECTORIES,
@@ -224,6 +246,7 @@ def build():
                'sdk_version': capture('xcrun', '--sdk', 'iphoneos', '--show-sdk-version'),
                'command': command, 'public_ios_sdk': True, 'metal_owner_identity_enabled': False,
                'physical_ios_arm64': True, 'metal_backend_compiled': True,
+               'egl_dispatch_framework_path': '@rpath/GLESv2.framework/GLESv2',
                'opengl_es_backend_compiled': True, 'phone_tested': False,
                'linux_graphics_verified': False, 'metal_runtime_verified': False,
                'presentation_verified': False, 'gameplay_verified': False,
