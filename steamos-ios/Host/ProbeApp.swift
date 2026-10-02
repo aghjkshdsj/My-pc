@@ -19,6 +19,7 @@ final class ProbeModel: ObservableObject {
     @Published var logShare: DiagnosticShare?
     @Published var engineNeedsRelaunch = false
     @Published var jitActivationMessage = ""
+    @Published var preparingLogShare = false
     private var requestedStikDebug = false
     private var facts: [String: Any] = [:]
     private let journal = RecoveryJournal(documents: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0])
@@ -45,12 +46,23 @@ final class ProbeModel: ObservableObject {
     }
 
     func shareRecovery() {
+        guard !preparingLogShare else { return }
+        preparingLogShare = true
         do {
             let url = try journal.shareReport(snapshot: recoveredSnapshot ?? journal.pendingSnapshot())
             recoveredLogURL = url
             acknowledgeRecovery()
-            logShare = DiagnosticShare(url: url)
-        } catch { report = "Could not prepare diagnostic logs: \(error.localizedDescription)" }
+            showRecovery = false
+            // Present after the alert's dismissal animation, not while UIKit
+            // still owns that modal. File preparation remains synchronous.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.logShare = DiagnosticShare(url: url)
+                self.preparingLogShare = false
+            }
+        } catch {
+            preparingLogShare = false
+            report = "Could not prepare diagnostic logs: \(error.localizedDescription)"
+        }
     }
 
     func enableStikDebug() {
@@ -185,7 +197,7 @@ struct ProbeScreen: View {
                     if model.engineNeedsRelaunch { Text("The Linux engine timed out and may still be running. Share the logs, then close and relaunch before another test.").font(.callout) }
                     if let url = model.exportURL { ShareLink("Share device report", item: url) }
                     Button("Share saved diagnostic logs") { model.shareRecovery() }
-                        .buttonStyle(.bordered).disabled(model.busy)
+                        .buttonStyle(.bordered).disabled(model.busy || model.preparingLogShare)
                     if let url = model.recoveredLogURL { ShareLink("Share previous interrupted test logs", item: url) }
                     Text(model.report).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                 }.padding()
