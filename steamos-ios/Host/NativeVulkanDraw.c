@@ -1,12 +1,18 @@
 /* Fresh native-host adapter of our own shared offscreen diagnostic.
  * No Linux execution, presentation, or gameplay is performed here. */
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <setjmp.h>
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <unistd.h>
 #if __has_include(<vulkan/vulkan.h>)
 #include <vulkan/vulkan.h>
 static _Thread_local jmp_buf mpc_abort;
+static _Thread_local FILE *mpc_receipt;
 static _Noreturn void mpc_abort_draw(int code) {
     fflush(stdout); fflush(stderr);
     longjmp(mpc_abort, code ? code : 1);
@@ -131,10 +137,12 @@ static PFN_vkWaitForFences mpc_vkWaitForFences;
 #define vkWaitForFences mpc_vkWaitForFences
 #define exit(code) mpc_abort_draw(code)
 #define main mpc_shared_vulkan_main
+#define MPC_VK_DIAGNOSTIC_STREAM mpc_receipt
+#define MPC_VK_DIAGNOSTIC_PREFIX ""
 #include "../Guest/vk_gate.c"
 #undef main
 #undef exit
-int MPCNativeVulkanDraw(void *library, const char *vertex, const char *fragment) {
+int MPCNativeVulkanDraw(void *library, const char *vertex, const char *fragment, const char *receipt_path) {
     mpc_vkAllocateCommandBuffers = (PFN_vkAllocateCommandBuffers)dlsym(library, "vkAllocateCommandBuffers");
     if (!mpc_vkAllocateCommandBuffers) { fprintf(stderr, "Missing Vulkan export: vkAllocateCommandBuffers\\n"); return 90; }
     mpc_vkAllocateMemory = (PFN_vkAllocateMemory)dlsym(library, "vkAllocateMemory");
@@ -254,16 +262,27 @@ int MPCNativeVulkanDraw(void *library, const char *vertex, const char *fragment)
     mpc_vkWaitForFences = (PFN_vkWaitForFences)dlsym(library, "vkWaitForFences");
     if (!mpc_vkWaitForFences) { fprintf(stderr, "Missing Vulkan export: vkWaitForFences\\n"); return 90; }
     atomic_store(&validation_errors, 0);
+    int receipt_fd = open(receipt_path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    if (receipt_fd < 0) { perror("Vulkan receipt open"); return 92; }
+    mpc_receipt = fdopen(receipt_fd, "w");
+    if (!mpc_receipt) { close(receipt_fd); perror("Vulkan receipt stream"); return 92; }
     int interrupted = setjmp(mpc_abort);
-    if (interrupted) return interrupted;
-    char *arguments[] = {"native-vulkan-diagnostic", (char *)vertex, (char *)fragment};
-    int result = mpc_shared_vulkan_main(3, arguments);
+    int result = interrupted;
+    if (!interrupted) {
+        char *arguments[] = {"native-vulkan-diagnostic", (char *)vertex, (char *)fragment};
+        result = mpc_shared_vulkan_main(3, arguments);
+    }
+    int flush_failed = fflush(mpc_receipt);
+    int stream_failed = ferror(mpc_receipt);
+    int sync_failed = fsync(fileno(mpc_receipt));
+    int close_failed = fclose(mpc_receipt);
+    mpc_receipt = NULL;
     fflush(stdout); fflush(stderr);
-    return result;
+    return flush_failed || stream_failed || sync_failed || close_failed ? 93 : result;
 }
 #else
-int MPCNativeVulkanDraw(void *library, const char *vertex, const char *fragment) {
-    (void)library; (void)vertex; (void)fragment;
+int MPCNativeVulkanDraw(void *library, const char *vertex, const char *fragment, const char *receipt_path) {
+    (void)library; (void)vertex; (void)fragment; (void)receipt_path;
     return 91; /* This host-only build did not receive pinned Vulkan headers. */
 }
 #endif

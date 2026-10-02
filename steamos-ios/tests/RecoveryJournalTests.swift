@@ -51,6 +51,12 @@ struct RecoveryJournalTests {
         let (normal, normalFolder) = try begin("host-fixture")
         let normalResult = try child(normalFolder, "normal")
         precondition(normalResult.0 == 0 && normalResult.1 == "stdout-restored\n")
+        try Data("{\"synthetic_vulkan_receipt\":true}".utf8).write(to: normalFolder.appendingPathComponent("vulkan-diagnostic.json"))
+        let graphicsExport = try journal.shareReport(snapshot: journal.pendingSnapshot())
+        let graphicsObject = try JSONSerialization.jsonObject(with: Data(contentsOf: graphicsExport)) as! [String: Any]
+        let graphicsFiles = graphicsObject["files"] as! [[String: Any]]
+        precondition(graphicsFiles.contains { $0["name"] as? String == "vulkan-diagnostic.json" &&
+            ($0["text"] as? String)?.contains("synthetic_vulkan_receipt") == true })
         try journal.complete(runID: normal.runID, result: Data("{\"fixture_completed\":true}".utf8))
         precondition(journal.pendingSnapshot() == nil)
 

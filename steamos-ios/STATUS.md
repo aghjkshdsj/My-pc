@@ -51,6 +51,15 @@ actual ARM64 iOS compile, recovery tests, 30 evidence tests and independent publ
 IPA checks passed. Actual phone rendering through this graphics gate remains pending.
 The supplied build 4000008 phone report failed the whole-file MoltenVK hash check
 at `payload-sha256`, before loading the renderer. It does not show a render failure.
+The supplied build 4000009 report passed executable-code identity, loaded MoltenVK
+and returned from the native draw with exit 0 in 562.53 ms, without StikDebug.
+Its parsed diagnostic object was empty, so GPU identity/pixel/checksum acceptance
+remains false. This is not accepted as an offscreen graphics pass. The exact
+mixed-output capture/parsing failure cause is unproven without the saved output.
+Build 4000010 is prepared with a separate exclusive-create, flushed/fsynced JSON
+receipt, bounded engine output in reports and receipt-preserving recovery sharing.
+It retains all hardware/pixel checks. Local source checks and 31 evidence tests
+passed; its actual iOS compile, hosted draw regression and public IPA are pending.
 
 Primary sources: [allocator](https://github.com/utmapp/qemu/blob/v10.0.12-utm/tcg/region.c),
 [TCG defaults](https://github.com/utmapp/qemu/blob/v10.0.12-utm/accel/tcg/tcg-all.c).
@@ -110,7 +119,7 @@ for the requested SteamOS product.
 | Source-built ARM64 iOS QEMU engine/dependencies | [37014232362](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232362) | Phone loader and CPU gate passed after allocation configuration fix |
 | Source-built Linux/BusyBox ABI gate | [37014232445](https://github.com/aghjkshdsj/My-pc/actions/runs/37014232445) | Hosted and build 4000007 phone boot passed; no SteamOS image yet |
 | Hosted GL/Vulkan diagnostics | [37035517982](https://github.com/aghjkshdsj/My-pc/actions/runs/37035517982) | Software rendering only; explicitly rejected as acceleration |
-| Corrected native iOS MoltenVK compile/package | [37056046870](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046870) | Unneeded IOKit link removed; actual phone loader/rendering pending |
+| Corrected native iOS MoltenVK compile/package | [37056046870](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046870) | Phone load and draw return 0 observed in build 4000009; pixel/GPU receipt missing, accepted rendering pending |
 | Hosted Venus external-host SHM test | [37056046909](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046909) | Real serialized draws passed under explicit test override; software Linux host, not phone Metal |
 
 Vulkan rendered two 1280×720 images, checked all 1,843,200 pixels, channel sum
@@ -124,7 +133,8 @@ dependencies produced a physical-iOS ARM64 library and corresponding source.
 Receipt: `evidence/primary/hosted-moltenvk-build.json`. The first compiled engine
 had a required macOS IOKit load command. The corrected source-built iOS target
 omits that framework; its final imports contain no IOKit. Both engine variants
-and the original failure remain documented. Actual phone loading is still required.
+and the original failure remain documented. Phone loading and draw return 0 were
+observed in build 4000009, with complete GPU/pixel evidence still required.
 The GL classification rerun passed with isolated Xvfb display selection.
 Venus-only server configuration resolved its excluded-EGL initialization failure.
 The unmodified Linux-native fd route then failed resource export; the explicit

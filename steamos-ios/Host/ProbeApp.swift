@@ -108,7 +108,7 @@ final class ProbeModel: ObservableObject {
     func run(kind: String) {
         guard !busy && !engineNeedsRelaunch else { return }
         busy = true
-        testStatus = "Starting \(kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : "host probes")…"
+        testStatus = "Starting \(kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : kind == "vulkan" ? "native Vulkan → Metal check" : "host probes")…"
         exportURL = nil
         let runID = UUID().uuidString
         activeRunID = runID

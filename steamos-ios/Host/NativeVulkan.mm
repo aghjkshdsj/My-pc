@@ -5,7 +5,7 @@
 #include <mach/machine.h>
 #include <string.h>
 
-extern "C" int MPCNativeVulkanDraw(void *, const char *, const char *);
+extern "C" int MPCNativeVulkanDraw(void *, const char *, const char *, const char *);
 static NSString *digest(NSData *data) {
     unsigned char value[CC_SHA256_DIGEST_LENGTH];
     CC_SHA256(data.bytes, static_cast<CC_LONG>(data.length), value);
@@ -82,29 +82,38 @@ NSDictionary *MPCNativeVulkanProbe(NSString *diagnosticDirectory) {
         MPCDiagnosticStage(@"native-vulkan-engine-loaded", @{});
         NSString *vertex = [payload stringByAppendingPathComponent:@"vertex.spv"];
         NSString *fragment = [payload stringByAppendingPathComponent:@"fragment.spv"];
+        NSString *drawReceipt = [diagnosticDirectory stringByAppendingPathComponent:@"vulkan-diagnostic.json"];
         MPCDiagnosticStage(@"native-vulkan-before-two-shader-draws", @{});
         double start = NSProcessInfo.processInfo.systemUptime;
-        int result = MPCNativeVulkanDraw(library, vertex.fileSystemRepresentation, fragment.fileSystemRepresentation);
+        int result = MPCNativeVulkanDraw(library, vertex.fileSystemRepresentation, fragment.fileSystemRepresentation,
+            drawReceipt.fileSystemRepresentation);
         double elapsed = (NSProcessInfo.processInfo.systemUptime - start) * 1000;
         MPCDiagnosticStage(@"native-vulkan-draw-returned", @{@"exit_status": @(result)});
-        NSString *output = [NSString stringWithContentsOfFile:[diagnosticDirectory stringByAppendingPathComponent:@"engine-output.log"]
-            encoding:NSUTF8StringEncoding error:nil] ?: @"";
-        NSMutableArray *rows = [NSMutableArray array];
-        for (NSString *line in [output componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
-            if (![line hasPrefix:@"MPC_VK_DIAGNOSTIC "]) continue;
-            NSData *data = [[line substringFromIndex:18] dataUsingEncoding:NSUTF8StringEncoding];
-            id value = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            if ([value isKindOfClass:NSDictionary.class]) [rows addObject:value];
-        }
-        NSDictionary *draw = rows.count == 1 ? rows[0] : @{};
-        BOOL correct = result == 0 && rows.count == 1 && [draw[@"software"] isEqual:@NO] &&
+        // The receipt is independent of mixed engine stdout/stderr and its encoding.
+        NSData *receiptData = [NSData dataWithContentsOfFile:drawReceipt];
+        NSError *parseError = nil;
+        id parsed = receiptData.length && receiptData.length <= 1024 * 1024
+            ? [NSJSONSerialization JSONObjectWithData:receiptData options:0 error:&parseError] : nil;
+        NSDictionary *draw = [parsed isKindOfClass:NSDictionary.class] ? parsed : @{};
+        NSData *output = [NSData dataWithContentsOfFile:[diagnosticDirectory stringByAppendingPathComponent:@"engine-output.log"]];
+        NSData *tail = output.length > 16384 ? [output subdataWithRange:NSMakeRange(output.length - 16384, 16384)] : output;
+        NSString *outputTail = tail ? [[NSString alloc] initWithData:tail encoding:NSUTF8StringEncoding] : nil;
+        if (!outputTail && tail) outputTail = [[NSString alloc] initWithData:tail encoding:NSISOLatin1StringEncoding];
+        BOOL correct = result == 0 && draw.count && [draw[@"software"] isEqual:@NO] &&
             [draw[@"width"] intValue] == 1280 && [draw[@"height"] intValue] == 720 &&
             [draw[@"shader_phases"] intValue] == 2 && [draw[@"pixels_checked"] intValue] == 1843200 &&
             [draw[@"mismatches"] isEqual:@0] && [draw[@"channel_sum"] unsignedLongLongValue] == UINT64_C(1219256320) &&
             [draw[@"validation_errors"] isEqual:@0] && [draw[@"vendor_id"] intValue] == 0x106b &&
             [draw[@"device_type"] intValue] == 1;
+        NSString *stage = result ? @"native-draw-error" : !draw.count ? @"diagnostic-receipt-unavailable"
+            : correct ? @"native-vulkan-verified" : @"diagnostic-validation";
+        MPCDiagnosticStage(@"native-vulkan-receipt-checked", @{@"stage": stage, @"receipt_bytes": @(receiptData.length)});
         return @{@"schema": @1, @"scope": @"physical-ios-native-vulkan-offscreen-gate",
             @"status": correct ? @"passed" : @"failed", @"exit_status": @(result), @"elapsed_ms": @(elapsed),
+            @"stage": stage, @"diagnostic_source": @"dedicated-fsynced-json-receipt",
+            @"diagnostic_receipt_bytes": @(receiptData.length),
+            @"diagnostic_parse_error": parseError.localizedDescription ?: @"",
+            @"engine_output_tail": outputTail ?: @"",
             @"diagnostic": draw, @"payload": receipt, @"native_vulkan_to_metal_verified": @(correct),
             @"engine_text_section": engineCode, @"engine_text_section_matches": @YES,
             @"observed_signed_framework_sha256": digest(engine),

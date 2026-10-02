@@ -39,5 +39,14 @@
     "input": "MoltenVK",
     "renderer_started": false,
     "limit": "Report has no copy of the signed engine; re-signing interpretation follows the runtime hash check and offline signing simulation."
+  },
+  "phone_build4000009_result": {
+    "engine_code_identity_matched": true,
+    "engine_loaded": true,
+    "draw_exit_status": 0,
+    "elapsed_ms": 562.53,
+    "diagnostic_empty": true,
+    "native_vulkan_verified": false,
+    "limit": "Complete pixel/GPU receipt is missing; exact mixed-output failure cause is unproven. Raw report remains private."
   }
 }

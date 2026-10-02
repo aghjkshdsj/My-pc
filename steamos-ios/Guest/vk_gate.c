@@ -4,10 +4,26 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdatomic.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
+
+/* The native adapter supplies a private receipt stream. Linux keeps stdout. */
+#ifndef MPC_VK_DIAGNOSTIC_STREAM
+#define MPC_VK_DIAGNOSTIC_STREAM stdout
+#endif
+#ifndef MPC_VK_DIAGNOSTIC_PREFIX
+#define MPC_VK_DIAGNOSTIC_PREFIX "MPC_VK_DIAGNOSTIC "
+#endif
+static void receipt_printf(const char *format, ...) {
+    va_list arguments;
+    va_start(arguments, format);
+    vfprintf(MPC_VK_DIAGNOSTIC_STREAM, format, arguments);
+    va_end(arguments);
+}
+static void receipt_putc(int value) { fputc(value, MPC_VK_DIAGNOSTIC_STREAM); }
 
 enum { WIDTH = 1280, HEIGHT = 720, BYTES = WIDTH * HEIGHT * 4 };
 static atomic_uint validation_errors;
@@ -23,13 +39,13 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL validation(
     return VK_FALSE;
 }
 static void json_string(const char *value) {
-    putchar('"');
+    receipt_putc('"');
     for (const unsigned char *p = (const unsigned char *)value; *p; ++p) {
-        if (*p == '"' || *p == '\\') printf("\\%c", *p);
-        else if (*p < 32) printf("\\u%04x", *p);
-        else putchar(*p);
+        if (*p == '"' || *p == '\\') receipt_printf("\\%c", *p);
+        else if (*p < 32) receipt_printf("\\u%04x", *p);
+        else receipt_putc(*p);
     }
-    putchar('"');
+    receipt_putc('"');
 }
 static int software(const VkPhysicalDeviceProperties *p) {
     return p->deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU || mpc_renderer_is_software(p->deviceName);
@@ -305,9 +321,9 @@ int main(int argc, char **argv) {
     vkDestroyImageView(device, view, NULL); vkDestroyImage(device, image, NULL); vkFreeMemory(device, image_memory, NULL);
     vkDestroyBuffer(device, buffer, NULL); vkFreeMemory(device, buffer_memory, NULL); vkDestroyDevice(device, NULL);
     struct utsname machine; if (uname(&machine)) return 6;
-    printf("MPC_VK_DIAGNOSTIC {\"machine\":"); json_string(machine.machine);
-    printf(",\"renderer\":"); json_string(props.deviceName);
-    printf(",\"api_version\":%u,\"driver_version\":%u,\"vendor_id\":%u,\"device_id\":%u,\"device_type\":%u,"
+    receipt_printf(MPC_VK_DIAGNOSTIC_PREFIX "{\"machine\":"); json_string(machine.machine);
+    receipt_printf(",\"renderer\":"); json_string(props.deviceName);
+    receipt_printf(",\"api_version\":%u,\"driver_version\":%u,\"vendor_id\":%u,\"device_id\":%u,\"device_type\":%u,"
            "\"software\":%s,\"width\":%u,\"height\":%u,\"pixels_checked\":%u,\"shader_phases\":2,"
            "\"mismatches\":%" PRIu64 ",\"channel_sum\":%" PRIu64 ",\"validation_enabled\":%s,\"synchronization_validation_requested\":%s,"
            "\"validation_errors\":%u,\"queue_family\":%u,\"rgba8_optimal_features\":%u,\"readback_memory_flags\":%u,"
@@ -320,8 +336,8 @@ int main(int argc, char **argv) {
            props.limits.maxImageDimension2D, props.limits.maxMemoryAllocationCount, (uint64_t)props.limits.nonCoherentAtomSize,
            features.geometryShader ? "true" : "false", features.tessellationShader ? "true" : "false",
            features.multiDrawIndirect ? "true" : "false", features.samplerAnisotropy ? "true" : "false");
-    for (uint32_t i = 0; i < ext_count; ++i) { if (i) putchar(','); json_string(exts[i].extensionName); }
-    printf("],\"metal_host_verified\":false,\"presentation_verified\":false,\"game_fps_verified\":false}\n");
+    for (uint32_t i = 0; i < ext_count; ++i) { if (i) receipt_putc(','); json_string(exts[i].extensionName); }
+    receipt_printf("],\"metal_host_verified\":false,\"presentation_verified\":false,\"game_fps_verified\":false}\n");
     free(exts);
     if (validated) {
         PFN_vkDestroyDebugUtilsMessengerEXT destroy_debug =
@@ -329,5 +345,6 @@ int main(int argc, char **argv) {
         destroy_debug(instance, messenger, NULL);
     }
     vkDestroyInstance(instance, NULL);
+    if (fflush(MPC_VK_DIAGNOSTIC_STREAM) || ferror(MPC_VK_DIAGNOSTIC_STREAM)) return 8;
     return mismatches || atomic_load(&validation_errors) ? 7 : 0;
 }

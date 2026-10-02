@@ -49,6 +49,10 @@ hash check before loading the renderer. The corrected gate verifies executable
 code identity independently of iLoader's signing metadata; complete original
 unsigned IPA and shader hashes remain exact. The correction has passed compilation,
 offline verification and signing-metadata simulation, with phone rendering pending.
+The returned build 4000009 phone report passed engine identity and draw exit 0,
+but its pixel/renderer diagnostic was empty and was rejected as incomplete proof.
+Build 4000010 is prepared to save a dedicated fsynced JSON receipt and preserve it
+in recovery sharing. Its iOS compile, real hosted draw regression and release are pending.
 
 The owner confirmed iPhone 15 Pro Max, iOS 27.0.1, iLoader and StikDebug on
 2026-10-02. The probe records the actual OS build, page size, code-signing state,

@@ -131,7 +131,7 @@ final class RecoveryJournal {
         if let run, let folder = try? runDirectory(run.runID) { folders = [folder] }
         else { folders = recent(directory, prefix: "", maximum: 3, runDirectoriesOnly: true) }
         for folder in folders {
-            for name in ["run.json", "before.json", "stages.jsonl", "engine-output.log", "result.json"] {
+            for name in ["run.json", "before.json", "stages.jsonl", "engine-output.log", "vulkan-diagnostic.json", "result.json"] {
                 if var entry = try? textFile(folder.appendingPathComponent(name)) {
                     entry["relative_directory"] = "ProbeDiagnostics/" + folder.lastPathComponent
                     entries.append(entry)

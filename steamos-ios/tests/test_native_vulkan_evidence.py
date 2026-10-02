@@ -54,3 +54,10 @@ class NativeVulkanEvidenceTests(unittest.TestCase):
         for key in ['steam_arm_client', 'fex_game', 'linux_game_graphics_to_metal', 'hollow_knight_60_to_80_base_fps']:
             row = self.fixture(); row['acceptance'][key] = True
             with self.assertRaises(ValueError): self.check(row)
+
+    def test_exit_zero_without_complete_draw_receipt_is_rejected(self):
+        row = self.fixture(); row['tests']['native_vulkan']['diagnostic'] = {}
+        with self.assertRaises(ValueError): self.check(row)
+        for key in ('machine', 'vendor_id', 'pixels_checked', 'mismatches', 'channel_sum'):
+            row = self.fixture(); del row['tests']['native_vulkan']['diagnostic'][key]
+            with self.assertRaises(ValueError): self.check(row)
