@@ -21,6 +21,15 @@ pending; hosted ARM kernel tests and iOS build/package checks passed.
 `d7eb3db958794bcf653b10e0d7b199a745ce61ba1cb2b1dae6169b61d5652430`).
 [Exact source, checksums and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-2).
 
+Latest: [Linux-gate-5 / build 4000006 IPA](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-linux-gate-5/MyPCSteamOS-Linux-Gate.ipa),
+with reopen-and-share recovery, an in-app StikDebug activation button and the
+universal executable-region protocol. 8,069,591 bytes, SHA-256
+`adc3e7abd2afc736bd424ed66bd6a32cdcdbd9f6921deefc5dc56225055d100a`.
+Source commit `dac0d7d6d4f8c10100e986cf67e9adc3668e792b`.
+[Corresponding source and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-5).
+Hosted recovery tests and iOS compilation passed; the public IPA was independently
+downloaded and checked. Updated phone JIT/Linux/recovery UI results remain pending.
+
 The owner confirmed iPhone 15 Pro Max, iOS 27.0.1, iLoader and StikDebug on
 2026-10-02. The probe records the actual OS build, page size, code-signing state,
 Metal device, memory, thermal state and Low Power Mode. Controller enumeration

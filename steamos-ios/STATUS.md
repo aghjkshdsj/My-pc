@@ -99,13 +99,29 @@ abrupt-exit/recovery and iOS compile/package checks are required before release;
 the popup still needs verification on the phone. This change instruments the
 JIT/Linux failure and does not claim that its cause is fixed.
 
-The next build 4000005 adds Enable JIT in StikDebug with actual bundle ID/PID
+Builds 4000005/4000006 add Enable JIT in StikDebug with actual bundle ID/PID
 and universal.js, observed get-task-allow/current debugger checks, RX/writable
 alias preparation through the universal protocol, a fixed callback for the
 pinned QEMU allocator's legacy 0x69 region breakpoint, and detach after QEMU's
 initial code allocation. The supplied old host report contained no JIT/Linux
 receipt. The previous RW-to-RX probe and QEMU breakpoint mismatch are source
 findings, not a proven crash diagnosis. Updated phone JIT/boot results are needed.
+
+Final [Linux-gate-5 / build 4000006](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-linux-gate-5)
+passed [run 37024755837](https://github.com/aghjkshdsj/My-pc/actions/runs/37024755837):
+13 evidence tests; real hosted subprocess abrupt exit with fsynced stage/output;
+reopen/completed/timeout marker behavior; cancelled/retained exports; corrupt and
+stale markers; path/symlink exclusion; bounded tails; exact StikDebug URL fields;
+and actual ARM64 iOS Release compilation. The share sheet waits for the recovery
+alert dismissal and prevents duplicate requests.
+
+Independent public IPA verification: 8,069,591 bytes, SHA-256
+`adc3e7abd2afc736bd424ed66bd6a32cdcdbd9f6921deefc5dc56225055d100a`,
+source `dac0d7d6d4f8c10100e986cf67e9adc3668e792b`. Complete ZIP CRC, physical-iOS
+ARM64 executable/frameworks, dependency closure and bundled kernel hashes passed.
+The three compiled universal ABI wrappers also contain their exact ARM64
+command/breakpoint/return sequences. These build checks are not phone JIT,
+Linux boot, UI-popup or gameplay proof. No private report was uploaded.
 
 Install Linux-gate-2 with iLoader. Run Metal/storage/native CPU probes, enable
 StikDebug for **My-pc SteamOS Probe**, run the JIT check, then **Run Linux kernel
