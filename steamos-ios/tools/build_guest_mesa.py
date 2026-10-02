@@ -62,8 +62,18 @@ def build():
     arm_elf(venus)
     for name in ['EGL', 'GLESv2', 'gbm']:
         arm_elf((staging / 'usr/lib' / ('lib' + name + '.so')).resolve(strict=True))
-    drivers = list((staging / 'usr/lib/dri').glob('*virtio*'))
-    assert drivers, 'Real virtio Gallium driver must be installed'
+    # This release installs one versioned Gallium DSO, without old *_dri aliases.
+    gallium = staging / ('usr/lib/libgallium-' + VERSION + '.so')
+    arm_elf(gallium)
+    settings = {x['name']: x['value'] for x in json.loads(
+        (directory / 'meson-info/intro-buildoptions.json').read_text(encoding='utf-8'))}
+    assert settings['gallium-drivers'] == ['virgl'] and settings['vulkan-drivers'] == ['virtio']
+    commands = json.loads((directory / 'compile_commands.json').read_text(encoding='utf-8'))
+    target_commands = [x for x in commands if x['file'].endswith('/dri_target.c')]
+    assert len(target_commands) == 1
+    command = target_commands[0].get('command') or ' '.join(target_commands[0]['arguments'])
+    assert '-DGALLIUM_VIRGL' in command, 'Unified driver must include virgl, not its stub'
+    assert '_mesa_glapi_get_proc_address' in capture('nm', '-D', '--defined-only', str(gallium))
     manifests = list((staging / 'usr/share/vulkan/icd.d').glob('virtio*.json'))
     assert len(manifests) == 1
     icd = json.loads(manifests[0].read_text(encoding='utf-8'))
@@ -93,7 +103,9 @@ def build():
     (output / 'missing-device.log').write_text(result.stdout + result.stderr, encoding='utf-8')
     # External Linux runtime libraries/loader remain dependencies, not secretly
     # included in this archive. Their exact packages are recorded for payload work.
-    dependencies = {p.name: capture('ldd', str(p)) for p in [venus, executable]}
+    runtime = [p for p in staging.rglob('*') if p.is_file() and not p.is_symlink()
+               and p.open('rb').read(4) == b'\x7fELF']
+    dependencies = {p.name: capture('ldd', str(p)) for p in runtime + [executable]}
     packages = capture('dpkg-query', '-W', '-f=${binary:Package}\t${Version}\t${source:Package}\t${source:Version}\n')
     (output / 'external-linux-packages.tsv').write_text(packages + '\n', encoding='utf-8')
     binaries = [p for p in staging.rglob('*') if p.is_file() and not p.is_symlink()]
