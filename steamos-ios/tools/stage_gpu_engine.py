@@ -20,6 +20,9 @@ def stage(artifact, prefix):
     assert all(receipt[name] is True for name in ['physical_ios_arm64', 'egl_backend_compiled',
                                                 'venus_backend_compiled', 'same_process_thread_renderer'])
     assert receipt['phone_tested'] is False and receipt['linux_graphics_verified'] is False
+    assert receipt['failure_diagnostics']['failure_errno_and_stage_compiled'] is True
+    assert receipt['failure_diagnostics']['allocator_policy_changed'] is False
+    assert receipt['failure_diagnostics']['success_override'] is False
     unpacked = prefix.parent / 'gpu-dependency-input'
     assert not unpacked.exists()
     unpacked.mkdir()

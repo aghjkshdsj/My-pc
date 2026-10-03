@@ -63,12 +63,25 @@ def transform(name, text):
         return text
     if name == 'hw/display/virtio-gpu-virgl.c':
         assert 'MPC: keep ANGLE renderer contexts in GLES mode' not in text
-        return replace(text, '    uint32_t flags = 0;\n    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);',
+        text = replace(text, '    uint32_t flags = 0;\n    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);',
                        '    uint32_t flags = 0;\n    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);\n'
                        '    /* MPC: keep ANGLE renderer contexts in GLES mode. */\n'
                        '    if (qemu_egl_mode == DISPLAY_GL_MODE_ES) {\n'
                        '        flags |= VIRGL_RENDERER_USE_GLES;\n'
                        '    }')
+        return replace(text, '        virgl_renderer_context_create_with_flags(cc.hdr.ctx_id,\n'
+            '                                                 cc.context_init,\n'
+            '                                                 cc.nlen,\n'
+            '                                                 cc.debug_name);',
+            '        int result = virgl_renderer_context_create_with_flags(cc.hdr.ctx_id,\n'
+            '                                                            cc.context_init,\n'
+            '                                                            cc.nlen,\n'
+            '                                                            cc.debug_name);\n'
+            '        fprintf(stderr, "MPC_GPU_CONTEXT_CREATE ctx=%u capset=%u result=%d\\n",\n'
+            '                cc.hdr.ctx_id, cc.context_init & 0xff, result);\n'
+            '        if (result != 0) {\n'
+            '            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;\n'
+            '        }')
     if name == 'ui/egl-headless.c':
         # Native preflight calls the real built-in backend registration before
         # qemu_init can take its process-fatal unavailable-display path. The
@@ -111,6 +124,7 @@ def patch(source, output):
                'files': files, 'metal_backend_explicitly_requested': True,
                'root_gles_version_requested': 3,
                'builtin_headless_registration_preflight': True,
+               'context_create_result_checked': True,
                'steady_state_presenter': False, 'phone_tested': False,
                'guest_graphics_verified': False, 'presentation_verified': False}
     (output / 'gpu-adapter-source.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')

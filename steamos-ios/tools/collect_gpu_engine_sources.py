@@ -51,6 +51,7 @@ def collect(root, graphics_artifact):
     data = engine.read_bytes()
     assert b'virtio-gpu-gl' in data and b'egl-headless' in data
     assert b'MPC ANGLE Metal root context creation failed' in data
+    assert b'MPC_GPU_CONTEXT_CREATE' in data, 'Context result diagnostic was not compiled'
     imports = {}
     for info_path in frameworks.glob('*.framework/Info.plist'):
         info = plistlib.loads(info_path.read_bytes())
