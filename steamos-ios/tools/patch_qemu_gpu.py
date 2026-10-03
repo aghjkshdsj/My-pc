@@ -69,13 +69,25 @@ def transform(name, text):
                        '    if (qemu_egl_mode == DISPLAY_GL_MODE_ES) {\n'
                        '        flags |= VIRGL_RENDERER_USE_GLES;\n'
                        '    }')
+    if name == 'ui/egl-headless.c':
+        # Native preflight calls the real built-in backend registration before
+        # qemu_init can take its process-fatal unavailable-display path. The
+        # normal upstream QOM initializer remains; repeating pointer registration
+        # is idempotent. This does not initialize EGL/Metal or claim a draw.
+        return replace(text, 'type_init(register_egl);',
+                       'int mpc_qemu_register_egl_headless(void)\n'
+                       '{\n'
+                       '    register_egl();\n'
+                       '    return 1;\n'
+                       '}\n\n'
+                       'type_init(register_egl);')
     raise AssertionError(name)
 
 
 def patch(source, output):
     patches = []
     files = {}
-    for name in ['ui/meson.build', 'ui/egl-helpers.c', 'hw/display/virtio-gpu-virgl.c']:
+    for name in ['ui/meson.build', 'ui/egl-helpers.c', 'hw/display/virtio-gpu-virgl.c', 'ui/egl-headless.c']:
         path = source / name
         original = path.read_text(encoding='utf-8')
         changed = transform(name, original)
@@ -88,6 +100,7 @@ def patch(source, output):
     receipt = {'schema': 1, 'scope': 'darwin-qemu-angle-metal-headless-diagnostic-adapter-source',
                'files': files, 'metal_backend_explicitly_requested': True,
                'root_gles_version_requested': 3,
+               'builtin_headless_registration_preflight': True,
                'steady_state_presenter': False, 'phone_tested': False,
                'guest_graphics_verified': False, 'presentation_verified': False}
     (output / 'gpu-adapter-source.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')

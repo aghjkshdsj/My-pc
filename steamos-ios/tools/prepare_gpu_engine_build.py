@@ -13,7 +13,10 @@ def prepare_gpu(output):
     prepare(output)
     source = (output / 'scripts/build_cpu_gate.sh').read_text(encoding='utf-8')
     assert source.count('--disable-opengl --disable-virglrenderer') == 1
-    source = source.replace('--disable-opengl --disable-virglrenderer', '--enable-opengl --enable-virglrenderer')
+    # --without-default-features disables Pixman even when it was built.
+    # egl-headless requires it for its diagnostic display surface/readback.
+    source = source.replace('--disable-opengl --disable-virglrenderer',
+                            '--enable-opengl --enable-virglrenderer --enable-pixman')
     original = 'build_qemu_dependencies\nbuild $QEMU_DIR --cross-prefix=""'
     assert source.count(original) == 1
     tools = pathlib.Path(__file__).resolve().parent
@@ -23,6 +26,7 @@ def prepare_gpu(output):
                             'python3 "' + str(tools / 'patch_qemu_gpu.py') + '" "$QEMU_DIR" "$PWD"\n'
                             'build $QEMU_DIR --cross-prefix=""')
     assert '--enable-hvf-private' not in source and '--disable-hvf' in source
+    assert source.count('--enable-pixman') == 1
     derived = output / 'scripts/build_gpu_gate.sh'
     derived.write_text(source, encoding='utf-8')
     receipt_path = output / 'recipe-receipt.json'

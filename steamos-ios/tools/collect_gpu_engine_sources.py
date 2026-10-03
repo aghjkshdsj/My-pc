@@ -20,6 +20,16 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def audit_headless_backend(config, exports, commands):
+    assert re.search(r'^#define[ \t]+CONFIG_PIXMAN(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE), 'Pixman disabled: egl-headless would be unavailable'
+    assert re.search(r'\b_mpc_qemu_register_egl_headless\b', exports), 'Missing real built-in backend registration export'
+    entries = [row for row in commands if row.get('file', '').endswith('/ui/egl-headless.c')]
+    assert len(entries) == 1 and '-c' in entries[0]['command'].split(), 'egl-headless source was not actually compiled'
+    return {'pixman_enabled': True, 'egl_headless_builtin_compiled': True,
+            'egl_headless_registration_export': True,
+            'compile_command_sha256': hashlib.sha256(entries[0]['command'].encode()).hexdigest()}
+
+
 def collect(root, graphics_artifact):
     build = root / 'build-iOS-arm64'
     prefix = root / 'sysroot-iOS-arm64'
@@ -32,6 +42,8 @@ def collect(root, graphics_artifact):
     config_paths = [p for p in build.rglob('config-host.h') if any(part.startswith('qemu-') for part in p.parts)]
     assert len(config_paths) == 1, config_paths
     config = config_paths[0].read_text(encoding='utf-8')
+    commands_path = config_paths[0].parent / 'compile_commands.json'
+    backend = audit_headless_backend(config, symbols, json.loads(commands_path.read_text(encoding='utf-8')))
     for define in ['CONFIG_OPENGL', 'CONFIG_EGL', 'CONFIG_METAL', 'VIRGL_VERSION_MAJOR']:
         assert re.search(r'^#define[ \t]+' + define + r'(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE), define
     for define in ['CONFIG_HVF', 'CONFIG_HVF_PRIVATE']:
@@ -69,6 +81,7 @@ def collect(root, graphics_artifact):
                'libucontext_commit': revision, 'physical_ios_arm64': True,
                'opengl_virgl_compiled': True, 'venus_device_compiled': True,
                'metal_egl_backend_explicit': True, 'hardware_virtualization': False,
+               'display_backend_build_audit': backend,
                'phone_tested': False, 'linux_graphics_verified': False,
                'memory_import_verified': False, 'metal_runtime_verified': False,
                'presentation_verified': False, 'gameplay_verified': False,
@@ -79,7 +92,7 @@ def collect(root, graphics_artifact):
     receipt_path.write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
     configs = [p for p in build.rglob('*') if p.is_file() and p.name in {
         'config.log', 'config.status', 'config-host.mak', 'config-meson.cross', 'config-host.h',
-        'meson-auto.cross', 'meson-auto-native.ini', 'config-devices.mak'}]
+        'meson-auto.cross', 'meson-auto-native.ini', 'config-devices.mak', 'compile_commands.json'}]
     with tarfile.open(root / 'GPU-Engine-Corresponding-Source.tar.gz', 'w:gz') as archive:
         for name in ['scripts', 'patches', 'recipe-receipt.json', 'gpu-engine-receipt.json',
                      'gpu-dependency-receipt.json', 'gpu-adapter-source.json',
