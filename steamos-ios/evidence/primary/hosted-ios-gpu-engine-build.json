@@ -1,0 +1,468 @@
+{
+  "schema": 1,
+  "scope": "source-built-physical-ios-qemu-gpu-engine-compile-only",
+  "source_commit": "56f2522eed4509fe2010d2250eaa569dd503c660",
+  "workflow_run": "37078645613",
+  "recipe": {
+    "schema": 1,
+    "utm_revision": "7eadb056ae0f91d979059544d0ddcd2d5a40be92",
+    "scope": "upstream-engine-build-recipe-with-fresh-gpu-adapter",
+    "application_base": "fresh-steamos-ios",
+    "hardware_virtualization": false,
+    "original_sources": {
+      "scripts/build_dependencies.sh": {
+        "git_blob": "4ef513ae4d896af91fc8965865db6b475e993233",
+        "sha256": "319ed3690fbc86eacad1abc6d4b800764086a5e6ee8810c0de887e37ea366f00"
+      },
+      "scripts/fixup.sh": {
+        "git_blob": "354ac3286015eff380d2867c9863f7709ea02921",
+        "sha256": "6e50cd92d330429df852e9b35f30579f213a4d0454d58d0b18e2aff438b4feee"
+      },
+      "patches/gettext-0.22.5.patch": {
+        "git_blob": "153187928acf41c68067348fce61d16e65ca3b5e",
+        "sha256": "c3ef7b0b2d9dea030db83fbcab9b69ebe8267d5513955cd6b3dec9af8538722c"
+      },
+      "patches/pixman-0.38.0.patch": {
+        "git_blob": "2ff4fcc5d570f344cc5836750eabffcfc7083416",
+        "sha256": "28fd17e64896170ce3eb6f5e41a3db3178bf0cb2cde1ee4f7512d8954fb84d85"
+      },
+      "patches/qemu-10.0.12-utm.patch": {
+        "git_blob": "fadb8041f6eba76edf78226586eedb54fdb99c75",
+        "sha256": "05a46d5e52fd662e8d40bd28d23c0cf702f92cc28a83eca89e9ee14c1646aee7"
+      }
+    },
+    "derived_sha256": "ebd457991dd1d055e829c2bb27d878a818390133d08bcc23caf6cffbfe8c5145",
+    "qemu_archive_sha256": "7c9605290b34152debb842e965a55d2e4fbba4793e536ab677b4027e5dc0ba1a",
+    "gpu_support": true,
+    "phone_tested": false,
+    "adapter_scope": "headless-diagnostic-only; native paced presentation still required",
+    "linux_graphics_verified": false,
+    "metal_runtime_verified": false,
+    "presentation_verified": false
+  },
+  "graphics_dependency": {
+    "schema": 1,
+    "scope": "source-built-native-ios-gl-venus-engine-compile-only",
+    "source_commit": "7281f4759ba47cfcfc492a4093ee56b5bf9730d9",
+    "workflow_run": "37078312649",
+    "pins": {
+      "virglrenderer": "5d26f605f50f8e22002ec6db5fb775e1992d4e96",
+      "libepoxy": "bf98587477fe68d07b93319ece7b40a7d0e2eabe"
+    },
+    "angle_input": {
+      "schema": 1,
+      "scope": "source-built-native-ios-angle-engine-compile-only",
+      "source_commit": "b925d37b18d0bb4d7721ea1aedc059b43f9240a1",
+      "workflow_run": "37077105285",
+      "engine_repository": "https://github.com/utmapp/WebKit.git",
+      "engine_commit": "ed78ab6e1a37f4f11583a0bd038f22ec91f3ff10",
+      "source_paths": [
+        "Source/ThirdParty/ANGLE",
+        "Configurations",
+        "Tools/ccache"
+      ],
+      "source_application_reused": false,
+      "xcode_version": "Xcode 26.6\nBuild version 17F113",
+      "sdk_version": "26.5",
+      "command": [
+        "xcodebuild",
+        "archive",
+        "-project",
+        "ANGLE.xcodeproj",
+        "-scheme",
+        "ANGLE",
+        "-sdk",
+        "iphoneos",
+        "-arch",
+        "arm64",
+        "-configuration",
+        "Release",
+        "-archivePath",
+        "/Users/runner/work/My-pc/My-pc/steamos-ios/out/ios-angle/ANGLE.xcarchive",
+        "CODE_SIGNING_ALLOWED=NO",
+        "CODE_SIGNING_REQUIRED=NO",
+        "USE_INTERNAL_SDK=NO",
+        "WEBCORE_LIBRARY_DIR=/usr/local/lib",
+        "NORMAL_UMBRELLA_FRAMEWORKS_DIR=",
+        "IPHONEOS_DEPLOYMENT_TARGET=26.0",
+        "GCC_OPTIMIZATION_LEVEL=3",
+        "ANGLE_ALLOWABLE_CLIENTS=",
+        "WK_USE_CCACHE=YES"
+      ],
+      "public_ios_sdk": true,
+      "metal_owner_identity_enabled": false,
+      "physical_ios_arm64": true,
+      "metal_backend_compiled": true,
+      "egl_dispatch_framework_path": "@rpath/GLESv2.framework/GLESv2",
+      "opengl_es_backend_compiled": true,
+      "phone_tested": false,
+      "linux_graphics_verified": false,
+      "metal_runtime_verified": false,
+      "presentation_verified": false,
+      "gameplay_verified": false,
+      "required_exports": {
+        "EGL": [
+          "eglGetProcAddress",
+          "eglGetPlatformDisplay",
+          "eglInitialize",
+          "eglCreateContext"
+        ],
+        "GLESv2": [
+          "glGetString",
+          "glDrawArrays",
+          "glReadPixels",
+          "glFenceSync"
+        ]
+      },
+      "imports": {
+        "EGL": [
+          "/usr/lib/libc++.1.dylib",
+          "/usr/lib/libSystem.B.dylib"
+        ],
+        "GLESv2": [
+          "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "/System/Library/Frameworks/Metal.framework/Metal",
+          "/usr/lib/libz.1.dylib",
+          "/usr/lib/libobjc.A.dylib",
+          "/usr/lib/libc++.1.dylib",
+          "/usr/lib/libSystem.B.dylib",
+          "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
+        ]
+      },
+      "files": {
+        "Frameworks/EGL.framework/EGL": {
+          "bytes": 75984,
+          "sha256": "13ee7d880bc87c3095deca5dd6353d7a794e051657116e3557523ca72a007c55"
+        },
+        "Frameworks/GLESv2.framework/GLESv2": {
+          "bytes": 6729168,
+          "sha256": "13619c5bd7286a39adaf9fdc7582787f0c6a53ac15279c6d75a0d55f92e1e780"
+        },
+        "ANGLE-Upstream-Source.tar": {
+          "bytes": 92364800,
+          "sha256": "ea973691ebccaa529f001ea5eda69ceb1790311b5a7675b6558447190b35d07c"
+        },
+        "public-ios-angle.patch": {
+          "bytes": 20088,
+          "sha256": "1778f4ece053964e43b4870ec7649025e299cac1cdf472554646a86cc530b9a0"
+        }
+      }
+    },
+    "physical_ios_arm64": true,
+    "egl_backend_compiled": true,
+    "venus_backend_compiled": true,
+    "same_process_thread_renderer": true,
+    "phone_tested": false,
+    "linux_graphics_verified": false,
+    "memory_import_verified": false,
+    "metal_runtime_verified": false,
+    "presentation_verified": false,
+    "files": {
+      "ios-arm64.cross": {
+        "bytes": 1711,
+        "sha256": "d0fac0e4ba94364d8a1ab78051c6984445bf49aeb2fa87adb0222154852d6c3f"
+      },
+      "ios-egl-dispatch.patch": {
+        "bytes": 681,
+        "sha256": "3ed429a4fde7f5391de6bd25221b85fdcdd833a4a2cdf55ef7d594ed22ffbd30"
+      },
+      "ios-vulkan-loader.patch": {
+        "bytes": 542,
+        "sha256": "44685f61af8dddab61579521246e21a0b68ee200c32f7bc0d00cd3dfe4722466"
+      },
+      "virglrenderer-source.tar": {
+        "bytes": 17909760,
+        "sha256": "64894d65871603793b696bc7f21b0d17375007fb26e7a47028cf7252fa7d5f3c"
+      },
+      "libepoxy-source.tar": {
+        "bytes": 3614720,
+        "sha256": "36e30e2070a34b6f51b2bb194dd78c464a08d688bdabf5682906f85315487f47"
+      },
+      "Frameworks/epoxy.0.framework/epoxy.0": {
+        "bytes": 1346728,
+        "sha256": "1ce43b8386c32d836fa5ce877b5d048c8fb07ce577b11346c97ddcdcc7ae5164"
+      },
+      "Frameworks/virglrenderer.1.framework/virglrenderer.1": {
+        "bytes": 3007328,
+        "sha256": "0796b72ae0a69b226bd69a49d0747e28462673ab5870f17d936fd4e9d2775154"
+      }
+    }
+  },
+  "adapter": {
+    "schema": 1,
+    "scope": "darwin-qemu-angle-metal-headless-diagnostic-adapter-source",
+    "files": {
+      "ui/meson.build": {
+        "original_sha256": "1a8240a6a5ba9957caacf55d647b4daadebcb0a7c52b14c1d3305d2b091a2d76",
+        "patched_sha256": "6ebf57d64b3105eb1f0f4a1f7a523a04a920ea2fdf463316d531cce7ac6261c4"
+      },
+      "ui/egl-helpers.c": {
+        "original_sha256": "302838a6c01af2434febe9335c5423c95f8803ba8c17a93459d9960deabc72a7",
+        "patched_sha256": "036435dd794f99e6c4d0b09799dc2f8e9b59dd164b56fbc33ffe98b86a402cd8"
+      },
+      "hw/display/virtio-gpu-virgl.c": {
+        "original_sha256": "fa586e30890ca8e55899b69151bcba043acb89b1deddd2b89f8c27d4fb81c1e0",
+        "patched_sha256": "6f27d019f9c7255dcd2df37eb31392adc6e28721d7b5fc982abab2abca5fad9a"
+      }
+    },
+    "metal_backend_explicitly_requested": true,
+    "root_gles_version_requested": 3,
+    "steady_state_presenter": false,
+    "phone_tested": false,
+    "guest_graphics_verified": false,
+    "presentation_verified": false
+  },
+  "libucontext_commit": "9b1d8f01a6e99166f9808c79966abe10786de8b6",
+  "physical_ios_arm64": true,
+  "opengl_virgl_compiled": true,
+  "venus_device_compiled": true,
+  "metal_egl_backend_explicit": true,
+  "hardware_virtualization": false,
+  "phone_tested": false,
+  "linux_graphics_verified": false,
+  "memory_import_verified": false,
+  "metal_runtime_verified": false,
+  "presentation_verified": false,
+  "gameplay_verified": false,
+  "imports": {
+    "sysroot-iOS-arm64/Frameworks/gio-2.0.0.framework/gio-2.0.0": [
+      "@rpath/glib-2.0.0.framework/glib-2.0.0",
+      "@rpath/gobject-2.0.0.framework/gobject-2.0.0",
+      "@rpath/gmodule-2.0.0.framework/gmodule-2.0.0",
+      "/usr/lib/libz.1.dylib",
+      "@rpath/intl.8.framework/intl.8",
+      "/usr/lib/libresolv.9.dylib",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/textstyle.0.framework/textstyle.0": [
+      "@rpath/iconv.2.framework/iconv.2",
+      "/usr/lib/libncurses.5.4.dylib",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/pixman-1.0.framework/pixman-1.0": [
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/ffi.8.framework/ffi.8": [
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/gobject-2.0.0.framework/gobject-2.0.0": [
+      "@rpath/glib-2.0.0.framework/glib-2.0.0",
+      "@rpath/ffi.8.framework/ffi.8",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/GLESv2.framework/GLESv2": [
+      "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+      "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+      "/System/Library/Frameworks/Foundation.framework/Foundation",
+      "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+      "/System/Library/Frameworks/Metal.framework/Metal",
+      "/usr/lib/libz.1.dylib",
+      "/usr/lib/libobjc.A.dylib",
+      "/usr/lib/libc++.1.dylib",
+      "/usr/lib/libSystem.B.dylib",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
+    ],
+    "sysroot-iOS-arm64/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu": [
+      "/usr/lib/libz.1.dylib",
+      "@rpath/epoxy.0.framework/epoxy.0",
+      "@rpath/virglrenderer.1.framework/virglrenderer.1",
+      "/usr/lib/libSystem.B.dylib",
+      "@rpath/glib-2.0.0.framework/glib-2.0.0"
+    ],
+    "sysroot-iOS-arm64/Frameworks/glib-2.0.0.framework/glib-2.0.0": [
+      "@rpath/iconv.2.framework/iconv.2",
+      "@rpath/intl.8.framework/intl.8",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/epoxy.0.framework/epoxy.0": [
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/gthread-2.0.0.framework/gthread-2.0.0": [
+      "@rpath/glib-2.0.0.framework/glib-2.0.0",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/charset.1.framework/charset.1": [
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/girepository-2.0.0.framework/girepository-2.0.0": [
+      "@rpath/glib-2.0.0.framework/glib-2.0.0",
+      "@rpath/gobject-2.0.0.framework/gobject-2.0.0",
+      "@rpath/gmodule-2.0.0.framework/gmodule-2.0.0",
+      "@rpath/ffi.8.framework/ffi.8",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/intl.8.framework/intl.8": [
+      "@rpath/iconv.2.framework/iconv.2",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/gettextlib-0.22.5.framework/gettextlib-0.22.5": [
+      "@rpath/intl.8.framework/intl.8",
+      "/usr/lib/libxml2.2.dylib",
+      "@rpath/iconv.2.framework/iconv.2",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/iconv.2.framework/iconv.2": [
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/gmodule-2.0.0.framework/gmodule-2.0.0": [
+      "@rpath/glib-2.0.0.framework/glib-2.0.0",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/gettextsrc-0.22.5.framework/gettextsrc-0.22.5": [
+      "@rpath/gettextlib-0.22.5.framework/gettextlib-0.22.5",
+      "@rpath/intl.8.framework/intl.8",
+      "/usr/lib/libxml2.2.dylib",
+      "@rpath/textstyle.0.framework/textstyle.0",
+      "/usr/lib/libncurses.5.4.dylib",
+      "@rpath/iconv.2.framework/iconv.2",
+      "/usr/lib/libSystem.B.dylib",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      "/System/Library/Frameworks/CoreServices.framework/CoreServices"
+    ],
+    "sysroot-iOS-arm64/Frameworks/EGL.framework/EGL": [
+      "/usr/lib/libc++.1.dylib",
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/asprintf.0.framework/asprintf.0": [
+      "/usr/lib/libSystem.B.dylib"
+    ],
+    "sysroot-iOS-arm64/Frameworks/gettextpo.0.framework/gettextpo.0": [
+      "@rpath/intl.8.framework/intl.8",
+      "/usr/lib/libSystem.B.dylib",
+      "@rpath/iconv.2.framework/iconv.2",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      "/System/Library/Frameworks/CoreServices.framework/CoreServices"
+    ],
+    "sysroot-iOS-arm64/Frameworks/virglrenderer.1.framework/virglrenderer.1": [
+      "/usr/lib/libSystem.B.dylib",
+      "@rpath/epoxy.0.framework/epoxy.0",
+      "/System/Library/Frameworks/Metal.framework/Metal",
+      "/usr/lib/libobjc.A.dylib"
+    ]
+  },
+  "files": {
+    "build-iOS-arm64/gettext-0.22.5.tar.gz": {
+      "bytes": 26861674,
+      "sha256": "ec1705b1e969b83a9f073144ec806151db88127f5e40fe5a94cb6c8fa48996a0"
+    },
+    "build-iOS-arm64/glib-2.83.0.tar.xz": {
+      "bytes": 5595320,
+      "sha256": "a07d9e1a57a4279c5ece71c26dc44eea12bd518ea9ff695d53e722997032b614"
+    },
+    "build-iOS-arm64/libffi-3.5.0.tar.gz": {
+      "bytes": 1420475,
+      "sha256": "8c72678628a5dd8782f08ad421d5a441e42c1c5c1b33e0bc211cbfcf1f3b3978"
+    },
+    "build-iOS-arm64/libiconv-1.16.tar.gz": {
+      "bytes": 5166734,
+      "sha256": "e6a1b1b589654277ee790cce3734f07876ac4ccfaecbee8afa0b649cf529cc04"
+    },
+    "build-iOS-arm64/pixman-0.38.0.tar.gz": {
+      "bytes": 891291,
+      "sha256": "a7592bef0156d7c27545487a52245669b00cf7e70054505381cff2136d890ca8"
+    },
+    "build-iOS-arm64/pkg-config-0.29.2.tar.gz": {
+      "bytes": 2016830,
+      "sha256": "6fc69c01688c9458a57eb9a1664c9aba372ccda420a02bf4429fe610e7e7d591"
+    },
+    "build-iOS-arm64/qemu-10.0.12-utm.tar.xz": {
+      "bytes": 142836072,
+      "sha256": "7c9605290b34152debb842e965a55d2e4fbba4793e536ab677b4027e5dc0ba1a"
+    },
+    "libucontext-source.tar": {
+      "bytes": 245760,
+      "sha256": "ff7f432dc8596b353b38fd5cb606a527bf3aa2aaa41734279db1dce3402e608b"
+    },
+    "sysroot-iOS-arm64/Frameworks/gio-2.0.0.framework/gio-2.0.0": {
+      "bytes": 2194128,
+      "sha256": "cdde32e9ef12b182346fb689b9a80cc8a3cc340aa5d55e98592a333f337ac737"
+    },
+    "sysroot-iOS-arm64/Frameworks/textstyle.0.framework/textstyle.0": {
+      "bytes": 1001008,
+      "sha256": "1c4837e5a0452b2a6711bedcf31cd14934c3403657cd45c6c8955d040476bbfd"
+    },
+    "sysroot-iOS-arm64/Frameworks/pixman-1.0.framework/pixman-1.0": {
+      "bytes": 2523648,
+      "sha256": "963cf544062f7c32b5b1085bbe3826fb0f47678fc8a3420b6e4ece9ac94e0157"
+    },
+    "sysroot-iOS-arm64/Frameworks/ffi.8.framework/ffi.8": {
+      "bytes": 119480,
+      "sha256": "0f49e7474a47ffd417ebe193982ced3b234792bf004d36fb4e33318a0fc0e033"
+    },
+    "sysroot-iOS-arm64/Frameworks/gobject-2.0.0.framework/gobject-2.0.0": {
+      "bytes": 445584,
+      "sha256": "22c502c5dc904aa4148dbb2b6637ec0abbc21caf50027cd7feefde3c6f7886a2"
+    },
+    "sysroot-iOS-arm64/Frameworks/GLESv2.framework/GLESv2": {
+      "bytes": 6729168,
+      "sha256": "13619c5bd7286a39adaf9fdc7582787f0c6a53ac15279c6d75a0d55f92e1e780"
+    },
+    "sysroot-iOS-arm64/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu": {
+      "bytes": 28127064,
+      "sha256": "374dcb7de4702f590b984d2cd906aa454ac250cd776d0c30fc2a01d57a0e7c48"
+    },
+    "sysroot-iOS-arm64/Frameworks/glib-2.0.0.framework/glib-2.0.0": {
+      "bytes": 1805856,
+      "sha256": "a712c88c742804f0391e47b3a9c97cb7de781a1175992ac7d86ba0924c15a8b5"
+    },
+    "sysroot-iOS-arm64/Frameworks/epoxy.0.framework/epoxy.0": {
+      "bytes": 1346728,
+      "sha256": "1ce43b8386c32d836fa5ce877b5d048c8fb07ce577b11346c97ddcdcc7ae5164"
+    },
+    "sysroot-iOS-arm64/Frameworks/gthread-2.0.0.framework/gthread-2.0.0": {
+      "bytes": 49576,
+      "sha256": "64a13d421a5846ba5072f0ad2746c77547e7c9cc41f2d5d1c0b3d58d69844392"
+    },
+    "sysroot-iOS-arm64/Frameworks/charset.1.framework/charset.1": {
+      "bytes": 49640,
+      "sha256": "177d9232029bd54acb1471837a539828ea0517506825450c955fb1b370050581"
+    },
+    "sysroot-iOS-arm64/Frameworks/girepository-2.0.0.framework/girepository-2.0.0": {
+      "bytes": 301832,
+      "sha256": "16a73684e92099d761cdc4076bf41087ee3c2e0095f61753721dc5262a89a0e9"
+    },
+    "sysroot-iOS-arm64/Frameworks/intl.8.framework/intl.8": {
+      "bytes": 243336,
+      "sha256": "114a8554482d7f87ae29370dbbab84a21451ff22c23099a7806bd641181bac48"
+    },
+    "sysroot-iOS-arm64/Frameworks/gettextlib-0.22.5.framework/gettextlib-0.22.5": {
+      "bytes": 1235320,
+      "sha256": "d9f84b0c9e8ac5c32e621fef03a1a02079d6e8c2f8fd90aa636b2fd8640700dc"
+    },
+    "sysroot-iOS-arm64/Frameworks/iconv.2.framework/iconv.2": {
+      "bytes": 1102456,
+      "sha256": "ecbd537007f0c7a9347e83aa28202bd812db21168f7320285feb04cfad9d1f9b"
+    },
+    "sysroot-iOS-arm64/Frameworks/gmodule-2.0.0.framework/gmodule-2.0.0": {
+      "bytes": 69128,
+      "sha256": "717b2f11c8b4083eec55618cd1f4faf7a818fc30f0320128eb2ddf54825dbedd"
+    },
+    "sysroot-iOS-arm64/Frameworks/gettextsrc-0.22.5.framework/gettextsrc-0.22.5": {
+      "bytes": 488616,
+      "sha256": "849347f7fd56e13156f10998171432750ff13bbba5a50d9d711738c321c9e77e"
+    },
+    "sysroot-iOS-arm64/Frameworks/EGL.framework/EGL": {
+      "bytes": 75984,
+      "sha256": "13ee7d880bc87c3095deca5dd6353d7a794e051657116e3557523ca72a007c55"
+    },
+    "sysroot-iOS-arm64/Frameworks/asprintf.0.framework/asprintf.0": {
+      "bytes": 85592,
+      "sha256": "0fb4db160e01f707112e0be79eaf6e34436dea598063519f807ec2df506004b0"
+    },
+    "sysroot-iOS-arm64/Frameworks/gettextpo.0.framework/gettextpo.0": {
+      "bytes": 609032,
+      "sha256": "7a787adb9b501eefa56082bb2191384adef6eba016007a2e843961b341f130b5"
+    },
+    "sysroot-iOS-arm64/Frameworks/virglrenderer.1.framework/virglrenderer.1": {
+      "bytes": 3007328,
+      "sha256": "0796b72ae0a69b226bd69a49d0747e28462673ab5870f17d936fd4e9d2775154"
+    }
+  }
+}

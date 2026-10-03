@@ -106,7 +106,12 @@ rejection in run 37074804870. These do not close the GPU/compositor rows: no
 phone guest shader, host memory-import, moving presentation or Steam/game result
 exists yet. Native ANGLE ARM64 iOS compilation passed in run 37075043878; the
 explicit dynamic framework-loader correction also passed run 37077105285. The separate
-EGL/Metal QEMU adapter and full EGL/Venus renderer recipe are implemented; complete
-cross-build acceptance and phone integration remain open. Runtime
-loader/library packaging and corresponding-source closure remain external-input
-work before a complete guest payload can be published.
+EGL/Metal QEMU adapter and full EGL/Venus renderer passed physical-iOS builds
+37078645613 and 37078312649. The complete disposable Linux graphics initramfs
+passed build 37079133580, including exact loader/DSO dependency resolution and
+package corresponding-source closure. Real ARM Linux boots retained ABI success
+and correctly rejected both missing-3D controls. The planned phone build 4000011
+packages this diagnostic payload and the audited native engine closure. Positive
+phone guest Vulkan pixels, independent host Metal completion/memory import,
+moving presentation and the full SteamOS image remain open. No product component
+row or performance target becomes complete from compilation or negative controls.

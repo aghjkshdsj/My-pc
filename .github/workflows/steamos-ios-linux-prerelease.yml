@@ -1,8 +1,5 @@
 name: Fresh iPhone Linux gate prerelease
 on:
-  push:
-    branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', '.github/workflows/steamos-ios-linux-prerelease.yml', 'steamos-ios/tools/bundle_linux_gate.py', 'steamos-ios/tools/bundle_native_vulkan.py']
   workflow_dispatch:
 permissions:
   contents: write

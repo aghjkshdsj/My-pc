@@ -1,0 +1,1224 @@
+{
+  "schema": 1,
+  "scope": "linux-arm64-graphics-payload-missing-3d-boot-controls",
+  "source_commit": "cb99fc4740385ddcb37119bbc164d5671ea61ce0",
+  "workflow_run": "37079133580",
+  "kernel_input": {
+    "schema": 1,
+    "scope": "hosted-arm-linux-virtio-gpu-kernel-device-test",
+    "source_commit": "6ab4df9f78ec307e026f378658673efa3ebeeec2",
+    "workflow_run": "37067848259",
+    "engine_version": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)",
+    "device_test_passed": true,
+    "missing_device_rejected": true,
+    "physical_iphone": false,
+    "steamos": false,
+    "linux_gpu_shader_verified": false,
+    "metal_verified": false,
+    "venus_transport_verified": false,
+    "presentation_verified": false,
+    "gameplay_verified": false,
+    "payload": {
+      "schema": 1,
+      "kind": "disposable-linux-virtio-gpu-kernel-gate",
+      "steamos": false,
+      "phone_tested": false,
+      "gpu_shader_verified": false,
+      "metal_verified": false,
+      "presentation_verified": false,
+      "files": {
+        "Image": {
+          "bytes": 3805192,
+          "sha256": "5945ac10f6eee547435c617f75820bc0d248592f559d0a1e25005b73f9c4b9c0"
+        },
+        "initramfs.cpio.gz": {
+          "bytes": 1104654,
+          "sha256": "50ded9b52f5a975d69ec086da8fe324f65fcdf84a830ea70571c58d911ec6618"
+        }
+      },
+      "sources": {
+        "Guest/abi_probe.c": "bb24235164183df0b837b7393420448e590dcff2c88e7b284c0a4ee767cb6158",
+        "Guest/gpu_kernel_probe.c": "ca5b6d96799068bc39901540699a57754dbd74f77657079e60bbbc885214ad78",
+        "Guest/init-gpu-kernel": "9e50bfb84d8d8c2ad74c56eab34451d24580d45ae44ee733eece2e05a3b4ffaa"
+      }
+    },
+    "device": {
+      "command": [
+        "qemu-system-aarch64",
+        "-machine",
+        "virt",
+        "-cpu",
+        "max",
+        "-accel",
+        "tcg,thread=multi,split-wx=on,tb-size=32",
+        "-smp",
+        "2",
+        "-m",
+        "512",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-serial",
+        "stdio",
+        "-monitor",
+        "none",
+        "-kernel",
+        "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/Image",
+        "-initrd",
+        "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/initramfs.cpio.gz",
+        "-append",
+        "console=ttyAMA0 rdinit=/init panic=1 mpc_run=577e2a6944e948199327ddbd66fbe575",
+        "-no-reboot",
+        "-device",
+        "virtio-gpu-pci"
+      ],
+      "engine_exit": 0,
+      "serial_sha256": "c0e8edc3348441a77e30ce4202ea43fadba079fa2ccc57d1d0f665f8d9a65bfd",
+      "abi": {
+        "schema": 1,
+        "run": "577e2a6944e948199327ddbd66fbe575",
+        "kernel": "6.12.111",
+        "machine": "aarch64",
+        "elf_arch": "aarch64",
+        "page_bytes": 4096,
+        "signals": true,
+        "mmap_protection": true,
+        "pthread_tls_futex": true,
+        "fork_exec": true,
+        "checksum": "1d250c45a7bbc87e",
+        "cpu_ms": 4.166752,
+        "wall_ms": 4.432016,
+        "failures": 0
+      },
+      "kernel_gpu": {
+        "schema": 1,
+        "scope": "linux-virtio-gpu-kernel-device",
+        "run": "577e2a6944e948199327ddbd66fbe575",
+        "machine": "aarch64",
+        "kernel": "6.12.111",
+        "driver": "virtio_gpu",
+        "stage": "complete",
+        "exit_code": 0,
+        "errno": 0,
+        "page_bytes": 4096,
+        "width": 1280,
+        "height": 720,
+        "mapped_bytes": 3686400,
+        "mapped_sum": 470016000,
+        "mismatches": 0,
+        "mapped_resource_verified": true,
+        "transfer_ioctl_completed": true,
+        "resource_closed": true,
+        "wall_ms": 59.605,
+        "parameters": {
+          "1": {
+            "supported": true,
+            "value": 0
+          },
+          "2": {
+            "supported": true,
+            "value": 1
+          },
+          "3": {
+            "supported": true,
+            "value": 0
+          },
+          "4": {
+            "supported": true,
+            "value": 0
+          },
+          "5": {
+            "supported": true,
+            "value": 0
+          },
+          "6": {
+            "supported": true,
+            "value": 0
+          },
+          "7": {
+            "supported": true,
+            "value": 0
+          },
+          "8": {
+            "supported": true,
+            "value": 0
+          }
+        },
+        "gpu_shader_verified": false,
+        "host_pixels_verified": false,
+        "metal_verified": false,
+        "presentation_verified": false,
+        "gameplay_verified": false
+      }
+    },
+    "missing_device": {
+      "command": [
+        "qemu-system-aarch64",
+        "-machine",
+        "virt",
+        "-cpu",
+        "max",
+        "-accel",
+        "tcg,thread=multi,split-wx=on,tb-size=32",
+        "-smp",
+        "2",
+        "-m",
+        "512",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-serial",
+        "stdio",
+        "-monitor",
+        "none",
+        "-kernel",
+        "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/Image",
+        "-initrd",
+        "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/initramfs.cpio.gz",
+        "-append",
+        "console=ttyAMA0 rdinit=/init panic=1 mpc_run=32dc601706bd47d38f9b959edebdf094",
+        "-no-reboot"
+      ],
+      "engine_exit": 0,
+      "serial_sha256": "ee84da8be4b6ca2d7e6174a3a833110203b7d7401bc501183c47e368fcba0cfb",
+      "abi": {
+        "schema": 1,
+        "run": "32dc601706bd47d38f9b959edebdf094",
+        "kernel": "6.12.111",
+        "machine": "aarch64",
+        "elf_arch": "aarch64",
+        "page_bytes": 4096,
+        "signals": true,
+        "mmap_protection": true,
+        "pthread_tls_futex": true,
+        "fork_exec": true,
+        "checksum": "1d250c45a7bbc87e",
+        "cpu_ms": 4.250672,
+        "wall_ms": 4.530448,
+        "failures": 0
+      },
+      "kernel_gpu": {
+        "schema": 1,
+        "scope": "linux-virtio-gpu-kernel-device",
+        "run": "32dc601706bd47d38f9b959edebdf094",
+        "machine": "aarch64",
+        "kernel": "6.12.111",
+        "driver": "",
+        "stage": "open-drm",
+        "exit_code": 1,
+        "errno": 2,
+        "page_bytes": 4096,
+        "width": 1280,
+        "height": 720,
+        "mapped_bytes": 3686400,
+        "mapped_sum": 0,
+        "mismatches": 0,
+        "mapped_resource_verified": false,
+        "transfer_ioctl_completed": false,
+        "resource_closed": false,
+        "wall_ms": 2.802,
+        "parameters": {
+          "1": {
+            "supported": false,
+            "value": 0
+          },
+          "2": {
+            "supported": false,
+            "value": 0
+          },
+          "3": {
+            "supported": false,
+            "value": 0
+          },
+          "4": {
+            "supported": false,
+            "value": 0
+          },
+          "5": {
+            "supported": false,
+            "value": 0
+          },
+          "6": {
+            "supported": false,
+            "value": 0
+          },
+          "7": {
+            "supported": false,
+            "value": 0
+          },
+          "8": {
+            "supported": false,
+            "value": 0
+          }
+        },
+        "gpu_shader_verified": false,
+        "host_pixels_verified": false,
+        "metal_verified": false,
+        "presentation_verified": false,
+        "gameplay_verified": false
+      }
+    }
+  },
+  "mesa_input_source": "9ddc641f25d83a230affb90c7e59174a041bde30",
+  "mesa_input_run": 37074804870,
+  "runtime": {
+    "runtime_files": {
+      "libvulkan.so.1": {
+        "binary": "libvulkan1:arm64",
+        "version": "1.3.275.0-1build1",
+        "source": "vulkan-loader",
+        "source_version": "1.3.275.0-1build1",
+        "bytes": 592400,
+        "sha256": "1384294a60185c780fb324dfa87fc3367bdd6e4f71a8307a52c329ca2bcafe0a",
+        "copyright_sha256": "c579213e28f67944a7e407816b8a8e1d2d2406b3d820e420aa923807c450dc07"
+      },
+      "libc.so.6": {
+        "binary": "libc6:arm64",
+        "version": "2.39-0ubuntu8.9",
+        "source": "glibc",
+        "source_version": "2.39-0ubuntu8.9",
+        "bytes": 1722920,
+        "sha256": "0f1905dc27dbc6715875c70527bc8da846a10084c9c483e9d8ff76dce8d69d0e",
+        "copyright_sha256": "d3c95b56fa33e28b57860580f0baf4e4f4de2a268a2b80f1d031a5191bade265"
+      },
+      "ld-linux-aarch64.so.1": {
+        "binary": "libc6:arm64",
+        "version": "2.39-0ubuntu8.9",
+        "source": "glibc",
+        "source_version": "2.39-0ubuntu8.9",
+        "bytes": 203968,
+        "sha256": "390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505",
+        "copyright_sha256": "d3c95b56fa33e28b57860580f0baf4e4f4de2a268a2b80f1d031a5191bade265"
+      },
+      "libm.so.6": {
+        "binary": "libc6:arm64",
+        "version": "2.39-0ubuntu8.9",
+        "source": "glibc",
+        "source_version": "2.39-0ubuntu8.9",
+        "bytes": 591800,
+        "sha256": "5e0391562de36de323fb9cb0f2c1b6bd6d034c840b1dac018499f5fe4ded1b4a",
+        "copyright_sha256": "d3c95b56fa33e28b57860580f0baf4e4f4de2a268a2b80f1d031a5191bade265"
+      },
+      "libdrm.so.2": {
+        "binary": "libdrm2:arm64",
+        "version": "2.4.125-1ubuntu0.1~24.04.2",
+        "source": "libdrm",
+        "source_version": "2.4.125-1ubuntu0.1~24.04.2",
+        "bytes": 133616,
+        "sha256": "efa8992c21c657acb37e3fa63653161b53a9d73a0828851c9b725fa5e35cadf3",
+        "copyright_sha256": "512c9a57fd8b449aa157351da9df07bf8e19f767e496a72205a4020268ddb2e0"
+      },
+      "libexpat.so.1": {
+        "binary": "libexpat1:arm64",
+        "version": "2.6.1-2ubuntu0.6",
+        "source": "expat",
+        "source_version": "2.6.1-2ubuntu0.6",
+        "bytes": 198712,
+        "sha256": "b4b445a092ad711e535cfa7241974f709b716194c58227abc75b05e3a3bec7f7",
+        "copyright_sha256": "60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292"
+      },
+      "libz.so.1": {
+        "binary": "zlib1g:arm64",
+        "version": "1:1.3.dfsg-3.1ubuntu2.2",
+        "source": "zlib",
+        "source_version": "1:1.3.dfsg-3.1ubuntu2.2",
+        "bytes": 133272,
+        "sha256": "e3bc90ee8cce46778c2f46c2a3e580d3b930f7b455910f25ea400a0b797fb9dc",
+        "copyright_sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6"
+      },
+      "libstdc++.so.6": {
+        "binary": "libstdc++6:arm64",
+        "version": "14.2.0-4ubuntu2~24.04.1",
+        "source": "gcc-14",
+        "source_version": "14.2.0-4ubuntu2~24.04.1",
+        "bytes": 2633224,
+        "sha256": "6e3112d35cfc86db7ee85b27e1746f67408e2837ff8628b46386c3eabd5682a4",
+        "copyright_sha256": "20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79"
+      },
+      "libgcc_s.so.1": {
+        "binary": "libgcc-s1:arm64",
+        "version": "14.2.0-4ubuntu2~24.04.1",
+        "source": "gcc-14",
+        "source_version": "14.2.0-4ubuntu2~24.04.1",
+        "bytes": 133696,
+        "sha256": "f2d3ad2bf0b61f6bc944cc37d7b6ab7f88d2582b41ff989ca164803f56cc5f20",
+        "copyright_sha256": "20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79"
+      },
+      "lib/ld-linux-aarch64.so.1": {
+        "binary": "libc6:arm64",
+        "version": "2.39-0ubuntu8.9",
+        "source": "glibc",
+        "source_version": "2.39-0ubuntu8.9",
+        "bytes": 203968,
+        "sha256": "390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505"
+      }
+    },
+    "staged_loader_dependency_checks": {
+      "usr/lib/gbm/dri_gbm.so": "linux-vdso.so.1 (0x0000ffc8eabcd000)\n\tlibgallium-26.2.2.so => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgallium-26.2.2.so (0x0000ffc8e97d0000)\n\tlibdrm.so.2 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libdrm.so.2 (0x0000ffc8e9790000)\n\tlibexpat.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libexpat.so.1 (0x0000ffc8e9740000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ffc8e9690000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ffc8e94d0000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ffc8eab80000)\n\tlibz.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libz.so.1 (0x0000ffc8e9490000)\n\tlibstdc++.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libstdc++.so.6 (0x0000ffc8e9200000)\n\tlibgcc_s.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgcc_s.so.1 (0x0000ffc8e91c0000)",
+      "usr/lib/ld-linux-aarch64.so.1": "statically linked",
+      "usr/lib/libEGL.so.1.0.0": "linux-vdso.so.1 (0x0000ff5467a97000)\n\tlibgallium-26.2.2.so => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgallium-26.2.2.so (0x0000ff5466680000)\n\tlibgbm.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgbm.so.1 (0x0000ff5466650000)\n\tlibexpat.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libexpat.so.1 (0x0000ff5466600000)\n\tlibdrm.so.2 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libdrm.so.2 (0x0000ff54665c0000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ff5466510000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff5466350000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff5467a50000)\n\tlibz.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libz.so.1 (0x0000ff5466310000)\n\tlibstdc++.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libstdc++.so.6 (0x0000ff5466080000)\n\tlibgcc_s.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgcc_s.so.1 (0x0000ff5466040000)",
+      "usr/lib/libGLESv1_CM.so.1.1.0": "(0x0000ff951bef0000)\n\tlinux-vdso.so.1 (0x0000ff951bf5c000)\n\tlibgallium-26.2.2.so => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgallium-26.2.2.so (0x0000ff951ab80000)\n\tlibdrm.so.2 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libdrm.so.2 (0x0000ff951ab40000)\n\tlibexpat.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libexpat.so.1 (0x0000ff951aaf0000)\n\tlibz.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libz.so.1 (0x0000ff951aab0000)\n\tlibstdc++.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libstdc++.so.6 (0x0000ff951a820000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ff951a770000)\n\tlibgcc_s.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgcc_s.so.1 (0x0000ff951a730000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff951a570000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff951bf20000)",
+      "usr/lib/libGLESv2.so.2.0.0": "linux-vdso.so.1 (0x0000ffc40ea27000)\n\tlibgallium-26.2.2.so => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgallium-26.2.2.so (0x0000ffc40d640000)\n\tlibdrm.so.2 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libdrm.so.2 (0x0000ffc40d600000)\n\tlibexpat.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libexpat.so.1 (0x0000ffc40d5b0000)\n\tlibz.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libz.so.1 (0x0000ffc40d570000)\n\tlibstdc++.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libstdc++.so.6 (0x0000ffc40d2e0000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ffc40d230000)\n\tlibgcc_s.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgcc_s.so.1 (0x0000ffc40d1f0000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ffc40d030000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ffc40e9e0000)",
+      "usr/lib/libc.so.6": "/lib/ld-linux-aarch64.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff549e640000)\n\tlinux-vdso.so.1 (0x0000ff549e67c000)",
+      "usr/lib/libdrm.so.2": "(0x0000ff2b507f0000)\n\tlinux-vdso.so.1 (0x0000ff2b5086c000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff2b50630000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff2b50830000)",
+      "usr/lib/libexpat.so.1": "linux-vdso.so.1 (0x0000ff18fa81a000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff18fa5c0000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff18fa7d0000)",
+      "usr/lib/libgallium-26.2.2.so": "(0x0000ff4927ff0000)\n\tlinux-vdso.so.1 (0x0000ff49293ab000)\n\tlibdrm.so.2 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libdrm.so.2 (0x0000ff4927fb0000)\n\tlibexpat.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libexpat.so.1 (0x0000ff4927f60000)\n\tlibz.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libz.so.1 (0x0000ff4927f20000)\n\tlibstdc++.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libstdc++.so.6 (0x0000ff4927c90000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ff4927be0000)\n\tlibgcc_s.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgcc_s.so.1 (0x0000ff4927ba0000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff49279e0000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff4929360000)",
+      "usr/lib/libgbm.so.1.0.0": "(0x0000ffd3a1fc0000)\n\tlinux-vdso.so.1 (0x0000ffd3a203d000)\n\tlibdrm.so.2 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libdrm.so.2 (0x0000ffd3a1f80000)\n\tlibexpat.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libexpat.so.1 (0x0000ffd3a1f30000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ffd3a1e80000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ffd3a1cc0000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ffd3a1ff0000)",
+      "usr/lib/libgcc_s.so.1": "linux-vdso.so.1 (0x0000fffa84c2d000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000fffa849e0000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000fffa84be0000)",
+      "usr/lib/libm.so.6": "(0x0000ff9b75710000)\n\tlinux-vdso.so.1 (0x0000ff9b7580b000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff9b75550000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff9b757c0000)",
+      "usr/lib/libstdc++.so.6": "linux-vdso.so.1 (0x0000fff6f661c000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000fff6f62a0000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000fff6f60e0000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000fff6f65e0000)\n\tlibgcc_s.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libgcc_s.so.1 (0x0000fff6f60a0000)",
+      "usr/lib/libvulkan.so.1": "(0x0000ffd350700000)\n\tlinux-vdso.so.1 (0x0000ffd3507ec000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ffd350650000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ffd350490000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ffd3507b0000)",
+      "usr/lib/libvulkan_virtio.so": "linux-vdso.so.1 (0x0000ff70b707c000)\n\tlibz.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libz.so.1 (0x0000ff70b6e50000)\n\tlibdrm.so.2 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libdrm.so.2 (0x0000ff70b6e10000)\n\tlibexpat.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libexpat.so.1 (0x0000ff70b6dc0000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ff70b6d10000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff70b6b50000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff70b7040000)",
+      "usr/lib/libz.so.1": "linux-vdso.so.1 (0x0000ff6cecd5c000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff6cecb10000)\n\t/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff6cecd10000)",
+      "vk-gate": "(0x0000ff9775d90000)\n\tlinux-vdso.so.1 (0x0000ff9775dfc000)\n\tlibvulkan.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libvulkan.so.1 (0x0000ff9775ce0000)\n\tlibc.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libc.so.6 (0x0000ff9775b20000)\n\t/lib/ld-linux-aarch64.so.1 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/lib/ld-linux-aarch64.so.1 (0x0000ff9775dc0000)\n\tlibm.so.6 => /home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/root/usr/lib/libm.so.6 (0x0000ff9775a70000)"
+    },
+    "distribution_sources": {
+      "exact_source_specifications": [
+        "expat=2.6.1-2ubuntu0.6",
+        "gcc-14=14.2.0-4ubuntu2~24.04.1",
+        "glibc=2.39-0ubuntu8.9",
+        "libdrm=2.4.125-1ubuntu0.1~24.04.2",
+        "vulkan-loader=1.3.275.0-1build1",
+        "zlib=1:1.3.dfsg-3.1ubuntu2.2"
+      ],
+      "apt_signature_checks_required": true,
+      "source_archives": {
+        "expat_2.6.1-2ubuntu0.6.debian.tar.xz": {
+          "bytes": 75472,
+          "sha256": "95ae84284d153f5108255b21bc0e76f8cdabaf0bb74cdc61ef410f4b77146517"
+        },
+        "expat_2.6.1-2ubuntu0.6.dsc": {
+          "bytes": 1474,
+          "sha256": "d1a0cb48d939de61f2121669c941664b844d9a1adf9d8db28e000489df665070"
+        },
+        "expat_2.6.1.orig.tar.gz": {
+          "bytes": 8414649,
+          "sha256": "14113ed69357172a0bf5a268793c8b5b01afc77c7a2e5fb8dd0b06cb87c02c4a"
+        },
+        "gcc-14_14.2.0-4ubuntu2~24.04.1.debian.tar.xz": {
+          "bytes": 1950432,
+          "sha256": "cfece214c2fb790ef5f3baffb9a53e40618e7ae12d053610b251e94d77d08ade"
+        },
+        "gcc-14_14.2.0-4ubuntu2~24.04.1.dsc": {
+          "bytes": 46930,
+          "sha256": "50950080874a6ec6780dd60c243e21d9cda9d736bb32bca98d16095d27cc01b5"
+        },
+        "gcc-14_14.2.0.orig.tar.gz": {
+          "bytes": 97158172,
+          "sha256": "768c314c11eeab56ccebb91eb42ec4a41122fa94f0d83400126401942622197b"
+        },
+        "glibc_2.39-0ubuntu8.9.debian.tar.xz": {
+          "bytes": 491440,
+          "sha256": "d6114f2302896a3c8612453e1bf1d0e61603e3029ba4a7c246fbb1ab4c48d2b0"
+        },
+        "glibc_2.39-0ubuntu8.9.dsc": {
+          "bytes": 9387,
+          "sha256": "1b73a89e0910eb3e5920cde639ac7eb606256d8ee809688ff9b5912b67002711"
+        },
+        "glibc_2.39.orig.tar.xz": {
+          "bytes": 18520988,
+          "sha256": "f77bd47cf8170c57365ae7bf86696c118adb3b120d3259c64c502d3dc1e2d926"
+        },
+        "glibc_2.39.orig.tar.xz.asc": {
+          "bytes": 833,
+          "sha256": "2cce427ef7933c17379f5514e4f0ccf8dffae5bf8c72f0f7e0bf8b8401f34be5"
+        },
+        "libdrm_2.4.125-1ubuntu0.1~24.04.2.debian.tar.xz": {
+          "bytes": 77556,
+          "sha256": "0737265d83b6a4675f0a260f29d77cbc31c8128979d77665a8dd57f21cfc6dc4"
+        },
+        "libdrm_2.4.125-1ubuntu0.1~24.04.2.dsc": {
+          "bytes": 3328,
+          "sha256": "fe54cc87c1f2b44794ec0af7dd3af59c65192eb50a0b1fb9bf03b4992f6fef69"
+        },
+        "libdrm_2.4.125.orig.tar.xz": {
+          "bytes": 485592,
+          "sha256": "d4bae92797a50f81a93524762e0410a49cd84cfa0f997795bc0172ac8fb1d96a"
+        },
+        "libdrm_2.4.125.orig.tar.xz.asc": {
+          "bytes": 833,
+          "sha256": "d13820b5488bddee445c1afca57402ec2560cbd9d48f3e9ca5d03cc3fbf304d0"
+        },
+        "vulkan-loader_1.3.275.0-1build1.debian.tar.xz": {
+          "bytes": 9132,
+          "sha256": "16b22d9a95fb35ae1e9d9d89f26b4f27305f86700b20615c23618014ab184ac9"
+        },
+        "vulkan-loader_1.3.275.0-1build1.dsc": {
+          "bytes": 2384,
+          "sha256": "e158bda184efcdbb5a063dc2e008ec5ab943ea4f1825eb9cb86615a190df05e5"
+        },
+        "vulkan-loader_1.3.275.0.orig.tar.xz": {
+          "bytes": 2642760,
+          "sha256": "5f95219fc189b4c09ce537d8ec1ea4b5861b087cd00b6d821f99aecf6e9dddce"
+        },
+        "zlib_1.3.dfsg-3.1ubuntu2.2.debian.tar.xz": {
+          "bytes": 61316,
+          "sha256": "de1c2d532ecb7caf99ccb905fb03c37fe0c8117fbdc79d05be4474b71e6398c2"
+        },
+        "zlib_1.3.dfsg-3.1ubuntu2.2.dsc": {
+          "bytes": 2987,
+          "sha256": "56a7cd029863cbddafce831e4e63cccfa84017f93617929cb7c02f80bb5a122a"
+        },
+        "zlib_1.3.dfsg.orig.tar.xz": {
+          "bytes": 1128572,
+          "sha256": "5eea0322c1c21c75cad3b607ac1c43ff5c71e014b8ac4a34300b5e2b80d02e70"
+        }
+      }
+    },
+    "runtime_dependency_closure_verified": true
+  },
+  "inventory": {
+    "bin": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "bin/busybox": {
+      "mode": 33261,
+      "bytes": 1062072,
+      "sha256": "b1b6e3c1a1fbd62ae53f26c9e14f0c0f890c1cbef69840213b9579a47c7a904f"
+    },
+    "dev": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fragment.spv": {
+      "mode": 33188,
+      "bytes": 1392,
+      "sha256": "7c117856eaaa2b8d37c47a569e861713550c7563ebdfc880b2a389667d57e368"
+    },
+    "init": {
+      "mode": 33261,
+      "bytes": 770,
+      "sha256": "d439516c4b2ceb3d1f73a9404614d990c331a1ee821a42203a3154a080a69621"
+    },
+    "lib": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lib/ld-linux-aarch64.so.1": {
+      "mode": 33261,
+      "bytes": 203968,
+      "sha256": "390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505"
+    },
+    "mpc-abi": {
+      "mode": 33261,
+      "bytes": 793800,
+      "sha256": "bc1f909b2dade09ab0e5c9ab9b46609a992d356826bf498ab8e5d2a685610287"
+    },
+    "mpc-gpu-kernel": {
+      "mode": 33261,
+      "bytes": 641048,
+      "sha256": "e37f259622c6d3f2187f0024d0d4801e7234fd4ccd45da95e0c6c0b0de1166f8"
+    },
+    "proc": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sys": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "tmp": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include/EGL": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include/EGL/egl.h": {
+      "mode": 33188,
+      "bytes": 19286,
+      "sha256": "f5f41711f5d7517eb50d63726d786d471a3e84a52b94fd9aca9b6262b629347c"
+    },
+    "usr/include/EGL/eglext.h": {
+      "mode": 33188,
+      "bytes": 72948,
+      "sha256": "efc117e5cbbf21fa4f2e9dbfb3899eedb3235c0152a2f6d9ca4510b7505e400f"
+    },
+    "usr/include/EGL/eglext_angle.h": {
+      "mode": 33188,
+      "bytes": 19926,
+      "sha256": "df92523469632129b6b0c37bcade9fa8cc449e23e487beda2cc130b4e4bd1df5"
+    },
+    "usr/include/EGL/eglmesaext.h": {
+      "mode": 33188,
+      "bytes": 2129,
+      "sha256": "e9119482f23bfa6a4fd006278d16434328fa91abcb6c55033959c262644d85f4"
+    },
+    "usr/include/EGL/eglplatform.h": {
+      "mode": 33188,
+      "bytes": 5239,
+      "sha256": "25b5391655effcf363a38fa00c3154f356a3eab3d35dc067847875513cf1e441"
+    },
+    "usr/include/GL": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include/GL/gl.h": {
+      "mode": 33188,
+      "bytes": 79877,
+      "sha256": "f09313b53505928802f07d1b7fa9d40e7abe7728db389ec8fab348778073e4f1"
+    },
+    "usr/include/GL/glcorearb.h": {
+      "mode": 33188,
+      "bytes": 430995,
+      "sha256": "087622fc4b933fc0e5e4f7aa6071111720acd085de039159de0f2d06b91d7486"
+    },
+    "usr/include/GL/glext.h": {
+      "mode": 33188,
+      "bytes": 859012,
+      "sha256": "e7d514287e81e5403c14b02c2bab9d870589353642a8748da4213b9a55dbf56f"
+    },
+    "usr/include/GL/internal": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include/GL/internal/dri_interface.h": {
+      "mode": 33188,
+      "bytes": 82567,
+      "sha256": "03a91da7f918a5a70643ec64b750f19a90832230235d6b66076daf3fbf489149"
+    },
+    "usr/include/GLES": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include/GLES/egl.h": {
+      "mode": 33188,
+      "bytes": 399,
+      "sha256": "6f27d0fbd2190b179cad9df81cea0eb9524281543fdfb86134c06175009db092"
+    },
+    "usr/include/GLES/gl.h": {
+      "mode": 33188,
+      "bytes": 30603,
+      "sha256": "6b576206efbee73c0ba9716f8bbeb23496de17e735d0aa9e5eb00d73976db185"
+    },
+    "usr/include/GLES/glext.h": {
+      "mode": 33188,
+      "bytes": 52710,
+      "sha256": "f9d9dc4d8006925c5a0dd37a7f91a0fb87d066ba5b057384f6dea8ffeac79dbe"
+    },
+    "usr/include/GLES/glplatform.h": {
+      "mode": 33188,
+      "bytes": 634,
+      "sha256": "c6bcc0caaf56609c494efb327e8e9e2845630f6b58641ddde71eacd2c2790d21"
+    },
+    "usr/include/GLES2": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include/GLES2/gl2.h": {
+      "mode": 33188,
+      "bytes": 42930,
+      "sha256": "80f2c16d6543bc5ed3f9431c21fd4825d29af1dd82beab2edf31e377e6e70995"
+    },
+    "usr/include/GLES2/gl2ext.h": {
+      "mode": 33188,
+      "bytes": 250982,
+      "sha256": "4530230062731e45cd7ea0c931eec6f846434e0295a618b8761f09c972d3c669"
+    },
+    "usr/include/GLES2/gl2platform.h": {
+      "mode": 33188,
+      "bytes": 642,
+      "sha256": "f5da0747540a50be5f44aad264aae45bdf157a192c40f17487dd9a2f99c71b6c"
+    },
+    "usr/include/GLES3": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include/GLES3/gl3.h": {
+      "mode": 33188,
+      "bytes": 81600,
+      "sha256": "c61394d5166fc7f92db132d4cda66517d3e5e8c14b88267f0529ef298c2333d1"
+    },
+    "usr/include/GLES3/gl31.h": {
+      "mode": 33188,
+      "bytes": 106404,
+      "sha256": "612fc3a3c483baa3b04dfa6be3cb44217ad5ebb92c3af05531dcac2c159b177a"
+    },
+    "usr/include/GLES3/gl32.h": {
+      "mode": 33188,
+      "bytes": 127284,
+      "sha256": "e580e7db6bfc6b86860ae6b02fa27eb9acfe6726bab71f9c268568cdbf80baea"
+    },
+    "usr/include/GLES3/gl3ext.h": {
+      "mode": 33188,
+      "bytes": 741,
+      "sha256": "5730da902cec04b86f93152a219b379eabbf4eac97387f271fb8141fdfe4c5c5"
+    },
+    "usr/include/GLES3/gl3platform.h": {
+      "mode": 33188,
+      "bytes": 642,
+      "sha256": "a9e060dae5a2b11c5a889b679692b7089a10a7e03ebfbb6cf28217f6e322fb08"
+    },
+    "usr/include/KHR": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/include/KHR/khrplatform.h": {
+      "mode": 33188,
+      "bytes": 11131,
+      "sha256": "7b1e01aaa7ad8f6fc34b5c7bdf79ebf5189bb09e2c4d2e79fc5d350623d11e83"
+    },
+    "usr/include/gbm.h": {
+      "mode": 33188,
+      "bytes": 19165,
+      "sha256": "95f3b4a6ee5175c7cc5d47368d4efb100063fe49e5a6f5b19030ac2ceed73b81"
+    },
+    "usr/include/gbm_backend_abi.h": {
+      "mode": 33188,
+      "bytes": 11460,
+      "sha256": "4eacf82b37a754dc5e64c89ab9c8a32ad8b96bfac12e91f7e217e7fa5c5602c5"
+    },
+    "usr/lib": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/lib/gbm": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/lib/gbm/dri_gbm.so": {
+      "mode": 33261,
+      "bytes": 150136,
+      "sha256": "8fd2e1acd518c5900dd5903c2793ebab3bea220b95ee41cf378ed36ad281f7c3"
+    },
+    "usr/lib/ld-linux-aarch64.so.1": {
+      "mode": 33261,
+      "bytes": 203968,
+      "sha256": "390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505"
+    },
+    "usr/lib/libEGL.so": {
+      "mode": 41471,
+      "bytes": 11,
+      "sha256": "eb05ef4a77e7c87071661dc9de060537da7cde1ae9b4687f4b24bb68ae7d6f98"
+    },
+    "usr/lib/libEGL.so.1": {
+      "mode": 41471,
+      "bytes": 15,
+      "sha256": "18a649f5d189a93b6d43e7b25de1eb8e0216007d792bcc9af6a030a6ffdc00c3"
+    },
+    "usr/lib/libEGL.so.1.0.0": {
+      "mode": 33261,
+      "bytes": 381520,
+      "sha256": "c0f725124c42dd23c95e1c414a6dd42564ec9c3672a6b8670dc49b0e49c2b502"
+    },
+    "usr/lib/libGLESv1_CM.so": {
+      "mode": 41471,
+      "bytes": 17,
+      "sha256": "067fed73ff2cae53de9fe8418b5ad55700bdedab5de2d8b56f2d3b121ef7767c"
+    },
+    "usr/lib/libGLESv1_CM.so.1": {
+      "mode": 41471,
+      "bytes": 21,
+      "sha256": "772c48487e6d18291861a1061a1a8bb74255d8bf0aaaa6453a8baced383d4df9"
+    },
+    "usr/lib/libGLESv1_CM.so.1.1.0": {
+      "mode": 33261,
+      "bytes": 78408,
+      "sha256": "6b7510aac66d069d3be89ae197088c9c22b56c769db80e8181cbce69783155a9"
+    },
+    "usr/lib/libGLESv2.so": {
+      "mode": 41471,
+      "bytes": 14,
+      "sha256": "4c996ef8c9060e077f985141a93c5357809e71c34b372163a7a2ce660c1d6d0f"
+    },
+    "usr/lib/libGLESv2.so.2": {
+      "mode": 41471,
+      "bytes": 18,
+      "sha256": "918d38eb2afcb6b084dd3f762e3974e2b9e5f547314e7b3f14e2985a36134484"
+    },
+    "usr/lib/libGLESv2.so.2.0.0": {
+      "mode": 33261,
+      "bytes": 93296,
+      "sha256": "372ccf35bca357c0e82f9931f19d4d560513ead1bab86d23b0f4834753cbc91c"
+    },
+    "usr/lib/libc.so.6": {
+      "mode": 33261,
+      "bytes": 1722920,
+      "sha256": "0f1905dc27dbc6715875c70527bc8da846a10084c9c483e9d8ff76dce8d69d0e"
+    },
+    "usr/lib/libdrm.so.2": {
+      "mode": 33261,
+      "bytes": 133616,
+      "sha256": "efa8992c21c657acb37e3fa63653161b53a9d73a0828851c9b725fa5e35cadf3"
+    },
+    "usr/lib/libexpat.so.1": {
+      "mode": 33261,
+      "bytes": 198712,
+      "sha256": "b4b445a092ad711e535cfa7241974f709b716194c58227abc75b05e3a3bec7f7"
+    },
+    "usr/lib/libgallium-26.2.2.so": {
+      "mode": 33261,
+      "bytes": 22155136,
+      "sha256": "ebc06a038c96691c47e8fb4e829b33a1f3e5435e73dc6f1c28430075b51f59a6"
+    },
+    "usr/lib/libgbm.so": {
+      "mode": 41471,
+      "bytes": 11,
+      "sha256": "c353deeceb0f0d6881b30a0eed4c7f7871b6e145540fad3a3d4e08c28bb1f7ae"
+    },
+    "usr/lib/libgbm.so.1": {
+      "mode": 41471,
+      "bytes": 15,
+      "sha256": "d5a95353e495a8694e2c889fbef653097b8e48f7bc4f93789116ab2c31f72058"
+    },
+    "usr/lib/libgbm.so.1.0.0": {
+      "mode": 33261,
+      "bytes": 75640,
+      "sha256": "d176e8971413cc57c0fc220f00ec8f86b8383c0a7c92f02ab02e1b1dd9a04f4c"
+    },
+    "usr/lib/libgcc_s.so.1": {
+      "mode": 33261,
+      "bytes": 133696,
+      "sha256": "f2d3ad2bf0b61f6bc944cc37d7b6ab7f88d2582b41ff989ca164803f56cc5f20"
+    },
+    "usr/lib/libm.so.6": {
+      "mode": 33261,
+      "bytes": 591800,
+      "sha256": "5e0391562de36de323fb9cb0f2c1b6bd6d034c840b1dac018499f5fe4ded1b4a"
+    },
+    "usr/lib/libstdc++.so.6": {
+      "mode": 33261,
+      "bytes": 2633224,
+      "sha256": "6e3112d35cfc86db7ee85b27e1746f67408e2837ff8628b46386c3eabd5682a4"
+    },
+    "usr/lib/libvulkan.so.1": {
+      "mode": 33261,
+      "bytes": 592400,
+      "sha256": "1384294a60185c780fb324dfa87fc3367bdd6e4f71a8307a52c329ca2bcafe0a"
+    },
+    "usr/lib/libvulkan_virtio.so": {
+      "mode": 33261,
+      "bytes": 1860688,
+      "sha256": "12673473308f638eeb69180d4440a2166e5e3ce95301eff912d8599ae7eaedb4"
+    },
+    "usr/lib/libz.so.1": {
+      "mode": 33261,
+      "bytes": 133272,
+      "sha256": "e3bc90ee8cce46778c2f46c2a3e580d3b930f7b455910f25ea400a0b797fb9dc"
+    },
+    "usr/lib/pkgconfig": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/lib/pkgconfig/dri.pc": {
+      "mode": 33188,
+      "bytes": 201,
+      "sha256": "ebe9090a71ba5030f2e46e72eec60aede17aa9ae0706ef71b23fb2ccc2cc4dd4"
+    },
+    "usr/lib/pkgconfig/egl.pc": {
+      "mode": 33188,
+      "bytes": 240,
+      "sha256": "cb3e2f7b51d6a161df16744bf6b98a41bc8b3ae95f1928ddaf48bf0fdb0772c8"
+    },
+    "usr/lib/pkgconfig/gbm.pc": {
+      "mode": 33188,
+      "bytes": 197,
+      "sha256": "83e399a712114bf31a29fa606b0b0c8eaa9a41f8faba3309690eb34bc2e6b7fe"
+    },
+    "usr/lib/pkgconfig/glesv1_cm.pc": {
+      "mode": 33188,
+      "bytes": 229,
+      "sha256": "a04f7e39a0f3c621c48c2ed0d7790de4ef144a5267734df06c5cc9d5245f507a"
+    },
+    "usr/lib/pkgconfig/glesv2.pc": {
+      "mode": 33188,
+      "bytes": 220,
+      "sha256": "23ad3725fc3f6baf5cf806b1e4a50c27295a098b3140f1d17aeee048da1bae21"
+    },
+    "usr/share": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc/libc6": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc/libc6/copyright": {
+      "mode": 33188,
+      "bytes": 26462,
+      "sha256": "d3c95b56fa33e28b57860580f0baf4e4f4de2a268a2b80f1d031a5191bade265"
+    },
+    "usr/share/doc/libdrm2": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc/libdrm2/copyright": {
+      "mode": 33188,
+      "bytes": 15612,
+      "sha256": "512c9a57fd8b449aa157351da9df07bf8e19f767e496a72205a4020268ddb2e0"
+    },
+    "usr/share/doc/libexpat1": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc/libexpat1/copyright": {
+      "mode": 33188,
+      "bytes": 1756,
+      "sha256": "60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292"
+    },
+    "usr/share/doc/libgcc-s1": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc/libgcc-s1/copyright": {
+      "mode": 33188,
+      "bytes": 69004,
+      "sha256": "20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79"
+    },
+    "usr/share/doc/libstdc++6": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc/libstdc++6/copyright": {
+      "mode": 33188,
+      "bytes": 69004,
+      "sha256": "20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79"
+    },
+    "usr/share/doc/libvulkan1": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc/libvulkan1/copyright": {
+      "mode": 33188,
+      "bytes": 1964,
+      "sha256": "c579213e28f67944a7e407816b8a8e1d2d2406b3d820e420aa923807c450dc07"
+    },
+    "usr/share/doc/zlib1g": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/doc/zlib1g/copyright": {
+      "mode": 33188,
+      "bytes": 2927,
+      "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6"
+    },
+    "usr/share/drirc.d": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/drirc.d/00-mesa-defaults.conf": {
+      "mode": 33188,
+      "bytes": 36328,
+      "sha256": "c325c4027540b7315d8f83a74d3f4a21ea6f5e02f009195882c1c0a22631e1cd"
+    },
+    "usr/share/drirc.d/00-venus-defaults.conf": {
+      "mode": 33188,
+      "bytes": 85,
+      "sha256": "ce709012a58813853bd3e8129c91110c3fbb49c5d93ce04730966650eb95eba9"
+    },
+    "usr/share/drirc.d/00-virtio_gpu-defaults.conf": {
+      "mode": 33188,
+      "bytes": 274,
+      "sha256": "74a293c45f4247f1b3d383d5519f158ce7eee53e6765922355521c863cfd0959"
+    },
+    "usr/share/vulkan": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/vulkan/icd.d": {
+      "mode": 16877,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "usr/share/vulkan/icd.d/virtio_icd.aarch64.json": {
+      "mode": 33188,
+      "bytes": 177,
+      "sha256": "4617d49fbfcd7c9eb4e7a06c21186037ba9c6db945949da29a8007721f72e2c5"
+    },
+    "vertex.spv": {
+      "mode": 33188,
+      "bytes": 1136,
+      "sha256": "58a13742238c0651b8eeda455ba8962c12f41d9d627cd90480d3ed38cdf90a5c"
+    },
+    "vk-gate": {
+      "mode": 33261,
+      "bytes": 74864,
+      "sha256": "c7726e5ed8d5b78364367a34b5625970a2c0fec631909671873dd47c4f0160b6"
+    }
+  },
+  "cases": [
+    {
+      "run": "4a2a80d28bd3466f963c0986d011c782",
+      "has_2d_device": true,
+      "command": [
+        "qemu-system-aarch64",
+        "-machine",
+        "virt",
+        "-cpu",
+        "max",
+        "-accel",
+        "tcg,thread=multi,split-wx=on,tb-size=32",
+        "-smp",
+        "2",
+        "-m",
+        "512",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-serial",
+        "stdio",
+        "-monitor",
+        "none",
+        "-kernel",
+        "/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/payload/Image",
+        "-initrd",
+        "/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/payload/initramfs.cpio.gz",
+        "-append",
+        "console=ttyAMA0 rdinit=/init panic=1 mpc_run=4a2a80d28bd3466f963c0986d011c782",
+        "-no-reboot",
+        "-device",
+        "virtio-gpu-pci"
+      ],
+      "engine_exit": 0,
+      "serial_sha256": "bfd63595414f511765d6e05b8618112dd6df50d63e803b9836f980db76e44020",
+      "vulkan_missing_3d_rejected": true,
+      "abi": {
+        "schema": 1,
+        "run": "4a2a80d28bd3466f963c0986d011c782",
+        "kernel": "6.12.111",
+        "machine": "aarch64",
+        "elf_arch": "aarch64",
+        "page_bytes": 4096,
+        "signals": true,
+        "mmap_protection": true,
+        "pthread_tls_futex": true,
+        "fork_exec": true,
+        "checksum": "1d250c45a7bbc87e",
+        "cpu_ms": 4.204496,
+        "wall_ms": 4.4784,
+        "failures": 0
+      },
+      "kernel_gpu": {
+        "schema": 1,
+        "scope": "linux-virtio-gpu-kernel-device",
+        "run": "4a2a80d28bd3466f963c0986d011c782",
+        "machine": "aarch64",
+        "kernel": "6.12.111",
+        "driver": "virtio_gpu",
+        "stage": "complete",
+        "exit_code": 0,
+        "errno": 0,
+        "page_bytes": 4096,
+        "width": 1280,
+        "height": 720,
+        "mapped_bytes": 3686400,
+        "mapped_sum": 470016000,
+        "mismatches": 0,
+        "mapped_resource_verified": true,
+        "transfer_ioctl_completed": true,
+        "resource_closed": true,
+        "wall_ms": 62.085,
+        "parameters": {
+          "1": {
+            "supported": true,
+            "value": 0
+          },
+          "2": {
+            "supported": true,
+            "value": 1
+          },
+          "3": {
+            "supported": true,
+            "value": 0
+          },
+          "4": {
+            "supported": true,
+            "value": 0
+          },
+          "5": {
+            "supported": true,
+            "value": 0
+          },
+          "6": {
+            "supported": true,
+            "value": 0
+          },
+          "7": {
+            "supported": true,
+            "value": 0
+          },
+          "8": {
+            "supported": true,
+            "value": 0
+          }
+        },
+        "gpu_shader_verified": false,
+        "host_pixels_verified": false,
+        "metal_verified": false,
+        "presentation_verified": false,
+        "gameplay_verified": false
+      }
+    },
+    {
+      "run": "b9c6f16a79a848ff8a6abc68e49a04c7",
+      "has_2d_device": false,
+      "command": [
+        "qemu-system-aarch64",
+        "-machine",
+        "virt",
+        "-cpu",
+        "max",
+        "-accel",
+        "tcg,thread=multi,split-wx=on,tb-size=32",
+        "-smp",
+        "2",
+        "-m",
+        "512",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-serial",
+        "stdio",
+        "-monitor",
+        "none",
+        "-kernel",
+        "/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/payload/Image",
+        "-initrd",
+        "/home/runner/work/My-pc/My-pc/steamos-ios/out/guest-gpu-payload/payload/initramfs.cpio.gz",
+        "-append",
+        "console=ttyAMA0 rdinit=/init panic=1 mpc_run=b9c6f16a79a848ff8a6abc68e49a04c7",
+        "-no-reboot"
+      ],
+      "engine_exit": 0,
+      "serial_sha256": "759288e87815a90d4d99c8f769cf49bcc6ab51775adc2d6a0319c91bab13e408",
+      "vulkan_missing_3d_rejected": true,
+      "abi": {
+        "schema": 1,
+        "run": "b9c6f16a79a848ff8a6abc68e49a04c7",
+        "kernel": "6.12.111",
+        "machine": "aarch64",
+        "elf_arch": "aarch64",
+        "page_bytes": 4096,
+        "signals": true,
+        "mmap_protection": true,
+        "pthread_tls_futex": true,
+        "fork_exec": true,
+        "checksum": "1d250c45a7bbc87e",
+        "cpu_ms": 4.243968,
+        "wall_ms": 4.53808,
+        "failures": 0
+      },
+      "kernel_gpu": {
+        "schema": 1,
+        "scope": "linux-virtio-gpu-kernel-device",
+        "run": "b9c6f16a79a848ff8a6abc68e49a04c7",
+        "machine": "aarch64",
+        "kernel": "6.12.111",
+        "driver": "",
+        "stage": "open-drm",
+        "exit_code": 1,
+        "errno": 2,
+        "page_bytes": 4096,
+        "width": 1280,
+        "height": 720,
+        "mapped_bytes": 3686400,
+        "mapped_sum": 0,
+        "mismatches": 0,
+        "mapped_resource_verified": false,
+        "transfer_ioctl_completed": false,
+        "resource_closed": false,
+        "wall_ms": 2.956,
+        "parameters": {
+          "1": {
+            "supported": false,
+            "value": 0
+          },
+          "2": {
+            "supported": false,
+            "value": 0
+          },
+          "3": {
+            "supported": false,
+            "value": 0
+          },
+          "4": {
+            "supported": false,
+            "value": 0
+          },
+          "5": {
+            "supported": false,
+            "value": 0
+          },
+          "6": {
+            "supported": false,
+            "value": 0
+          },
+          "7": {
+            "supported": false,
+            "value": 0
+          },
+          "8": {
+            "supported": false,
+            "value": 0
+          }
+        },
+        "gpu_shader_verified": false,
+        "host_pixels_verified": false,
+        "metal_verified": false,
+        "presentation_verified": false,
+        "gameplay_verified": false
+      }
+    }
+  ],
+  "runtime_dependency_closure_verified": true,
+  "linux_runtime_boot_verified": true,
+  "guest_shader_verified": false,
+  "phone_tested": false,
+  "metal_verified": false,
+  "presentation_verified": false,
+  "steamos_verified": false,
+  "gameplay_verified": false,
+  "files": {
+    "Image": {
+      "bytes": 3805192,
+      "sha256": "5945ac10f6eee547435c617f75820bc0d248592f559d0a1e25005b73f9c4b9c0"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 10049925,
+      "sha256": "ef228a4f89de1d4e49b5a6ab88856448dc513f3ac92d242c39dc040ad9b019e0"
+    }
+  }
+}

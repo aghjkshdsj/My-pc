@@ -47,6 +47,10 @@ static NSDictionary *textSection(NSData *data) {
     }
     return ios ? found : nil;
 }
+NSDictionary *MPCFrameworkTextIdentity(NSString *path) {
+    NSData *data = [NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];
+    return data ? textSection(data) : nil;
+}
 NSDictionary *MPCNativeVulkanProbe(NSString *diagnosticDirectory) {
     @autoreleasepool {
         NSString *root = NSBundle.mainBundle.bundlePath;

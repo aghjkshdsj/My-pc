@@ -108,7 +108,7 @@ final class ProbeModel: ObservableObject {
     func run(kind: String) {
         guard !busy && !engineNeedsRelaunch else { return }
         busy = true
-        testStatus = "Starting \(kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : kind == "vulkan" ? "native Vulkan → Metal check" : "host probes")…"
+        testStatus = "Starting \(kind == "linux-gpu" ? "Linux guest Vulkan gate" : kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : kind == "vulkan" ? "native Vulkan → Metal check" : "host probes")…"
         exportURL = nil
         let runID = UUID().uuidString
         activeRunID = runID
@@ -152,12 +152,13 @@ final class ProbeModel: ObservableObject {
             let tests: [String: Any]
             switch kind {
             case "linux": tests = ["linux": MPCLinuxKernelProbe()]
+            case "linux-gpu": tests = ["linux_gpu": MPCLinuxGuestGPUProbe()]
             case "jit": tests = ["jit": MPCExecuteJITProbe()]
             case "vulkan": tests = ["native_vulkan": MPCNativeVulkanProbe(diagnosticPath)]
             default: tests = ["native_cpu": MPCNativeCPUProbe(), "metal": MPCMetalProbe(), "storage": MPCStorageProbe()]
             }
             MPCDiagnosticStage("probe-returned", ["kind": kind])
-            let linux = tests["linux"] as? [String: Any]
+            let linux = (tests["linux"] ?? tests["linux_gpu"]) as? [String: Any]
             if linux?["status"] as? String != "timed-out-engine-still-running" { MPCStopDiagnosticCapture() }
             await self.finish(runID: runID, before: before, controllers: controllers, tests: tests)
         }
@@ -168,6 +169,10 @@ final class ProbeModel: ObservableObject {
             testStatus = jit["status"] as? String == "passed"
                 ? "ARM64 JIT passed: code returned 42. Run the Linux kernel gate next."
                 : "JIT \(jit["status"] ?? "failed"): \(jit["reason"] ?? jit["stage"] ?? "See the saved report.")"
+        } else if let gpu = tests["linux_gpu"] as? [String: Any] {
+            testStatus = gpu["guest_vulkan_pixels_verified"] as? Bool == true
+                ? "Linux guest Vulkan pixels passed. Metal completion, memory import, presentation and game tests remain separate."
+                : "Linux guest GPU \(gpu["status"] ?? "failed"): \(gpu["reason"] ?? gpu["stage"] ?? "Share the saved report and logs.")"
         } else if let linux = tests["linux"] as? [String: Any] {
             testStatus = linux["linux_execution"] as? Bool == true
                 ? "Linux kernel and ABI gate passed. SteamOS and game graphics remain unfinished."
@@ -178,16 +183,21 @@ final class ProbeModel: ObservableObject {
                 : "Native Vulkan \(vulkan["status"] ?? "failed"): \(vulkan["reason"] ?? vulkan["stage"] ?? "See the saved logs.")"
         } else { testStatus = "Host probes finished. See the saved measurements below." }
         facts.merge(tests) { _, new in new }
-        engineNeedsRelaunch = (tests["linux"] as? [String: Any])?["status"] as? String == "timed-out-engine-still-running" ||
+        let kernel = (tests["linux"] ?? tests["linux_gpu"]) as? [String: Any]
+        engineNeedsRelaunch = kernel?["status"] as? String == "timed-out-engine-still-running" ||
+            kernel?["requires_relaunch"] as? Bool == true ||
             (tests["native_vulkan"] as? [String: Any])?["requires_relaunch"] as? Bool == true
-        let linux = (facts["linux"] as? [String: Any])?["linux_execution"] as? Bool == true
+        let linux = (facts["linux"] as? [String: Any])?["linux_execution"] as? Bool == true ||
+            (facts["linux_gpu"] as? [String: Any])?["linux_execution"] as? Bool == true
         let result: [String: Any] = [
             "schema": 1, "run_id": runID, "collected_utc": ISO8601DateFormatter().string(from: Date()),
             "source_commit": Bundle.main.object(forInfoDictionaryKey: "MPCSourceCommit") as? String ?? "local-unrecorded",
             "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
             "scope": "physical-ios-host-probe", "before": before, "after": MPCPlatformFacts(),
+            "executed_tests": tests.keys.sorted(),
             "controllers_observed": controllers, "tests": facts,
             "acceptance": ["linux_kernel_boot": linux,
+                           "linux_guest_vulkan_pixels": (facts["linux_gpu"] as? [String: Any])?["guest_vulkan_pixels_verified"] as? Bool == true,
                            "native_vulkan_to_metal_offscreen": (facts["native_vulkan"] as? [String: Any])?["native_vulkan_to_metal_verified"] as? Bool == true,
                            "steam_arm_client": false, "fex_game": false,
                            "linux_game_graphics_to_metal": false, "steam_under_60_seconds": false,
@@ -201,7 +211,7 @@ final class ProbeModel: ObservableObject {
             let url = directory.appendingPathComponent("MyPCSteamOS-Probe-\(runID).json")
             try data.write(to: url, options: .atomic)
             try journal.complete(runID: runID, result: data,
-                clearPending: (tests["linux"] as? [String: Any])?["status"] as? String != "timed-out-engine-still-running")
+                clearPending: kernel?["status"] as? String != "timed-out-engine-still-running")
             exportURL = url
         } catch { report = "Could not export report: \(error.localizedDescription)" }
         busy = false
@@ -228,6 +238,9 @@ struct ProbeScreen: View {
                         .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
                     Button("Run Linux kernel gate") { model.run(kind: "linux") }
                         .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
+                    Button("Run Linux guest Vulkan gate") { model.run(kind: "linux-gpu") }
+                        .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
+                    Text("The guest graphics build boots Linux with virtio-GPU/Venus and tests two 720p shader images inside Linux. Enable StikDebug first and use a fresh app process for each Linux boot.").font(.callout)
                     Button("Run native Vulkan → Metal check") { model.run(kind: "vulkan") }
                         .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
                     Text("The graphics-engine build tests two 720p shader images offscreen. Linux graphics, moving presentation and games require separate tests.").font(.callout)

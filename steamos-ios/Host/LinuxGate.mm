@@ -8,7 +8,8 @@
 #include <chrono>
 
 // Fresh host adapter to the documented upstream QEMU library entry points.
-// The CPU gate intentionally has no guest GPU, networking or persistent disk.
+// CPU and guest-GPU gates share one QEMU initialization allowance. Neither uses
+// a persistent disk or network, and neither is a complete SteamOS environment.
 static std::atomic<bool> attempted(false), finished(false);
 static std::atomic<int> engineStatus(-999);
 
@@ -32,16 +33,17 @@ static NSString *sha256(NSData *data) {
 
 static NSDictionary *failure(NSString *stage, NSString *reason) {
     return @{@"status": @"failed", @"stage": stage, @"reason": reason,
+             @"requires_relaunch": @([stage isEqual:@"one-run-per-process"]),
              @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO};
 }
 
-NSDictionary *MPCLinuxKernelProbe(void) {
+static NSDictionary *runKernel(BOOL graphics) {
     @autoreleasepool {
         MPCDiagnosticStage(@"linux-gate-starting", @{});
         if (attempted.load()) return failure(@"one-run-per-process", @"Close and relaunch, then request StikDebug for the new process before another Linux boot.");
         NSString *framework = [NSBundle.mainBundle.privateFrameworksPath
                               stringByAppendingPathComponent:@"qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu"];
-        NSString *payload = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"LinuxGate"];
+        NSString *payload = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:graphics ? @"LinuxGuestGPU" : @"LinuxGate"];
         NSString *image = [payload stringByAppendingPathComponent:@"Image"];
         NSString *initramfs = [payload stringByAppendingPathComponent:@"initramfs.cpio.gz"];
         if (![NSFileManager.defaultManager fileExistsAtPath:framework] ||
@@ -57,13 +59,44 @@ NSDictionary *MPCLinuxKernelProbe(void) {
         NSData *receiptData = [NSData dataWithContentsOfFile:[payload stringByAppendingPathComponent:@"payload-receipt.json"]];
         NSError *error = nil;
         NSDictionary *receipt = receiptData ? [NSJSONSerialization JSONObjectWithData:receiptData options:0 error:&error] : nil;
-        if (![receipt isKindOfClass:NSDictionary.class] || ![receipt[@"kind"] isEqual:@"disposable-linux-abi-gate"])
+        if (![receipt isKindOfClass:NSDictionary.class])
+            return failure(@"payload-receipt", error.localizedDescription ?: @"Missing payload provenance");
+        BOOL correctScope = graphics
+            ? [receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-missing-3d-boot-controls"]
+            : [receipt[@"kind"] isEqual:@"disposable-linux-abi-gate"];
+        if (!correctScope)
             return failure(@"payload-receipt", error.localizedDescription ?: @"Missing payload provenance");
         for (NSString *name in @[@"Image", @"initramfs.cpio.gz"]) {
             NSDictionary *expected = receipt[@"files"][name];
             NSData *data = [NSData dataWithContentsOfFile:[payload stringByAppendingPathComponent:name] options:NSDataReadingMappedIfSafe error:&error];
             if (!data || data.length != [expected[@"bytes"] unsignedLongLongValue] || ![sha256(data) isEqual:expected[@"sha256"]])
                 return failure(@"payload-sha256", [@"Input mismatch: " stringByAppendingString:name]);
+        }
+        NSDictionary *engineBundle = @{};
+        NSMutableDictionary *observedGPUCodes = [NSMutableDictionary dictionary];
+        if (graphics) {
+            NSData *bundleData = [NSData dataWithContentsOfFile:[payload stringByAppendingPathComponent:@"engine-bundle.json"]];
+            id parsed = bundleData ? [NSJSONSerialization JSONObjectWithData:bundleData options:0 error:nil] : nil;
+            if (![parsed isKindOfClass:NSDictionary.class] ||
+                ![parsed[@"scope"] isEqual:@"bundled-physical-ios-linux-guest-gpu-gate"])
+                return failure(@"gpu-engine-receipt", @"Missing exact guest-GPU engine bundle provenance.");
+            engineBundle = parsed;
+            NSDictionary *identities = engineBundle[@"engine_text_sections"];
+            if (![identities isKindOfClass:NSDictionary.class] || identities.count < 8 || identities.count > 32)
+                return failure(@"gpu-engine-identities", @"Incomplete executable identities.");
+            for (id relative in identities) {
+                if (![relative isKindOfClass:NSString.class]) return failure(@"gpu-engine-path", @"Invalid engine path.");
+                NSArray *parts = [relative componentsSeparatedByString:@"/"];
+                if (parts.count != 2 || ![parts[0] hasSuffix:@".framework"] ||
+                    ![[parts[0] stringByDeletingPathExtension] isEqual:parts[1]])
+                    return failure(@"gpu-engine-path", @"Unexpected framework layout.");
+                NSString *path = [NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:relative];
+                NSDictionary *actual = MPCFrameworkTextIdentity(path);
+                if (!actual || ![actual isEqual:identities[relative]])
+                    return failure(@"gpu-engine-text-sha256", [@"Engine code mismatch: " stringByAppendingString:relative]);
+                observedGPUCodes[relative] = actual;
+            }
+            MPCDiagnosticStage(@"linux-guest-gpu-engine-identities-verified", @{@"framework_count": @(identities.count)});
         }
         // QEMU global state cannot be initialized twice safely in this process.
         if (attempted.exchange(true)) return failure(@"one-run-per-process", @"Close and relaunch the app before another Linux boot.");
@@ -88,18 +121,32 @@ NSDictionary *MPCLinuxKernelProbe(void) {
         if (![NSFileManager.defaultManager createDirectoryAtURL:directory withIntermediateDirectories:NO attributes:nil error:&error])
             return failure(@"create-run-directory", error.localizedDescription);
         NSString *serial = [[directory URLByAppendingPathComponent:@"serial.log"] path];
-        NSArray<NSString *> *arguments = @[@"qemu-system-aarch64", @"-machine", @"virt", @"-cpu", @"max",
-            @"-accel", @"tcg,thread=multi,split-wx=on,tb-size=32", @"-smp", @"2", @"-m", @"512", @"-nodefaults", @"-display", @"none",
+        NSMutableArray<NSString *> *arguments = [@[@"qemu-system-aarch64", @"-machine", @"virt", @"-cpu", @"max",
+            @"-accel", @"tcg,thread=multi,split-wx=on,tb-size=32", @"-smp", @"2", @"-m", @"512", @"-nodefaults", @"-display", graphics ? @"egl-headless,gl=es" : @"none",
             @"-chardev", [NSString stringWithFormat:@"file,id=serial0,path=%@", serial], @"-serial", @"chardev:serial0",
             @"-monitor", @"none", @"-kernel", image, @"-initrd", initramfs, @"-append",
-            [@"console=ttyAMA0 rdinit=/init panic=1 mpc_run=" stringByAppendingString:nonce], @"-no-reboot"];
-        NSMutableDictionary *run = [@{@"schema": @1, @"scope": @"physical-ios-linux-tcg-gate",
+            [@"console=ttyAMA0 rdinit=/init panic=1 mpc_run=" stringByAppendingString:nonce], @"-no-reboot"] mutableCopy];
+        if (graphics) [arguments addObjectsFromArray:@[@"-device", @"virtio-gpu-gl-pci,blob=on,venus=on,hostmem=128M"]];
+        NSMutableDictionary *run = [@{@"schema": @1, @"scope": graphics ? @"physical-ios-linux-guest-vulkan-gate" : @"physical-ios-linux-tcg-gate",
             @"status": @"running", @"run": nonce, @"device": MPCPlatformFacts(),
             @"source_commit": [NSBundle.mainBundle objectForInfoDictionaryKey:@"MPCSourceCommit"] ?: @"unknown",
             @"engine": @"qemu-10.0.12-utm-aarch64-tcg", @"hardware_virtualization": @NO,
             @"requested_jit_cache_mib": @32, @"split_wx_requested": @YES,
             @"payload": receipt, @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO,
             @"serial_file": @"serial.log"} mutableCopy];
+        run[@"requires_relaunch"] = @YES;
+        if (graphics) {
+            run[@"engine_bundle"] = engineBundle;
+            run[@"engine_text_sections_observed"] = observedGPUCodes;
+            run[@"engine_text_sections_verified"] = @YES;
+            run[@"guest_gpu_device_requested"] = @YES;
+            run[@"guest_gpu_host_visible_mib"] = @128;
+            run[@"guest_vulkan_pixels_verified"] = @NO;
+            run[@"metal_host_verified"] = @NO;
+            run[@"presentation_verified"] = @NO;
+            run[@"gameplay_verified"] = @NO;
+            run[@"route_requested"] = @"Linux ARM64 Mesa Venus → virtio-GPU → native iOS virgl/Venus → MoltenVK → Metal";
+        }
         NSURL *reportURL = [directory URLByAppendingPathComponent:@"linux-test.json"];
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
         MPCDiagnosticStage(@"linux-pending-receipt-saved", @{@"run": nonce, @"relative_directory": directory.lastPathComponent});
@@ -154,12 +201,26 @@ NSDictionary *MPCLinuxKernelProbe(void) {
             [guest[@"checksum"] isEqual:@"1d250c45a7bbc87e"] && [text containsString:@"MPC_LINUX_EXIT=0"];
         for (NSString *key in @[@"signals", @"mmap_protection", @"pthread_tls_futex", @"fork_exec"])
             passed = passed && [guest[key] isEqual:@YES];
+        BOOL linuxPassed = passed;
+        if (graphics) {
+            NSDictionary *gpu = MPCParseGuestGPUReceipt(text, nonce, linuxPassed);
+            [run addEntriesFromDictionary:gpu];
+            passed = [gpu[@"guest_vulkan_pixels_verified"] isEqual:@YES];
+            MPCDiagnosticStage(@"linux-guest-vulkan-receipt-checked", @{
+                @"guest_pixels_verified": gpu[@"guest_vulkan_pixels_verified"],
+                @"driver_detected": gpu[@"graphics_kernel_device_detected"],
+                @"nonce_bound": gpu[@"fresh_guest_vulkan_nonce_bound"]});
+        }
         run[@"guest"] = guest;
         run[@"status"] = passed ? @"passed" : (finished.load() ? @"failed" : @"timed-out-engine-still-running");
-        run[@"linux_execution"] = @(passed);
+        run[@"linux_execution"] = @(linuxPassed);
         run[@"after"] = MPCPlatformFacts();
         run[@"limitations"] = @"This disposable Linux kernel/ABI gate is not SteamOS, Steam, FEX or a game graphics/performance test. If timed out, close and relaunch the app. Serial and pending receipts survive an engine failure.";
+        if (graphics) run[@"limitations"] = @"Guest Vulkan shader/readback gate with a source-built native Metal route requested. Guest pixels alone do not independently verify host Metal command completion, host-memory import, zero-copy, moving presentation or game FPS. This is a disposable Linux graphics test, not SteamOS/Steam/FEX. Share logs after failure; relaunch before another Linux boot.";
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
         return run;
     }
 }
+
+NSDictionary *MPCLinuxKernelProbe(void) { return runKernel(NO); }
+NSDictionary *MPCLinuxGuestGPUProbe(void) { return runKernel(YES); }

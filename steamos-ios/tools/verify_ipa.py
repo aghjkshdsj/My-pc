@@ -50,7 +50,7 @@ def macho_text(binary):
     return found[0]
 
 
-def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=False):
+def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=False, guest_gpu=False):
     with zipfile.ZipFile(path) as z:
         assert z.testzip() is None, 'IPA ZIP CRC failed'
         prefix = 'Payload/MyPCSteamOSProbe.app/'
@@ -71,6 +71,7 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                 metadata = plistlib.loads(z.read(name))
                 executable = name.rsplit('/', 1)[0] + '/' + metadata['CFBundleExecutable']
                 imports = macho_platform(z.read(executable), 6)
+                assert not any(any(word in dep for word in ['IOKit', 'Hypervisor', '/PrivateFrameworks/']) for dep in imports)
                 for dependency in imports:
                     if dependency.startswith('/usr/lib/') or dependency.startswith('/System/Library/'): continue
                     assert dependency.startswith('@rpath/') and 'Hypervisor' not in dependency, dependency
@@ -101,10 +102,39 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                 assert len(z.read(vk + name)) == inputs['files'][name]['bytes']
             assert inputs['files']['MoltenVK']['sha256'] == BINARY_SHA
             assert inputs['engine_text_section'] == macho_text(molten)
+        if guest_gpu:
+            from bundle_guest_gpu import ENGINE_RUN, ENGINE_SOURCE, GUEST_RUN, GUEST_SOURCE, closure, hashed
+            assert linux_gate and native_vulkan and info['CFBundleVersion'] == '4000011'
+            for marker in [b'virtio-gpu-gl-pci,blob=on,venus=on,hostmem=128M', b'egl-headless,gl=es',
+                           b'MPC_GPU_GUEST_RUN=', b'tcg,thread=multi,split-wx=on,tb-size=32']:
+                assert marker in binary, 'Required guest GPU/JIT adapter was not compiled'
+            gpu = prefix + 'LinuxGuestGPU/'
+            bundled = json.loads(z.read(gpu + 'engine-bundle.json'))
+            assert bundled['scope'] == 'bundled-physical-ios-linux-guest-gpu-gate'
+            assert bundled['engine_run'] == ENGINE_RUN and bundled['engine_source'] == ENGINE_SOURCE
+            assert bundled['guest_run'] == GUEST_RUN and bundled['guest_source'] == GUEST_SOURCE
+            assert bundled['hardware_virtualization'] is False and bundled['root_gles_version_requested'] == 3
+            original = bundled['engine_receipt']
+            expected = closure(original) | {'MoltenVK.framework/MoltenVK'}
+            assert set(bundled['engine_text_sections']) == expected
+            for relative in expected:
+                data = z.read(prefix + 'Frameworks/' + relative)
+                assert macho_text(data) == bundled['engine_text_sections'][relative]
+                if not relative.startswith('MoltenVK.'):
+                    hashed(data, original['files']['sysroot-iOS-arm64/Frameworks/' + relative])
+            payload = json.loads(z.read(gpu + 'payload-receipt.json'))
+            assert payload['scope'] == 'linux-arm64-graphics-payload-missing-3d-boot-controls'
+            assert payload['source_commit'] == GUEST_SOURCE and int(payload['workflow_run']) == GUEST_RUN
+            assert payload['runtime_dependency_closure_verified'] and payload['linux_runtime_boot_verified']
+            for name in ['Image', 'initramfs.cpio.gz']:
+                hashed(z.read(gpu + name), payload['files'][name])
+            for field in ['guest_shader_verified', 'metal_host_verified', 'host_memory_import_verified',
+                          'presentation_verified', 'steamos_verified', 'gameplay_verified']:
+                assert bundled[field] is False
         return {'schema': 1, 'kind': 'ios-linux-kernel-gate' if linux_gate else 'ios-host-probe-only', 'commit': commit, 'build': info['CFBundleVersion'],
                 'bundle_id': info['CFBundleIdentifier'], 'sha256': hashlib.file_digest(path.open('rb'), 'sha256').hexdigest(),
                 'bytes': path.stat().st_size, 'zip_crc': 'passed', 'arm64_ios': True,
-                'linux_gate_bundled': linux_gate, 'native_vulkan_bundled': native_vulkan, 'engine_frameworks_checked': frameworks,
+                'linux_gate_bundled': linux_gate, 'native_vulkan_bundled': native_vulkan, 'guest_gpu_bundled': guest_gpu, 'engine_frameworks_checked': frameworks,
                 'linux_boot_verified': False, 'game_graphics_verified': False, 'phone_performance_verified': False}
 
 if __name__ == '__main__':
@@ -115,8 +145,9 @@ if __name__ == '__main__':
     parser.add_argument('--linux-gate', action='store_true')
     parser.add_argument('--build', help='Require the intended app build number')
     parser.add_argument('--native-vulkan', action='store_true')
+    parser.add_argument('--guest-gpu', action='store_true')
     args = parser.parse_args()
-    result = verify(args.ipa, args.commit, args.linux_gate, args.build, args.native_vulkan)
+    result = verify(args.ipa, args.commit, args.linux_gate, args.build, args.native_vulkan, args.guest_gpu)
     text = json.dumps(result, indent=2) + '\n'
     if args.receipt:
         args.receipt.write_text(text, encoding='utf-8')

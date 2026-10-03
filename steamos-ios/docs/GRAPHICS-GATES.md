@@ -64,8 +64,13 @@ Remaining integration steps:
    ANGLE engine-only compilation passed in run 37075043878, including physical-iOS
    ARM64 exports and public-framework imports. The EGL shim's dynamic GLES load is
    not a Mach-O import: source inspection identified the framework-rpath correction,
-   now applied to its implementation and generator. Revised compile acceptance and
-   actual runtime selection of Metal are separate remaining checks.
+   now applied to its implementation and generator. The revised ANGLE build passed
+   run 37077105285, and the complete EGL-enabled virgl/Venus renderer passed
+   run 37078312649. Actual runtime selection of Metal and guest transport remain
+   separate checks. The fresh QEMU GPU engine passed physical-iOS compilation in
+   run 37078645613 with the explicit Metal/GLES 3 adapter and complete audited
+   native dependency closure. No private Hypervisor, IOKit or Neptune is required.
+   Runtime context creation remains a phone gate.
 3. Build guest Mesa virgl/Venus with the matching virtio GPU blob/context protocol.
    A separate graphics-capable kernel and device diagnostic now passed hosted
    ARM TCG run 37067848259: driver detection, 1280×720 resource allocation/map,
@@ -77,6 +82,13 @@ Remaining integration steps:
    working CPU baseline. Receipt: `evidence/primary/hosted-gpu-kernel-test.json`.
    Run these same GL/Vulkan diagnostics inside the phone guest and correlate
    fresh guest receipts with host Metal command completion and source identities.
+   A complete disposable Mesa/Venus initramfs and ARM Linux loader/DSO/source
+   closure now passed run 37079133580. Real ARM TCG boots retained ABI success
+   and correctly rejected both a 2D-only GPU and a missing GPU with Vulkan -3.
+   These negative controls do not prove a guest shader. Build 4000011 is being
+   prepared for the positive phone route with fresh nonce-bound receipts. Its
+   guest pixel result remains distinct from host Metal completion/import and
+   moving presentation, which require independent evidence.
 4. Present moving guest-origin frames through a fresh Metal display adapter;
    correlate guest/host/present counters, rotation/resize, pacing and zero-copy
    resource lifetime. Offscreen images cannot satisfy this step.

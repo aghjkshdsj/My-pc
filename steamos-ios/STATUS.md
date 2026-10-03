@@ -231,14 +231,23 @@ including the same physical-iOS exports and import closure. Phone loading and
 actual Metal context execution still require device evidence.
 
 The separate QEMU GPU recipe, Darwin EGL/Metal root-context adapter and dependency
-stager/source collector are implemented but not yet cross-compiled. The adapter
+stager/source collector passed physical-iOS cross-compilation. The adapter
 explicitly selects ANGLE Metal and GLES; its upstream headless readback is a
-correctness diagnostic, not the planned steady-state presenter. The prepared
-EGL-enabled virgl/Venus recipe will consume only an accepted ANGLE build. Its first
+correctness diagnostic, not the planned steady-state presenter. The separate
+EGL-enabled virgl/Venus recipe consumes the accepted ANGLE build. Its first
 actual compile produced the EGL renderer object, but the final audit incorrectly
 expected a numeric value for a Meson boolean macro. The audit now accepts only
 the enabled bare-define or value-1 forms and checks the actual EGL compile command.
-No accepted complete GL/Venus engine or phone loader result is claimed yet.
+The corrected compile and audit passed run 37078312649, source
+`7281f4759ba47cfcfc492a4093ee56b5bf9730d9`, against ANGLE run 37077105285.
+Receipt: `evidence/primary/hosted-ios-gl-venus-build.json`. This retains EGL,
+GLES, epoxy and virgl/Venus engines with complete corresponding source; it is
+not a phone loader or graphics result. QEMU GPU build 37078645613 passed at source
+`56f2522eed4509fe2010d2250eaa569dd503c660`, including actual virtio-GPU GL/Venus,
+EGL headless objects, public framework import closure and all corresponding source.
+The explicit ANGLE root context requests GLES 3. Receipt:
+`evidence/primary/hosted-ios-gpu-engine-build.json`. These are native compilation
+checks, not phone context creation or guest graphics evidence.
 
 A new ARM Linux Mesa 26.2.2 recipe pins the official 68,533,264-byte archive to
 SHA-256 `eeb29ca7e56cfaa8e8a79538dcf834e3b18e501c31bef5145e959ea437cc4216`.
@@ -249,12 +258,35 @@ Venus ICD correctly failed physical-device enumeration with Vulkan -3/exit 3 in
 a verified separate mount namespace with no DRM device nodes. Two earlier audit
 failures caught an obsolete alias assumption and the host DRM-directory precondition;
 both are retained. Receipt: `evidence/primary/hosted-guest-mesa-build.json`.
-This is guest userspace, not a complete initramfs or SteamOS image. The full Mesa
+This standalone artifact is guest userspace, not a complete initramfs or SteamOS image. The full Mesa
 source and exact recipe/settings are retained. External Linux loader/libraries
-and their package/source versions are recorded separately; staging-directory
-library lookup and source/license closure remain guest-payload work. No guest
+and their package/source versions are recorded separately. The complete disposable
+payload described below closes its runtime lookup/source packaging. No guest
 shader or phone graphics result is implied by this compile/negative test.
+
+A fresh combined graphics initramfs now stages the exact Mesa userspace, resolves
+its ARM64 dynamic loader/DSO closure ahead of system libraries, and retains exact
+Ubuntu package/source versions, copyright notices, source archives and signed APT
+metadata. Run 37078645537 booted this runtime with both a 2D-only GPU and no GPU:
+all Linux ABI checks passed, and the exact Venus ICD rejected both with Vulkan -3.
+Its final source packaging failed on the root-owned APT lock. The corrected full
+build passed run 37079133580, source `cb99fc4740385ddcb37119bbc164d5671ea61ce0`.
+The source archive retains exact package sources/configuration and signed index
+metadata. A read-only audit in run 37079667769 verified the artifact hashes and
+printed its complete receipt: `evidence/primary/hosted-guest-gpu-payload.json`.
+The 10,049,925-byte initramfs has SHA-256
+`ef228a4f89de1d4e49b5a6ab88856448dc513f3ac92d242c39dc040ad9b019e0`.
+These are real Linux runtime boots with negative GPU controls, not shader results.
 
 Phone host-memory import, guest Mesa/Venus shader draws and moving Metal
 presentation remain unfinished. The latest phone IPA is still build 4000010;
-no new phone test is requested yet.
+no new phone test is requested yet. Build 4000011 is being prepared separately
+with the exact native framework closure and complete disposable Linux graphics
+payload. Its new Run Linux guest Vulkan gate requires a fresh process, fresh JIT,
+fresh nonce, passing Linux ABI, real virtio-GPU 3D/blob/host-visible/context
+capabilities and two non-software Vulkan shader phases with full pixel checks.
+Native rejection fixtures exercise the production receipt parser; they are not
+device results. The report records executed_tests so saved earlier successes
+cannot count as freshly executed tests. Guest pixels cannot independently prove
+host Metal completion, host-memory import, zero-copy, presentation or gameplay.
+All of those gates remain unverified.

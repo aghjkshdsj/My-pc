@@ -99,8 +99,9 @@ The host-only generator dependency is PyYAML 6.0.3; it is not an iOS runtime mod
 Build 37064765557 produced two ARM64 iOS frameworks using public Metal/Foundation,
 without an EGL/GLX backend or Neptune/private Hypervisor. Its successful compile
 is not phone import/serialization/graphics evidence. The separate MoltenVK
-physical-phone offscreen check passed in build 4000010. ANGLE and the complete
-guest transport/presentation stack remain unfinished.
+physical-phone offscreen check passed in build 4000010. ANGLE compilation is
+accepted below; the complete phone guest transport/presentation stack remains
+unfinished.
 
 
 The separate ANGLE build retains the exact reviewed engine/configuration paths,
@@ -120,5 +121,24 @@ and Venus drivers. Its full release source, actual Meson settings and fresh reci
 are retained. Mesa includes per-file licenses beyond its project-level MIT label.
 The separate guest userspace archive does not bundle Ubuntu's external dynamic
 libraries or ELF loader; their exact package/source versions are recorded for the
-subsequent image and license closure. Source inspection or library compilation
-cannot establish a guest shader, phone Metal, presentation or game result.
+subsequent image and license closure. That separate disposable payload now passed
+run 37079133580: exact signed Ubuntu package/source versions, source archive
+checksums, package copyright files and loader/DSO lookup closure are retained.
+It includes glibc 2.39-0ubuntu8.9, libdrm 2.4.125-1ubuntu0.1~24.04.2, Vulkan
+loader 1.3.275.0-1build1, expat 2.6.1-2ubuntu0.6, zlib
+1:1.3.dfsg-3.1ubuntu2.2 and GCC 14.2.0-4ubuntu2~24.04.1 runtime libraries.
+glibc LGPL, GCC runtime exceptions and all remaining per-file/package terms
+remain applicable. Real Linux boots exercise this disposable runtime, while
+both missing-3D controls reject Vulkan. This closes the diagnostic payload's
+runtime/source packaging; it does not authenticate or assemble the SteamOS rootfs.
+
+The EGL-enabled renderer passed run 37078312649 against the revised ANGLE build.
+The separate QEMU GPU engine and explicit Darwin ANGLE Metal/GLES 3 adapter passed
+physical-iOS compilation in run 37078645613. All original engine archives, exact
+libucontext source, adapter patch, recipes and actual build configurations are
+preserved alongside the complete GL/Venus/ANGLE source closure. The new app only
+packages the required native framework dependency closure and the exact earlier
+MoltenVK build. No upstream application is the implementation base. Public
+SDK imports exclude IOKit, private Hypervisor and Neptune. Source inspection,
+library compilation and negative controls cannot establish a guest shader,
+phone Metal completion, presentation or game result.
