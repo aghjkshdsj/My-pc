@@ -35,9 +35,11 @@ moving presentation and gameplay remain unverified.
 The new separate graphics kernel passed real hosted ARM virtio-GPU allocation,
 mapping, transfer ioctl and cleanup, including rejection with the device removed
 (run 37067848259). It is a 2D driver test and does not establish host pixels,
-guest shader acceleration or phone guest graphics. ANGLE source integration and
-the EGL-enabled QEMU bridge are under development; no new GPU-bearing phone
-IPA or physical guest shader result is claimed.
+guest shader acceleration. ANGLE and the EGL-enabled QEMU bridge now compile
+and are packaged in build 4000012. Its physical-phone report passes Linux ABI
+and the virtio-GPU allocation/map/CPU-pattern/transfer-ioctl test, then fails
+guest Vulkan initialization at shared-resource creation. No physical guest
+shader result is claimed.
 Official rootfs/index metadata and 35 ARM client package URLs are resolved;
 full rootfs/client verification, installation and execution remain open.
 Native ARM64 JIT and Linux 6.12.111 boot/ABI checks passed on the actual iPhone
@@ -125,3 +127,13 @@ independent ten-framework IPA verification. The fresh host checks real backend
 registration before boot. This fixes a display dependency/export packaging
 problem; the GPU/compositor rows remain open until positive phone guest rendering,
 host completion/import and moving presentation are demonstrated.
+
+The subsequent fresh build 4000012 report matches the exact IPA, payload and all
+ten engine code sections. Linux ABI and the virtio-GPU DRM memory check passed
+on iPhone16,2 / iOS 27.0.1 build 24A446. Guest shaders remain unverified:
+RESOURCE_CREATE_BLOB failed with ERR_UNSPEC, followed by invalid-resource errors,
+and vkCreateInstance returned -1. The diagnostic shut down normally. The normal
+report lacks host engine output; saved diagnostic logs are required to distinguish
+the remaining allocation/renderer/resource-metadata branches. Sanitized receipt:
+`evidence/primary/ios-guest-vulkan-4000012-partial.json`. No complete SteamOS,
+compositor, game or performance acceptance changes from this partial result.

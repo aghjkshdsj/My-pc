@@ -34,7 +34,23 @@ verified the exact 24,292,269-byte IPA, ten-framework import/code closure includ
 Pixman, backend registration export/preflight, guest payloads and ZIP CRC.
 SHA-256: `256da95463a5594cc41b93f1f2a64a096418ce39ef7f2471af4ffb39c1dcdbf8`.
 Receipt: `evidence/primary/ios-guest-vulkan-prerelease-4000012.json`.
-This new package has not passed on the phone. Linux guest shaders, independent
+The owner subsequently returned a fresh build 4000012 `linux_gpu` report.
+Its exact source, payload, engine bundle and all ten executable code sections
+match the independently verified IPA. Linux 6.12.111 booted, all ABI checks
+passed, and the virtio-GPU kernel test allocated/mapped a 1280×720 resource,
+checked its CPU pattern with zero mismatches, completed the transfer ioctl and
+closed it. 3D/blob/host-visible/context-init capabilities and Venus capset 4
+were advertised. These facts do not prove host pixels or guest shaders.
+Guest Vulkan failed at `vkCreateInstance` with result -1 and guest exit 3:
+RESOURCE_CREATE_BLOB received ERR_UNSPEC, followed by invalid-resource errors
+for map/unmap/unref. The engine completed normally with exit 0 and poweroff;
+this report is a failed graphics test, not evidence of another app crash.
+Kernel/ABI/DRM plus the failed Vulkan attempt took 1156.26 ms, not Steam startup
+or game FPS. The normal report lacks the host engine output needed to distinguish
+the allocation/renderer/resource-metadata failure branches. The same-run
+**Share saved diagnostic logs** export is the next required device evidence.
+Sanitized receipt: `evidence/primary/ios-guest-vulkan-4000012-partial.json`.
+Raw reports and analysis remain private. Linux guest shaders, independent
 host Metal completion/import, presentation, SteamOS and game targets remain open.
 
 Owner-supplied reports identify iPhone 15 Pro Max (iPhone16,2), iOS 27.0.1
@@ -330,12 +346,13 @@ host Metal completion, host-memory import, zero-copy, presentation or gameplay.
 All of those gates remain unverified.
 
 Build 4000011's subsequent phone attempt failed at missing EGL-headless backend,
-as recorded above. The next owner action with the independently verified replacement
-is to install build 4000012 with iLoader, enable StikDebug
-universal.js for the fresh process, check JIT, run Linux guest Vulkan gate once
-in the foreground for up to three minutes and share the device report. If it
-closes, reopen and share recovery logs. Do not run the CPU gate first in that
-process. No phone pass, Steam installation or gameplay is inferred from packaging.
+as recorded above. The owner has now run the replacement build 4000012: Linux
+and DRM memory checks passed, while Vulkan initialization failed as described
+above. The next device action is to share the existing saved diagnostic logs
+for that attempt; another identical run is not needed to obtain them.
+See `docs/GUEST-GPU-FAILURE.md` for the exact protocol decoding, reviewed pinned
+source and unresolved cause. No guest Vulkan pass, Steam installation or
+gameplay is inferred from the partial result.
 The private offline `tools/verify_guest_gpu_report.py` checks exact IPA/source,
 executed test identity, engine code, fresh serial/DRM/shader receipts and unchanged
 product limitations. Six guest report rejection-fixture tests and four backend

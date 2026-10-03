@@ -16,8 +16,13 @@ library-export audits. The app checks real backend registration before boot.
 Release compilation, 53 evidence tests, 28 native receipt checks and recovery
 tests passed. Independent public redownload verified all ten native frameworks,
 their exact code identities, payload hashes, source/build and ZIP CRC.
+The returned phone report now verifies Linux boot/ABI and the virtio-GPU
+allocation/map/CPU-pattern/transfer-ioctl checks. Guest Vulkan fails before
+rendering at shared-resource creation; the engine shuts down normally.
 Positive phone guest graphics, independent Metal completion/import, presentation
-and SteamOS/game performance remain **unverified**.
+and SteamOS/game performance remain **unverified**. The next needed evidence is
+**Share saved diagnostic logs** for the existing attempt, which includes the
+host engine output absent from the normal report.
 
 Historical package: **[Linux guest Vulkan gate 1 / build 4000011](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-1/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
 24,092,262 bytes, SHA-256
@@ -33,8 +38,9 @@ was unavailable before Linux boot. The exact engine configuration had Pixman
 disabled. The corrected engine explicitly enables Pixman and audits the real
 backend object/export. Build 4000012 passed compilation and package verification
 with a native backend registration preflight. Do not repeat build 4000011 as the positive GPU gate.
-The new Linux guest Vulkan path is **unverified on the phone**. Older verified
-CPU and native host graphics results below do not establish it.
+The new Linux guest Vulkan shader path is **unverified on the phone**. Build
+4000012's partial Linux/DRM success and older native host graphics results do
+not establish it. See [current failure analysis](docs/GUEST-GPU-FAILURE.md).
 
 The requested product remains an actual SteamOS ARM environment running Valve's
 Linux ARM Steam and FEX games. It is **unfinished**. The first separate IPA is
@@ -102,7 +108,13 @@ and [upstream provenance](docs/PROVENANCE.md).
 
 ## Device step
 
-Use the verified build 4000012 download above.
+The latest build 4000012 device report has already returned Linux/ABI/DRM success
+and a failed guest Vulkan initialization. Use **Share saved diagnostic logs**
+now to export that same attempt's host engine output; a rerun is unnecessary.
+The normal **Share device report** file contains the guest serial failure but
+does not include this host output. The next fix depends on that distinction.
+
+For a new attempt after a fix, use the verified build linked above.
 Install it with iLoader. Close/relaunch, use **Enable JIT in StikDebug**,
 confirm the universal.js request and return. Run **ARM64 JIT check**, then
 **Run Linux guest Vulkan gate** once, before the older Linux kernel button.
@@ -146,10 +158,12 @@ xcodebuild -project steamos-ios/MyPCSteamOS.xcodeproj -scheme MyPCSteamOSProbe \
   MPC_SOURCE_COMMIT="$(git rev-parse HEAD)" build
 ```
 
-CI builds and verifies exact ARM64 iOS host-probe and Linux-gate IPAs,
+CI builds and verifies exact ARM64 iOS host-probe, Linux-gate and guest-GPU IPAs,
 each with accurate scope, checksums and applicable corresponding source.
-The latest Linux-gate IPA includes a separate native offscreen Vulkan diagnostic;
-the disposable Linux kernel remains CPU-only without guest GPU transport.
+The Linux-gate-10 baseline includes a separate native offscreen Vulkan diagnostic
+and a CPU-only disposable kernel. Guest-GPU build 4000012 separately includes
+the GPU-capable kernel, Mesa Venus runtime and native renderer transport;
+its phone Vulkan shader acceptance remains unfinished.
 Device signing is supplied by iLoader. JIT must be verified after re-signing.
 
 The private local archive audit hashes and scans every ZIP file without

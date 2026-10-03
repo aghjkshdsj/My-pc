@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "scope": "owner-supplied-iphone-linux-virtio-gpu-partial-evidence",
+  "build": "4000012",
+  "source_commit": "aa2f8ccfb15eb53a96f70775be8e83ca0c5703b2",
+  "verified_ipa_sha256": "256da95463a5594cc41b93f1f2a64a096418ce39ef7f2471af4ffb39c1dcdbf8",
+  "device": {
+    "device_machine": "iPhone16,2",
+    "ios_version": "27.0.1",
+    "os_build": "24A446",
+    "host_page_bytes": 16384
+  },
+  "exact_payload_and_engine_bundle_match": true,
+  "observed_engine_code_sections": 10,
+  "executed_tests": [
+    "linux_gpu"
+  ],
+  "display_backend_registration_observed": true,
+  "execution": "qemu-tcg-software-system-emulation",
+  "linux_kernel": "6.12.111",
+  "guest_page_bytes": 4096,
+  "linux_abi_checks_passed": true,
+  "linux_abi_failures": 0,
+  "abi_cpu_ms": 5.357,
+  "abi_wall_ms": 5.596,
+  "engine_finished": true,
+  "engine_exit_status": 0,
+  "gate_status": "failed",
+  "gate_elapsed_ms": 1156.2608333333628,
+  "time_scope": "kernel initialization plus ABI, DRM memory checks and failed Vulkan attempt; not Steam startup or FPS",
+  "virtio_gpu_memory_check": {
+    "schema": 1,
+    "scope": "linux-virtio-gpu-kernel-device",
+    "driver": "virtio_gpu",
+    "stage": "complete",
+    "exit_code": 0,
+    "errno": 0,
+    "page_bytes": 4096,
+    "width": 1280,
+    "height": 720,
+    "mapped_bytes": 3686400,
+    "mapped_sum": 470016000,
+    "mismatches": 0,
+    "mapped_resource_verified": true,
+    "transfer_ioctl_completed": true,
+    "resource_closed": true,
+    "wall_ms": 33.847,
+    "parameters": {
+      "1": {
+        "supported": true,
+        "value": 1
+      },
+      "2": {
+        "supported": true,
+        "value": 1
+      },
+      "3": {
+        "supported": true,
+        "value": 1
+      },
+      "4": {
+        "supported": true,
+        "value": 1
+      },
+      "5": {
+        "supported": true,
+        "value": 0
+      },
+      "6": {
+        "supported": true,
+        "value": 1
+      },
+      "7": {
+        "supported": true,
+        "value": 22
+      },
+      "8": {
+        "supported": true,
+        "value": 1
+      }
+    },
+    "gpu_shader_verified": false,
+    "host_pixels_verified": false,
+    "metal_verified": false,
+    "presentation_verified": false,
+    "gameplay_verified": false
+  },
+  "virtio_errors": [
+    {
+      "command": "0x10c",
+      "meaning": "RESOURCE_CREATE_BLOB",
+      "response": "0x1200",
+      "response_meaning": "ERR_UNSPEC"
+    },
+    {
+      "command": "0x208",
+      "meaning": "RESOURCE_MAP_BLOB",
+      "response": "0x1203",
+      "response_meaning": "ERR_INVALID_RESOURCE_ID"
+    },
+    {
+      "command": "0x209",
+      "meaning": "RESOURCE_UNMAP_BLOB",
+      "response": "0x1203",
+      "response_meaning": "ERR_INVALID_RESOURCE_ID"
+    },
+    {
+      "command": "0x102",
+      "meaning": "RESOURCE_UNREF",
+      "response": "0x1203",
+      "response_meaning": "ERR_INVALID_RESOURCE_ID"
+    }
+  ],
+  "guest_vulkan_failed_call": "vkCreateInstance",
+  "guest_vulkan_result": -1,
+  "guest_vulkan_exit_status": 3,
+  "guest_vulkan_pixel_receipt_present": false,
+  "after_test_physical_footprint_bytes": 275466320,
+  "footprint_is_peak": false,
+  "thermal_state_before": 0,
+  "thermal_state_after": 0,
+  "sustained_thermal_measurement": false,
+  "hardware_virtualization_verified": false,
+  "guest_vulkan_pixels_verified": false,
+  "host_metal_completion_verified": false,
+  "host_memory_import_verified": false,
+  "presentation_verified": false,
+  "steamos_verified": false,
+  "steam_arm_client_verified": false,
+  "fex_game_verified": false,
+  "gameplay_verified": false,
+  "steam_startup_target_verified": false,
+  "hollow_knight_target_verified": false,
+  "cryptographic_device_attestation": false,
+  "root_cause_established": false,
+  "notes": [
+    "DRM allocation, CPU mapping/pattern verification, transfer ioctl completion and cleanup do not prove host pixels or GPU shaders.",
+    "The cached JIT entry was not counted as a freshly executed standalone test.",
+    "The guest Vulkan -1 result is not evidence that physical phone RAM was exhausted.",
+    "The host engine output is needed to distinguish renderer, shared-memory and resource-metadata failure branches."
+  ],
+  "recorded_at": "2026-10-03T03:48:11Z"
+}

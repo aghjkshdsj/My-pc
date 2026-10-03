@@ -70,3 +70,14 @@ controller, Low Power Mode, battery/charger and thermal state. Count original
 game renders, guest compositor outputs and host presents separately. Record
 launch/sign-in/download failures as failures. Never label a shader demo or a
 generated-frame count as Hollow Knight base FPS.
+
+Build 4000012's fresh phone guest-GPU attempt completed in 1156.26 ms with
+Linux ABI and DRM allocation/map/pattern/transfer-ioctl success, followed by
+failed Vulkan initialization and orderly poweroff. Its checksum workload took
+5.357 ms CPU / 5.596 ms wall; the DRM memory check took 33.847 ms. None is a
+GPU frame-time, Steam startup or gameplay measurement. The after-test app
+footprint was 275,466,320 bytes, a single point rather than a peak; thermal
+state was Nominal before and after, without sustained sampling. The failed
+shared-resource/Vulkan initialization is not proof that physical RAM was
+exhausted. Full game CPU/GPU, frame pacing and sustained thermal targets remain
+unverified.
