@@ -5,6 +5,7 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'tools'))
 from collect_gpu_engine_sources import audit_headless_backend
+from patch_qemu_gpu import transform
 
 
 class GPUBackendBuildTests(unittest.TestCase):
@@ -30,6 +31,13 @@ class GPUBackendBuildTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             audit_headless_backend('#define CONFIG_PIXMAN\n', '_mpc_qemu_register_egl_headless',
                 [{'file': '../ui/egl-headless.c', 'command': 'echo ui/egl-headless.c'}])
+
+    def test_registration_helper_requires_explicit_library_export(self):
+        source='{\n    qemu_init;\n    qemu_cleanup;\n};\n'
+        changed=transform('system/qemu.symbols',source)
+        self.assertIn('    mpc_qemu_register_egl_headless;\n',changed)
+        self.assertIn('    qemu_cleanup;\n',changed)
+        with self.assertRaises(AssertionError): transform('system/qemu.symbols',changed)
 
 
 if __name__ == '__main__':

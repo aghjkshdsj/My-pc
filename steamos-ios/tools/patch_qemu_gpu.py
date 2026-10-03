@@ -75,19 +75,29 @@ def transform(name, text):
         # normal upstream QOM initializer remains; repeating pointer registration
         # is idempotent. This does not initialize EGL/Metal or claim a draw.
         return replace(text, 'type_init(register_egl);',
+                       'int mpc_qemu_register_egl_headless(void);\n\n'
                        'int mpc_qemu_register_egl_headless(void)\n'
                        '{\n'
                        '    register_egl();\n'
                        '    return 1;\n'
                        '}\n\n'
                        'type_init(register_egl);')
+    if name == 'system/qemu.symbols':
+        assert 'mpc_qemu_register_egl_headless;' not in text
+        lines = text.splitlines(keepends=True)
+        indices = [i for i, line in enumerate(lines) if line.strip() == 'qemu_init;']
+        assert len(indices) == 1, 'Pinned QEMU library export list changed'
+        index = indices[0]
+        indent = lines[index][:-len(lines[index].lstrip())]
+        lines.insert(index + 1, indent + 'mpc_qemu_register_egl_headless;\n')
+        return ''.join(lines)
     raise AssertionError(name)
 
 
 def patch(source, output):
     patches = []
     files = {}
-    for name in ['ui/meson.build', 'ui/egl-helpers.c', 'hw/display/virtio-gpu-virgl.c', 'ui/egl-headless.c']:
+    for name in ['ui/meson.build', 'ui/egl-helpers.c', 'hw/display/virtio-gpu-virgl.c', 'ui/egl-headless.c', 'system/qemu.symbols']:
         path = source / name
         original = path.read_text(encoding='utf-8')
         changed = transform(name, original)
