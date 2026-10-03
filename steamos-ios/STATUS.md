@@ -279,10 +279,19 @@ The 10,049,925-byte initramfs has SHA-256
 These are real Linux runtime boots with negative GPU controls, not shader results.
 
 Phone host-memory import, guest Mesa/Venus shader draws and moving Metal
-presentation remain unfinished. The latest phone IPA is still build 4000010;
-no new phone test is requested yet. Build 4000011 is being prepared separately
-with the exact native framework closure and complete disposable Linux graphics
-payload. Its new Run Linux guest Vulkan gate requires a fresh process, fresh JIT,
+presentation remain unfinished. The new
+[Linux guest Vulkan gate 1 / build 4000011 IPA](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-1/MyPCSteamOS-Guest-GPU-Gate.ipa)
+passed run 37089500068 at source `d87e07204afa9ec64503706f3c601e1f491f8737`.
+It includes the exact nine-framework native dependency closure and complete
+disposable Linux graphics payload. The public 24,092,262-byte IPA was independently
+downloaded and checked: SHA-256
+`bb57e9087563d4da41548695dd30036c48c27629aa105e1bcc5ad182e44a296b`,
+complete ZIP CRC, physical ARM64 iOS Mach-O/imports, source/build identity,
+signing-compatible code sections and exact guest/shader hashes. Actual Release
+Xcode compilation, 43 Python evidence tests, 28 production native receipt checks
+and crash/reopen/export tests passed. Receipt:
+`evidence/primary/ios-guest-vulkan-prerelease.json`.
+Its new Run Linux guest Vulkan gate requires a fresh process, fresh JIT,
 fresh nonce, passing Linux ABI, real virtio-GPU 3D/blob/host-visible/context
 capabilities and two non-software Vulkan shader phases with full pixel checks.
 Native rejection fixtures exercise the production receipt parser; they are not
@@ -290,3 +299,13 @@ device results. The report records executed_tests so saved earlier successes
 cannot count as freshly executed tests. Guest pixels cannot independently prove
 host Metal completion, host-memory import, zero-copy, presentation or gameplay.
 All of those gates remain unverified.
+
+The next owner action is to install build 4000011 with iLoader, enable StikDebug
+universal.js for the fresh process, check JIT, run Linux guest Vulkan gate once
+in the foreground for up to three minutes and share the device report. If it
+closes, reopen and share recovery logs. Do not run the CPU gate first in that
+process. No phone pass, Steam installation or gameplay is inferred from packaging.
+The private offline `tools/verify_guest_gpu_report.py` checks exact IPA/source,
+executed test identity, engine code, fresh serial/DRM/shader receipts and unchanged
+product limitations. Five new rejection-fixture tests passed locally; these are
+additional parser checks and not GPU/device results.

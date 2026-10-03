@@ -6,6 +6,18 @@ projects, disks, games and account data remain preserved. Later CPU-gate
 releases embed source-built upstream QEMU/iOS engine libraries through a new
 adapter; no previous application implementation is an input.
 
+Current test package: **[Linux guest Vulkan gate 1 / build 4000011](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-1/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+24,092,262 bytes, SHA-256
+`bb57e9087563d4da41548695dd30036c48c27629aa105e1bcc5ad182e44a296b`.
+Source `d87e07204afa9ec64503706f3c601e1f491f8737`.
+[Source archives, exact dependencies, checksums and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-1).
+Actual Release iOS ARM64 compilation, 43 Python evidence tests, 28 native
+production receipt checks and recovery tests passed. The public IPA was
+independently downloaded and verified for ZIP CRC, exact source/build/hash,
+nine physical-iOS native frameworks, executable identities and guest payloads.
+The new Linux guest Vulkan path is **unverified on the phone**. Older verified
+CPU and native host graphics results below do not establish it.
+
 The requested product remains an actual SteamOS ARM environment running Valve's
 Linux ARM Steam and FEX games. It is **unfinished**. The first separate IPA is
 `My-pc SteamOS Probe` (`com.aghjkshdsj.mypc.steamos.probe`, build 4000001).
@@ -41,13 +53,12 @@ The 497.20 ms complete native test is not game FPS. Phone validation layers
 were not enabled; source/report consistency is not cryptographic attestation.
 Linux guest graphics and moving presentation remain separate unfinished gates.
 
-[Latest graphics-bearing IPA: Linux-gate-10 / build 4000010](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-linux-gate-10/MyPCSteamOS-Linux-Gate.ipa).
+[Phone-verified native graphics baseline: Linux-gate-10 / build 4000010](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-linux-gate-10/MyPCSteamOS-Linux-Gate.ipa).
 9,528,852 bytes, SHA-256
 `3d11c3815b5108406019074787975d53426edb21fa085fc61643a378abf69dba`.
 Source `208647c2f7c18f32fcf894771756c0fbeb487374`.
-Install with iLoader and run **native Vulkan → Metal check** once; no JIT is
-needed for this host graphics test. Share its saved device report or recovery
-logs. Corresponding source and verification accompany the prerelease.
+This host graphics test needs no JIT and has already passed on the owner's
+phone. Corresponding source and verification accompany the prerelease.
 This supersedes build 4000008, whose phone report failed the whole-file MoltenVK
 hash check before loading the renderer. The corrected gate verifies executable
 code identity independently of iLoader's signing metadata; complete original
@@ -73,13 +84,16 @@ and [upstream provenance](docs/PROVENANCE.md).
 
 ## Device step
 
-Install the probe alongside the older apps using iLoader. Run **Metal and storage
-probes**, use **Enable JIT in StikDebug** in the updated app, confirm StikDebug's
-request if prompted, return here and run **ARM64 JIT check**.
-Then run **Linux kernel gate**, keep the app foreground for up to three minutes,
-and use **Share device report** to return the JSON. Close/relaunch before another
-Linux boot. If JIT execution terminates the
-app, retain the first report and report the failure; do not call it a success.
+Install build 4000011 with iLoader. Close/relaunch, use **Enable JIT in StikDebug**,
+confirm the universal.js request and return. Run **ARM64 JIT check**, then
+**Run Linux guest Vulkan gate** once, before the older Linux kernel button.
+Keep the app foreground for up to three minutes and use **Share device report**
+to return its JSON; **Share saved diagnostic logs** also retains the complete
+serial and engine stages. If it closes, reopen and use the recovery Share logs
+prompt. Close/relaunch and enable JIT for the new process before another Linux
+attempt. Each CPU/GPU QEMU test uses one process initialization. An interrupted
+run cannot pass. Guest pixel correctness, independent host Metal completion,
+host-memory import, moving presentation and game performance are separate gates.
 No account credentials or Steam tokens are collected. Reports remain in the
 new app's Documents directory and are never automatically uploaded.
 

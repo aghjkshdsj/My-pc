@@ -31,6 +31,7 @@ paths += [root / 'evidence/primary/hosted-ios-gpu-engine-build.json']
 paths += [root / 'evidence/primary/hosted-guest-gpu-payload.json']
 paths += [root.parent / '.github/workflows/steamos-guest-gpu-artifact-audit.yml']
 paths += [root.parent / '.github/workflows/steamos-ios-guest-gpu-prerelease.yml']
+paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease.json']
 paths = sorted(set(paths))
 rows = [{'path': p.relative_to(root.parent).as_posix(), 'mode': '100644', 'type': 'blob',
          'content': p.read_text(encoding='utf-8')} for p in paths]
