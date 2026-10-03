@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "scope": "hosted-arm-linux-virtio-gpu-kernel-device-test",
-  "source_commit": "a45e05526a6bc2689a9e2d4abac25863a7e3098f",
-  "workflow_run": "37095310379",
+  "source_commit": "6ab4df9f78ec307e026f378658673efa3ebeeec2",
+  "workflow_run": "37067848259",
   "engine_version": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)",
   "device_test_passed": true,
   "missing_device_rejected": true,
@@ -24,16 +24,16 @@
     "files": {
       "Image": {
         "bytes": 3805192,
-        "sha256": "a8f995e831fcfe43807873c1579ab0f80658afb701b80b08047f00c29e1ad166"
+        "sha256": "5945ac10f6eee547435c617f75820bc0d248592f559d0a1e25005b73f9c4b9c0"
       },
       "initramfs.cpio.gz": {
-        "bytes": 1104659,
-        "sha256": "1798c3ec4b6713a8fa18eaabf757ce763464c32373c395c291931d566ccb5dcc"
+        "bytes": 1104654,
+        "sha256": "50ded9b52f5a975d69ec086da8fe324f65fcdf84a830ea70571c58d911ec6618"
       }
     },
     "sources": {
       "Guest/abi_probe.c": "bb24235164183df0b837b7393420448e590dcff2c88e7b284c0a4ee767cb6158",
-      "Guest/gpu_kernel_probe.c": "18cf2b0f69746d528debaed849567b692710ed247cf9876ab548ae1c04233e43",
+      "Guest/gpu_kernel_probe.c": "ca5b6d96799068bc39901540699a57754dbd74f77657079e60bbbc885214ad78",
       "Guest/init-gpu-kernel": "9e50bfb84d8d8c2ad74c56eab34451d24580d45ae44ee733eece2e05a3b4ffaa"
     }
   },
@@ -62,16 +62,16 @@
       "-initrd",
       "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/initramfs.cpio.gz",
       "-append",
-      "console=ttyAMA0 rdinit=/init panic=1 mpc_run=d3c39076f63c4a25a65c81affe6b533c",
+      "console=ttyAMA0 rdinit=/init panic=1 mpc_run=577e2a6944e948199327ddbd66fbe575",
       "-no-reboot",
       "-device",
       "virtio-gpu-pci"
     ],
     "engine_exit": 0,
-    "serial_sha256": "dfff8a80079ebb357c7194f7941bb7480bb19ae97b4eccbee7aa4ff67fdb30bf",
+    "serial_sha256": "c0e8edc3348441a77e30ce4202ea43fadba079fa2ccc57d1d0f665f8d9a65bfd",
     "abi": {
       "schema": 1,
-      "run": "d3c39076f63c4a25a65c81affe6b533c",
+      "run": "577e2a6944e948199327ddbd66fbe575",
       "kernel": "6.12.111",
       "machine": "aarch64",
       "elf_arch": "aarch64",
@@ -81,14 +81,14 @@
       "pthread_tls_futex": true,
       "fork_exec": true,
       "checksum": "1d250c45a7bbc87e",
-      "cpu_ms": 4.263488,
-      "wall_ms": 4.863968,
+      "cpu_ms": 4.166752,
+      "wall_ms": 4.432016,
       "failures": 0
     },
     "kernel_gpu": {
       "schema": 1,
       "scope": "linux-virtio-gpu-kernel-device",
-      "run": "d3c39076f63c4a25a65c81affe6b533c",
+      "run": "577e2a6944e948199327ddbd66fbe575",
       "machine": "aarch64",
       "kernel": "6.12.111",
       "driver": "virtio_gpu",
@@ -104,7 +104,7 @@
       "mapped_resource_verified": true,
       "transfer_ioctl_completed": true,
       "resource_closed": true,
-      "wall_ms": 62.05,
+      "wall_ms": 59.605,
       "parameters": {
         "1": {
           "supported": true,
@@ -139,7 +139,6 @@
           "value": 0
         }
       },
-      "resource_bind_flags": 2,
       "gpu_shader_verified": false,
       "host_pixels_verified": false,
       "metal_verified": false,
@@ -172,14 +171,14 @@
       "-initrd",
       "/home/runner/work/My-pc/My-pc/steamos-ios/out/source-gpu-guest/payload/initramfs.cpio.gz",
       "-append",
-      "console=ttyAMA0 rdinit=/init panic=1 mpc_run=1f7390c7a34249fab0b2c85155f71240",
+      "console=ttyAMA0 rdinit=/init panic=1 mpc_run=32dc601706bd47d38f9b959edebdf094",
       "-no-reboot"
     ],
     "engine_exit": 0,
-    "serial_sha256": "9d7c154f4b3dbcc96f2c62ad89ef3972c97cc2127d851ad802d982025ec0e23d",
+    "serial_sha256": "ee84da8be4b6ca2d7e6174a3a833110203b7d7401bc501183c47e368fcba0cfb",
     "abi": {
       "schema": 1,
-      "run": "1f7390c7a34249fab0b2c85155f71240",
+      "run": "32dc601706bd47d38f9b959edebdf094",
       "kernel": "6.12.111",
       "machine": "aarch64",
       "elf_arch": "aarch64",
@@ -189,14 +188,14 @@
       "pthread_tls_futex": true,
       "fork_exec": true,
       "checksum": "1d250c45a7bbc87e",
-      "cpu_ms": 4.1976,
-      "wall_ms": 4.678528,
+      "cpu_ms": 4.250672,
+      "wall_ms": 4.530448,
       "failures": 0
     },
     "kernel_gpu": {
       "schema": 1,
       "scope": "linux-virtio-gpu-kernel-device",
-      "run": "1f7390c7a34249fab0b2c85155f71240",
+      "run": "32dc601706bd47d38f9b959edebdf094",
       "machine": "aarch64",
       "kernel": "6.12.111",
       "driver": "",
@@ -212,7 +211,7 @@
       "mapped_resource_verified": false,
       "transfer_ioctl_completed": false,
       "resource_closed": false,
-      "wall_ms": 2.841,
+      "wall_ms": 2.802,
       "parameters": {
         "1": {
           "supported": false,
@@ -247,7 +246,6 @@
           "value": 0
         }
       },
-      "resource_bind_flags": 2,
       "gpu_shader_verified": false,
       "host_pixels_verified": false,
       "metal_verified": false,

@@ -20,7 +20,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Source-Built-ARM-GPU-Kernel-Gate
-          run-id: 37067848259
+          run-id: 37095310379
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-kernel-artifact
       - uses: actions/download-artifact@v4

@@ -19,9 +19,10 @@ from stage_guest_runtime import digest, stage
 PROJECT = pathlib.Path(__file__).resolve().parents[1]
 MESA_RUN = 37074804870
 MESA_SOURCE = '9ddc641f25d83a230affb90c7e59174a041bde30'
-KERNEL_SOURCE = '6ab4df9f78ec307e026f378658673efa3ebeeec2'
-KERNEL_FILES = {'Image': '5945ac10f6eee547435c617f75820bc0d248592f559d0a1e25005b73f9c4b9c0',
-                'initramfs.cpio.gz': '50ded9b52f5a975d69ec086da8fe324f65fcdf84a830ea70571c58d911ec6618'}
+KERNEL_RUN = 37095310379
+KERNEL_SOURCE = 'a45e05526a6bc2689a9e2d4abac25863a7e3098f'
+KERNEL_FILES = {'Image': 'a8f995e831fcfe43807873c1579ab0f80658afb701b80b08047f00c29e1ad166',
+                'initramfs.cpio.gz': '1798c3ec4b6713a8fa18eaabf757ce763464c32373c395c291931d566ccb5dcc'}
 
 
 def parse_newc(data):
@@ -68,7 +69,8 @@ def build(kernel_artifact, mesa_artifact):
     for name, sha in KERNEL_FILES.items():
         assert digest(kernel / name) == sha
     kernel_receipt = json.loads((kernel / 'gpu-kernel-test.json').read_text(encoding='utf-8'))
-    assert kernel_receipt['source_commit'] == KERNEL_SOURCE and int(kernel_receipt['workflow_run']) == 37067848259
+    assert kernel_receipt['source_commit'] == KERNEL_SOURCE and int(kernel_receipt['workflow_run']) == KERNEL_RUN
+    assert kernel_receipt['device']['kernel_gpu']['resource_bind_flags'] == 2
     assert kernel_receipt['scope'] == 'hosted-arm-linux-virtio-gpu-kernel-device-test'
     mesa_receipt = json.loads((mesa_artifact / 'receipt.json').read_text(encoding='utf-8'))
     assert mesa_receipt['scope'] == 'source-built-linux-arm64-guest-mesa-userspace-compile-only'
