@@ -6,6 +6,19 @@ projects, disks, games and account data remain preserved. Later CPU-gate
 releases embed source-built upstream QEMU/iOS engine libraries through a new
 adapter; no previous application implementation is an input.
 
+Current test: **[Linux guest Vulkan gate 2 / build 4000012](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-2/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+24,292,269 bytes, SHA-256
+`256da95463a5594cc41b93f1f2a64a096418ce39ef7f2471af4ffb39c1dcdbf8`.
+Source `aa2f8ccfb15eb53a96f70775be8e83ca0c5703b2`.
+[Corresponding sources and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-2).
+The corrected engine passed its Pixman/configuration, actual headless object and
+library-export audits. The app checks real backend registration before boot.
+Release compilation, 53 evidence tests, 28 native receipt checks and recovery
+tests passed. Independent public redownload verified all ten native frameworks,
+their exact code identities, payload hashes, source/build and ZIP CRC.
+Positive phone guest graphics, independent Metal completion/import, presentation
+and SteamOS/game performance remain **unverified**.
+
 Historical package: **[Linux guest Vulkan gate 1 / build 4000011](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-1/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
 24,092,262 bytes, SHA-256
 `bb57e9087563d4da41548695dd30036c48c27629aa105e1bcc5ad182e44a296b`.
@@ -18,8 +31,8 @@ nine physical-iOS native frameworks, executable identities and guest payloads.
 The owner subsequently reported an app closure: QEMU exited because egl-headless
 was unavailable before Linux boot. The exact engine configuration had Pixman
 disabled. The corrected engine explicitly enables Pixman and audits the real
-backend object/export. Build 4000012 is being prepared with a native backend
-registration preflight. Do not repeat build 4000011 as the positive GPU gate.
+backend object/export. Build 4000012 passed compilation and package verification
+with a native backend registration preflight. Do not repeat build 4000011 as the positive GPU gate.
 The new Linux guest Vulkan path is **unverified on the phone**. Older verified
 CPU and native host graphics results below do not establish it.
 
@@ -89,7 +102,7 @@ and [upstream provenance](docs/PROVENANCE.md).
 
 ## Device step
 
-The next package is build 4000012; wait for its verified download before testing.
+Use the verified build 4000012 download above.
 Install it with iLoader. Close/relaunch, use **Enable JIT in StikDebug**,
 confirm the universal.js request and return. Run **ARM64 JIT check**, then
 **Run Linux guest Vulkan gate** once, before the older Linux kernel button.

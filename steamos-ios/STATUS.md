@@ -16,7 +16,7 @@ defines EGL/OpenGL but undefines CONFIG_PIXMAN, excluding the required headless
 backend. Earlier compilation checks missed this dependency. The corrected engine
 explicitly enables Pixman, audits the actual EGL-headless compile command and
 exports a real backend-registration preflight. Replacement build 4000012 is
-being prepared. The corrected engine passed run 37092127907 at source
+verified and published, described below. The corrected engine passed run 37092127907 at source
 `544799c0646c272e253850f588a0a2dd52c2067f`: actual Pixman-enabled configuration,
 EGL-headless object compilation and the exported registration function were
 audited. The first corrected compile passed but its new symbol was omitted from
@@ -25,6 +25,17 @@ The final patch adds the export and declaration without relaxing the audit.
 This is an engine packaging failure; no new Linux/GPU/Metal pass
 or iOS graphics driver crash is inferred. Sanitized receipt:
 `evidence/primary/ios-guest-vulkan-backend-failure.json`. Raw phone logs remain private.
+
+Replacement **[build 4000012 / guest Vulkan gate 2](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-2/MyPCSteamOS-Guest-GPU-Gate.ipa)**
+passed run 37092862752, source `aa2f8ccfb15eb53a96f70775be8e83ca0c5703b2`.
+Actual Release ARM64 iOS compilation, 53 evidence tests, 28 production native
+receipt checks and recovery/export tests passed. Independent public redownload
+verified the exact 24,292,269-byte IPA, ten-framework import/code closure including
+Pixman, backend registration export/preflight, guest payloads and ZIP CRC.
+SHA-256: `256da95463a5594cc41b93f1f2a64a096418ce39ef7f2471af4ffb39c1dcdbf8`.
+Receipt: `evidence/primary/ios-guest-vulkan-prerelease-4000012.json`.
+This new package has not passed on the phone. Linux guest shaders, independent
+host Metal completion/import, presentation, SteamOS and game targets remain open.
 
 Owner-supplied reports identify iPhone 15 Pro Max (iPhone16,2), iOS 27.0.1
 build 24A446 and 16 KiB host pages. iLoader and StikDebug 3.1.10/universal.js
@@ -319,7 +330,7 @@ host Metal completion, host-memory import, zero-copy, presentation or gameplay.
 All of those gates remain unverified.
 
 Build 4000011's subsequent phone attempt failed at missing EGL-headless backend,
-as recorded above. The next owner action, after the corrected build is verified,
+as recorded above. The next owner action with the independently verified replacement
 is to install build 4000012 with iLoader, enable StikDebug
 universal.js for the fresh process, check JIT, run Linux guest Vulkan gate once
 in the foreground for up to three minutes and share the device report. If it
@@ -327,5 +338,6 @@ closes, reopen and share recovery logs. Do not run the CPU gate first in that
 process. No phone pass, Steam installation or gameplay is inferred from packaging.
 The private offline `tools/verify_guest_gpu_report.py` checks exact IPA/source,
 executed test identity, engine code, fresh serial/DRM/shader receipts and unchanged
-product limitations. Five new rejection-fixture tests passed locally; these are
-additional parser checks and not GPU/device results.
+product limitations. Six guest report rejection-fixture tests and four backend
+build-audit tests now pass within the 53-test suite. These are additional parser
+and build checks, not GPU/device results.

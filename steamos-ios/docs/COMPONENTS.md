@@ -117,3 +117,11 @@ engine closure. Positive
 phone guest Vulkan pixels, independent host Metal completion/memory import,
 moving presentation and the full SteamOS image remain open. No product component
 row or performance target becomes complete from compilation or negative controls.
+
+The 4000011 phone attempt subsequently exited before Linux boot because the
+headless backend was omitted with Pixman disabled. The corrected engine passed
+run 37092127907 and build 4000012 passed Release/recovery/receipt tests and
+independent ten-framework IPA verification. The fresh host checks real backend
+registration before boot. This fixes a display dependency/export packaging
+problem; the GPU/compositor rows remain open until positive phone guest rendering,
+host completion/import and moving presentation are demonstrated.

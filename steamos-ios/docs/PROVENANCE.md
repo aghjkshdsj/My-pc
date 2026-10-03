@@ -142,3 +142,15 @@ MoltenVK build. No upstream application is the implementation base. Public
 SDK imports exclude IOKit, private Hypervisor and Neptune. Source inspection,
 library compilation and negative controls cannot establish a guest shader,
 phone Metal completion, presentation or game result.
+
+The build 4000011 phone exit exposed an omitted Pixman dependency of EGL-headless.
+Corrected engine run 37092127907 enables the already source-pinned Pixman library,
+retains its complete source archive/patch/license notices and verifies the actual
+headless compile command and registration export. Pixman's MIT/Xorg per-file
+notices remain applicable. The small GPL QEMU adapter preserves the upstream
+initializer and adds the registration helper to QEMU's explicit library export
+list; its original source, patch and actual build configurations are retained.
+Build 4000012 packages ten native frameworks, including Pixman, and passed exact
+independent public IPA verification. No new application implementation base or
+architecture substitution was introduced. These are build/package checks,
+not successful phone graphics or SteamOS/game evidence.
