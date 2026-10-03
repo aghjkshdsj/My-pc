@@ -21,6 +21,7 @@ def receipt():
            'width': 1280, 'height': 720, 'mapped_bytes': 3686400, 'mapped_sum': 470016000,
            'mapped_resource_verified': True, 'transfer_ioctl_completed': True, 'resource_closed': True,
            'parameters': {str(i): {'supported': True, 'value': int(i == 2)} for i in range(1, 9)}}
+    gpu['resource_bind_flags'] = 2
     gpu.update({name: False for name in ['gpu_shader_verified', 'host_pixels_verified',
                                         'metal_verified', 'presentation_verified', 'gameplay_verified']})
     return abi, gpu
@@ -40,7 +41,7 @@ class GPUKernelEvidence(unittest.TestCase):
 
     def test_replay_and_duplicate(self):
         abi, gpu = receipt()
-        for changed in [dict(gpu, run='0' * 32), dict(gpu, mapped_sum=1), dict(gpu, wall_ms=float('nan'))]:
+        for changed in [dict(gpu, run='0' * 32), dict(gpu, mapped_sum=1), dict(gpu, wall_ms=float('nan')), dict(gpu, resource_bind_flags=0)]:
             with self.assertRaises(AssertionError):
                 validate(serial(abi, changed), NONCE, True)
         with self.assertRaises(AssertionError):

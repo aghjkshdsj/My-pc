@@ -10,6 +10,7 @@ import tarfile
 
 from build_venus_ios import PROJECT, PINS, capture, clone, digest, framework, headers, run
 from verify_ipa import macho_platform
+from patch_venus_diagnostics import patch as patch_diagnostics
 
 ANGLE_RUN = 37077105285
 ANGLE_SOURCE = 'b925d37b18d0bb4d7721ea1aedc059b43f9240a1'
@@ -71,6 +72,7 @@ def build(moltenvk, angle):
                                   '   if (lib->handle == NULL)\n' + old), encoding='utf-8')
     renderer_patch = output / 'ios-vulkan-loader.patch'
     renderer_patch.write_text(capture('git', '-C', str(renderer), 'diff') + '\n', encoding='utf-8')
+    diagnostic_patch = patch_diagnostics(renderer, output)
     prefix = output / 'sysroot'
     flags = ['-target', 'arm64-apple-ios26.0', '-isysroot', capture('xcrun', '--sdk', 'iphoneos', '--show-sdk-path'),
              '-I' + str(vk_headers), '-I' + str(output / 'include')]
@@ -116,12 +118,16 @@ def build(moltenvk, angle):
     for name in ['virgl_renderer_init', 'virgl_renderer_submit_cmd', 'virgl_renderer_get_cap_set',
                  'virgl_renderer_resource_create_blob', 'virgl_renderer_resource_map', 'virgl_renderer_resource_unmap']:
         assert '_' + name in exports, name
-    inputs = [cross, epoxy_patch, renderer_patch, output / 'virglrenderer-source.tar', output / 'libepoxy-source.tar']
+    diagnostic_source = output / 'venus-failure-diagnostics.patch'
+    for marker in [b'MPC_GPU_ALLOC_FAIL', b'MPC_GPU_SHMEM_FAIL', b'MPC_GPU_BLOB_FAIL']:
+        assert marker in binaries[1].read_bytes(), 'Failure diagnostics were not compiled'
+    inputs = [cross, epoxy_patch, renderer_patch, diagnostic_source, output / 'virglrenderer-source.tar', output / 'libepoxy-source.tar']
     receipt = {'schema': 1, 'scope': 'source-built-native-ios-gl-venus-engine-compile-only',
                'source_commit': os.environ.get('GITHUB_SHA'), 'workflow_run': os.environ.get('GITHUB_RUN_ID'),
                'pins': {name: revision for name, (_, revision) in PINS.items()}, 'angle_input': angle_receipt,
                'physical_ios_arm64': True, 'egl_backend_compiled': True, 'venus_backend_compiled': True,
                'same_process_thread_renderer': True, 'phone_tested': False, 'linux_graphics_verified': False,
+               'failure_diagnostics': diagnostic_patch,
                'memory_import_verified': False, 'metal_runtime_verified': False, 'presentation_verified': False,
                'files': {p.relative_to(output).as_posix(): {'bytes': p.stat().st_size, 'sha256': digest(p)} for p in inputs + binaries}}
     receipt_path = output / 'receipt.json'
@@ -135,6 +141,7 @@ def build(moltenvk, angle):
     with tarfile.open(output / 'GL-Venus-Corresponding-Source.tar.gz', 'w:gz') as archive:
         for path in inputs + [receipt_path, renderer / 'build/config.h', PROJECT / 'tools/build_gl_venus_ios.py',
                               PROJECT / 'tools/build_venus_ios.py', PROJECT / 'tools/verify_ipa.py',
+                              PROJECT / 'tools/patch_venus_diagnostics.py',
                               PROJECT / 'tools/bundle_native_vulkan.py', PROJECT.parent / '.github/workflows/steamos-ios-gl-venus.yml']:
             archive.add(path, arcname=path.name)
         archive.add(angle / 'ANGLE-Corresponding-Source.tar.gz', arcname='ANGLE-Corresponding-Source.tar.gz')

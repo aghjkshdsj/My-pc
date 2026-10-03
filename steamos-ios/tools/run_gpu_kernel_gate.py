@@ -25,6 +25,7 @@ def validate(text, nonce, device_present):
     for name in ['gpu_shader_verified', 'host_pixels_verified', 'metal_verified', 'presentation_verified', 'gameplay_verified']:
         assert row[name] is False, 'Kernel memory/device evidence cannot claim accelerated graphics'
     if device_present:
+        assert row['resource_bind_flags'] == 2, 'Texture requested buffer-only bind flags'
         assert row['driver'] == 'virtio_gpu' and row['stage'] == 'complete'
         assert row['exit_code'] == row['errno'] == row['mismatches'] == 0
         assert row['width'] == 1280 and row['height'] == 720

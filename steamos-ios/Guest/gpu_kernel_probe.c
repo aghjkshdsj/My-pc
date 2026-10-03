@@ -81,7 +81,9 @@ int main(void) {
     }
     stage = "create-resource";
     struct drm_virtgpu_resource_create create = {
-        .target = 2, .format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM,
+        // Fixed virgl wire ABI: texture target 2 needs RENDER_TARGET (bit 1).
+        // Bind 0 denotes a buffer and is rejected by the 3D renderer.
+        .target = 2, .bind = (1u << 1), .format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM,
         .width = width, .height = height, .depth = 1, .array_size = 1,
         .size = bytes, .stride = width * 4
     };
@@ -142,7 +144,7 @@ done:
         printf("%s\"%u\":{\"supported\":%s,\"value\":%" PRIu64 "}",
                i == 1 ? "" : ",", i, supported[i] ? "true" : "false", params[i]);
     }
-    printf("},\"gpu_shader_verified\":false,\"host_pixels_verified\":false,"
+    printf("},\"resource_bind_flags\":2,\"gpu_shader_verified\":false,\"host_pixels_verified\":false,"
            "\"metal_verified\":false,\"presentation_verified\":false,\"gameplay_verified\":false}\n");
     fflush(stdout);
     return result;

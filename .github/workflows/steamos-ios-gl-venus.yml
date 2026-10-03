@@ -2,7 +2,7 @@ name: Fresh iOS EGL and Venus renderer engines
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/tools/build_gl_venus_ios.py', '.github/workflows/steamos-ios-gl-venus.yml']
+    paths: ['steamos-ios/tools/build_gl_venus_ios.py', 'steamos-ios/tools/patch_venus_diagnostics.py', '.github/workflows/steamos-ios-gl-venus.yml']
   workflow_dispatch:
 permissions:
   contents: read
