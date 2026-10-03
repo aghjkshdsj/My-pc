@@ -33,7 +33,7 @@ static NSString *sha256(NSData *data) {
 
 static NSDictionary *failure(NSString *stage, NSString *reason) {
     return @{@"status": @"failed", @"stage": stage, @"reason": reason,
-             @"requires_relaunch": @([stage isEqual:@"one-run-per-process"]),
+             @"requires_relaunch": @(attempted.load()),
              @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO};
 }
 
@@ -115,6 +115,16 @@ static NSDictionary *runKernel(BOOL graphics) {
         if (!initialize || !loop || !cleanup || !unlockBQL || !unlockReplay)
             return failure(@"engine-exports", @"Required pinned QEMU entry points unavailable");
         MPCDiagnosticStage(@"linux-engine-loaded", @{});
+        if (graphics) {
+            using RegisterBackend = int (*)(void);
+            auto registerBackend = reinterpret_cast<RegisterBackend>(dlsym(library, "mpc_qemu_register_egl_headless"));
+            if (!registerBackend)
+                return failure(@"gpu-display-backend-unavailable", @"This engine has no compiled EGL-headless backend. Install the corrected GPU prerelease; close and relaunch before retrying.");
+            MPCDiagnosticStage(@"linux-before-headless-backend-registration", @{});
+            if (registerBackend() != 1)
+                return failure(@"gpu-display-backend-registration", @"The built-in EGL-headless backend could not be registered.");
+            MPCDiagnosticStage(@"linux-headless-backend-registered", @{@"egl_metal_context_verified": @NO});
+        }
         NSString *nonce = [NSUUID.UUID.UUIDString.lowercaseString stringByReplacingOccurrencesOfString:@"-" withString:@""];
         NSURL *documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask][0];
         NSURL *directory = [documents URLByAppendingPathComponent:[@"LinuxGate-" stringByAppendingString:nonce] isDirectory:YES];
@@ -137,6 +147,7 @@ static NSDictionary *runKernel(BOOL graphics) {
         run[@"requires_relaunch"] = @YES;
         if (graphics) {
             run[@"engine_bundle"] = engineBundle;
+            run[@"display_backend_registered"] = @YES;
             run[@"engine_text_sections_observed"] = observedGPUCodes;
             run[@"engine_text_sections_verified"] = @YES;
             run[@"guest_gpu_device_requested"] = @YES;

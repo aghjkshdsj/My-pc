@@ -96,6 +96,14 @@ class GuestGPUReportTests(unittest.TestCase):
         with self.assertRaises(ValueError): unpack_private(recovery,'test-commit','test-build')
         with self.assertRaises(ValueError): unpack_private({'scope':recovery['scope'],'files':[]})
 
+    def test_corrected_build_requires_observed_backend_registration(self):
+        row=self.fixture(); row['build']='4000012'
+        gate=row['tests']['linux_gpu']; gate['display_backend_registered']=True
+        bundle={'engine_text_sections': {'fixture': {'sha256': 'not-a-device-result'}}}
+        validate(row,'test-commit','4000012',{'synthetic':True},bundle,'27.0.1')
+        del gate['display_backend_registered']
+        with self.assertRaises(ValueError): validate(row,'test-commit','4000012',{'synthetic':True},bundle,'27.0.1')
+
 
 if __name__ == '__main__':
     unittest.main()

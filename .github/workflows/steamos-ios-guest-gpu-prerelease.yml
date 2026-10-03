@@ -23,7 +23,7 @@ jobs:
           python3 - <<'PY'
           import json, subprocess
           pins = {
-              'gpu-engine': (37078645613, '56f2522eed4509fe2010d2250eaa569dd503c660'),
+              'gpu-engine': (37092127907, '544799c0646c272e253850f588a0a2dd52c2067f'),
               'gpu-guest': (37079133580, 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'),
               'cpu-guest': (37014232445, '33c54e5be2d022bc19bcf3e1a448163016dc84af'),
               'molten': (37056046870, '5f9805fded4390780798c25b8a7465db36234fe3'),
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Fresh-iOS-GPU-Engine
-          run-id: 37078645613
+          run-id: 37092127907
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-engine-artifact
       - uses: actions/download-artifact@v4
@@ -108,7 +108,7 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000011 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000012 --receipt steamos-ios/out/package/verification.json
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/cpu-guest-artifact/Linux-Gate-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -122,7 +122,9 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000011: disposable Linux ARM64 guest Vulkan correctness probe.
+          Build 4000012: corrected disposable Linux ARM64 guest Vulkan probe.
+
+          The build 4000011 phone recovery captured QEMU's unavailable egl-headless display exit before Linux boot. JIT and nine engine identities passed, but the exact archived configuration had Pixman disabled. This build explicitly enables Pixman and audits the actual headless compile command and backend-registration export. The app calls the real built-in registration before qemu_init; a missing export now returns a readable failure. Registration alone does not prove an EGL/Metal context or guest shader. Raw phone reports and signing identifiers stay private.
 
           The fresh host bundles the source-built graphics-enabled QEMU TCG engine, an explicit ANGLE Metal/GLES 3 root context, virgl/Venus, the already phone-tested MoltenVK build, and a complete source-pinned ARM Linux Mesa 26.2.2/Venus runtime initramfs. The guest requests virtio-gpu-gl with blob/Venus and a 128 MiB host-visible aperture. The exact compiled framework closure and signing-compatible executable sections are checked before execution. This new guest path has not passed on a phone until a fresh device receipt returns.
 
@@ -140,7 +142,7 @@ jobs:
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000011
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000012
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()

@@ -8,6 +8,24 @@ documents and scripts were treated as reference material.
 
 ## Physical phone evidence
 
+Build 4000011's new guest Vulkan attempt **failed before Linux boot**. Its
+private recovery export preserves successful JIT return 42 and all nine native
+engine identities, then QEMU reports `Display 'egl-headless' is not available.`
+The last stage is before qemu_init returns. The exact archived configuration
+defines EGL/OpenGL but undefines CONFIG_PIXMAN, excluding the required headless
+backend. Earlier compilation checks missed this dependency. The corrected engine
+explicitly enables Pixman, audits the actual EGL-headless compile command and
+exports a real backend-registration preflight. Replacement build 4000012 is
+being prepared. The corrected engine passed run 37092127907 at source
+`544799c0646c272e253850f588a0a2dd52c2067f`: actual Pixman-enabled configuration,
+EGL-headless object compilation and the exported registration function were
+audited. The first corrected compile passed but its new symbol was omitted from
+QEMU's explicit export list; that audit failure in run 37091066661 is preserved.
+The final patch adds the export and declaration without relaxing the audit.
+This is an engine packaging failure; no new Linux/GPU/Metal pass
+or iOS graphics driver crash is inferred. Sanitized receipt:
+`evidence/primary/ios-guest-vulkan-backend-failure.json`. Raw phone logs remain private.
+
 Owner-supplied reports identify iPhone 15 Pro Max (iPhone16,2), iOS 27.0.1
 build 24A446 and 16 KiB host pages. iLoader and StikDebug 3.1.10/universal.js
 are owner-confirmed. Raw reports remain private and outside the public allowlist.
@@ -300,7 +318,9 @@ cannot count as freshly executed tests. Guest pixels cannot independently prove
 host Metal completion, host-memory import, zero-copy, presentation or gameplay.
 All of those gates remain unverified.
 
-The next owner action is to install build 4000011 with iLoader, enable StikDebug
+Build 4000011's subsequent phone attempt failed at missing EGL-headless backend,
+as recorded above. The next owner action, after the corrected build is verified,
+is to install build 4000012 with iLoader, enable StikDebug
 universal.js for the fresh process, check JIT, run Linux guest Vulkan gate once
 in the foreground for up to three minutes and share the device report. If it
 closes, reopen and share recovery logs. Do not run the CPU gate first in that

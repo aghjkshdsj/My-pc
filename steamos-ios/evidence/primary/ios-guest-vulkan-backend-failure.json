@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "scope": "sanitized-owner-reported-iphone-guest-vulkan-initialization-failure",
+  "build": "4000011",
+  "source_commit": "d87e07204afa9ec64503706f3c601e1f491f8737",
+  "engine_run": 37078645613,
+  "last_saved_stage": "linux-before-qemu-init",
+  "engine_output": "qemu-system-aarch64: Display 'egl-headless' is not available.",
+  "native_jit_returned": 42,
+  "engine_text_sections_verified": 9,
+  "configuration_audit": {
+    "CONFIG_DARWIN": true,
+    "CONFIG_EGL": true,
+    "CONFIG_OPENGL": true,
+    "CONFIG_PIXMAN": false,
+    "corresponding_source_sha256": "5b8dfd54a68f5bdb95641b7ec1a1cca8f7e8726f1eeb671d957bec6ee661760d"
+  },
+  "linux_boot_verified": false,
+  "guest_shader_verified": false,
+  "metal_guest_verified": false,
+  "presentation_verified": false,
+  "steamos_verified": false,
+  "gameplay_verified": false,
+  "limitation": "Owner reported an app closure. The pending journal and engine error show QEMU's unavailable-display exit path; this export is not an iOS crash stack or GPU driver crash proof. Raw report, signing IDs and run identifiers remain private."
+}

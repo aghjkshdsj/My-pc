@@ -9,8 +9,12 @@ import tarfile
 
 from verify_ipa import macho_platform, macho_text
 
-ENGINE_RUN = 37078645613
-ENGINE_SOURCE = '56f2522eed4509fe2010d2250eaa569dd503c660'
+ENGINE_PINS = {
+    '4000011': (37078645613, '56f2522eed4509fe2010d2250eaa569dd503c660'),
+    '4000012': (37092127907, '544799c0646c272e253850f588a0a2dd52c2067f'),
+}
+BUNDLE_BUILD = '4000012'
+ENGINE_RUN, ENGINE_SOURCE = ENGINE_PINS[BUNDLE_BUILD]
 GUEST_RUN = 37079133580
 GUEST_SOURCE = 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'
 
@@ -46,6 +50,9 @@ def bundle(engine_artifact, guest_artifact, app):
     assert engine['physical_ios_arm64'] and engine['opengl_virgl_compiled'] and engine['venus_device_compiled']
     assert not engine['hardware_virtualization'] and not engine['phone_tested']
     assert engine['adapter']['root_gles_version_requested'] == 3
+    assert engine['adapter']['builtin_headless_registration_preflight'] is True
+    for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
+        assert engine['display_backend_build_audit'][field] is True
     selected = closure(engine)
     framework_names = {p.split('/')[0] for p in selected}
     frames = app / 'Frameworks'
@@ -103,13 +110,14 @@ def bundle(engine_artifact, guest_artifact, app):
                 'engine_run': ENGINE_RUN, 'engine_source': ENGINE_SOURCE,
                 'guest_run': GUEST_RUN, 'guest_source': GUEST_SOURCE,
                 'hardware_virtualization': False, 'root_gles_version_requested': 3,
+                'display_backend_compiled': True, 'display_registration_preflight_required': True,
                 'engine_text_sections': identities, 'engine_receipt': engine,
                 'guest_shader_verified': False, 'metal_host_verified': False,
                 'host_memory_import_verified': False, 'presentation_verified': False,
                 'steamos_verified': False, 'gameplay_verified': False}
     (payload / 'engine-bundle.json').write_text(json.dumps(metadata, indent=2) + '\n', encoding='utf-8')
     info = plistlib.loads((app / 'Info.plist').read_bytes())
-    info['CFBundleVersion'] = '4000011'
+    info['CFBundleVersion'] = BUNDLE_BUILD
     (app / 'Info.plist').write_bytes(plistlib.dumps(info))
     print(json.dumps({'scope': metadata['scope'], 'build': info['CFBundleVersion'],
                       'frameworks': sorted(identities), 'guest_payload': receipt['files'],

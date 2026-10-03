@@ -71,6 +71,14 @@ Remaining integration steps:
    run 37078645613 with the explicit Metal/GLES 3 adapter and complete audited
    native dependency closure. No private Hypervisor, IOKit or Neptune is required.
    Runtime context creation remains a phone gate.
+   Build 4000011 subsequently exited before Linux boot because egl-headless was
+   absent. The archived QEMU configuration had Pixman disabled by default-feature
+   narrowing, despite available EGL/OpenGL. Corrected run 37092127907 explicitly
+   enables Pixman and requires the actual headless compile command and exported
+   registration helper. Its first export audit rejected a hidden helper; the
+   exact QEMU library symbol list is now patched. The fresh host calls the real
+   built-in registration before qemu_init; a missing export returns a readable
+   failure. These checks do not establish an EGL/Metal context or guest draw.
 3. Build guest Mesa virgl/Venus with the matching virtio GPU blob/context protocol.
    A separate graphics-capable kernel and device diagnostic now passed hosted
    ARM TCG run 37067848259: driver detection, 1280×720 resource allocation/map,

@@ -33,6 +33,8 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             gate.get('hardware_virtualization') is False and gate.get('steamos') is False, 'Wrong execution scope')
     require(gate.get('guest_gpu_device_requested') is True and gate.get('guest_gpu_host_visible_mib') == 128 and
             gate.get('requested_jit_cache_mib') == 32 and gate.get('split_wx_requested') is True, 'Wrong GPU/JIT configuration')
+    if build == '4000012':
+        require(gate.get('display_backend_registered') is True, 'No observed built-in display backend registration')
     device = gate.get('device', {})
     keys = ('device_machine', 'ios_version', 'os_build', 'host_page_bytes')
     require(str(device.get('device_machine', '')).startswith('iPhone') and device.get('ios_version') == ios,
@@ -140,7 +142,7 @@ if __name__ == '__main__':
     parser.add_argument('--machine', default='iPhone16,2')
     args = parser.parse_args()
     require(__debug__, 'Do not run with python -O; package/ABI checks use assertions')
-    package = verify_ipa(args.ipa, args.commit, True, '4000011', True, True)
+    package = verify_ipa(args.ipa, args.commit, True, None, True, True)
     with zipfile.ZipFile(args.ipa) as archive:
         prefix = 'Payload/MyPCSteamOSProbe.app/LinuxGuestGPU/'
         payload = json.loads(archive.read(prefix + 'payload-receipt.json'))

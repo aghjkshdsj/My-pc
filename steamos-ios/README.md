@@ -6,7 +6,7 @@ projects, disks, games and account data remain preserved. Later CPU-gate
 releases embed source-built upstream QEMU/iOS engine libraries through a new
 adapter; no previous application implementation is an input.
 
-Current test package: **[Linux guest Vulkan gate 1 / build 4000011](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-1/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+Historical package: **[Linux guest Vulkan gate 1 / build 4000011](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-1/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
 24,092,262 bytes, SHA-256
 `bb57e9087563d4da41548695dd30036c48c27629aa105e1bcc5ad182e44a296b`.
 Source `d87e07204afa9ec64503706f3c601e1f491f8737`.
@@ -15,6 +15,11 @@ Actual Release iOS ARM64 compilation, 43 Python evidence tests, 28 native
 production receipt checks and recovery tests passed. The public IPA was
 independently downloaded and verified for ZIP CRC, exact source/build/hash,
 nine physical-iOS native frameworks, executable identities and guest payloads.
+The owner subsequently reported an app closure: QEMU exited because egl-headless
+was unavailable before Linux boot. The exact engine configuration had Pixman
+disabled. The corrected engine explicitly enables Pixman and audits the real
+backend object/export. Build 4000012 is being prepared with a native backend
+registration preflight. Do not repeat build 4000011 as the positive GPU gate.
 The new Linux guest Vulkan path is **unverified on the phone**. Older verified
 CPU and native host graphics results below do not establish it.
 
@@ -84,7 +89,8 @@ and [upstream provenance](docs/PROVENANCE.md).
 
 ## Device step
 
-Install build 4000011 with iLoader. Close/relaunch, use **Enable JIT in StikDebug**,
+The next package is build 4000012; wait for its verified download before testing.
+Install it with iLoader. Close/relaunch, use **Enable JIT in StikDebug**,
 confirm the universal.js request and return. Run **ARM64 JIT check**, then
 **Run Linux guest Vulkan gate** once, before the older Linux kernel button.
 Keep the app foreground for up to three minutes and use **Share device report**

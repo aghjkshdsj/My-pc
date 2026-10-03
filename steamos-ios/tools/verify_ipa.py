@@ -103,18 +103,25 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             assert inputs['files']['MoltenVK']['sha256'] == BINARY_SHA
             assert inputs['engine_text_section'] == macho_text(molten)
         if guest_gpu:
-            from bundle_guest_gpu import ENGINE_RUN, ENGINE_SOURCE, GUEST_RUN, GUEST_SOURCE, closure, hashed
-            assert linux_gate and native_vulkan and info['CFBundleVersion'] == '4000011'
+            from bundle_guest_gpu import ENGINE_PINS, GUEST_RUN, GUEST_SOURCE, closure, hashed
+            assert linux_gate and native_vulkan and info['CFBundleVersion'] in ENGINE_PINS
+            engine_run, engine_source = ENGINE_PINS[info['CFBundleVersion']]
             for marker in [b'virtio-gpu-gl-pci,blob=on,venus=on,hostmem=128M', b'egl-headless,gl=es',
                            b'MPC_GPU_GUEST_RUN=', b'tcg,thread=multi,split-wx=on,tb-size=32']:
                 assert marker in binary, 'Required guest GPU/JIT adapter was not compiled'
             gpu = prefix + 'LinuxGuestGPU/'
             bundled = json.loads(z.read(gpu + 'engine-bundle.json'))
             assert bundled['scope'] == 'bundled-physical-ios-linux-guest-gpu-gate'
-            assert bundled['engine_run'] == ENGINE_RUN and bundled['engine_source'] == ENGINE_SOURCE
+            assert bundled['engine_run'] == engine_run and bundled['engine_source'] == engine_source
             assert bundled['guest_run'] == GUEST_RUN and bundled['guest_source'] == GUEST_SOURCE
             assert bundled['hardware_virtualization'] is False and bundled['root_gles_version_requested'] == 3
             original = bundled['engine_receipt']
+            if info['CFBundleVersion'] == '4000012':
+                assert b'mpc_qemu_register_egl_headless' in binary
+                assert b'_mpc_qemu_register_egl_headless' in z.read(engine)
+                assert bundled['display_backend_compiled'] is True and bundled['display_registration_preflight_required'] is True
+                for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
+                    assert original['display_backend_build_audit'][field] is True
             expected = closure(original) | {'MoltenVK.framework/MoltenVK'}
             assert set(bundled['engine_text_sections']) == expected
             for relative in expected:

@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "scope": "source-built-physical-ios-qemu-gpu-engine-compile-only",
-  "source_commit": "544799c0646c272e253850f588a0a2dd52c2067f",
-  "workflow_run": "37092127907",
+  "source_commit": "56f2522eed4509fe2010d2250eaa569dd503c660",
+  "workflow_run": "37078645613",
   "recipe": {
     "schema": 1,
     "utm_revision": "7eadb056ae0f91d979059544d0ddcd2d5a40be92",
@@ -31,7 +31,7 @@
         "sha256": "05a46d5e52fd662e8d40bd28d23c0cf702f92cc28a83eca89e9ee14c1646aee7"
       }
     },
-    "derived_sha256": "45f4304bcfb31683bf28802d0978661d68b0f01e08f3cdae7ba1a163690342eb",
+    "derived_sha256": "ebd457991dd1d055e829c2bb27d878a818390133d08bcc23caf6cffbfe8c5145",
     "qemu_archive_sha256": "7c9605290b34152debb842e965a55d2e4fbba4793e536ab677b4027e5dc0ba1a",
     "gpu_support": true,
     "phone_tested": false,
@@ -206,19 +206,10 @@
       "hw/display/virtio-gpu-virgl.c": {
         "original_sha256": "fa586e30890ca8e55899b69151bcba043acb89b1deddd2b89f8c27d4fb81c1e0",
         "patched_sha256": "6f27d019f9c7255dcd2df37eb31392adc6e28721d7b5fc982abab2abca5fad9a"
-      },
-      "ui/egl-headless.c": {
-        "original_sha256": "24010e5fcd9c1e20f3a2e1757b7f60f5a3bff83b4a894269b001d1d17e6d3b35",
-        "patched_sha256": "e6c98f2204b0091d26c72fdcf19340c041780274bb22111846ae73774be080fe"
-      },
-      "system/qemu.symbols": {
-        "original_sha256": "d43f00394e02bd027dbb83fe56dd10e9d876122012da3ae852e6588db8732a56",
-        "patched_sha256": "13b20cc7f94ee7559d7ce4d6d8bb995622748e61e112193a31d8a014f34dec2f"
       }
     },
     "metal_backend_explicitly_requested": true,
     "root_gles_version_requested": 3,
-    "builtin_headless_registration_preflight": true,
     "steady_state_presenter": false,
     "phone_tested": false,
     "guest_graphics_verified": false,
@@ -230,12 +221,6 @@
   "venus_device_compiled": true,
   "metal_egl_backend_explicit": true,
   "hardware_virtualization": false,
-  "display_backend_build_audit": {
-    "pixman_enabled": true,
-    "egl_headless_builtin_compiled": true,
-    "egl_headless_registration_export": true,
-    "compile_command_sha256": "e5b14e08cf70460883071b47e409cf7006473dbdfb635c2496ba8f52a438b21d"
-  },
   "phone_tested": false,
   "linux_graphics_verified": false,
   "memory_import_verified": false,
@@ -282,7 +267,6 @@
     ],
     "sysroot-iOS-arm64/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu": [
       "/usr/lib/libz.1.dylib",
-      "@rpath/pixman-1.0.framework/pixman-1.0",
       "@rpath/epoxy.0.framework/epoxy.0",
       "@rpath/virglrenderer.1.framework/virglrenderer.1",
       "/usr/lib/libSystem.B.dylib",
@@ -421,8 +405,8 @@
       "sha256": "13619c5bd7286a39adaf9fdc7582787f0c6a53ac15279c6d75a0d55f92e1e780"
     },
     "sysroot-iOS-arm64/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu": {
-      "bytes": 28220064,
-      "sha256": "5cfe9751886d4447c4d2ba7a0b7d1a22025b4c799bceeba0d888200cf513098f"
+      "bytes": 28127064,
+      "sha256": "374dcb7de4702f590b984d2cd906aa454ac250cd776d0c30fc2a01d57a0e7c48"
     },
     "sysroot-iOS-arm64/Frameworks/glib-2.0.0.framework/glib-2.0.0": {
       "bytes": 1805856,
