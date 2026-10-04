@@ -9,6 +9,7 @@
 #include <drm_fourcc.h>
 #include <virtgpu_drm.h>
 #include "image_export_contract.h"
+#include "image_framebuffer.h"
 
 typedef struct MPCImageExport {
     VkImage image;
@@ -56,7 +57,7 @@ static int image_extensions(VkPhysicalDevice physical, VkExtensionProperties *ex
            output.externalMemoryProperties.compatibleHandleTypes,
            properties.imageFormatProperties.maxExtent.width, properties.imageFormatProperties.maxExtent.height);
     if (!mpc_export_image_supported(result, &properties, &output, WIDTH, HEIGHT))
-        return image_reject("drm-linear-rgba8-export-properties", result);
+        return image_reject("drm-linear-bgra8-export-properties", result);
     return 0;
 }
 static int image_open_drm(void) {
@@ -100,7 +101,7 @@ static int image_allocate(VkDevice device, const VkPhysicalDeviceMemoryPropertie
         VkExternalMemoryImageCreateInfo external = { .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
             .pNext = &modifier_list, .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT };
         VkImageCreateInfo info = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, .pNext = &external,
-            .imageType = VK_IMAGE_TYPE_2D, .format = VK_FORMAT_R8G8B8A8_UNORM, .extent = { WIDTH, HEIGHT, 1 },
+            .imageType = VK_IMAGE_TYPE_2D, .format = VK_FORMAT_B8G8R8A8_UNORM, .extent = { WIDTH, HEIGHT, 1 },
             .mipLevels = 1, .arrayLayers = 1, .samples = VK_SAMPLE_COUNT_1_BIT,
             .tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
             .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE };
@@ -175,12 +176,17 @@ static int image_install(VkDevice device, unsigned pass, uint32_t phase) {
         resource.size < target->layout.offset + target->layout.rowPitch * HEIGHT)
         return image_reject("drm-virtio-resource-identity", errno);
     target->resource = resource.res_handle;
-    uint32_t handles[4] = { target->gem_handle }, pitches[4] = { target->layout.rowPitch },
-             offsets[4] = { target->layout.offset };
-    if (drmModeAddFB2(scanout_fd, WIDTH, HEIGHT, DRM_FORMAT_ABGR8888, handles, pitches, offsets, &target->framebuffer, 0))
-        return image_reject("drm-addfb2-linear-abgr", errno);
+    printf("MPC_IMAGE_DRM_RESOURCE {\"schema\":1,\"run\":\"%s\",\"phase\":%u,"
+           "\"gem_handle\":%u,\"resource_id\":%u,\"blob_mem\":%u,\"resource_bytes\":%u,"
+           "\"row_pitch\":%" PRIu64 ",\"offset\":%" PRIu64 "}\n",image_run,phase,target->gem_handle,
+           target->resource,resource.blob_mem,resource.size,(uint64_t)target->layout.rowPitch,(uint64_t)target->layout.offset);
+    fflush(stdout);
+    if (mpc_add_image_framebuffer(scanout_fd, WIDTH, HEIGHT, target->gem_handle,
+                                target->layout.rowPitch, target->layout.offset, &target->framebuffer))
+        return image_reject("drm-addfb2-linear-xrgb", errno);
     printf("MPC_IMAGE_PRODUCER {\"schema\":1,\"run\":\"%s\",\"phase\":%u,\"resource_id\":%u,"
            "\"tiling\":\"drm-format-modifier\",\"drm_modifier\":0,\"memory_plane\":0,"
+           "\"vulkan_format\":44,\"drm_fourcc\":875713112,\"virtio_format\":2,\"channel_order\":\"bgra\","
            "\"width\":%u,\"height\":%u,\"row_pitch\":%" PRIu64 ",\"offset\":%" PRIu64 ","
            "\"allocation_bytes\":%" PRIu64 ",\"producer_fence_completed\":true,\"external_queue_release\":true}\n",
            image_run, phase, target->resource, WIDTH, HEIGHT, (uint64_t)target->layout.rowPitch,

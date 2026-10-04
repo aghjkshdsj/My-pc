@@ -5,7 +5,7 @@ import math
 from verify_device_report import require
 
 
-def validate(gate, serial, nonce, device_name, require_modifier=False):
+def validate(gate, serial, nonce, device_name, require_modifier=False, require_bgra=False):
     require(gate.get('image_import_requested') is True, 'Image import was not requested')
     receipt = gate.get('image_import')
     require(isinstance(receipt, dict) and receipt.get('schema') == 1 and
@@ -74,6 +74,8 @@ def validate(gate, serial, nonce, device_name, require_modifier=False):
                  'producer_fence_completed': True, 'external_queue_release': True}
         if require_modifier:
             fixed.update(tiling='drm-format-modifier', drm_modifier=0, memory_plane=0)
+        if require_bgra:
+            fixed.update(vulkan_format=44, drm_fourcc=875713112, virtio_format=2, channel_order='bgra')
         require(all(type(producer.get(k)) is type(v) and producer[k] == v for k, v in fixed.items()),
                 'Missing fresh guest image/fence/ownership release')
         r, pitch, offset, size = (producer.get(k) for k in ('resource_id', 'row_pitch', 'offset', 'allocation_bytes'))
@@ -86,10 +88,12 @@ def validate(gate, serial, nonce, device_name, require_modifier=False):
         require(type(alignment) is int and alignment > 0 and alignment & (alignment - 1) == 0 and
                 pitch % alignment == offset % alignment == 0 and type(image.get('backing_bytes')) is int and
                 offset + pitch * 720 <= image['backing_bytes'], 'Wrong native alignment/backing bounds')
-        expected = {'phase': phase, 'width': 1280, 'height': 720, 'native_pixel_format': 70,
+        expected = {'phase': phase, 'width': 1280, 'height': 720, 'native_pixel_format': 80 if require_bgra else 70,
                     'native_registry_id': registry, 'native_device': device_name, 'native_buffer_alias_verified': True,
                     'pixels_checked': 921600, 'mismatches': 0, 'channel_sum': checksum,
                     'consumer_status': 4, 'consumer_error': False}
+        if require_bgra:
+            expected.update(channel_order='bgra', virtio_format=2)
         require(all(type(image.get(k)) is type(v) and image[k] == v for k, v in expected.items()), 'Wrong native pixels/device/completion')
         start, end = image.get('gpu_start_seconds'), image.get('gpu_end_seconds')
         require(all(type(v) in (int, float) and math.isfinite(v) and v >= 0 for v in (start, end)) and

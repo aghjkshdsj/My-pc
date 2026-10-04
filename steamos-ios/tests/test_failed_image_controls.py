@@ -34,10 +34,38 @@ def fixture():
     return report
 
 def check(report, **kwargs):
-    return validate(report, 'test-commit', '4000017', {'synthetic': True},
+    return validate(report, 'test-commit', report['build'], {'synthetic': True},
         {'engine_text_sections': {'fixture': {'sha256': 'not-a-device-result'}}}, '27.0.1', **kwargs)
 
 class FailedImageControlTests(unittest.TestCase):
+    def framebuffer_fixture(self):
+        report = fixture(); report['build'] = '4000018'; gate = report['tests']['linux_image']
+        gate['serial_tail'] = gate['serial_tail'].replace('"result": -11', '"result": 0').replace(
+            '"external_features": 0', '"external_features": 6').replace('"compatible_handles": 0',
+            '"compatible_handles": 513').replace('"max_width": 0', '"max_width": 16384').replace(
+            '"max_height": 0', '"max_height": 16384').replace('"result": 0',
+            '"tiling": "drm-format-modifier", "drm_modifier": 0, "result": 0').replace(
+            'linear-rgba8-export-properties', 'drm-addfb2-linear-abgr').replace('"code": -11', '"code": 2')
+        gate['image_import']['guest_rejections'][0].update(stage='drm-addfb2-linear-abgr', code=2)
+        return report
+
+    def test_framebuffer_failure_preserves_only_controls(self):
+        report = self.framebuffer_fixture(); result = check(report, image_control_only=True)
+        self.assertEqual(result['image_rejection']['code'], 2)
+        self.assertIsNone(result['image_format_rejection'])
+        self.assertFalse(result['host_memory_import_verified'])
+        with self.assertRaises(ValueError): check(report, image_import=True)
+
+    def test_framebuffer_failure_requires_exact_known_stage_and_valid_export_query(self):
+        for old, new in [('"result": 0', '"result": -11'), ('"external_features": 6', '"external_features": 4'),
+                         ('"compatible_handles": 513', '"compatible_handles": 1'),
+                         ('"max_width": 16384', '"max_width": 1'), ('"drm_modifier": 0', '"drm_modifier": 1')]:
+            report = self.framebuffer_fixture(); gate = report['tests']['linux_image']
+            gate['serial_tail'] = gate['serial_tail'].replace(old, new)
+            with self.assertRaises(ValueError): check(report, image_control_only=True)
+        report = self.framebuffer_fixture(); report['build'] = '4000017'
+        with self.assertRaises(ValueError): check(report, image_control_only=True)
+
     def test_only_controls_pass_and_full_import_remains_rejected(self):
         report = fixture()
         result = check(report, image_control_only=True)

@@ -9,6 +9,7 @@ static NSString *line(NSString *prefix, NSDictionary *value) {
 static NSMutableDictionary *producer(unsigned phase, unsigned resource) {
     return [@{@"schema": @1, @"run": nonce, @"phase": @(phase), @"resource_id": @(resource),
         @"tiling": @"drm-format-modifier", @"drm_modifier": @0, @"memory_plane": @0,
+        @"vulkan_format": @44, @"drm_fourcc": @875713112, @"virtio_format": @2, @"channel_order": @"bgra",
         @"width": @1280, @"height": @720, @"row_pitch": @5120, @"offset": @0,
         @"allocation_bytes": @3686400, @"producer_fence_completed": @YES, @"external_queue_release": @YES} mutableCopy];
 }
@@ -16,6 +17,7 @@ static NSMutableDictionary *image(unsigned phase, unsigned resource, unsigned ge
     return [@{@"phase": @(phase), @"resource_id": @(resource), @"generation": @(generation),
         @"width": @1280, @"height": @720, @"row_pitch": @5120, @"offset": @0,
         @"backing_bytes": @3686400, @"native_registry_id": @77, @"native_buffer_alias_verified": @YES,
+        @"native_pixel_format": @80, @"virtio_format": @2, @"channel_order": @"bgra",
         @"pixels_checked": @921600, @"mismatches": @0, @"channel_sum": @(sum),
         @"consumer_status": @4, @"consumer_error": @NO} mutableCopy];
 }
@@ -60,6 +62,18 @@ int main(void) { @autoreleasepool {
     }
     NSMutableDictionary *missingModifier = [p0 mutableCopy]; [missingModifier removeObjectForKey:@"drm_modifier"];
     expect(accepted(serial(@[missingModifier, p1], exit), n, YES, YES, YES), NO);
+    for (NSString *key in @[@"vulkan_format", @"drm_fourcc", @"virtio_format", @"channel_order"]) {
+        NSMutableDictionary *wrong = [p0 mutableCopy];
+        wrong[key] = [key isEqual:@"channel_order"] ? @"rgba" : @0;
+        expect(accepted(serial(@[wrong, p1], exit), n, YES, YES, YES), NO);
+        [wrong removeObjectForKey:key];
+        expect(accepted(serial(@[wrong, p1], exit), n, YES, YES, YES), NO);
+    }
+    for (NSString *key in @[@"native_pixel_format", @"virtio_format", @"channel_order"]) {
+        NSMutableDictionary *wrong = [i0 mutableCopy];
+        wrong[key] = [key isEqual:@"channel_order"] ? @"rgba" : @70;
+        expect(accepted(valid, native(@[wrong, i1]), YES, YES, YES), NO);
+    }
     for (NSString *key in @[@"producer_fence_completed", @"external_queue_release", @"width", @"height", @"schema"])
     {
         NSMutableDictionary *bad = [p0 mutableCopy]; bad[key] = @0;

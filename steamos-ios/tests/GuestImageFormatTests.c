@@ -11,7 +11,7 @@ static VkResult query(VkPhysicalDevice physical, const VkPhysicalDeviceImageForm
     const VkPhysicalDeviceImageDrmFormatModifierInfoEXT *modifier = external->pNext;
     assert(info->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2);
     assert(info->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT);
-    assert(info->format == VK_FORMAT_R8G8B8A8_UNORM && info->type == VK_IMAGE_TYPE_2D);
+    assert(info->format == VK_FORMAT_B8G8R8A8_UNORM && info->type == VK_IMAGE_TYPE_2D);
     assert(info->usage == VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     assert(external->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO);
     assert(external->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);

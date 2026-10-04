@@ -2,6 +2,7 @@
 #import "ProbeBridge.h"
 #import <Metal/Metal.h>
 #include "../Engine/NativeScanoutABI.h"
+#include "../Engine/ImagePixelContract.h"
 #include <dlfcn.h>
 #include <cmath>
 
@@ -29,11 +30,11 @@ static NSDictionary *consume(MPCImageImportContext *context, const MPCNativeScan
         id<MTLTexture> texture = (__bridge id<MTLTexture>)event->texture;
         if (!texture) return @{@"error": @"missing-native-texture"};
         id<MTLDevice> device = texture.device;
-        NSUInteger alignment = [device minimumLinearTextureAlignmentForPixelFormat:MTLPixelFormatRGBA8Unorm];
+        NSUInteger alignment = [device minimumLinearTextureAlignmentForPixelFormat:MTLPixelFormatBGRA8Unorm];
         id<MTLBuffer> backing = texture.buffer;
         uint64_t extent = (uint64_t)event->stride * event->height;
         if (!device || device.registryID != context.registry || !backing ||
-            texture.pixelFormat != MTLPixelFormatRGBA8Unorm || texture.textureType != MTLTextureType2D ||
+            texture.pixelFormat != MTLPixelFormatBGRA8Unorm || texture.textureType != MTLTextureType2D ||
             texture.width != 1280 || texture.height != 720 || texture.depth != 1 || texture.sampleCount != 1 ||
             texture.mipmapLevelCount != 1 || texture.arrayLength != 1 ||
             texture.storageMode != MTLStorageModeShared || backing.storageMode != MTLStorageModeShared ||
@@ -65,12 +66,11 @@ static NSDictionary *consume(MPCImageImportContext *context, const MPCNativeScan
             return @{@"error": @"native-consumer-command-failed", @"status": @(command.status),
                      @"code": @(command.error.code)};
         const auto *pixels = static_cast<const unsigned char *>(readback.contents);
-        unsigned phase = pixels[2] == 165 ? 0 : pixels[2] == (165 ^ 41) ? 41 : 999;
+        unsigned phase = mpc_pattern_phase(pixels, 1);
         uint64_t mismatches = 0, sum = 0;
         for (unsigned y = 0; y < 720; ++y) for (unsigned x = 0; x < 1280; ++x) {
             const unsigned char *p = pixels + (y * 1280 + x) * 4;
-            mismatches += phase == 999 || p[0] != ((x + phase) & 255) || p[1] != ((y + phase) & 255) ||
-                          p[2] != ((165 ^ phase) & 255) || p[3] != 255;
+            mismatches += !mpc_pattern_matches(p, x, y, phase, 1);
             sum += p[0] + p[1] + p[2] + p[3];
         }
         MPCDiagnosticStage(@"linux-native-import-consumer-completed", @{@"phase": @(phase), @"mismatches": @(mismatches)});
@@ -78,6 +78,7 @@ static NSDictionary *consume(MPCImageImportContext *context, const MPCNativeScan
             @"width": @1280, @"height": @720, @"row_pitch": @(event->stride), @"offset": @(event->offset),
             @"backing_bytes": @(backing.length), @"linear_alignment": @(alignment),
             @"native_pixel_format": @(texture.pixelFormat), @"native_registry_id": @(device.registryID),
+            @"channel_order": @"bgra", @"virtio_format": @(event->format),
             @"native_device": device.name ?: @"unknown", @"native_buffer_alias_verified": @YES,
             @"pixels_checked": @921600, @"mismatches": @(mismatches), @"channel_sum": @(sum),
             @"consumer_status": @(command.status), @"consumer_error": @NO,
@@ -101,7 +102,7 @@ static void scanout(void *opaque, const MPCNativeScanoutEvent *event) {
                 return;
             }
             if (!event->texture || !event->resource_id || event->width != 1280 || event->height != 720 ||
-                event->format != 67 || event->stride < 5120 || event->stride > (1u << 24) ||
+                event->format != MPC_IMAGE_VIRTIO_BGRX8 || event->stride < 5120 || event->stride > (1u << 24) ||
                 event->x || event->y || event->crop_width != 1280 || event->crop_height != 720 ||
                 event->y_0_top) { context.errors++; return; }
             if (event->kind == MPC_SCANOUT_INSTALL) {

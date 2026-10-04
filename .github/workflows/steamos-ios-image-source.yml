@@ -2,7 +2,7 @@ name: Fresh iOS guest image adapter compilation and receipt rejection
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Host/GuestImage*', 'steamos-ios/Engine/NativeScanoutABI.h', 'steamos-ios/tests/GuestImageReceiptTests.mm', '.github/workflows/steamos-ios-image-source.yml']
+    paths: ['steamos-ios/Host/GuestImage*', 'steamos-ios/Engine/NativeScanoutABI.h', 'steamos-ios/Engine/ImagePixelContract.h', 'steamos-ios/tests/ImagePixelContractTests.c', 'steamos-ios/tests/GuestImageReceiptTests.mm', '.github/workflows/steamos-ios-image-source.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,6 +17,8 @@ jobs:
           clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host \
             steamos-ios/Host/GuestImageReceipt.mm steamos-ios/tests/GuestImageReceiptTests.mm -o /tmp/mpc-image-receipt-tests
           /tmp/mpc-image-receipt-tests
+          clang -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/tests/ImagePixelContractTests.c -o /tmp/mpc-image-pixel-tests
+          /tmp/mpc-image-pixel-tests
       - name: Compile the actual adapter for physical ARM64 iOS
         run: |
           xcrun --sdk iphoneos clang++ -target arm64-apple-ios26.0 -std=c++17 -fobjc-arc \

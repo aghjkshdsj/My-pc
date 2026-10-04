@@ -2,7 +2,7 @@ name: Fresh ARM Linux exported image payload and rejection controls
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Guest/image_scanout.h', 'steamos-ios/Guest/image_export_contract.h', 'steamos-ios/Guest/vk_gate.c', 'steamos-ios/tools/build_guest_image_payload.py', 'steamos-ios/tests/GuestImageFormatTests.c', 'steamos-ios/tests/test_guest_image_payload.py', '.github/workflows/steamos-guest-image-payload.yml']
+    paths: ['steamos-ios/Guest/image_scanout.h', 'steamos-ios/Guest/image_export_contract.h', 'steamos-ios/Guest/image_framebuffer.h', 'steamos-ios/Guest/kms_format_probe.c', 'steamos-ios/Engine/ImagePixelContract.h', 'steamos-ios/Guest/vk_gate.c', 'steamos-ios/tools/build_guest_image_payload.py', 'steamos-ios/tests/GuestImageFormatTests.c', 'steamos-ios/tests/ImagePixelContractTests.c', 'steamos-ios/tests/test_guest_image_payload.py', '.github/workflows/steamos-guest-image-payload.yml']
   workflow_dispatch:
 permissions:
   contents: read

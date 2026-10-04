@@ -125,13 +125,22 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
         require(len(capabilities) == len(rejected) == 1 and rejected == receipt.get('guest_rejections') and
                 not receipt.get('guest_producers') and not receipt.get('guest_exits') and
                 not image_rows('MPC_IMAGE_PRODUCER ') and not image_rows('MPC_IMAGE_EXIT '),
-                'Missing or mixed early image-format rejection')
+                'Missing or mixed image rejection before native consumption')
         capability, rejection = capabilities[0], rejected[0]
-        require(capability.get('schema') == 1 and capability.get('run') == nonce and capability.get('result') == -11 and
-                rejection.get('schema') == 1 and rejection.get('run') == nonce and rejection.get('code') == -11 and
-                rejection.get('stage') in ('linear-rgba8-export-properties', 'drm-linear-rgba8-export-properties') and
+        format_rejection = (capability.get('result') == -11 and rejection.get('code') == -11 and
+            rejection.get('stage') in ('linear-rgba8-export-properties', 'drm-linear-rgba8-export-properties'))
+        framebuffer_rejection = (build == '4000018' and capability.get('result') == 0 and
+            capability.get('tiling') == 'drm-format-modifier' and capability.get('drm_modifier') == 0 and
+            type(capability.get('external_features')) is int and capability['external_features'] & 2 and
+            type(capability.get('compatible_handles')) is int and capability['compatible_handles'] & 512 and
+            type(capability.get('max_width')) is int and capability['max_width'] >= 1280 and
+            type(capability.get('max_height')) is int and capability['max_height'] >= 720 and
+            rejection.get('code') == 2 and rejection.get('stage') == 'drm-addfb2-linear-abgr')
+        require(capability.get('schema') == 1 and capability.get('run') == nonce and
+                rejection.get('schema') == 1 and rejection.get('run') == nonce and
+                (format_rejection or framebuffer_rejection) and
                 rejection.get('host_memory_import_verified') is False and rejection.get('presentation_verified') is False and
-                lines.count('MPC_IMAGE_GUEST_EXIT=21') == 1, 'Invalid or stale format rejection')
+                lines.count('MPC_IMAGE_GUEST_EXIT=21') == 1, 'Invalid or stale image rejection')
         native = receipt.get('native', {})
         require(native.get('run') == nonce and native.get('active') is False and native.get('reading') is False and
                 native.get('events') == [] and native.get('images') == [] and native.get('errors') == 0 and
@@ -153,7 +162,8 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             'gate_elapsed_ms': gate['elapsed_ms'], 'validation_layer_observed': draw.get('validation_enabled', False),
             'hardware_virtualization_verified': False, 'metal_host_verified': native_metal,
             'host_memory_import_verified': image_verified, 'presentation_verified': False, 'steamos_verified': False,
-            'failed_image_controls_only': image_control_only, 'image_format_rejection': rejection,
+            'failed_image_controls_only': image_control_only, 'image_rejection': rejection,
+            'image_format_rejection': rejection if rejection and rejection.get('code') == -11 else None,
             'gameplay_verified': False, 'steam_startup_target_verified': False, 'hollow_knight_target_verified': False,
             'cryptographic_device_attestation': False}
 
@@ -196,7 +206,7 @@ if __name__ == '__main__':
     parser.add_argument('--machine', default='iPhone16,2')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--image-import', action='store_true')
-    mode.add_argument('--image-control-only', action='store_true', help='Verify preserved controls in a normal early-format-rejected image report; never accept import')
+    mode.add_argument('--image-control-only', action='store_true', help='Verify preserved controls in a complete failed image report; never accept import')
     args = parser.parse_args()
     require(__debug__, 'Do not run with python -O; package/ABI checks use assertions')
     package = verify_ipa(args.ipa, args.commit, True, None, True, True)

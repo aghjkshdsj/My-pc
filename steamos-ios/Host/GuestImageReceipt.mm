@@ -1,4 +1,5 @@
 #import "GuestImageImport.h"
+#include "../Engine/ImagePixelContract.h"
 static NSArray *rows(NSString *serial, NSString *prefix) {
     NSMutableArray *result = [NSMutableArray array];
     for (NSString *line in [serial componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
@@ -69,6 +70,12 @@ NSDictionary *MPCValidateGuestImageImport(NSString *serial, NSString *nonce, NSD
         passed = [producer[@"schema"] isEqual:@1] && [producer[@"run"] isEqual:nonce] &&
             [producer[@"tiling"] isEqual:@"drm-format-modifier"] &&
             [producer[@"drm_modifier"] isEqual:@0] && [producer[@"memory_plane"] isEqual:@0] &&
+            [producer[@"vulkan_format"] isEqual:@(MPC_IMAGE_VULKAN_BGRA8)] &&
+            [producer[@"drm_fourcc"] isEqual:@(MPC_IMAGE_DRM_XRGB8)] &&
+            [producer[@"virtio_format"] isEqual:@(MPC_IMAGE_VIRTIO_BGRX8)] &&
+            [producer[@"channel_order"] isEqual:@"bgra"] && [image[@"channel_order"] isEqual:@"bgra"] &&
+            [image[@"native_pixel_format"] isEqual:@(MPC_IMAGE_METAL_BGRA8)] &&
+            [image[@"virtio_format"] isEqual:producer[@"virtio_format"]] &&
             [producer[@"phase"] isEqual:phase] && [image[@"phase"] isEqual:phase] &&
             [producer[@"width"] isEqual:@1280] && [producer[@"height"] isEqual:@720] &&
             [producer[@"producer_fence_completed"] isEqual:@YES] && [producer[@"external_queue_release"] isEqual:@YES] &&

@@ -58,6 +58,24 @@ class GuestImageImportTests(unittest.TestCase):
             gate, nonce = fixture(); gate['image_import']['guest_producers'][0][key] = value
             with self.assertRaises(ValueError): validate(gate, serial(gate), nonce, 'Apple fixture', require_modifier=True)
 
+    def test_bgra_primary_plane_contract_requires_every_format_boundary(self):
+        gate, nonce = fixture()
+        for p in gate['image_import']['guest_producers']:
+            p.update(vulkan_format=44, drm_fourcc=875713112, virtio_format=2, channel_order='bgra')
+        for image in gate['image_import']['native']['images']:
+            image.update(native_pixel_format=80, virtio_format=2, channel_order='bgra')
+        validate(gate, serial(gate), nonce, 'Apple fixture', require_modifier=True, require_bgra=True)
+        for target, key, wrong in [('guest_producers', 'vulkan_format', 37), ('guest_producers', 'drm_fourcc', 875708993),
+                                  ('guest_producers', 'virtio_format', 67), ('guest_producers', 'channel_order', 'rgba'),
+                                  ('images', 'native_pixel_format', 70), ('images', 'virtio_format', 1),
+                                  ('images', 'channel_order', 'rgba')]:
+            for value in (wrong, None):
+                bad = copy.deepcopy(gate)
+                rows = bad['image_import']['native']['images'] if target == 'images' else bad['image_import'][target]
+                rows[0][key] = value
+                with self.assertRaises(ValueError):
+                    validate(bad, serial(bad), nonce, 'Apple fixture', require_modifier=True, require_bgra=True)
+
     def test_missing_or_stale_producer_fences_and_export_layout_rejected(self):
         for key, value in [('producer_fence_completed', False), ('external_queue_release', False),
                            ('run', 'old'), ('phase', 0), ('row_pitch', 1), ('offset', 3686400),

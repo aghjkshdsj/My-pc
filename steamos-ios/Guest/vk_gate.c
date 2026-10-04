@@ -9,6 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
+#include "../Engine/ImagePixelContract.h"
+#ifdef MPC_IMAGE_SCANOUT
+#define MPC_RENDER_FORMAT VK_FORMAT_B8G8R8A8_UNORM
+#define MPC_RENDER_BGRA 1
+#else
+#define MPC_RENDER_FORMAT VK_FORMAT_R8G8B8A8_UNORM
+#define MPC_RENDER_BGRA 0
+#endif
 
 /* The native adapter supplies a private receipt stream. Linux keeps stdout. */
 #ifndef MPC_VK_DIAGNOSTIC_STREAM
@@ -163,7 +171,7 @@ int main(int argc, char **argv) {
     }
     VkPhysicalDeviceFeatures features; vkGetPhysicalDeviceFeatures(physical, &features);
     VkPhysicalDeviceMemoryProperties memory; vkGetPhysicalDeviceMemoryProperties(physical, &memory);
-    VkFormatProperties format; vkGetPhysicalDeviceFormatProperties(physical, VK_FORMAT_R8G8B8A8_UNORM, &format);
+    VkFormatProperties format; vkGetPhysicalDeviceFormatProperties(physical, MPC_RENDER_FORMAT, &format);
     if (!(format.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) ||
         !(format.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT)) return 6;
     uint32_t queue_count = 0; vkGetPhysicalDeviceQueueFamilyProperties(physical, &queue_count, NULL);
@@ -197,7 +205,7 @@ int main(int argc, char **argv) {
     if (image_allocate(device, &memory)) return 21;
 #endif
     VkImageCreateInfo image_info = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .imageType = VK_IMAGE_TYPE_2D, .format = VK_FORMAT_R8G8B8A8_UNORM,
+        .imageType = VK_IMAGE_TYPE_2D, .format = MPC_RENDER_FORMAT,
         .extent = { WIDTH, HEIGHT, 1 }, .mipLevels = 1, .arrayLayers = 1,
         .samples = VK_SAMPLE_COUNT_1_BIT, .tiling = VK_IMAGE_TILING_OPTIMAL,
         .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -211,7 +219,7 @@ int main(int argc, char **argv) {
     VK_CHECK(vkBindImageMemory(device, image, image_memory, 0));
     VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
     VkImageViewCreateInfo view_info = { .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .image = image, .viewType = VK_IMAGE_VIEW_TYPE_2D, .format = VK_FORMAT_R8G8B8A8_UNORM, .subresourceRange = range };
+        .image = image, .viewType = VK_IMAGE_VIEW_TYPE_2D, .format = MPC_RENDER_FORMAT, .subresourceRange = range };
     VkImageView view; VK_CHECK(vkCreateImageView(device, &view_info, NULL, &view));
     VkBufferCreateInfo buffer_info = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = BYTES, .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE };
@@ -222,7 +230,7 @@ int main(int argc, char **argv) {
     allocate.allocationSize = requirements.size; allocate.memoryTypeIndex = buffer_type;
     VkDeviceMemory buffer_memory; VK_CHECK(vkAllocateMemory(device, &allocate, NULL, &buffer_memory));
     VK_CHECK(vkBindBufferMemory(device, buffer, buffer_memory, 0));
-    VkAttachmentDescription attachment = { .format = VK_FORMAT_R8G8B8A8_UNORM, .samples = VK_SAMPLE_COUNT_1_BIT,
+    VkAttachmentDescription attachment = { .format = MPC_RENDER_FORMAT, .samples = VK_SAMPLE_COUNT_1_BIT,
         .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE, .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE, .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
@@ -319,8 +327,7 @@ int main(int argc, char **argv) {
         const unsigned char *pixels = mapped;
         for (unsigned y = 0; y < HEIGHT; ++y) for (unsigned x = 0; x < WIDTH; ++x) {
             const unsigned char *p = pixels + (y * WIDTH + x) * 4;
-            mismatches += p[0] != ((x + phase) & 255) || p[1] != ((y + phase) & 255) ||
-                          p[2] != ((165 ^ phase) & 255) || p[3] != 255;
+            mismatches += !mpc_pattern_matches(p, x, y, phase, MPC_RENDER_BGRA);
             checksum += p[0] + p[1] + p[2] + p[3];
         }
         vkUnmapMemory(device, buffer_memory);
