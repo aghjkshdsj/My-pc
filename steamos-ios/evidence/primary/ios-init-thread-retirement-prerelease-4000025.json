@@ -1,0 +1,349 @@
+{
+  "schema": 1,
+  "scope": "public-build25-init-thread-retirement-package-checkpoint",
+  "source_commit": "928b1db91b1ee1713e70ddee2c5253ba6676ca93",
+  "workflow_run": 37245060441,
+  "job_id": 111561201651,
+  "build": "4000025",
+  "release_url": "https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-20",
+  "engine_source": "e31b9fcc6609b8ab50f8d6f72acd7cf9f1124300",
+  "engine_workflow_run": 37244178261,
+  "engine_job_id": 111558661239,
+  "ios_arm64_device_target_compilation_passed": true,
+  "actual_engine_rcu_source_and_export_build_audit_passed": true,
+  "actual_packaged_defined_rcu_unregister_export_verified": true,
+  "old_private_export_rejected": true,
+  "python_tests": 115,
+  "native_thread_retirements_per_execution": 1001,
+  "optimized_native_lease_tests_passed": true,
+  "address_and_undefined_behavior_sanitized_native_lease_tests_passed": true,
+  "native_lease_tests_are_thread_tls_contract_only": true,
+  "upstream_qemu_executed_in_native_lease_tests": false,
+  "original_recovery_and_graphics_receipt_checks_preserved_and_passed": true,
+  "independently_verified_package": {
+    "schema": 1,
+    "scope": "independent-public-build25-rcu-retirement-package-source-and-symbol-check",
+    "build": "4000025",
+    "source_commit": "928b1db91b1ee1713e70ddee2c5253ba6676ca93",
+    "ipa": {
+      "schema": 1,
+      "kind": "ios-linux-kernel-gate",
+      "commit": "928b1db91b1ee1713e70ddee2c5253ba6676ca93",
+      "build": "4000025",
+      "bundle_id": "com.aghjkshdsj.mypc.steamos.probe",
+      "sha256": "1242db7d93eead6a9f3c00b268979b7db24e7c2b20586490a18468297ebae6ed",
+      "bytes": 24444751,
+      "zip_crc": "passed",
+      "arm64_ios": true,
+      "linux_gate_bundled": true,
+      "native_vulkan_bundled": true,
+      "guest_gpu_bundled": true,
+      "engine_frameworks_checked": [
+        "Payload/MyPCSteamOSProbe.app/Frameworks/pixman-1.0.framework/pixman-1.0",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/MoltenVK.framework/MoltenVK",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/GLESv2.framework/GLESv2",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/glib-2.0.0.framework/glib-2.0.0",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/epoxy.0.framework/epoxy.0",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/intl.8.framework/intl.8",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/iconv.2.framework/iconv.2",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/EGL.framework/EGL",
+        "Payload/MyPCSteamOSProbe.app/Frameworks/virglrenderer.1.framework/virglrenderer.1"
+      ],
+      "linux_boot_verified": false,
+      "game_graphics_verified": false,
+      "phone_performance_verified": false
+    },
+    "host_symbols": {
+      "schema": 1,
+      "scope": "exact-packaged-arm64-host-debug-symbols",
+      "source_commit": "928b1db91b1ee1713e70ddee2c5253ba6676ca93",
+      "build": "4000025",
+      "binary_uuid": "D7C40BC0-BB7F-331B-AF02-CCD7118B1D92",
+      "host_executable_sha256": "fc4343b323646e542e0f24639332dde08a3d4c603eb62457e8ca5d7134a4c8cc",
+      "dwarf_bytes": 2800496,
+      "dwarf_sha256": "97af361009bf88e30595ed01507a21d350279f2d38d7a3c0b173ec12a571278c",
+      "phone_tested": false,
+      "crash_cause_established": false,
+      "limitation": "Matching host UUID permits host symbolication. It does not establish the crash cause or provide upstream framework dSYMs."
+    },
+    "qemu_uuid": "B6A27174-FE58-3899-A336-DAC09C62ADFD",
+    "actual_retirement_api_defined_export": true,
+    "old_engine_export_rejection_passed": true,
+    "selected_exact_source_files": [
+      ".github/workflows/steamos-ios-guest-gpu-prerelease.yml",
+      ".github/workflows/steamos-ios-scanout-engine.yml",
+      "steamos-ios/Host/LinuxGate.mm",
+      "steamos-ios/Host/QEMUInitThreadLease.h",
+      "steamos-ios/MyPCSteamOS.xcodeproj/project.pbxproj",
+      "steamos-ios/STATUS.md",
+      "steamos-ios/docs/RCU-THREAD-RETIREMENT.md",
+      "steamos-ios/tests/QEMUInitThreadLeaseTests.cpp",
+      "steamos-ios/tests/test_gpu_backend_build.py",
+      "steamos-ios/tests/test_guest_frames.py",
+      "steamos-ios/tests/test_macho_exports.py",
+      "steamos-ios/tools/bundle_guest_gpu.py",
+      "steamos-ios/tools/collect_gpu_engine_sources.py",
+      "steamos-ios/tools/generate_project.py",
+      "steamos-ios/tools/macho_exports.py",
+      "steamos-ios/tools/patch_qemu_native_scanout.py",
+      "steamos-ios/tools/verify_guest_gpu_report.py",
+      "steamos-ios/tools/verify_ipa.py"
+    ],
+    "changed_native_files": [
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu",
+        "bytes": 28220424,
+        "sha256": "0516aa1af2021b12743beed3c417435827ad20004abf79aaf00bd9a42853fd34"
+      }
+    ],
+    "reused_byte_identical_native_guest_files": [
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/pixman-1.0.framework/pixman-1.0",
+        "bytes": 2523648,
+        "sha256": "963cf544062f7c32b5b1085bbe3826fb0f47678fc8a3420b6e4ece9ac94e0157"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/MoltenVK.framework/MoltenVK",
+        "bytes": 4854840,
+        "sha256": "e5fbe9a5bd67daa7a22dd4ab244912500dc17a0ecf87105f8094f78daf7a9648"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/GLESv2.framework/GLESv2",
+        "bytes": 6729168,
+        "sha256": "13619c5bd7286a39adaf9fdc7582787f0c6a53ac15279c6d75a0d55f92e1e780"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/glib-2.0.0.framework/glib-2.0.0",
+        "bytes": 1805856,
+        "sha256": "a712c88c742804f0391e47b3a9c97cb7de781a1175992ac7d86ba0924c15a8b5"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/epoxy.0.framework/epoxy.0",
+        "bytes": 1346728,
+        "sha256": "1ce43b8386c32d836fa5ce877b5d048c8fb07ce577b11346c97ddcdcc7ae5164"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/intl.8.framework/intl.8",
+        "bytes": 243336,
+        "sha256": "114a8554482d7f87ae29370dbbab84a21451ff22c23099a7806bd641181bac48"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/iconv.2.framework/iconv.2",
+        "bytes": 1102456,
+        "sha256": "ecbd537007f0c7a9347e83aa28202bd812db21168f7320285feb04cfad9d1f9b"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/EGL.framework/EGL",
+        "bytes": 75984,
+        "sha256": "13ee7d880bc87c3095deca5dd6353d7a794e051657116e3557523ca72a007c55"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/Frameworks/virglrenderer.1.framework/virglrenderer.1",
+        "bytes": 3007464,
+        "sha256": "89a092c0210aba08105a02d39d0733ca32daa865a937a0478100a97b7f0377b1"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/LinuxGuestGPU/Image",
+        "bytes": 3805192,
+        "sha256": "a8f995e831fcfe43807873c1579ab0f80658afb701b80b08047f00c29e1ad166"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/LinuxGuestGPU/initramfs.cpio.gz",
+        "bytes": 10087447,
+        "sha256": "40e92bcd95cb4877ae23e259d1edf7aee9c33c314a5843be8179e9fe95208989"
+      },
+      {
+        "path": "Payload/MyPCSteamOSProbe.app/LinuxGuestGPU/payload-receipt.json",
+        "bytes": 58363,
+        "sha256": "8a9caff937c4fc4830686ade5d516c2a2ae1f082f521f6d3ef84600a6c64b1e3"
+      }
+    ],
+    "new_engine_corresponding_source_downloaded_and_checked": true,
+    "original_qemu_source_sha256": "7c9605290b34152debb842e965a55d2e4fbba4793e536ab677b4027e5dc0ba1a",
+    "downloaded_public_files": [
+      {
+        "name": "cpu-guest-run.json",
+        "bytes": 13400,
+        "sha256": "e4c2d517a5a3e8a27c9db9d53f317c1e4768dbaa858c0023299886fe60dce8c9"
+      },
+      {
+        "name": "GPU-Engine-Corresponding-Source.tar.gz",
+        "bytes": 212086434,
+        "sha256": "6ecdd1f67d84a63f927c8e9c37a6bed7c8623d863de92a219a852dd287236572"
+      },
+      {
+        "name": "gpu-engine-run.json",
+        "bytes": 13400,
+        "sha256": "cc859eefba3f2abfb86f7e2cd1a531cccdea290747d84030718d823813b0836f"
+      },
+      {
+        "name": "gpu-guest-run.json",
+        "bytes": 13442,
+        "sha256": "d2254250a6a48c929a25ffbc5637e607870275fef9feee4a4fbffd3ac7409cc3"
+      },
+      {
+        "name": "Host-Debug-Symbols.tar.gz",
+        "bytes": 1014303,
+        "sha256": "937b1516c946e4c5133c347e6b12c1a30e2c7139ba1f92d919786a7513f88b09"
+      },
+      {
+        "name": "host-symbols.json",
+        "bytes": 624,
+        "sha256": "30adc066fd0505c99b586cbbcfac35101bb134dd2f4599b13ed62eec77f88335"
+      },
+      {
+        "name": "molten-run.json",
+        "bytes": 13476,
+        "sha256": "7984887d3756d680a4db47fe115fea59f5f092c256cf359c2b3a8080d171bf17"
+      },
+      {
+        "name": "MyPCSteamOS-Fresh-Source.tar.gz",
+        "bytes": 644059,
+        "sha256": "18f77326c147e8107bddb1f8e6d0eeeb6543725c81ebe7162f6998643eb61ab7"
+      },
+      {
+        "name": "MyPCSteamOS-Guest-GPU-Gate.ipa",
+        "bytes": 24444751,
+        "sha256": "1242db7d93eead6a9f3c00b268979b7db24e7c2b20586490a18468297ebae6ed"
+      },
+      {
+        "name": "SHA256SUMS",
+        "bytes": 1210,
+        "sha256": "2defbdfb02dd2fab620b7980121e7d53c1c14db6d03340a3d50ea592f73ba586"
+      },
+      {
+        "name": "verification.json",
+        "bytes": 1337,
+        "sha256": "757487edb44cd995d5037629f8635698b452288295e0a44e14fd50d1282acee0"
+      }
+    ],
+    "unchanged_corresponding_source_archive_verification": [
+      {
+        "name": "Guest-GPU-Corresponding-Source.tar.gz",
+        "bytes": 380743784,
+        "sha256": "9b1ecb06502d4d4b933aa0d64bc0991bf60a99d6bd51e46b15e11a1bb1af5891",
+        "scope": "metadata-and-hosted-receipt-unchanged-from-build24"
+      },
+      {
+        "name": "Linux-Gate-Corresponding-Source.tar.gz",
+        "bytes": 151293901,
+        "sha256": "751f9beb8b37146b8a04854cb7519377e83ccb96022647b0892c7bfe50ed0546",
+        "scope": "metadata-and-hosted-receipt-unchanged-from-build24"
+      },
+      {
+        "name": "MoltenVK-Corresponding-Source.tar.gz",
+        "bytes": 11117319,
+        "sha256": "9577d3a782917c1da25e179de5f720ab947db89afe7c81fc978bba0d0c9a4f6f",
+        "scope": "metadata-and-hosted-receipt-unchanged-from-build24"
+      }
+    ],
+    "published_checksums_matched": true,
+    "published_host_symbol_receipt_matched": true,
+    "phone_tested": false,
+    "crash_fix_verified": false,
+    "causal_phone_reproduction_verified": false,
+    "mutable_transport_integrated": false,
+    "continuous_animation_verified": false,
+    "steamos_verified": false,
+    "steam_arm_verified": false,
+    "gameplay_verified": false,
+    "performance_targets_verified": false
+  },
+  "assets": [
+    {
+      "name": "cpu-guest-run.json",
+      "bytes": 13400,
+      "sha256": "e4c2d517a5a3e8a27c9db9d53f317c1e4768dbaa858c0023299886fe60dce8c9",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/cpu-guest-run.json"
+    },
+    {
+      "name": "GPU-Engine-Corresponding-Source.tar.gz",
+      "bytes": 212086434,
+      "sha256": "6ecdd1f67d84a63f927c8e9c37a6bed7c8623d863de92a219a852dd287236572",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/GPU-Engine-Corresponding-Source.tar.gz"
+    },
+    {
+      "name": "gpu-engine-run.json",
+      "bytes": 13400,
+      "sha256": "cc859eefba3f2abfb86f7e2cd1a531cccdea290747d84030718d823813b0836f",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/gpu-engine-run.json"
+    },
+    {
+      "name": "gpu-guest-run.json",
+      "bytes": 13442,
+      "sha256": "d2254250a6a48c929a25ffbc5637e607870275fef9feee4a4fbffd3ac7409cc3",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/gpu-guest-run.json"
+    },
+    {
+      "name": "Guest-GPU-Corresponding-Source.tar.gz",
+      "bytes": 380743784,
+      "sha256": "9b1ecb06502d4d4b933aa0d64bc0991bf60a99d6bd51e46b15e11a1bb1af5891",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/Guest-GPU-Corresponding-Source.tar.gz"
+    },
+    {
+      "name": "Host-Debug-Symbols.tar.gz",
+      "bytes": 1014303,
+      "sha256": "937b1516c946e4c5133c347e6b12c1a30e2c7139ba1f92d919786a7513f88b09",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/Host-Debug-Symbols.tar.gz"
+    },
+    {
+      "name": "host-symbols.json",
+      "bytes": 624,
+      "sha256": "30adc066fd0505c99b586cbbcfac35101bb134dd2f4599b13ed62eec77f88335",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/host-symbols.json"
+    },
+    {
+      "name": "Linux-Gate-Corresponding-Source.tar.gz",
+      "bytes": 151293901,
+      "sha256": "751f9beb8b37146b8a04854cb7519377e83ccb96022647b0892c7bfe50ed0546",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/Linux-Gate-Corresponding-Source.tar.gz"
+    },
+    {
+      "name": "molten-run.json",
+      "bytes": 13476,
+      "sha256": "7984887d3756d680a4db47fe115fea59f5f092c256cf359c2b3a8080d171bf17",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/molten-run.json"
+    },
+    {
+      "name": "MoltenVK-Corresponding-Source.tar.gz",
+      "bytes": 11117319,
+      "sha256": "9577d3a782917c1da25e179de5f720ab947db89afe7c81fc978bba0d0c9a4f6f",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/MoltenVK-Corresponding-Source.tar.gz"
+    },
+    {
+      "name": "MyPCSteamOS-Fresh-Source.tar.gz",
+      "bytes": 644059,
+      "sha256": "18f77326c147e8107bddb1f8e6d0eeeb6543725c81ebe7162f6998643eb61ab7",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/MyPCSteamOS-Fresh-Source.tar.gz"
+    },
+    {
+      "name": "MyPCSteamOS-Guest-GPU-Gate.ipa",
+      "bytes": 24444751,
+      "sha256": "1242db7d93eead6a9f3c00b268979b7db24e7c2b20586490a18468297ebae6ed",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/MyPCSteamOS-Guest-GPU-Gate.ipa"
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 1210,
+      "sha256": "2defbdfb02dd2fab620b7980121e7d53c1c14db6d03340a3d50ea592f73ba586",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/SHA256SUMS"
+    },
+    {
+      "name": "verification.json",
+      "bytes": 1337,
+      "sha256": "757487edb44cd995d5037629f8635698b452288295e0a44e14fd50d1282acee0",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-20/verification.json"
+    }
+  ],
+  "package_only": true,
+  "phone_tested": false,
+  "phone_crash_fix_verified": false,
+  "causal_device_reproduction_completed": false,
+  "mutable_transport_adapter_integrated": false,
+  "continuous_animation_verified": false,
+  "steamos_desktop_verified": false,
+  "steam_arm_verified": false,
+  "gameplay_verified": false,
+  "performance_targets_verified": false
+}

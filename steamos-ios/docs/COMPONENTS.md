@@ -1,6 +1,15 @@
 # Component coverage record
 
-Current build24 independently verifies the retired/joined Linux worker,
+Current build25 corrects the missing same-thread RCU retirement in the fresh
+QEMU adapter. Its native engine export, device-target iOS build, actual packaged
+export, source archive and host symbols pass independent checks. Native TLS
+lease tests pass optimized/sanitized execution, alongside all preserved receipt
+controls. Corrected-phone stability is pending; no desktop, ARM Steam, mutable
+transport, game or performance row is completed by this package. See
+[thread retirement](RCU-THREAD-RETIREMENT.md). Owner inputs/results remain only
+in the private local record; the original archive/blueprint mapping is preserved.
+
+Historical build24 package checkpoint independently verifies the retired/joined Linux worker,
 durable finalization checkpoints, local OS crash-payload storage/export and exact
 host dSYM/package UUID. Native iOS Release and all preserved receipt/recovery
 boundaries passed. These are package/diagnostic results; phone OS delivery and

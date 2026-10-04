@@ -1,13 +1,29 @@
 # Verified state and next work â€” 2026-10-04
 
-Build4000025 is being prepared to correct an identified QEMU thread-registration
-lifetime bug. Shared-library qemu_init registers its calling thread with RCU;
-the old host let that worker exit without unregistering. The new engine exports
-the original unregister API and the host retires it on that same thread before
-publishing completion. The source controls pass 115 Python tests; actual native
-build/regression executions and package verification are pending. This is a
-targeted crash-fix candidate, not verified crash elimination or a desktop/FPS
-milestone. See [thread retirement](docs/RCU-THREAD-RETIREMENT.md).
+**[Build4000025 / initialization-thread retirement](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-20)**
+passed ARM64 iOS device-target Release run37245060441 at source
+928b1db91b1ee1713e70ddee2c5253ba6676ca93, plus rebuilt engine run37244178261.
+Native thread/TLS tests passed 1,001 retirements in each optimized and
+address/undefined-behavior-sanitized execution; these are lease-contract tests,
+not execution of QEMU/iOS. All 115 Python and preserved native recovery/graphics
+checks passed. Eleven public files were independently downloaded and checked,
+including the new complete engine corresponding-source archive and actual
+retirement export. All eighteen selected source files match the source archive.
+IPA: 24,444,751 bytes, SHA256
+1242db7d93eead6a9f3c00b268979b7db24e7c2b20586490a18468297ebae6ed.
+Host dSYM UUID: D7C40BC0-BB7F-331B-AF02-CCD7118B1D92.
+Only QEMU changed among the ten native framework binaries; nine frameworks
+and the three guest payload/receipt files are byte-identical to build24. Three
+unchanged corresponding-source archives have metadata/hosted checks this turn.
+
+The host now unregisters qemu_init's RCU reader on that same worker after
+cleanup, lock release and pool drain, before publishing completion and joining.
+This corrects an identified registration-lifetime bug. The corrected phone build
+and elimination of delayed crashes remain unverified. It is a crash-fix candidate,
+not a new desktop/game/performance milestone. Keep the completed screen-test
+result in the foreground for 30 seconds, then share report and saved logs.
+See [thread retirement](docs/RCU-THREAD-RETIREMENT.md) and the package-only receipt
+evidence/primary/ios-init-thread-retirement-prerelease-4000025.json.
 
 **[Build4000024 / crash diagnostics](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-19)**
 passed actual physical ARM64 iOS Release run37242218149 at source

@@ -39,9 +39,16 @@ symbol or a string. Phone receipt validation requires the actual retirement
 flag and joined worker, and retains every original graphics/timestamp control.
 
 Build4000025 is a targeted crash-fix candidate. Its engine run37244178261 uses
-sourcee31b9fcc6609b8ab50f8d6f72acd7cf9f1124300. Successful build/public package
-verification must be recorded separately; source work alone is not a release
-or phone test. No corrected-phone result exists when this document is created.
+sourcee31b9fcc6609b8ab50f8d6f72acd7cf9f1124300 and passed its actual engine audit.
+The [published package](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-20)
+passed device-target iOS Release run37245060441 at source
+928b1db91b1ee1713e70ddee2c5253ba6676ca93. Optimized/sanitized native tests each
+passed 1,001 retirements, and 115 Python controls passed. Eleven public files,
+including new engine corresponding source, were independently checked; all
+eighteen selected source files match, the actual export is defined, and host
+dSYM UUID D7C40BC0-BB7F-331B-AF02-CCD7118B1D92 matches the packaged executable.
+IPA SHA256: 1242db7d93eead6a9f3c00b268979b7db24e7c2b20586490a18468297ebae6ed.
+These are build/package checks. No corrected-phone result has been supplied.
 One completed screen test followed by 30 seconds in the foreground can check
 both the gate and delayed cleanup stability; it cannot prove all future crashes
 are eliminated. Original and corrected results stay separate in private evidence.
