@@ -16,7 +16,22 @@ are counted with their names and digests withheld. Android's Linux-kernel/PRoot
 and Adreno/AHardwareBuffer mechanisms are reference designs, not an adopted
 Darwin compatibility layer or replacement Linux distribution.
 
-**[Build 4000014 / guest Vulkan gate 4](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-4)**
+**[Build 4000015 / guest Vulkan gate 5](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-5)**
+passed run 37204430462 at source `6aa8dc6a2be44c7941c1e89ad25e378d31485249`.
+Independent public IPA verification passed: 24,311,595 bytes, SHA-256
+`9e625eb1f51f6f8a20578fa0e8fc012b0bf0a939c6649515abdbc0409bbf8bda`.
+Actual Release ARM64 iOS compilation, 62 Python evidence tests, 28 native guest
+receipt checks, 25 production completion-ledger rejection checks and recovery/
+capture tests passed. A separate source-built MoltenVK observer records actual
+guest command-buffer completions and timing without extra GPU work; the old
+QEMU/GL/Venus engine and corrected Linux payload remain exact. Public observer/
+fresh source archives match the shipped engine and host. New integrated native
+completion evidence requires a fresh phone report. Independent memory import,
+moving output, full SteamOS and game targets remain unfinished. Device records
+and detailed analysis remain local. See [build details](docs/GPU-GATE-4000015.md)
+and `evidence/primary/ios-guest-vulkan-prerelease-4000015.json`.
+
+Preserved **[build 4000014 / guest Vulkan gate 4](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-4)**
 passed run 37177283208 at source `696f3b62d0064b8c33d6e34e14760cbc7558ceb6`.
 The public IPA was independently downloaded and verified: 24,302,427 bytes,
 SHA-256 `5f01aec63be5923d87b3eabf8e0a91c0e0e44853cb60a92e22b53281bfb20dd6`.
@@ -28,9 +43,10 @@ unchanged corrected guest payloads and ZIP CRC passed independent checks. The
 public fresh/engine source archives match the package and contain the helper,
 patch, native tests and original renderer source. This deliberately changes
 communication allocation policy; existing mapping errors and all shader/product
-acceptance checks remain. A fresh phone result is pending. Guest shaders, Metal
-import/completion, moving presentation, full SteamOS and performance targets are
-unfinished. See [build details](docs/GPU-GATE-4000014.md) and the build-only receipt
+acceptance checks remain. The public receipt is package-only; owner device
+records and detailed matching analysis are retained locally. Independent Metal
+completion/import, moving presentation, full SteamOS and performance targets
+remain unfinished. See [build details](docs/GPU-GATE-4000014.md) and the build-only receipt
 `evidence/primary/ios-guest-vulkan-prerelease-4000014.json`.
 
 Preserved **[build 4000013 / guest Vulkan gate 3](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-3)**

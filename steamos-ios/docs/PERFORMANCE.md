@@ -7,6 +7,14 @@ figures are reference measurements on a different platform, not achieved iPhone
 results. GPU clock pinning and Android sysfs controls are not carried into iOS.
 Base game renders remain separate from optional frame generation.
 
+Build 4000015 records native completion/GPU timestamps from the actual guest
+MoltenVK command-submission path. The observer adds no GPU workload, but its
+diagnostic callbacks and ledger have CPU overhead. This is correctness evidence,
+not a throughput benchmark. Native command buffers may overlap or contain
+multiple operations; do not convert their timing/counts into game FPS or sum
+overlapping durations as a frame latency. Moving output and sustained workload
+measurement still require their own guest frame-origin and display counters.
+
 Build 4000014's renderer communication adapter uses immediately unlinked
 app-private regular files. Native Darwin correctness tests passed at 256 bytes,
 16 KiB, one 720p buffer size and 16 MiB; this is not a speed or memory-budget

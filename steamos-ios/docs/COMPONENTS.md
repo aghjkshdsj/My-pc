@@ -81,6 +81,15 @@ SteamOS startup or gameplay. GPU/Steam/game gates remain open. See `STATUS.md`.
 
 ## Overlay features, services and hardware coverage
 
+Build 4000015 adds a separately source-built MoltenVK observer for actual guest
+command-buffer completions, with no added GPU workload. Native callback/lifetime
+fixtures, 25 production ledger rejection checks, 62 evidence tests, Release iOS
+compilation, recovery tests and independent IPA/source verification passed.
+This completes a source/build diagnostic task; a fresh phone result is required
+for the native completion gate. Import, moving presentation and all full product
+component rows remain open. Device acceptance records are retained separately
+and locally. See [current build](GPU-GATE-4000015.md).
+
 Current build 4000014 adds an app-private renderer communication-file adapter
 and preserves the corrected Linux Mesa/Venus payload. Actual native Darwin file
 tests, integrated physical ARM64 iOS compilation, recovery/report tests and

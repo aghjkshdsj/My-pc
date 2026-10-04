@@ -181,6 +181,20 @@ renderer/epoxy archives match the shipped engine receipt; fresh host source
 matches the public package. Full corresponding source and applicable notices
 accompany the prerelease. No Valve client or game content is distributed.
 
+Build 4000015 uses a separately pinned MoltenVK observer compiled in run
+37178467526 at source `3f83d181b40439f868fba52abe54f02e9b857c36`.
+Original MoltenVK/dependency source and Apache-2.0/per-file notices accompany
+the generated queue patch, fresh MIT observer headers, native fixtures and
+recipes. Full fresh host source and its MIT license also accompany the release.
+The observer registers before the unchanged guest command-buffer commit and
+adds no GPU work or result override. The independent public download verified
+the actual export, ten-framework import/code closure, exact payloads and source
+archive headers/patch/fixtures/original queue. The unchanged QEMU/GL/Venus engine
+has separate retained provenance. Earlier native MoltenVK and guest-GPU packages
+remain preserved and independently verifiable; the new observer does not inherit
+an earlier package's phone acceptance. No Android application base or replacement
+Linux architecture is adopted.
+
 The owner-selected DroidDeck archive is pinned and inventoried separately.
 [DroidDeck blueprint and license mapping](DROIDDECK-BLUEPRINT.md) distinguishes
 GPL-3.0 application code, per-file third-party terms and external source inputs.
