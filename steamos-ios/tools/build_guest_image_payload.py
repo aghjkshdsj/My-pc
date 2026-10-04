@@ -21,9 +21,10 @@ PARENT_FILES = {'Image': 'a8f995e831fcfe43807873c1579ab0f80658afb701b80b08047f00
                 'initramfs.cpio.gz': '159084848d00a252299922628f933cd52dd777b5af93b9ed46340b4d960cdef1'}
 
 
-def extend_newc(data, replacements):
+def extend_newc(data, replacements, additions=('vk-image-gate', 'kms-format-control')):
     """Keep accepted raw records, never extract paths or follow archive symlinks."""
     assert len(data) < 128 * 1024 * 1024
+    assert set(additions) <= {'vk-image-gate', 'kms-format-control', 'vk-frames-gate'}
     position, names, output, inode = 0, set(), [], 20000
     remaining = dict(replacements)
     while True:
@@ -55,7 +56,7 @@ def extend_newc(data, replacements):
         else:
             output.append(data[start:position])
     for name, (mode, content) in remaining.items():
-        assert name in ('vk-image-gate', 'kms-format-control') and name not in names and stat.S_IFMT(mode) == stat.S_IFREG
+        assert name in additions and name not in names and stat.S_IFMT(mode) == stat.S_IFREG
         output.append(record(name, mode, content, inode=inode))
         inode += 1
     output.append(record('TRAILER!!!', 0, inode=inode))

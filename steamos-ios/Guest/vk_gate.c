@@ -10,6 +10,12 @@
 #include <string.h>
 #include <sys/utsname.h>
 #include "../Engine/ImagePixelContract.h"
+#ifdef MPC_FRAME_SEQUENCE
+#include "../Engine/FrameSequenceContract.h"
+#define MPC_RENDER_PHASE_COUNT MPC_FRAME_COUNT
+#else
+#define MPC_RENDER_PHASE_COUNT 2
+#endif
 #ifdef MPC_IMAGE_SCANOUT
 #define MPC_RENDER_FORMAT VK_FORMAT_B8G8R8A8_UNORM
 #define MPC_RENDER_BGRA 1
@@ -280,8 +286,12 @@ int main(int argc, char **argv) {
     VkFenceCreateInfo fence_info = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
     VkFence fence; VK_CHECK(vkCreateFence(device, &fence_info, NULL, &fence));
     uint64_t mismatches = 0, checksum = 0;
-    for (unsigned pass = 0; pass < 2; ++pass) {
+    for (unsigned pass = 0; pass < MPC_RENDER_PHASE_COUNT; ++pass) {
+        #ifdef MPC_FRAME_SEQUENCE
+        uint32_t phase = mpc_frame_phase(pass);
+#else
         uint32_t phase = pass ? 41 : 0;
+#endif
         VK_CHECK(vkResetCommandBuffer(command, 0));
         VkCommandBufferBeginInfo begin = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
@@ -327,7 +337,11 @@ int main(int argc, char **argv) {
         const unsigned char *pixels = mapped;
         for (unsigned y = 0; y < HEIGHT; ++y) for (unsigned x = 0; x < WIDTH; ++x) {
             const unsigned char *p = pixels + (y * WIDTH + x) * 4;
+            #ifdef MPC_FRAME_SEQUENCE
+            mismatches += !mpc_frame_pattern_matches(p, x, y, phase, MPC_RENDER_BGRA);
+#else
             mismatches += !mpc_pattern_matches(p, x, y, phase, MPC_RENDER_BGRA);
+#endif
             checksum += p[0] + p[1] + p[2] + p[3];
         }
         vkUnmapMemory(device, buffer_memory);
@@ -350,13 +364,13 @@ int main(int argc, char **argv) {
     receipt_printf(MPC_VK_DIAGNOSTIC_PREFIX "{\"machine\":"); json_string(machine.machine);
     receipt_printf(",\"renderer\":"); json_string(props.deviceName);
     receipt_printf(",\"api_version\":%u,\"driver_version\":%u,\"vendor_id\":%u,\"device_id\":%u,\"device_type\":%u,"
-           "\"software\":%s,\"width\":%u,\"height\":%u,\"pixels_checked\":%u,\"shader_phases\":2,"
+           "\"software\":%s,\"width\":%u,\"height\":%u,\"pixels_checked\":%u,\"shader_phases\":%u,"
            "\"mismatches\":%" PRIu64 ",\"channel_sum\":%" PRIu64 ",\"validation_enabled\":%s,\"synchronization_validation_requested\":%s,"
            "\"validation_errors\":%u,\"queue_family\":%u,\"rgba8_optimal_features\":%u,\"readback_memory_flags\":%u,"
            "\"limits\":{\"maxImageDimension2D\":%u,\"maxMemoryAllocationCount\":%u,\"nonCoherentAtomSize\":%" PRIu64 "},"
            "\"features\":{\"geometryShader\":%s,\"tessellationShader\":%s,\"multiDrawIndirect\":%s,\"samplerAnisotropy\":%s},\"device_extensions\":[",
            props.apiVersion, props.driverVersion, props.vendorID, props.deviceID, props.deviceType,
-           fallback ? "true" : "false", WIDTH, HEIGHT, WIDTH * HEIGHT * 2, mismatches, checksum,
+           fallback ? "true" : "false", WIDTH, HEIGHT, WIDTH * HEIGHT * MPC_RENDER_PHASE_COUNT, MPC_RENDER_PHASE_COUNT, mismatches, checksum,
            validated ? "true" : "false", validated ? "true" : "false", atomic_load(&validation_errors), family,
            format.optimalTilingFeatures, memory.memoryTypes[buffer_type].propertyFlags,
            props.limits.maxImageDimension2D, props.limits.maxMemoryAllocationCount, (uint64_t)props.limits.nonCoherentAtomSize,

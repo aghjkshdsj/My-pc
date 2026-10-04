@@ -1,0 +1,39 @@
+name: Fresh ARM Linux eight-frame payload and rejection controls
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/vk_gate.c', 'steamos-ios/Guest/image_scanout.h', 'steamos-ios/Engine/FrameSequenceContract.h', 'steamos-ios/tests/FramePixelContractTests.c', 'steamos-ios/tools/build_guest_frame_payload.py', '.github/workflows/steamos-guest-frame-payload.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  guest-frame-payload:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native ARM Linux compile and rejection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc binutils qemu-system-arm libvulkan-dev libdrm-dev mesa-vulkan-drivers
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Image-Payload
+          run-id: 37222125501
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/parent-image-artifact
+      - name: Verify bounded initramfs parser
+        run: python3 -m unittest discover -s steamos-ios/tests -p test_guest_image_payload.py -v
+      - name: Compile actual ARM frame binary and boot missing-3D controls
+        run: python3 steamos-ios/tools/build_guest_frame_payload.py steamos-ios/out/parent-image-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Linux-Frame-Payload
+          path: |
+            steamos-ios/out/guest-frame-payload/Guest-GPU-*.tar.gz
+            steamos-ios/out/guest-frame-payload/payload/payload-receipt.json
+            steamos-ios/out/guest-frame-payload/payload/*.log
+            steamos-ios/out/guest-frame-payload/software-frames-rejected.log
+          retention-days: 14

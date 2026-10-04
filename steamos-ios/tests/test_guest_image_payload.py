@@ -38,6 +38,16 @@ class GuestImagePayloadTests(unittest.TestCase):
             with self.assertRaises((AssertionError, ValueError)):
                 extend_newc(data, {'init': (stat.S_IFREG | 0o755, b'new')})
 
+    def test_frame_binary_requires_explicit_bounded_addition(self):
+        end = record('TRAILER!!!', 0)
+        update = {'vk-frames-gate': (stat.S_IFREG | 0o755, b'FRAME-ELF')}
+        with self.assertRaises(AssertionError):
+            extend_newc(end, update)
+        self.assertIn(b'vk-frames-gate', extend_newc(end, update, additions=('vk-frames-gate',)))
+        for name in ('../vk-frames-gate', '/vk-frames-gate', 'user-data'):
+            with self.assertRaises(AssertionError):
+                extend_newc(end, {name: (stat.S_IFREG | 0o755, b'ELF')}, additions=(name,))
+
     def test_rejects_replacing_symlink_or_adding_unexpected_name(self):
         end = record('TRAILER!!!', 0)
         with self.assertRaises(AssertionError):

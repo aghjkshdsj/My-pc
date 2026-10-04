@@ -4,12 +4,29 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <drm_fourcc.h>
 #include <virtgpu_drm.h>
 #include "image_export_contract.h"
 #include "image_framebuffer.h"
+
+#ifndef MPC_SCANOUT_FRAME_COUNT
+#define MPC_SCANOUT_FRAME_COUNT 2
+#endif
+#ifndef MPC_SCANOUT_PREFIX
+#define MPC_SCANOUT_PREFIX "MPC_IMAGE"
+#endif
+#ifndef MPC_SCANOUT_NONCE_ENV
+#define MPC_SCANOUT_NONCE_ENV MPC_SCANOUT_PREFIX "_RUN"
+#endif
+#ifndef MPC_SCANOUT_WAIT_NS
+#define MPC_SCANOUT_WAIT_NS 2000000000UL
+#endif
+#if MPC_SCANOUT_FRAME_COUNT != 2 && MPC_SCANOUT_FRAME_COUNT != 8
+#error "Only the bounded two-image or eight-frame diagnostic is supported"
+#endif
 
 typedef struct MPCImageExport {
     VkImage image;
@@ -19,14 +36,14 @@ typedef struct MPCImageExport {
     uint32_t framebuffer, gem_handle, resource;
     int exported_fd;
 } MPCImageExport;
-static MPCImageExport exported_images[2];
+static MPCImageExport exported_images[MPC_SCANOUT_FRAME_COUNT];
 static int scanout_fd = -1;
 static uint32_t scanout_connector, scanout_crtc;
 static drmModeModeInfo scanout_mode;
 static const char *image_run;
 
 static int image_reject(const char *stage, int code) {
-    printf("MPC_IMAGE_REJECTED {\"schema\":1,\"run\":\"%s\",\"stage\":\"%s\",\"code\":%d,"
+    printf(MPC_SCANOUT_PREFIX "_REJECTED {\"schema\":1,\"run\":\"%s\",\"stage\":\"%s\",\"code\":%d,"
            "\"host_memory_import_verified\":false,\"presentation_verified\":false}\n",
            image_run ? image_run : "missing", stage, code);
     fflush(stdout);
@@ -34,7 +51,7 @@ static int image_reject(const char *stage, int code) {
 }
 static int image_extensions(VkPhysicalDevice physical, VkExtensionProperties *extensions,
                             uint32_t count, const char **enabled, uint32_t *enabled_count) {
-    image_run = getenv("MPC_IMAGE_RUN");
+    image_run = getenv(MPC_SCANOUT_NONCE_ENV);
     if (!image_run || strlen(image_run) != 32 || strspn(image_run, "0123456789abcdef") != 32)
         return image_reject("fresh-nonce", 0);
     const char *wanted[] = { VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
@@ -50,7 +67,7 @@ static int image_extensions(VkPhysicalDevice physical, VkExtensionProperties *ex
     VkExternalImageFormatProperties output;
     VkImageFormatProperties2 properties;
     VkResult result = mpc_query_export_image(physical, vkGetPhysicalDeviceImageFormatProperties2, &properties, &output);
-    printf("MPC_IMAGE_CAPABILITIES {\"schema\":1,\"run\":\"%s\",\"result\":%d,"
+    printf(MPC_SCANOUT_PREFIX "_CAPABILITIES {\"schema\":1,\"run\":\"%s\",\"result\":%d,"
            "\"tiling\":\"drm-format-modifier\",\"drm_modifier\":0,"
            "\"external_features\":%u,\"compatible_handles\":%u,\"max_width\":%u,\"max_height\":%u}\n",
            image_run, result, output.externalMemoryProperties.externalMemoryFeatures,
@@ -91,7 +108,7 @@ static int image_open_drm(void) {
     return 0;
 }
 static int image_allocate(VkDevice device, const VkPhysicalDeviceMemoryProperties *memory) {
-    for (unsigned i = 0; i < 2; ++i) {
+    for (unsigned i = 0; i < MPC_SCANOUT_FRAME_COUNT; ++i) {
         MPCImageExport *target = &exported_images[i];
         target->exported_fd = -1;
         const uint64_t linear = DRM_FORMAT_MOD_LINEAR;
@@ -176,7 +193,7 @@ static int image_install(VkDevice device, unsigned pass, uint32_t phase) {
         resource.size < target->layout.offset + target->layout.rowPitch * HEIGHT)
         return image_reject("drm-virtio-resource-identity", errno);
     target->resource = resource.res_handle;
-    printf("MPC_IMAGE_DRM_RESOURCE {\"schema\":1,\"run\":\"%s\",\"phase\":%u,"
+    printf(MPC_SCANOUT_PREFIX "_DRM_RESOURCE {\"schema\":1,\"run\":\"%s\",\"phase\":%u,"
            "\"gem_handle\":%u,\"resource_id\":%u,\"resource_bytes\":%u,"
            "\"row_pitch\":%" PRIu64 ",\"offset\":%" PRIu64 "}\n",image_run,phase,target->gem_handle,
            target->resource,resource.size,(uint64_t)target->layout.rowPitch,(uint64_t)target->layout.offset);
@@ -184,7 +201,7 @@ static int image_install(VkDevice device, unsigned pass, uint32_t phase) {
     if (mpc_add_image_framebuffer(scanout_fd, WIDTH, HEIGHT, target->gem_handle,
                                 target->layout.rowPitch, target->layout.offset, &target->framebuffer))
         return image_reject("drm-addfb2-linear-xrgb", errno);
-    printf("MPC_IMAGE_PRODUCER {\"schema\":1,\"run\":\"%s\",\"phase\":%u,\"resource_id\":%u,"
+    printf(MPC_SCANOUT_PREFIX "_PRODUCER {\"schema\":1,\"run\":\"%s\",\"phase\":%u,\"resource_id\":%u,"
            "\"tiling\":\"drm-format-modifier\",\"drm_modifier\":0,\"memory_plane\":0,"
            "\"vulkan_format\":44,\"drm_fourcc\":875713112,\"virtio_format\":2,\"channel_order\":\"bgra\","
            "\"width\":%u,\"height\":%u,\"row_pitch\":%" PRIu64 ",\"offset\":%" PRIu64 ","
@@ -197,13 +214,14 @@ static int image_install(VkDevice device, unsigned pass, uint32_t phase) {
     drmModeClip clip = { 0, 0, WIDTH, HEIGHT };
     if (drmModeDirtyFB(scanout_fd, target->framebuffer, &clip, 1)) return image_reject("drm-dirtyfb", errno);
     /* Distinct immutable images stay alive throughout native consumption. */
-    sleep(2);
+    struct timespec dwell = { MPC_SCANOUT_WAIT_NS / 1000000000UL, MPC_SCANOUT_WAIT_NS % 1000000000UL };
+    while (nanosleep(&dwell, &dwell)) if (errno != EINTR) return image_reject("diagnostic-dwell", errno);
     return 0;
 }
 static int image_cleanup(VkDevice device) {
     if (drmModeSetCrtc(scanout_fd, scanout_crtc, 0, 0, 0, NULL, 0, NULL))
         return image_reject("drm-disable", errno);
-    for (unsigned i = 0; i < 2; ++i) {
+    for (unsigned i = 0; i < MPC_SCANOUT_FRAME_COUNT; ++i) {
         MPCImageExport *target = &exported_images[i];
         if (drmModeRmFB(scanout_fd, target->framebuffer)) return image_reject("drm-rmfb", errno);
         struct drm_gem_close close_gem = { .handle = target->gem_handle };
@@ -213,8 +231,8 @@ static int image_cleanup(VkDevice device) {
         vkFreeMemory(device, target->memory, NULL);
     }
     close(scanout_fd);
-    printf("MPC_IMAGE_EXIT {\"schema\":1,\"run\":\"%s\",\"status\":0,\"phases\":2,"
-           "\"scanout_disabled\":true,\"images_released\":true,\"presentation_verified\":false}\n", image_run);
+    printf(MPC_SCANOUT_PREFIX "_EXIT {\"schema\":1,\"run\":\"%s\",\"status\":0,\"phases\":%u,"
+           "\"scanout_disabled\":true,\"images_released\":true,\"presentation_verified\":false}\n", image_run, MPC_SCANOUT_FRAME_COUNT);
     return 0;
 }
 #endif
