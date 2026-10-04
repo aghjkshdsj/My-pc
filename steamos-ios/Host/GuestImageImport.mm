@@ -1,5 +1,6 @@
 #import "GuestImageImport.h"
 #import "ProbeBridge.h"
+#import "GuestScreenPresentation.h"
 #import <Metal/Metal.h>
 #include "../Engine/NativeScanoutABI.h"
 #include "../Engine/ImagePixelContract.h"
@@ -18,6 +19,7 @@
 @property(nonatomic) uint64_t sequence, generation, resource, registry;
 @property(nonatomic) NSUInteger errors, skippedFlushes;
 @property(nonatomic) BOOL active, reading;
+@property(nonatomic) BOOL presentToScreen;
 @end
 @implementation MPCImageImportContext
 @end
@@ -126,6 +128,11 @@ static void scanout(void *opaque, const MPCNativeScanoutEvent *event) {
         }
         NSDictionary *row = consume(context, event);
         if (row[@"error"]) MPCDiagnosticStage(@"linux-native-import-consumer-rejected", row);
+        if (context.presentToScreen && !row[@"error"]) {
+            // Screen submission uses this exact borrowed/retained guest texture,
+            // never the diagnostic readback buffer or a native generated image.
+            MPCGuestScreenConsume(event, row);
+        }
         @synchronized(context) {
             [context.images addObject:row];
             if (row[@"error"]) context.errors++;
@@ -134,7 +141,7 @@ static void scanout(void *opaque, const MPCNativeScanoutEvent *event) {
     }
 }
 
-BOOL MPCGuestImageImportBegin(NSString *nonce, void *engine, NSError **error) {
+BOOL MPCGuestImageImportBegin(NSString *nonce, void *engine, BOOL presentToScreen, NSError **error) {
     auto configure = reinterpret_cast<MPCConfigureNativeScanout>(dlsym(engine, "mpc_qemu_configure_native_scanout"));
     if (!configure || imageContext) {
         if (error) *error = [NSError errorWithDomain:@"GuestImageImport" code:1
@@ -143,6 +150,7 @@ BOOL MPCGuestImageImportBegin(NSString *nonce, void *engine, NSError **error) {
     }
     imageContext = [MPCImageImportContext new];
     imageContext.nonce = nonce;
+    imageContext.presentToScreen = presentToScreen;
     imageContext.events = [NSMutableArray array];
     imageContext.images = [NSMutableArray array];
     imageContext.registry = MTLCreateSystemDefaultDevice().registryID;

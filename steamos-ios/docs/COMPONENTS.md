@@ -1,5 +1,13 @@
 # Component coverage record
 
+Current screen integration: CAMetalLayer, exact imported-guest texture GPU
+sampling, separate drawable/completion callbacks and a bounded two-frame
+acceptance join are implemented for build4000021. Compilation/publication and
+phone screen acceptance remain pending. This does not close moving animation,
+WSI/compositor, SteamOS sessions, full product features or performance rows.
+See [current screen gate](GPU-GATE-4000021.md). Earlier bring-up entries below
+are historical checkpoints, preserved with the archive and blueprint mappings.
+
 The owner also selected DroidDeck as the functional blueprint. Its separate
 inventory accounts for **735 files**, 883 ZIP entries and 52,717,893 expanded
 bytes, with every file CRC checked. SHA-256:

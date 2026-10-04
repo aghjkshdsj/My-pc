@@ -1,4 +1,11 @@
-# My-pc SteamOS iOS — fresh bring-up
+# My-pc SteamOS iOS â€” fresh bring-up
+
+Build4000021 adds a separate visible Linux two-image screen gate. Source and
+rejection checks are implemented; physical-iOS compilation/package publication
+and phone screen acceptance are pending. The exact build4000020 guest/engine
+inputs remain pinned. Continuous animation, frame pacing, full SteamOS/Steam
+and game performance remain unfinished. See [screen gate](docs/GPU-GATE-4000021.md).
+
 
 This source directory and `MyPCSteamOS.xcodeproj` are new. The project links no
 Madeira, previous VM app, Wine, FEX or previous native-preview code. Existing
@@ -137,7 +144,7 @@ the corrected source-built MoltenVK engine. Actual iOS compile, recovery and
 31 evidence tests passed; the independently downloaded IPA passed identity,
 payload, dependency and CRC checks. The build 4000010 owner-supplied iPhone report
 also passed the native Vulkan-to-Metal offscreen gate: Apple A17 Pro GPU, two
-1280×720 images, 1,843,200 pixels, zero mismatches and the exact channel sum.
+1280Ã—720 images, 1,843,200 pixels, zero mismatches and the exact channel sum.
 The 497.20 ms complete native test is not game FPS. Phone validation layers
 were not enabled; source/report consistency is not cryptographic attestation.
 Linux guest graphics and moving presentation remain separate unfinished gates.
@@ -193,7 +200,7 @@ new app's Documents directory and are never automatically uploaded.
 
 Crash recovery builds save a pending-test marker before JIT or engine execution,
 plus fsynced native stage logs and available engine stdout/stderr. Reopen after
-an interrupted test to see **Previous test stopped — share logs**. Choose
+an interrupted test to see **Previous test stopped â€” share logs**. Choose
 **Share logs** to export one diagnostic JSON. **Later** and cancelling the share
 sheet preserve the files; **Share saved diagnostic logs** stays available.
 The export includes bounded known probe reports and kernel serial logs only.

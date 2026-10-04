@@ -1,4 +1,11 @@
-# Verified state and next work — 2026-10-04
+# Verified state and next work â€” 2026-10-04
+
+Build4000021 adds a separate visible Linux two-image screen gate. Source and
+rejection checks are implemented; physical-iOS compilation/package publication
+and phone screen acceptance are pending. The exact build4000020 guest/engine
+inputs remain pinned. Continuous animation, frame pacing, full SteamOS/Steam
+and game performance remain unfinished. See [screen gate](docs/GPU-GATE-4000021.md).
+
 
 The complete SteamOS ARM/FEX product is **unfinished**. No architecture
 substitution was approved or adopted. Previous projects, applications, disks,
@@ -162,7 +169,7 @@ Receipt: `evidence/primary/ios-guest-vulkan-prerelease-4000012.json`.
 The owner subsequently returned a fresh build 4000012 `linux_gpu` report.
 Its exact source, payload, engine bundle and all ten executable code sections
 match the independently verified IPA. Linux 6.12.111 booted, all ABI checks
-passed, and the virtio-GPU kernel test allocated/mapped a 1280×720 resource,
+passed, and the virtio-GPU kernel test allocated/mapped a 1280Ã—720 resource,
 checked its CPU pattern with zero mismatches, completed the transfer ioctl and
 closed it. 3D/blob/host-visible/context-init capabilities and Venus capset 4
 were advertised. These facts do not prove host pixels or guest shaders.
@@ -223,7 +230,7 @@ Build 4000010 packages a native offscreen Vulkan-to-Metal shader check. Its
 actual ARM64 iOS compile, recovery tests, 31 evidence tests and independent public
 IPA checks passed. The owner-supplied build 4000010 report now passes the physical
 native Vulkan-to-Metal offscreen evidence check on iPhone16,2 / iOS 27.0.1.
-The Apple A17 Pro GPU rendered both 1280×720 images: 1,843,200 checked pixels,
+The Apple A17 Pro GPU rendered both 1280Ã—720 images: 1,843,200 checked pixels,
 zero mismatches and channel sum 1,219,256,320. Engine/shader/source identity
 matched the exact IPA. Native setup/draw/readback/teardown took 497.20 ms.
 Khronos/synchronization validation was not enabled on the phone; zero reported
@@ -319,7 +326,7 @@ for the requested SteamOS product.
 | Corrected native iOS MoltenVK compile/package | [37056046870](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046870) | Build 4000010 phone GPU/pixel gate passed; no Linux guest transport or presentation |
 | Hosted Venus external-host SHM test | [37056046909](https://github.com/aghjkshdsj/My-pc/actions/runs/37056046909) | Real serialized draws passed under explicit test override; software Linux host, not phone Metal |
 
-Vulkan rendered two 1280×720 images, checked all 1,843,200 pixels, channel sum
+Vulkan rendered two 1280Ã—720 images, checked all 1,843,200 pixels, channel sum
 1,219,256,320 and synchronization validation. Zero mismatches/errors passed
 on Mesa llvmpipe/lavapipe; software-as-acceleration was rejected with exit 20.
 Receipt: `evidence/primary/hosted-vulkan-diagnostic.json`. No swapchain,
@@ -363,8 +370,8 @@ Next: accept the corrected guest image import on the phone, implement moving Met
 presentation and guest WSI/compositor/OpenGL, then integrate authenticated SteamOS, actual ARM
 Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
 Native host/Metal optimization does not remove guest TCG translation costs.
-**Steam usable under 60 seconds and Hollow Knight 60–80 base rendered FPS at
-1280×720, including sustained thermal/frame-pacing measurements, are unverified.**
+**Steam usable under 60 seconds and Hollow Knight 60â€“80 base rendered FPS at
+1280Ã—720, including sustained thermal/frame-pacing measurements, are unverified.**
 
 
 ## Current guest graphics implementation
@@ -374,7 +381,7 @@ PCI/MMIO and DRM virtio-GPU. It is kept separate from the phone-verified CPU
 kernel and uses the same source-pinned Linux/BusyBox archives. Hosted ARM TCG
 [run 37067848259](https://github.com/aghjkshdsj/My-pc/actions/runs/37067848259),
 source `6ab4df9f78ec307e026f378658673efa3ebeeec2`, passed real DRM driver/version
-queries, 1280×720 resource allocation/map, CPU pattern verification, transfer
+queries, 1280Ã—720 resource allocation/map, CPU pattern verification, transfer
 ioctl completion and resource cleanup. The same guest correctly failed at
 `open-drm` with ENOENT when the GPU was removed, with fresh separate nonces. Both
 boots retained all Linux ABI checks. Receipt: `evidence/primary/hosted-gpu-kernel-test.json`.

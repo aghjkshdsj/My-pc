@@ -160,3 +160,18 @@ presenter must handle changing contents, fences and frame IDs for reused buffers
 and cannot skip new frames merely because a resource ID repeats. It must establish
 drawable completion and frame pacing without steady-state full-image CPU readback.
 No moving presentation/zero-copy/game performance pass is inherited.
+
+## Visible two-image presentation implementation
+
+Build4000021 adds a fresh CAMetalLayer surface and GPU texture-sampling pass.
+The two pinned Linux image resources are joined to actual GPU completion and
+positive drawable presentation timestamps. One diagnostic consumer may be in
+flight; source textures stay retained through both handlers, including timeout
+recovery. Surface loss, foreground interruption, geometry change, missing
+completion/presentation, stale identities and incorrect viewport fail the gate.
+
+Source and independent/native rejection fixtures are implemented. Physical-iOS
+compile/package and actual phone acceptance remain pending. This closes source
+work for a two-image screen diagnostic only; continuous animation, moving-frame
+ownership/fences, WSI/compositor, pacing and zero-copy remain separate work.
+See GPU-GATE-4000021.md. Original engine and licensing mappings above are retained.

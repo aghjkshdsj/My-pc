@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+@class UIView;
 
 NS_ASSUME_NONNULL_BEGIN
 #ifdef __cplusplus
@@ -11,6 +12,8 @@ NSDictionary *MPCStorageProbe(void);
 NSDictionary *MPCLinuxKernelProbe(void);
 NSDictionary *MPCLinuxGuestGPUProbe(void);
 NSDictionary *MPCLinuxGuestImageProbe(void);
+NSDictionary *MPCLinuxGuestScreenProbe(void);
+UIView *MPCGuestScreenCreateView(void);
 NSDictionary *MPCParseGuestGPUReceipt(NSString *text, NSString *nonce, BOOL linuxPassed);
 NSDictionary * _Nullable MPCFrameworkTextIdentity(NSString *path);
 NSDictionary *MPCNativeCPUProbe(void);

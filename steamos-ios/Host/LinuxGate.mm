@@ -1,6 +1,7 @@
 #import "ProbeBridge.h"
 #import "GuestMetalTrace.h"
 #import "GuestImageImport.h"
+#import "GuestScreenPresentation.h"
 #include <CommonCrypto/CommonDigest.h>
 #include <dlfcn.h>
 #include <atomic>
@@ -41,7 +42,7 @@ static NSDictionary *failure(NSString *stage, NSString *reason) {
              @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO};
 }
 
-static NSDictionary *runKernel(BOOL graphics, BOOL images) {
+static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput) {
     @autoreleasepool {
         MPCDiagnosticStage(@"linux-gate-starting", @{});
         if (attempted.load()) return failure(@"one-run-per-process", @"Close and relaunch, then request StikDebug for the new process before another Linux boot.");
@@ -157,7 +158,9 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images) {
             MPCDiagnosticStage(@"linux-guest-metal-observer-configured", @{@"abi": @1,
                 @"adds_gpu_work": @NO, @"metal_host_verified": @NO});
             if (images) {
-                if (!MPCGuestImageImportBegin(nonce, library, &error))
+                if (screenOutput && !MPCGuestScreenBegin(nonce, &error))
+                    return failure(@"screen-surface-unavailable", error.localizedDescription);
+                if (!MPCGuestImageImportBegin(nonce, library, screenOutput, &error))
                     return failure(@"native-image-adapter-unavailable", error.localizedDescription);
                 MPCDiagnosticStage(@"linux-native-image-adapter-configured", @{@"abi": @1,
                     @"host_memory_import_verified": @NO, @"presentation_verified": @NO});
@@ -193,6 +196,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images) {
             run[@"presentation_verified"] = @NO;
             run[@"host_memory_import_verified"] = @NO;
             run[@"image_import_requested"] = @(images);
+            run[@"screen_presentation_requested"] = @(screenOutput);
             run[@"gameplay_verified"] = @NO;
             run[@"route_requested"] = @"Linux ARM64 Mesa Venus Ã¢â€ â€™ virtio-GPU Ã¢â€ â€™ native iOS virgl/Venus Ã¢â€ â€™ MoltenVK Ã¢â€ â€™ Metal";
         }
@@ -274,6 +278,14 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images) {
                 passed = passed && [importResult[@"host_memory_import_verified"] isEqual:@YES];
                 MPCDiagnosticStage(@"linux-native-image-import-checked", @{
                     @"host_memory_import_verified": importResult[@"host_memory_import_verified"], @"presentation_verified": @NO});
+                if (screenOutput) {
+                    NSDictionary *screenResult = MPCGuestScreenFinish(importResult, finished.load() && engineStatus.load() == 0);
+                    run[@"screen_presentation"] = screenResult;
+                    run[@"presentation_verified"] = screenResult[@"presentation_verified"];
+                    passed = passed && [screenResult[@"presentation_verified"] isEqual:@YES];
+                    MPCDiagnosticStage(@"linux-screen-presentation-checked", @{
+                        @"presentation_verified": screenResult[@"presentation_verified"]});
+                }
             }
         }
         run[@"guest"] = guest;
@@ -283,11 +295,13 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images) {
         run[@"limitations"] = @"This disposable Linux kernel/ABI gate is not SteamOS, Steam, FEX or a game graphics/performance test. If timed out, close and relaunch the app. Serial and pending receipts survive an engine failure.";
         if (graphics) run[@"limitations"] = @"Guest Vulkan pixels and the native MoltenVK command-completion observer have separate receipts. Completed native command buffers do not prove host-memory import, zero-copy, moving presentation or game FPS. This is a disposable Linux graphics test, not SteamOS/Steam/FEX. Share logs after failure; relaunch before another Linux boot.";
         if (images) run[@"limitations"] = @"The image gate correlates two immutable Linux-rendered images with their native Metal buffer layouts, GPU consumers and cleanup. Its bounded diagnostic readbacks are correctness checks. Visible presentation, production zero-copy transport, SteamOS/Steam/FEX and game performance remain unfinished.";
+        if (screenOutput) run[@"limitations"] = @"This gate presents two distinct immutable Linux-rendered 720p images through the native imported texture, with separate GPU and actual drawable presentation callbacks. It retains two source-pixel diagnostic readbacks and serializes screen consumers. Continuous moving animation, frame pacing, zero-copy transport, SteamOS desktop/Steam/FEX and game FPS remain unverified.";
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
         return run;
     }
 }
 
-NSDictionary *MPCLinuxKernelProbe(void) { return runKernel(NO, NO); }
-NSDictionary *MPCLinuxGuestGPUProbe(void) { return runKernel(YES, NO); }
-NSDictionary *MPCLinuxGuestImageProbe(void) { return runKernel(YES, YES); }
+NSDictionary *MPCLinuxKernelProbe(void) { return runKernel(NO, NO, NO); }
+NSDictionary *MPCLinuxGuestGPUProbe(void) { return runKernel(YES, NO, NO); }
+NSDictionary *MPCLinuxGuestImageProbe(void) { return runKernel(YES, YES, NO); }
+NSDictionary *MPCLinuxGuestScreenProbe(void) { return runKernel(YES, YES, YES); }

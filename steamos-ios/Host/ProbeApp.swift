@@ -21,12 +21,26 @@ final class ProbeModel: ObservableObject {
     @Published var jitActivationMessage = ""
     @Published var preparingLogShare = false
     @Published var testStatus = ""
+    @Published var showLinuxScreen = false
+    @Published var screenStarted = false
     private var requestedStikDebug = false
     private var facts: [String: Any] = [:]
     private let journal = RecoveryJournal(documents: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0])
     private var recoveryChecked = false
     private var recoveredSnapshot: Data?
     private var activeRunID: String?
+
+    func openLinuxScreen() {
+        guard !busy && !engineNeedsRelaunch else { return }
+        screenStarted = false
+        showLinuxScreen = true
+    }
+
+    func startLinuxScreen() {
+        guard showLinuxScreen && !screenStarted && !busy && !engineNeedsRelaunch else { return }
+        screenStarted = true
+        run(kind: "linux-screen")
+    }
 
     func checkRecovery() {
         guard !recoveryChecked else { return }
@@ -108,7 +122,7 @@ final class ProbeModel: ObservableObject {
     func run(kind: String) {
         guard !busy && !engineNeedsRelaunch else { return }
         busy = true
-        testStatus = "Starting \(kind == "linux-image" ? "Linux image import gate" : kind == "linux-gpu" ? "Linux guest Vulkan gate" : kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : kind == "vulkan" ? "native Vulkan â†’ Metal check" : "host probes")â€¦"
+        testStatus = "Starting \(kind == "linux-screen" ? "Linux screen test" : kind == "linux-image" ? "Linux image import gate" : kind == "linux-gpu" ? "Linux guest Vulkan gate" : kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : kind == "vulkan" ? "native Vulkan â†’ Metal check" : "host probes")â€¦"
         exportURL = nil
         let runID = UUID().uuidString
         activeRunID = runID
@@ -154,14 +168,15 @@ final class ProbeModel: ObservableObject {
             case "linux": tests = ["linux": MPCLinuxKernelProbe()]
             case "linux-gpu": tests = ["linux_gpu": MPCLinuxGuestGPUProbe()]
             case "linux-image": tests = ["linux_image": MPCLinuxGuestImageProbe()]
+            case "linux-screen": tests = ["linux_screen": MPCLinuxGuestScreenProbe()]
             case "jit": tests = ["jit": MPCExecuteJITProbe()]
             case "vulkan": tests = ["native_vulkan": MPCNativeVulkanProbe(diagnosticPath)]
             default: tests = ["native_cpu": MPCNativeCPUProbe(), "metal": MPCMetalProbe(), "storage": MPCStorageProbe()]
             }
             MPCDiagnosticStage("probe-returned", ["kind": kind])
-            let linux = (tests["linux"] ?? tests["linux_gpu"] ?? tests["linux_image"]) as? [String: Any]
+            let linux = (tests["linux"] ?? tests["linux_gpu"] ?? tests["linux_image"] ?? tests["linux_screen"]) as? [String: Any]
             if linux?["status"] as? String != "timed-out-engine-still-running" { MPCStopDiagnosticCapture() }
-            let gpuKey = kind == "linux-image" ? "linux_image" : "linux_gpu"
+            let gpuKey = kind == "linux-screen" ? "linux_screen" : kind == "linux-image" ? "linux_image" : "linux_gpu"
             if var gpu = tests[gpuKey] as? [String: Any] {
                 gpu["engine_output"] = MPCDiagnosticOutputSnapshot(diagnosticPath)
                 gpu["engine_output_capture_finished"] = gpu["engine_finished"] as? Bool == true
@@ -174,8 +189,13 @@ final class ProbeModel: ObservableObject {
     private func finish(runID: String, before: [AnyHashable: Any], controllers: [[String: Any]], tests: [String: Any]) {
         if let jit = tests["jit"] as? [String: Any] {
             testStatus = jit["status"] as? String == "passed"
-                ? "ARM64 JIT passed: code returned 42. Run the Linux image import gate next in this fresh process."
+                ? "ARM64 JIT passed: code returned 42. Open Show Linux-rendered images next in this fresh process."
                 : "JIT \(jit["status"] ?? "failed"): \(jit["reason"] ?? jit["stage"] ?? "See the saved report.")"
+        } else if let screen = tests["linux_screen"] as? [String: Any] {
+            let receipt = screen["screen_presentation"] as? [String: Any]
+            testStatus = screen["presentation_verified"] as? Bool == true
+                ? "Both Linux images reached the screen. Continuous animation, desktop and games remain unfinished."
+                : "Linux screen test \(screen["status"] ?? "failed"): \(receipt?["reason"] ?? screen["reason"] ?? "Share the report and saved logs.")"
         } else if let image = tests["linux_image"] as? [String: Any] {
             let receipt = image["image_import"] as? [String: Any]
             let rejection = (receipt?["guest_rejections"] as? [[String: Any]])?.first
@@ -199,13 +219,14 @@ final class ProbeModel: ObservableObject {
                 : "Native Vulkan \(vulkan["status"] ?? "failed"): \(vulkan["reason"] ?? vulkan["stage"] ?? "See the saved logs.")"
         } else { testStatus = "Host probes finished. See the saved measurements below." }
         facts.merge(tests) { _, new in new }
-        let kernel = (tests["linux"] ?? tests["linux_gpu"] ?? tests["linux_image"]) as? [String: Any]
+        let kernel = (tests["linux"] ?? tests["linux_gpu"] ?? tests["linux_image"] ?? tests["linux_screen"]) as? [String: Any]
         engineNeedsRelaunch = kernel?["status"] as? String == "timed-out-engine-still-running" ||
             kernel?["requires_relaunch"] as? Bool == true ||
             (tests["native_vulkan"] as? [String: Any])?["requires_relaunch"] as? Bool == true
         let linux = (facts["linux"] as? [String: Any])?["linux_execution"] as? Bool == true ||
             (facts["linux_gpu"] as? [String: Any])?["linux_execution"] as? Bool == true ||
-            (facts["linux_image"] as? [String: Any])?["linux_execution"] as? Bool == true
+            (facts["linux_image"] as? [String: Any])?["linux_execution"] as? Bool == true ||
+            (facts["linux_screen"] as? [String: Any])?["linux_execution"] as? Bool == true
         let result: [String: Any] = [
             "schema": 1, "run_id": runID, "collected_utc": ISO8601DateFormatter().string(from: Date()),
             "source_commit": Bundle.main.object(forInfoDictionaryKey: "MPCSourceCommit") as? String ?? "local-unrecorded",
@@ -214,9 +235,12 @@ final class ProbeModel: ObservableObject {
             "executed_tests": tests.keys.sorted(),
             "controllers_observed": controllers, "tests": facts,
             "acceptance": ["linux_kernel_boot": linux,
-                           "linux_guest_vulkan_pixels": ((facts["linux_image"] ?? facts["linux_gpu"]) as? [String: Any])?["guest_vulkan_pixels_verified"] as? Bool == true,
-                           "linux_guest_offscreen_metal_completion": ((facts["linux_image"] ?? facts["linux_gpu"]) as? [String: Any])?["metal_host_verified"] as? Bool == true,
-                           "linux_guest_image_import": (facts["linux_image"] as? [String: Any])?["host_memory_import_verified"] as? Bool == true,
+                           "linux_guest_vulkan_pixels": ((facts["linux_screen"] ?? facts["linux_image"] ?? facts["linux_gpu"]) as? [String: Any])?["guest_vulkan_pixels_verified"] as? Bool == true,
+                           "linux_guest_offscreen_metal_completion": ((facts["linux_screen"] ?? facts["linux_image"] ?? facts["linux_gpu"]) as? [String: Any])?["metal_host_verified"] as? Bool == true,
+                           "linux_guest_image_import": ((facts["linux_screen"] ?? facts["linux_image"]) as? [String: Any])?["host_memory_import_verified"] as? Bool == true,
+                           "linux_guest_two_image_screen_presentation": (facts["linux_screen"] as? [String: Any])?["presentation_verified"] as? Bool == true,
+                           "linux_guest_continuous_animation": false,
+                           "linux_guest_frame_pacing": false,
                            "native_vulkan_to_metal_offscreen": (facts["native_vulkan"] as? [String: Any])?["native_vulkan_to_metal_verified"] as? Bool == true,
                            "steam_arm_client": false, "fex_game": false,
                            "linux_game_graphics_to_metal": false, "steam_under_60_seconds": false,
@@ -247,6 +271,9 @@ struct ProbeScreen: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("SteamOS platform bring-up").font(.title2.bold())
                     Text("This prerelease tests separate parts of Linux graphics on your iPhone. The SteamOS desktop and game environment are unfinished.")
+                    Button("Show Linux-rendered images") { model.openLinuxScreen() }
+                        .buttonStyle(.borderedProminent).disabled(model.busy || model.engineNeedsRelaunch)
+                    Text("This opens a real Metal screen for two images rendered inside Linux. Enable JIT first, then start the test from that screen. Continuous animation and the desktop are still unfinished.").font(.callout)
                     Button("Run Metal and storage probes") { model.run(kind: "host") }
                         .buttonStyle(.borderedProminent).disabled(model.busy || model.engineNeedsRelaunch)
                     Button("Enable JIT in StikDebug") { model.enableStikDebug() }
@@ -261,7 +288,7 @@ struct ProbeScreen: View {
                         .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
                     Button("Run Linux image import gate") { model.run(kind: "linux-image") }
                         .buttonStyle(.borderedProminent).disabled(model.busy || model.engineNeedsRelaunch)
-                    Text("This new check verifies two Linux-rendered images through imported Metal textures. It does not display a desktop yet. Run this first after enabling JIT in a fresh app process.").font(.callout)
+                    Text("This separate import diagnostic checks two Linux images without displaying them. The new Show Linux-rendered images button adds the screen check. Each Linux boot needs a fresh process.").font(.callout)
                     Text("The guest graphics build boots Linux with virtio-GPU/Venus and tests two 720p shader images inside Linux. Enable StikDebug first and use a fresh app process for each Linux boot.").font(.callout)
                     Button("Run native Vulkan â†’ Metal check") { model.run(kind: "vulkan") }
                         .buttonStyle(.bordered).disabled(model.busy || model.engineNeedsRelaunch)
@@ -284,7 +311,38 @@ struct ProbeScreen: View {
                     Button("Later", role: .cancel) { model.acknowledgeRecovery() }
                 } message: { Text(model.recoveryMessage) }
                 .sheet(item: $model.logShare) { DiagnosticShareSheet(url: $0.url) }
+                .fullScreenCover(isPresented: $model.showLinuxScreen) { LinuxScreenTest(model: model) }
         }
+    }
+}
+
+struct LinuxSurface: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView { MPCGuestScreenCreateView() }
+    func updateUIView(_ view: UIView, context: Context) {}
+}
+
+struct LinuxScreenTest: View {
+    @ObservedObject var model: ProbeModel
+    var body: some View {
+        ZStack {
+            LinuxSurface().ignoresSafeArea()
+            VStack {
+                Text("Linux GPU screen test").font(.headline)
+                Text("Two Linux-rendered images · SteamOS desktop unfinished").font(.caption)
+                Spacer()
+                if !model.screenStarted {
+                    Button("Start Linux screen test") { model.startLinuxScreen() }
+                        .buttonStyle(.borderedProminent)
+                    Text("Enable JIT before starting. Keep this screen open and avoid rotating during the test.").font(.callout)
+                } else {
+                    Text(model.testStatus).font(.callout)
+                    if model.busy { ProgressView().tint(.white) }
+                    if let url = model.exportURL { ShareLink("Share screen-test report", item: url).buttonStyle(.borderedProminent) }
+                }
+                Button(model.screenStarted ? "Return to report" : "Back") { model.showLinuxScreen = false }
+                    .buttonStyle(.bordered).disabled(model.busy)
+            }.padding().foregroundStyle(.white)
+        }.background(.black).interactiveDismissDisabled(model.busy)
     }
 }
 
