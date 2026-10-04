@@ -209,3 +209,17 @@ neither accepts continuous animation, pacing, mutable-buffer synchronization,
 WSI/compositor or games. The original two-image strict display gate is preserved.
 Source/package/native rejection checks passed; phone eight-frame tests are
 pending. Details and exact build/dependency evidence: GPU-GATE-4000023.md.
+
+
+## Worker/crash diagnostics and next mutable-buffer contract
+
+Build24 passed native iOS Release and independent IPA/source/symbol checks;
+kernel/initramfs/guest receipts/ten frameworks remain byte-identical to build23.
+Worker completion is published after autorelease retirement and joined before
+finalization. Local MetricKit payload storage preserves original OS metadata;
+actual phone delivery and crash correction remain unverified. The separate
+FrameLeaseLedger source passed optimized/sanitized ARM workloads for three
+buffers and 100,000 content reuses. ABI1 still has no consumer-release transport;
+the new ledger is not wired to the guest/Metal path. Moving output, WSI/compositor
+and all product/performance targets remain open. See GPU-GATE-4000024.md and
+MUTABLE-FRAME-TRANSPORT.md; private device verdicts stay in local coverage.

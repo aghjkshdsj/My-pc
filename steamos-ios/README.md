@@ -1,5 +1,40 @@
 # My-pc SteamOS iOS â€” fresh bring-up
 
+**[Build4000024 / crash diagnostics](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-19)**
+passed actual physical ARM64 iOS Release run37242218149 at source
+bcfed4ecf78b86ebf415e1c02fdff44b56329363. Ten public files were independently
+downloaded and checked. IPA: 24,442,389 bytes, SHA256
+5e2438e776755d5c602f6f4072f09a2c8ee5101fc8c2bae665b39749ebb0f53c.
+All nineteen selected source files match the released fresh-source archive;
+the ten native frameworks and all four guest files are byte-identical to build23.
+The host dSYM matches the actual packaged ARM64 UUID
+8E04948B-5019-3578-B409-A7463CFE9AF3. It supplies host symbols, not upstream
+framework dSYMs. Four unchanged corresponding-source archives have metadata/
+hosted digest checks this turn; the unchanged guest archive also retains the
+prior independent complete-source audit.
+
+The Linux worker now retires its autorelease pool and is joined before receipt
+finalization. Additional durable checkpoints locate interrupted finalization.
+Apple MetricKit crash payloads, when delivered, are stored locally and included
+in Share logs, without inventing an active nonce/build association or automatic
+upload. Hosted recovery/identity/bounds/symlink rejection, 111 Python and the
+original native receipt checks passed. OS delivery and crash correction on the
+phone remain unverified. Graphics and the existing strict display checks stay
+pinned. See [crash diagnostics](docs/GPU-GATE-4000024.md) and the package-only
+receipt evidence/primary/ios-worker-crash-diagnostics-prerelease-4000024.json.
+
+The next moving-output component, [mutable frame ownership](docs/MUTABLE-FRAME-TRANSPORT.md),
+is implemented as a separate source contract. ARM run37242218154 passed both
+optimized and address/undefined-behavior-sanitized executions, reusing three
+resource IDs for 100,000 content frames and rejecting premature/stale release.
+It is not yet connected to the native engine/guest release path and supplies
+no phone animation, compositor or FPS proof. Owner device results are retained
+in the local ignored coverage record. Full SteamOS desktop/Game Mode/ARM Steam,
+FEX/Proton, audio/controllers/downloads/overlays/plugins and all startup/game/
+sustained-performance targets remain unfinished. QEMU TCG is software system
+emulation; no architecture substitution is adopted.
+
+
 **[Build4000023 / eight Linux frames](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-17)**
 passed physical ARM64 iOS Release run37234851404 at source
 0e8e9ada1379790ae8c2b7bdea46cbc08ab7eaae. The public IPA was independently
@@ -22,7 +57,7 @@ dwell is 125ms, not a measured frame-rate target or steady-state buffer protocol
 
 All 107 Python checks, 149 native frame receipt checks, 100 original screen
 checks, existing image/guest/ledger/recovery/capture checks and the new resource
-budget passed. Actual eight-frame phone verification remains pending. Full
+budget passed. This historical package checkpoint alone carries no device verdict; owner results are recorded privately. Full
 SteamOS desktop, ARM Steam, FEX/Proton, compositor/WSI, input/audio/downloads,
 overlays/plugins, startup targets, Hollow Knight FPS and sustained thermals
 remain unfinished. QEMU TCG is software system emulation, not virtualization.

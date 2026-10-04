@@ -1,11 +1,25 @@
 # Component coverage record
 
+Current build24 independently verifies the retired/joined Linux worker,
+durable finalization checkpoints, local OS crash-payload storage/export and exact
+host dSYM/package UUID. Native iOS Release and all preserved receipt/recovery
+boundaries passed. These are package/diagnostic results; phone OS delivery and
+the cause/correction of prior termination remain unverified. The current owner
+device verdict is kept in the private local coverage record.
+
+The reusable three-buffer ownership component passed optimized/sanitized ARM
+source tests and 100,000 content-frame reuses. Native engine/guest release-fence
+integration, moving phone output and compositor/WSI are still open. This source
+contract closes no SteamOS desktop/Game Mode/client/game feature or performance
+row. See GPU-GATE-4000024.md and MUTABLE-FRAME-TRANSPORT.md. Every original
+archive/blueprint group and historical checkpoint below remains preserved.
+
+
 Current build4000023 adds a separate eight-immutable-image Linux producer and
 bounded native alias/screen GPU consumer. Source/IPA and corresponding-source
 verification passed, with 107 Python and 149 native frame checks plus the
 preserved original rejection boundaries. Kernel/ten frameworks are unchanged;
-the initramfs adds a separate AArch64 frame binary. Phone acceptance remains
-pending and is separate from package verification. Actual display timestamps,
+the initramfs adds a separate AArch64 frame binary. This historical package record has no device verdict; owner results remain separate. Actual display timestamps,
 continuous output, mutable-buffer synchronization, WSI/compositor, all SteamOS
 product families and performance rows remain open. This does not complete a
 desktop or game row. See [eight-frame gate](GPU-GATE-4000023.md). Previous entries

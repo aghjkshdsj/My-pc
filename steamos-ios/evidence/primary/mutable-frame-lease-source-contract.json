@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "scope": "mutable-frame-ownership-source-contract",
+  "source_commit": "bcfed4ecf78b86ebf415e1c02fdff44b56329363",
+  "workflow_run": 37242218154,
+  "job_id": 111553042904,
+  "runner": "ubuntu-24.04-arm",
+  "conclusion": "success",
+  "checks_per_execution": 1100086,
+  "reused_content_frames_per_execution": 100000,
+  "optimized_native_execution_passed": true,
+  "address_and_undefined_behavior_sanitized_execution_passed": true,
+  "resource_capacity": 3,
+  "consumer_capacity": 2,
+  "source_contract_only": true,
+  "shipping_adapter_integrated": false,
+  "phone_tested": false,
+  "continuous_animation_verified": false,
+  "game_fps_verified": false,
+  "zero_copy_transport_verified": false,
+  "source_files": {
+    "steamos-ios/Engine/FrameLeaseLedger.h": "016bed783cac479c33b0301b78f8c5a6e2d15c0d863fea181b5e264204fd8122",
+    "steamos-ios/tests/FrameLeaseLedgerTests.cpp": "c35574cf2e8f53ae82065cb9735f10f6b84c680f1cb370366da57da3d590ff1b",
+    "steamos-ios/docs/MUTABLE-FRAME-TRANSPORT.md": "095d5ea28c8df14c9f26b68c62110908c712931079e9f6ecfac4ccf6618e5a30",
+    ".github/workflows/steamos-frame-leases.yml": "e4f62a9f545ebf2f87ef5bfdfe6adbbe94ed64d04f6f9be6a04b828bada48214"
+  }
+}
