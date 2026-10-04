@@ -1,5 +1,16 @@
 # Component coverage record
 
+The owner also selected DroidDeck as the functional blueprint. Its separate
+inventory accounts for **735 files**, 883 ZIP entries and 52,717,893 expanded
+bytes, with every file CRC checked. SHA-256:
+`d55ebf34a488cd15b34eb523e4bca16ae7a96b970e02cfa26d53b1f1fdc1009b`.
+The [DroidDeck mapping](DROIDDECK-BLUEPRINT.md) covers all product families,
+external dependencies, Android mechanisms and iOS acceptance work. See
+`evidence/droiddeck-summary.json` and `evidence/droiddeck-files.csv`; signing
+inputs are counted with names/digests withheld. Android source and binaries
+remain reference material outside the Xcode target. The original SM8550
+inventory below remains intact. No row becomes complete from blueprint reuse.
+
 Archive identity: SHA-256
 `74644b0d98e7be56f931ec1d5c1be455f52841e216edef7a3597d9e67f1529e6`;
 4,328 entries, **3,672 files**, 166,226,171 expanded bytes, every file CRC passed.

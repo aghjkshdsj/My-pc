@@ -6,23 +6,33 @@ projects, disks, games and account data remain preserved. Later CPU-gate
 releases embed source-built upstream QEMU/iOS engine libraries through a new
 adapter; no previous application implementation is an input.
 
-Current test: **[Linux guest Vulkan gate 2 / build 4000012](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-2/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
-24,292,269 bytes, SHA-256
-`256da95463a5594cc41b93f1f2a64a096418ce39ef7f2471af4ffb39c1dcdbf8`.
-Source `aa2f8ccfb15eb53a96f70775be8e83ca0c5703b2`.
-[Corresponding sources and verification](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-2).
-The corrected engine passed its Pixman/configuration, actual headless object and
-library-export audits. The app checks real backend registration before boot.
-Release compilation, 53 evidence tests, 28 native receipt checks and recovery
-tests passed. Independent public redownload verified all ten native frameworks,
-their exact code identities, payload hashes, source/build and ZIP CRC.
-The returned phone report now verifies Linux boot/ABI and the virtio-GPU
-allocation/map/CPU-pattern/transfer-ioctl checks. Guest Vulkan fails before
-rendering at shared-resource creation; the engine shuts down normally.
-Positive phone guest graphics, independent Metal completion/import, presentation
-and SteamOS/game performance remain **unverified**. The next needed evidence is
-**Share saved diagnostic logs** for the existing attempt, which includes the
-host engine output absent from the normal report.
+The owner-selected [DroidDeck blueprint](docs/DROIDDECK-BLUEPRINT.md) now defines
+Steam/desktop/controller/component flows and the complete feature mapping. All
+735 archive files are inventoried; Android's PRoot/Adreno/SurfaceControl path
+requires new iOS adapters and is not a direct port. The requested actual
+SteamOS ARM environment remains the architecture.
+
+Current test: **[Linux guest Vulkan gate 3 / build 4000013](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-3/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+24,300,637 bytes, SHA-256
+`b183d0ccf406d15bb9390bfa421178098f8686f0e00649c7d10a989ac397ecfe`.
+Source `8ae27c43baa43f5c193ede199725eacd2581b753`.
+[Sources, checksums and validation](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-3).
+The preliminary Linux DRM texture request now uses the correct render-target
+bind. The renderer/QEMU report actual failure stage, errno and context/blob
+results, and the normal device report includes a bounded host log tail.
+Actual native recovery tests, 53 evidence tests, 28 production receipt checks,
+Release physical-iOS ARM64 compilation and independent public IPA verification
+passed. **Phone guest shaders, Metal import/completion, presentation, SteamOS
+and game targets remain unverified.** Install with iLoader, relaunch, enable JIT
+through StikDebug, run Linux guest Vulkan gate first, and share the device
+report; if it closes, reopen and share recovery logs. See
+[build 4000013 details](docs/GPU-GATE-4000013.md).
+
+Preserved earlier package: [build 4000012 / guest Vulkan gate 2](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-2),
+source `aa2f8ccfb15eb53a96f70775be8e83ca0c5703b2`, 24,292,269 bytes,
+SHA-256 `256da95463a5594cc41b93f1f2a64a096418ce39ef7f2471af4ffb39c1dcdbf8`.
+It remains verifiable with its historical engine/guest pins. Existing partial
+Linux/DRM evidence does not establish guest Vulkan rendering.
 
 Historical package: **[Linux guest Vulkan gate 1 / build 4000011](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-1/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
 24,092,262 bytes, SHA-256

@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "scope": "android-blueprint-archive-inventory-only",
+  "archive": "DroidDeck-main.zip",
+  "bytes": 43175359,
+  "sha256": "d55ebf34a488cd15b34eb523e4bca16ae7a96b970e02cfa26d53b1f1fdc1009b",
+  "entries": 883,
+  "files": 735,
+  "expanded_bytes": 52717893,
+  "all_file_crc_passed": true,
+  "groups": {
+    "adreno-driver-loader": {
+      "files": 53,
+      "bytes": 566436
+    },
+    "android-application": {
+      "files": 177,
+      "bytes": 2012448
+    },
+    "android-audio-adapters": {
+      "files": 6,
+      "bytes": 51113
+    },
+    "android-build-workflows": {
+      "files": 11,
+      "bytes": 86830
+    },
+    "android-build-wrapper": {
+      "files": 2,
+      "bytes": 59442
+    },
+    "android-prebuilt-libraries": {
+      "files": 9,
+      "bytes": 2459712
+    },
+    "android-release-updates": {
+      "files": 6,
+      "bytes": 30022
+    },
+    "android-tests": {
+      "files": 26,
+      "bytes": 96716
+    },
+    "android-wayland-compositor": {
+      "files": 83,
+      "bytes": 1908256
+    },
+    "debug-control": {
+      "files": 3,
+      "bytes": 12098
+    },
+    "external-gamescope-build": {
+      "files": 13,
+      "bytes": 77327
+    },
+    "external-performance-overlay": {
+      "files": 3,
+      "bytes": 8243
+    },
+    "external-wlroots-build": {
+      "files": 3,
+      "bytes": 22677
+    },
+    "frame-generation": {
+      "files": 47,
+      "bytes": 570437
+    },
+    "linux-process-path-translation": {
+      "files": 26,
+      "bytes": 119288
+    },
+    "linux-script-tests": {
+      "files": 8,
+      "bytes": 64089
+    },
+    "linux-session-desktop-shims": {
+      "files": 57,
+      "bytes": 438695
+    },
+    "other-build-control-tools": {
+      "files": 5,
+      "bytes": 38080
+    },
+    "other-native-host": {
+      "files": 19,
+      "bytes": 528797
+    },
+    "proton-synchronization-packs": {
+      "files": 13,
+      "bytes": 258588
+    },
+    "reference-artwork": {
+      "files": 12,
+      "bytes": 1709716
+    },
+    "reference-documents-media": {
+      "files": 42,
+      "bytes": 31890813
+    },
+    "root-build-metadata": {
+      "files": 10,
+      "bytes": 68489
+    },
+    "runtime-driver-audio-assets": {
+      "files": 10,
+      "bytes": 8194301
+    },
+    "signing-material-withheld": {
+      "files": 2,
+      "bytes": 3091
+    },
+    "ui-resources-localization": {
+      "files": 31,
+      "bytes": 437859
+    },
+    "vendored-shader-translator": {
+      "files": 58,
+      "bytes": 1004330
+    }
+  },
+  "source_commit_established": false,
+  "scripts_executed": false,
+  "source_application_reused": false,
+  "signing_content_exported": false,
+  "complete_line_by_line_semantic_review": false,
+  "phone_linux_gpu_verified": false,
+  "steam_boot_verified": false,
+  "game_performance_verified": false
+}

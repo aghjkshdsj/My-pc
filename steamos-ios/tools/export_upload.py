@@ -35,11 +35,14 @@ paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease.json']
 paths += [root / 'evidence/primary/ios-guest-vulkan-backend-failure.json']
 paths += [root / 'evidence/primary/hosted-ios-gpu-engine-build-4000011.json']
 paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease-4000012.json']
-paths += [root / 'evidence/primary/ios-guest-vulkan-4000012-partial.json']
+# Keep the updated owner-derived partial phone report local. Public uploads
+# include source/build provenance, not this device evidence document.
 paths += [root / 'evidence/primary/hosted-ios-gl-venus-build-4000012.json']
 paths += [root / 'evidence/primary/hosted-gpu-kernel-test-4000012.json']
 paths += [root / 'evidence/primary/hosted-ios-gpu-engine-build-4000012.json']
 paths += [root / 'evidence/primary/hosted-guest-gpu-payload-4000012.json']
+paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease-4000013.json']
+paths += [root / 'evidence/droiddeck-summary.json', root / 'evidence/droiddeck-files.csv']
 paths = sorted(set(paths))
 rows = [{'path': p.relative_to(root.parent).as_posix(), 'mode': '100644', 'type': 'blob',
          'content': p.read_text(encoding='utf-8')} for p in paths]

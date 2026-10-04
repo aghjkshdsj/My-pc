@@ -1,5 +1,12 @@
 # Build 4000012: Linux works; guest Vulkan shared-resource creation fails
 
+The current next test is [build 4000013](GPU-GATE-4000013.md). Its independently
+verified package corrects the preliminary DRM texture bind and adds real native
+failure-stage/errno/context diagnostics plus host output in the normal report.
+The matching saved recovery export has been received and remains local; repeating
+the old Share saved logs request below is no longer needed. The new build's
+phone guest graphics result remains unverified.
+
 The owner's fresh `linux_gpu` report matches app source
 `aa2f8ccfb15eb53a96f70775be8e83ca0c5703b2`, the independently verified build
 4000012 IPA, its complete guest/engine metadata and all ten signing-compatible
@@ -63,14 +70,19 @@ No such blocker is declared, and no substitute architecture is adopted.
 
 ## Next required evidence
 
-Use **Share saved diagnostic logs** in the current app and share that JSON.
-The exporter includes `engine-output.log`, native stages and Linux serial from
-the existing attempt. The normal **Share device report** file includes guest
-serial but omits host engine output. Another identical run is unnecessary.
-Match any host failure to this attempt before implementing a transport repair.
-If the saved log does not expose the specific allocation branch, add explicit
-native errno/size/stage diagnostics and QEMU guest-error logging in a new
-verified build; do not infer a successful import or relax pixel acceptance.
+The matched recovery export provides the host output from the existing attempt.
+Its Vulkan resource error sequence does not distinguish the exact allocation
+branch. Source review also establishes that the preliminary texture request's
+bind 0 is incompatible with its non-buffer target; build 4000013 uses render-
+target bind 2. CPU-mapped guest pixels cannot independently prove the host
+accepted that resource. This source correction is separate from the unresolved
+Venus blob failure.
+
+Build 4000013 has passed actual native compilation, capture and package checks.
+Run its guest Vulkan gate in a fresh JIT-enabled process and share the normal
+device report, which now includes the host engine tail; reopen and use recovery
+sharing if interrupted. Its stage/errno/context messages are the next required
+physical evidence. Do not infer successful import or relax pixel acceptance.
 
 Independent Metal completion/import, guest Vulkan shaders, moving presentation,
 SteamOS/Steam/FEX and game performance remain unfinished.

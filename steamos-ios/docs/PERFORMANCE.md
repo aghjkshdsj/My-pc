@@ -1,5 +1,12 @@
 # Performance budget and device procedure
 
+The owner-selected [DroidDeck blueprint](DROIDDECK-BLUEPRINT.md) adds concrete
+reference designs for fast-path correctness, metadata caching, resumable downloads,
+buffer/fence ownership and display pacing. Its Android startup/microbenchmark
+figures are reference measurements on a different platform, not achieved iPhone
+results. GPU clock pinning and Android sysfs controls are not carried into iOS.
+Base game renders remain separate from optional frame generation.
+
 The table below contains **budgets and hypotheses**, not achieved targets. Target device:
 owner-confirmed iPhone 15 Pro Max / iOS 27.0.1, with iLoader and StikDebug.
 

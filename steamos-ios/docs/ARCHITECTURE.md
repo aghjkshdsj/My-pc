@@ -109,13 +109,13 @@ resource destruction and scanout must pass on iOS. Code availability is not a
 successful phone test. UTM's older Graphics.md is stale relative to its 2026
 build source/release announcement; do not use it to assert Venus is absent.
 
-The current QEMU engine was explicitly built without OpenGL/virglrenderer.
-Its pinned `virtio-gpu-gl` device requires a GL-enabled display; Venus does not
-remove that dependency. The native Venus-only library also excludes EGL.
-Integration needs an EGL-enabled epoxy/virgl renderer and ANGLE Metal context
-adapter, then a QEMU engine build enabling those actual libraries. The upstream
-`egl_init` helper does not initialize a Darwin headless context; compilation
-alone will not solve this. An explicit Metal backend must be selected and checked
+The initial CPU-only QEMU engine omitted OpenGL/virglrenderer; the separate
+native Venus-only experiment excluded EGL. The current graphics diagnostic
+build now compiles EGL-enabled epoxy/virgl, ANGLE's Metal/GLES 3 context adapter,
+Pixman-enabled EGL-headless and GPU-capable QEMU, with explicit backend
+registration and checked context-creation results. Their actual libraries and
+import/code identities are audited. This establishes compilation and packaging,
+not functional guest graphics. An explicit Metal backend must still be checked
 at runtime. Headless diagnostic readback is permitted for correctness only;
 steady-state display needs the fresh Metal presenter and explicit resource/fence
 ownership, without per-frame full-image CPU copies.
@@ -177,3 +177,13 @@ Each gate needs a build/source identity, actual device report and reproducible
 workload. Build success, a host shader, inherited screenshots or hosted emulation
 cannot complete a physical-phone gate. No completion date or FPS guarantee is
 supported by the present evidence.
+
+## Owner-selected DroidDeck blueprint
+
+[DroidDeck mapping](DROIDDECK-BLUEPRINT.md) adds concrete session, library,
+controller, audio, component-update and compositor designs. Android PRoot uses
+its Linux host kernel, while its GPU buffers/fences use Adreno and Android
+APIs. Those mechanisms cannot establish a native Linux syscall environment or
+Metal import on iOS. The actual Linux kernel/SteamOS path remains selected;
+DroidDeck's adapted runtime/LXQt and any Darwin syscall replacement would need
+owner agreement. No substitute architecture is adopted.

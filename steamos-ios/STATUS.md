@@ -1,10 +1,34 @@
-# Verified state and next work — 2026-10-02
+# Verified state and next work — 2026-10-04
 
 The complete SteamOS ARM/FEX product is **unfinished**. No architecture
 substitution was approved or adopted. Previous projects, applications, disks,
 credentials and game data are preserved. The fresh source and Xcode target use
 no Madeira, old VM app or native-preview application implementation. Attached
 documents and scripts were treated as reference material.
+
+## Current source and build results
+
+The owner-selected [DroidDeck blueprint](docs/DROIDDECK-BLUEPRINT.md) is mapped
+across Linux/Steam, desktop, Proton/FEX, graphics/presentation, audio, input,
+network/downloads, libraries/saves, overlays/plugins, apps, lifecycle and updates.
+All 735 files are inventoried with CRC/hash/group coverage; two signing inputs
+are counted with their names and digests withheld. Android's Linux-kernel/PRoot
+and Adreno/AHardwareBuffer mechanisms are reference designs, not an adopted
+Darwin compatibility layer or replacement Linux distribution.
+
+**[Build 4000013 / guest Vulkan gate 3](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-3)**
+passed run 37175158168 at source `8ae27c43baa43f5c193ede199725eacd2581b753`.
+Actual Release ARM64 iOS compilation, 53 evidence tests, 28 native receipt
+checks and recovery/capture/bounded-tail tests passed. Independent public
+redownload verified 24,300,637 bytes and SHA-256
+`b183d0ccf406d15bb9390bfa421178098f8686f0e00649c7d10a989ac397ecfe`,
+ten framework code/import identities, corrected guest payloads, real diagnostic
+markers and ZIP CRC. This build fixes the preliminary DRM render-target bind,
+checks the renderer context result, logs real Venus allocation/blob failures
+and attaches the host log tail to the normal device report. No allocator
+fallback or success override was added. See [source/build details](docs/GPU-GATE-4000013.md).
+A fresh physical-phone guest-Vulkan result is required. SteamOS, guest shader
+acceleration, moving presentation and game performance remain unfinished.
 
 ## Physical phone evidence
 
@@ -46,9 +70,10 @@ RESOURCE_CREATE_BLOB received ERR_UNSPEC, followed by invalid-resource errors
 for map/unmap/unref. The engine completed normally with exit 0 and poweroff;
 this report is a failed graphics test, not evidence of another app crash.
 Kernel/ABI/DRM plus the failed Vulkan attempt took 1156.26 ms, not Steam startup
-or game FPS. The normal report lacks the host engine output needed to distinguish
-the allocation/renderer/resource-metadata failure branches. The same-run
-**Share saved diagnostic logs** export is the next required device evidence.
+or game FPS. The normal report alone cannot distinguish the allocation/renderer/resource-
+metadata failure branches. Build 4000013 adds precise native diagnostics and
+includes the host engine output in the normal report. The new phone test is
+pending; previous raw reports and matching recovery analysis remain local.
 Sanitized receipt: `evidence/primary/ios-guest-vulkan-4000012-partial.json`.
 Raw reports and analysis remain private. Linux guest shaders, independent
 host Metal completion/import, presentation, SteamOS and game targets remain open.

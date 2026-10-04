@@ -154,3 +154,20 @@ Build 4000012 packages ten native frameworks, including Pixman, and passed exact
 independent public IPA verification. No new application implementation base or
 architecture substitution was introduced. These are build/package checks,
 not successful phone graphics or SteamOS/game evidence.
+
+
+Build 4000013 retains complete original renderer/QEMU source and generated
+failure-diagnostic/context-result patches. Actual native renderer run 37095310400
+and engine run 37095545014 passed compilation and symbol/configuration audits;
+corrected Linux/Mesa runtime run 37095653651 passed hosted boot controls.
+Corresponding sources accompany the independently verified prerelease.
+Allocation policy, original license obligations and shader acceptance remain
+unchanged. Previous build receipts and releases are preserved.
+
+The owner-selected DroidDeck archive is pinned and inventoried separately.
+[DroidDeck blueprint and license mapping](DROIDDECK-BLUEPRINT.md) distinguishes
+GPL-3.0 application code, per-file third-party terms and external source inputs.
+No Android application code, assets, binaries or signing inputs were copied into
+the fresh host. Implementation reuse would require attribution and compatible
+source/license distribution; a functional blueprint does not establish a
+completed source closure or phone performance result.
