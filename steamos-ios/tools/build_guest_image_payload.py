@@ -140,11 +140,16 @@ esac
     shaders.mkdir()
     subprocess.run(['glslangValidator', '-V', str(PROJECT / 'Guest/vk_gate.vert'), '-o', str(shaders / 'vertex.spv')], check=True)
     subprocess.run(['glslangValidator', '-V', str(PROJECT / 'Guest/vk_gate.frag'), '-o', str(shaders / 'fragment.spv')], check=True)
-    env = dict(os.environ, VK_DRIVER_FILES='/usr/share/vulkan/icd.d/lvp_icd.aarch64.json',
-               VK_ICD_FILENAMES='/usr/share/vulkan/icd.d/lvp_icd.aarch64.json', MPC_IMAGE_RUN=uuid.uuid4().hex)
+    manifests = list(pathlib.Path('/usr/share/vulkan/icd.d').glob('lvp*.json'))
+    assert len(manifests) == 1, 'Need one actual installed Lavapipe control ICD'
+    lvp = manifests[0]
+    assert 'lvp' in json.loads(lvp.read_text())['ICD']['library_path']
+    env = dict(os.environ, VK_DRIVER_FILES=str(lvp), VK_ICD_FILENAMES=str(lvp), MPC_IMAGE_RUN=uuid.uuid4().hex)
     negative = subprocess.run([str(binary), str(shaders / 'vertex.spv'), str(shaders / 'fragment.spv')],
                               env=env, capture_output=True, text=True, timeout=60)
     (output / 'software-image-rejected.log').write_text(negative.stdout + negative.stderr)
+    print(json.dumps({'scope': 'hosted-software-image-negative-control', 'icd': str(lvp),
+                      'returncode': negative.returncode, 'stdout': negative.stdout, 'stderr': negative.stderr}))
     assert negative.returncode == 20 and 'MPC_VK_REJECTED software_renderer=' in negative.stdout
     assert 'MPC_IMAGE_PRODUCER' not in negative.stdout
     source_files = {name: hashlib.sha256((PROJECT / name).read_bytes()).hexdigest() for name in [
@@ -160,6 +165,7 @@ esac
                    parent_graphics_files=PARENT_FILES, cases=cases, image_gate_compiled=True,
                    image_export_verified=False, host_memory_import_verified=False,
                    software_image_rejected=True, image_gate_dependencies=dependencies,
+                   software_control_icd_sha256=hashlib.sha256(lvp.read_bytes()).hexdigest(),
                    image_source_files=source_files,
                    files={n: {'bytes': (payload / n).stat().st_size,
                               'sha256': hashlib.sha256((payload / n).read_bytes()).hexdigest()} for n in PARENT_FILES})
