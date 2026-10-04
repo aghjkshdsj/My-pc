@@ -1,5 +1,8 @@
 name: Fresh iPhone Linux guest Vulkan gate prerelease
 on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', 'steamos-ios/tools/bundle_guest_gpu.py', 'steamos-ios/tools/verify_ipa.py', 'steamos-ios/tests/Guest*Tests.mm', 'steamos-ios/tests/RecoveryJournalTests.swift', 'steamos-ios/tests/GuestMetalTraceLedgerTests.cpp', 'steamos-ios/tests/test_guest*.py', 'steamos-ios/tests/test_failed_image_controls.py', 'steamos-ios/tools/verify_guest*.py', '.github/workflows/steamos-ios-guest-gpu-prerelease.yml']
   workflow_dispatch:
 permissions:
   contents: write
@@ -21,7 +24,7 @@ jobs:
           import json, subprocess
           pins = {
               'gpu-engine': (37215070827, '6b6e268bffdce59d2d15b319abdee46eaa4b8cee'),
-              'gpu-guest': (37218376178, '7f77b026112b4161964f0f38ca6df700facbe750'),
+              'gpu-guest': (37222125501, '453a1d1f19c04b5d49328f135db32257a22d8f30'),
               'cpu-guest': (37014232445, '33c54e5be2d022bc19bcf3e1a448163016dc84af'),
               'molten': (37178467526, '3f83d181b40439f868fba52abe54f02e9b857c36'),
           }
@@ -39,7 +42,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Fresh-ARM-Linux-Image-Payload
-          run-id: 37218376178
+          run-id: 37222125501
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-guest-artifact
       - uses: actions/download-artifact@v4
@@ -74,6 +77,8 @@ jobs:
           /tmp/mpc-metal-ledger-tests
           clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host steamos-ios/Host/GuestImageReceipt.mm steamos-ios/tests/GuestImageReceiptTests.mm -o /tmp/mpc-image-receipt-tests
           /tmp/mpc-image-receipt-tests
+          clang -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/tests/ImagePixelContractTests.c -o /tmp/mpc-image-pixel-tests
+          /tmp/mpc-image-pixel-tests
       - name: Compile fresh physical iOS Release ARM64 host
         run: |
           python3 steamos-ios/tests/validate_sources.py
@@ -109,7 +114,7 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000018 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000019 --receipt steamos-ios/out/package/verification.json
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/cpu-guest-artifact/Linux-Gate-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -123,9 +128,9 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000018: explicit DRM modifier correction for Linux image export and native Metal import.
+          Build 4000019: matched BGRA/XRGB primary-plane format for Linux image export and native Metal import.
           
-          The new Linux image gate first runs the preserved kernel/ABI and offscreen shader controls. It queries external-memory support with explicit DRM-format-modifier tiling and DRM_FORMAT_MOD_LINEAR, matching Venus scanout requirements, and creates images using the same modifier list. It verifies the returned modifier and queries memory-plane-0 layout rather than assuming legacy linear tiling. It renders phases 0 and 41 into separate GPU images, copies on the GPU into dedicated linear export images, releases external queue ownership, waits actual producer fences and exports DMA-BUFs through virtio-GPU/KMS. No host-generated pattern can establish a Linux result. Unsupported format/export/mode/layout/import/cleanup operations produce explicit stages. The disposable payload contains no SteamOS rootfs, Valve client or game.
+          The new Linux image gate first runs the preserved kernel/ABI and offscreen shader controls. It queries external-memory support with explicit DRM-format-modifier tiling and DRM_FORMAT_MOD_LINEAR, matching Venus scanout requirements, and creates images using the same modifier list. It verifies the returned modifier and queries memory-plane-0 layout rather than assuming legacy linear tiling. The image renderer and export allocations both use Vulkan BGRA8; Linux primary scanout uses XRGB8888/virtio BGRX and the native consumer requires Metal BGRA8 with exact per-pixel channel ordering. RGBA bytes are never relabeled or CPU converted. A real pinned-kernel CPU-allocation format control reproduces ABGR errno 2, creates XRGB through the production helper, and releases it; that control cannot establish GPU rendering or image import. It renders phases 0 and 41 into separate GPU images, copies on the GPU into dedicated linear export images, releases external queue ownership, waits actual producer fences and exports DMA-BUFs through virtio-GPU/KMS. No host-generated pattern can establish a Linux result. Unsupported format/export/mode/layout/import/cleanup operations produce explicit stages. The disposable payload contains no SteamOS rootfs, Valve client or game.
           
           The separate pinned QEMU engine has a versioned borrowed-texture callback for native scanout install/flush/disable. Native flush bypasses the old GL framebuffer CPU readback path. The fresh ARM64 iOS adapter retains each texture during consumption, checks the real Metal device/format/backing buffer/exact pitch and offset/alignment/bounds, submits a bounded diagnostic GPU blit, waits actual completion and checks every pixel independently. It correlates both guest resource identities, phases and native ownership events and requires scanout/image cleanup. Only two diagnostic readbacks are allowed; there is no steady-state presenter yet. Receipt rejection tests cannot pass phone import.
           
@@ -143,7 +148,7 @@ jobs:
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000018
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000019
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()
