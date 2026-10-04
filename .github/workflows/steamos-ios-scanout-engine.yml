@@ -1,0 +1,68 @@
+name: Fresh iOS native guest image scanout engine
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/prepare_scanout_engine_build.py', 'steamos-ios/tools/patch_qemu_native_scanout.py', 'steamos-ios/Engine/NativeScanoutABI.h', '.github/workflows/steamos-ios-scanout-engine.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  ios-qemu-gpu:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve the accepted source-built graphics dependency
+        id: dependency
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          receipt = json.loads(pathlib.Path('steamos-ios/evidence/primary/hosted-ios-gl-venus-build.json').read_text(encoding='utf-8'))
+          assert receipt['scope'] == 'source-built-native-ios-gl-venus-engine-compile-only'
+          assert receipt['physical_ios_arm64'] is True and receipt['egl_backend_compiled'] is True
+          assert receipt['venus_backend_compiled'] is True and receipt['phone_tested'] is False
+          revision = receipt['source_commit']
+          assert re.fullmatch('[0-9a-f]{40}', revision)
+          run = int(receipt['workflow_run'])
+          assert run > 0
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('run=' + str(run) + '\nsource=' + revision + '\n')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-iOS-GL-Venus-Engines
+          run-id: ${{ steps.dependency.outputs.run }}
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/gpu-renderer-artifact
+      - name: Install host build tools
+        run: |
+          brew install meson ninja cmake gettext glib bison
+          echo "$(brew --prefix gettext)/bin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix glib)/bin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix bison)/bin" >> "$GITHUB_PATH"
+      - name: Derive the separate source-pinned GPU engine recipe
+        run: python3 steamos-ios/tools/prepare_scanout_engine_build.py steamos-ios/out/gpu-engine
+      - name: Compile actual ARM64 iOS GPU-capable TCG engine
+        env:
+          MPC_GPU_RENDERER_RUN: ${{ steps.dependency.outputs.run }}
+          MPC_GPU_RENDERER_SOURCE: ${{ steps.dependency.outputs.source }}
+        run: |
+          export MPC_GPU_RENDERER_ARTIFACT="$PWD/steamos-ios/out/gpu-renderer-artifact"
+          cd steamos-ios/out/gpu-engine
+          IOS_SDKMINVER=26.0 NCPU=3 bash scripts/build_gpu_gate.sh -p ios -a arm64
+      - name: Audit actual engine and retain complete corresponding source
+        run: python3 steamos-ios/tools/collect_gpu_engine_sources.py steamos-ios/out/gpu-engine steamos-ios/out/gpu-renderer-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iOS-Native-Scanout-Engine
+          path: |
+            steamos-ios/out/gpu-engine/GPU-Engine-*.tar.gz
+            steamos-ios/out/gpu-engine/*receipt.json
+            steamos-ios/out/gpu-engine/gpu-adapter-source.json
+            steamos-ios/out/gpu-engine/native-scanout-source.json
+            steamos-ios/out/gpu-engine/qemu-native-scanout.patch
+            steamos-ios/out/gpu-engine/qemu-angle-metal-diagnostic.patch
+            steamos-ios/out/gpu-engine/build-iOS-arm64/**/meson-logs/meson-log.txt
+          retention-days: 14

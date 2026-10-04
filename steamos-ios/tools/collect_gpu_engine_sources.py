@@ -44,6 +44,13 @@ def collect(root, graphics_artifact):
     config = config_paths[0].read_text(encoding='utf-8')
     commands_path = config_paths[0].parent / 'compile_commands.json'
     backend = audit_headless_backend(config, symbols, json.loads(commands_path.read_text(encoding='utf-8')))
+    native_source = root / 'native-scanout-source.json'
+    native = None
+    if native_source.exists():
+        native = json.loads(native_source.read_text(encoding='utf-8'))
+        assert native['scope'] == 'native-scanout-adapter-source-only' and native['abi'] == 1
+        assert re.search(r'\b_mpc_qemu_configure_native_scanout\b', symbols)
+        assert re.search(r'^#define[ \t]+HAVE_VIRGL_RENDERER_NATIVE_SCANOUT\b', config, re.MULTILINE)
     for define in ['CONFIG_OPENGL', 'CONFIG_EGL', 'CONFIG_METAL', 'VIRGL_VERSION_MAJOR']:
         assert re.search(r'^#define[ \t]+' + define + r'(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE), define
     for define in ['CONFIG_HVF', 'CONFIG_HVF_PRIVATE']:
@@ -90,6 +97,9 @@ def collect(root, graphics_artifact):
                'files': {p.relative_to(root).as_posix(): {'bytes': p.stat().st_size, 'sha256': digest(p)}
                          for p in archives + [context_tar] + binary_paths}}
     receipt_path = root / 'gpu-engine-receipt.json'
+    if native is not None:
+        receipt['native_scanout_adapter'] = native
+        receipt['native_scanout_adapter_export'] = True
     receipt_path.write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
     configs = [p for p in build.rglob('*') if p.is_file() and p.name in {
         'config.log', 'config.status', 'config-host.mak', 'config-meson.cross', 'config-host.h',
@@ -106,6 +116,16 @@ def collect(root, graphics_artifact):
                      'patch_qemu_gpu.py', 'collect_gpu_engine_sources.py', 'verify_ipa.py']:
             archive.add(PROJECT / 'tools' / name, arcname='fresh-recipes/' + name)
         archive.add(PROJECT.parent / '.github/workflows/steamos-ios-gpu-engine.yml', arcname='steamos-ios-gpu-engine.yml')
+        if native is not None:
+            for name in ['native-scanout-source.json', 'qemu-native-scanout.patch']:
+                archive.add(root / name, arcname=name)
+            for name in ['patch_qemu_native_scanout.py', 'prepare_scanout_engine_build.py']:
+                archive.add(PROJECT / 'tools' / name, arcname='fresh-recipes/' + name)
+            archive.add(PROJECT / 'Engine/NativeScanoutABI.h', arcname='fresh-recipes/NativeScanoutABI.h')
+            headers = list(build.glob('qemu-*/include/ui/mpc-native-scanout.h'))
+            assert len(headers) == 1
+            archive.add(headers[0], arcname='patched-headers/ui/mpc-native-scanout.h')
+            archive.add(PROJECT.parent / '.github/workflows/steamos-ios-scanout-engine.yml', arcname='steamos-ios-scanout-engine.yml')
     with tarfile.open(root / 'GPU-Engine-iOS-Frameworks.tar.gz', 'w:gz') as archive:
         archive.add(frameworks, arcname='Frameworks')
     print(json.dumps(receipt, indent=2))
