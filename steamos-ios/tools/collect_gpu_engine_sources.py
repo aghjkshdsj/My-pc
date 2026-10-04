@@ -30,6 +30,16 @@ def audit_headless_backend(config, exports, commands):
             'compile_command_sha256': hashlib.sha256(entries[0]['command'].encode()).hexdigest()}
 
 
+def audit_thread_retirement(config, exports, commands):
+    assert re.search(r'^#define[ \t]+CONFIG_SHARED_LIBRARY_BUILD(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE), 'Wrong QEMU initialization registration mode'
+    assert re.search(r'^[0-9a-fA-F]+[ \t]+T[ \t]+_rcu_unregister_thread[ \t]*$', exports, re.MULTILINE), 'Missing actual exported RCU unregister definition'
+    entries = [row for row in commands if row.get('file', '').endswith('/util/rcu.c')]
+    assert len(entries) == 1 and '-c' in entries[0]['command'].split(), 'Actual RCU source was not compiled'
+    return {'shared_library_init_registers_thread': True, 'rcu_unregister_definition_exported': True,
+            'rcu_source_compiled': True, 'compile_command_sha256': hashlib.sha256(entries[0]['command'].encode()).hexdigest(),
+            'host_unregister_executed': False, 'phone_crash_fixed': False}
+
+
 def collect(root, graphics_artifact):
     build = root / 'build-iOS-arm64'
     prefix = root / 'sysroot-iOS-arm64'
@@ -51,6 +61,8 @@ def collect(root, graphics_artifact):
         assert native['scope'] == 'native-scanout-adapter-source-only' and native['abi'] == 1
         assert re.search(r'\b_mpc_qemu_configure_native_scanout\b', symbols)
         assert re.search(r'^#define[ \t]+HAVE_VIRGL_RENDERER_NATIVE_SCANOUT\b', config, re.MULTILINE)
+        if native.get('init_thread_rcu_unregister_export_requested') is True:
+            retirement = audit_thread_retirement(config, symbols, json.loads(commands_path.read_text(encoding='utf-8')))
     for define in ['CONFIG_OPENGL', 'CONFIG_EGL', 'CONFIG_METAL', 'VIRGL_VERSION_MAJOR']:
         assert re.search(r'^#define[ \t]+' + define + r'(?:[ \t]+1)?[ \t]*$', config, re.MULTILINE), define
     for define in ['CONFIG_HVF', 'CONFIG_HVF_PRIVATE']:
@@ -100,6 +112,8 @@ def collect(root, graphics_artifact):
     if native is not None:
         receipt['native_scanout_adapter'] = native
         receipt['native_scanout_adapter_export'] = True
+        if native.get('init_thread_rcu_unregister_export_requested') is True:
+            receipt['init_thread_retirement_build_audit'] = retirement
     receipt_path.write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
     configs = [p for p in build.rglob('*') if p.is_file() and p.name in {
         'config.log', 'config.status', 'config-host.mak', 'config-meson.cross', 'config-host.h',

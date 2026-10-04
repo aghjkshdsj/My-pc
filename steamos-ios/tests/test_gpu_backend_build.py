@@ -4,11 +4,25 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'tools'))
-from collect_gpu_engine_sources import audit_headless_backend
+from collect_gpu_engine_sources import audit_headless_backend, audit_thread_retirement
 from patch_qemu_gpu import transform
 
 
 class GPUBackendBuildTests(unittest.TestCase):
+    def test_rcu_retirement_requires_actual_export_and_compilation(self):
+        config = '#define CONFIG_SHARED_LIBRARY_BUILD 1\n'
+        symbol = '00000000007c6160 T _rcu_unregister_thread\n'
+        commands = [{'file': '../util/rcu.c', 'command': 'clang -c ../util/rcu.c -o rcu.o'}]
+        result = audit_thread_retirement(config, symbol, commands)
+        self.assertTrue(result['rcu_unregister_definition_exported'])
+        self.assertFalse(result['host_unregister_executed'])
+        self.assertFalse(result['phone_crash_fixed'])
+        for bad in ('rcu_unregister_thread', '0000 t _rcu_unregister_thread\n', ' U _rcu_unregister_thread\n'):
+            with self.assertRaises(AssertionError): audit_thread_retirement(config, bad, commands)
+        with self.assertRaises(AssertionError): audit_thread_retirement('#undef CONFIG_SHARED_LIBRARY_BUILD', symbol, commands)
+        with self.assertRaises(AssertionError): audit_thread_retirement(config, symbol, [])
+        with self.assertRaises(AssertionError): audit_thread_retirement(config, symbol, [{'file': '../util/rcu.c', 'command': 'echo ../util/rcu.c'}])
+
     def test_enabled_backend_records_only_compilation(self):
         for config in ('#define CONFIG_PIXMAN\n', '#define CONFIG_PIXMAN 1\n'):
             result = audit_headless_backend(config, '000000 T _mpc_qemu_register_egl_headless\n',

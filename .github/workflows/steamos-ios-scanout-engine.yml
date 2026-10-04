@@ -2,7 +2,7 @@ name: Fresh iOS native guest image scanout engine
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/tools/prepare_scanout_engine_build.py', 'steamos-ios/tools/patch_qemu_native_scanout.py', 'steamos-ios/Engine/NativeScanoutABI.h', '.github/workflows/steamos-ios-scanout-engine.yml']
+    paths: ['steamos-ios/tools/prepare_scanout_engine_build.py', 'steamos-ios/tools/patch_qemu_native_scanout.py', 'steamos-ios/tools/collect_gpu_engine_sources.py', 'steamos-ios/Engine/NativeScanoutABI.h', '.github/workflows/steamos-ios-scanout-engine.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,6 +13,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+      - name: Reject incomplete thread-retirement engine audits
+        run: python3 -m unittest discover -s steamos-ios/tests -p test_gpu_backend_build.py -v
       - name: Resolve the accepted source-built graphics dependency
         id: dependency
         run: |

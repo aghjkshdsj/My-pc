@@ -110,13 +110,14 @@ static void mpc_scanout_emit(MPCNativeScanoutEvent *event, uint32_t kind)
          '        dpy_gl_scanout_texture(\n            scanout->con, 0,'),
     ])
     edit('system/qemu.symbols', [('mpc_qemu_register_egl_headless;',
-                                'mpc_qemu_register_egl_headless;\n    mpc_qemu_configure_native_scanout;')])
+                                'mpc_qemu_register_egl_headless;\n    mpc_qemu_configure_native_scanout;\n    rcu_unregister_thread;')])
     for path, content in staged.items():
         path.write_text(content, encoding='utf-8')
     (receipt_dir / 'qemu-native-scanout.patch').write_text(''.join(changes), encoding='utf-8')
     receipt = {'schema': 1, 'scope': 'native-scanout-adapter-source-only', 'abi': 1,
                'files': rows, 'abi_header_sha256': hashlib.sha256(abi.encode()).hexdigest(),
                'borrowed_texture_callback': True, 'native_flush_cpu_readback_bypassed': True,
+               'init_thread_rcu_unregister_export_requested': True,
                'phone_tested': False, 'image_import_verified': False, 'presentation_verified': False}
     (receipt_dir / 'native-scanout-source.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
 
