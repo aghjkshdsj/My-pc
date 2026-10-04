@@ -177,3 +177,25 @@ acceptance remains pending. This closes source
 work for a two-image screen diagnostic only; continuous animation, moving-frame
 ownership/fences, WSI/compositor, pacing and zero-copy remain separate work.
 See GPU-GATE-4000021.md. Original engine and licensing mappings above are retained.
+
+## Scheduled Core Animation route and lifecycle observations
+
+Build4000022 replaces command-buffer presentation in this diagnostic with GPU
+scheduling followed by main-thread drawable presentation in a Core Animation
+transaction. A foreground/surface/geometry check precedes the actual present
+call. Cancellation retires only after real GPU completion, exactly once.
+Schema2 receipts require actual route/scheduling/main-thread/foreground/enqueue
+observations as well as the original positive GPU/display timestamp join.
+A later presentedTime query is diagnostic only; it never replaces a zero callback
+timestamp. Lifecycle events have bounded count, reason, real clock and state;
+interruptions remain sticky and completed sessions stop recording further events.
+
+Physical ARM64 iOS Release, separate adapter compilation, 98 Python and 100
+native screen checks passed. All 14 changed files match independently downloaded
+fresh source; kernel, initramfs, receipts and ten frameworks are byte-identical
+to build4000021. New phone timing acceptance remains pending. The two immutable
+images do not accept continuous animation, mutable frame synchronization, frame
+pacing, WSI/compositor, desktop/client/gameplay or sustained performance.
+See GPU-GATE-4000022.md and the package-only public receipt. Upstream reuse and
+licensing mappings, archived implementations and private device records remain
+separate and preserved.

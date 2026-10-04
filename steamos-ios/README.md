@@ -1,5 +1,28 @@
 # My-pc SteamOS iOS â€” fresh bring-up
 
+**[Build4000022 / Linux screen gate](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-13)**
+passed physical ARM64 iOS Release run37230949031 at source
+4ed0113618e9529a3744b32f1e4985a70919aa76. The published IPA was independently
+downloaded and verified: 24,394,918 bytes, SHA-256
+91631dd0556c8eb276b56818c2e8e4293e75da3eb7429801c515ef8587762253.
+All 14 selected source files match the fresh-source archive; the exact kernel,
+initramfs, guest/engine receipts and ten frameworks match verified build4000021.
+All 98 Python, 100 native screen, 56 image, 28 guest and 27 ledger checks passed,
+with recovery/capture and the production readback budget checks. Separate native
+adapter run37230949056 and source boundary run37230949039 passed.
+
+The presenter now commits GPU work, observes scheduling, then presents the real
+imported Linux texture in a main-thread Core Animation transaction. It records
+bounded interruption reasons and actual scheduling/enqueue/callback clocks.
+A zero callback display timestamp remains failure; a later API query never
+replaces it. The result UI explains preserved import/GPU work separately from
+screen timing. No build22 phone result exists yet. Continuous animation, pacing,
+full SteamOS/Steam ARM and game targets remain unfinished. See
+[transaction screen gate](docs/GPU-GATE-4000022.md) and the package-only receipt
+in evidence/primary/ios-guest-screen-prerelease-4000022.json.
+
+The older package checkpoints below are preserved historical results.
+
 **[Build4000021 / Linux screen gate](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-12)** passed actual physical ARM64 iOS
 Release build run37228324700 at source 391c73c46b09c793c5fad546989e7b833de2b431. The published 24,387,473-byte IPA
 was independently downloaded and verified, SHA-256 bf9e9d53fe66e6bfcd374e882cb5c2ff32324aaf2cc8f969e6a564c6be42465f.

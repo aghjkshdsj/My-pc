@@ -1,5 +1,14 @@
 # Component coverage record
 
+Current build4000022 source adds scheduled main-thread Core Animation
+presentation, bounded lifecycle evidence and strict schema2 display receipts.
+Physical iOS Release, separate native adapter compilation, 98 Python and 100
+native screen checks passed. The public IPA and all 14 selected source files
+were independently verified; 14 exact Linux/engine files are preserved. Phone
+acceptance, moving animation, WSI/compositor and all product/performance rows
+remain independent and open. See [current screen gate](GPU-GATE-4000022.md).
+Older checkpoints below are historical and retain every archive/blueprint row.
+
 Current screen integration: CAMetalLayer, exact imported-guest texture GPU
 sampling, separate drawable/completion callbacks and a bounded two-frame
 acceptance join are implemented for build4000021. Actual physical ARM64 iOS
