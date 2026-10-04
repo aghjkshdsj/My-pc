@@ -194,7 +194,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images) {
             run[@"host_memory_import_verified"] = @NO;
             run[@"image_import_requested"] = @(images);
             run[@"gameplay_verified"] = @NO;
-            run[@"route_requested"] = @"Linux ARM64 Mesa Venus â†’ virtio-GPU â†’ native iOS virgl/Venus â†’ MoltenVK â†’ Metal";
+            run[@"route_requested"] = @"Linux ARM64 Mesa Venus Ã¢â€ â€™ virtio-GPU Ã¢â€ â€™ native iOS virgl/Venus Ã¢â€ â€™ MoltenVK Ã¢â€ â€™ Metal";
         }
         NSURL *reportURL = [directory URLByAppendingPathComponent:@"linux-test.json"];
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
@@ -267,13 +267,13 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images) {
                 @"observed_commit_points": metal[@"observed_commit_points"],
                 @"pending": metal[@"pending"], @"failed": metal[@"failed"]});
             if (images) {
-                NSDictionary *import = MPCGuestImageImportFinish(text, finished.load() && engineStatus.load() == 0,
+                NSDictionary *importResult = MPCGuestImageImportFinish(text, finished.load() && engineStatus.load() == 0,
                     linuxPassed, [metal[@"metal_host_verified"] isEqual:@YES]);
-                run[@"image_import"] = import;
-                run[@"host_memory_import_verified"] = import[@"host_memory_import_verified"];
-                passed = passed && [import[@"host_memory_import_verified"] isEqual:@YES];
+                run[@"image_import"] = importResult;
+                run[@"host_memory_import_verified"] = importResult[@"host_memory_import_verified"];
+                passed = passed && [importResult[@"host_memory_import_verified"] isEqual:@YES];
                 MPCDiagnosticStage(@"linux-native-image-import-checked", @{
-                    @"host_memory_import_verified": import[@"host_memory_import_verified"], @"presentation_verified": @NO});
+                    @"host_memory_import_verified": importResult[@"host_memory_import_verified"], @"presentation_verified": @NO});
             }
         }
         run[@"guest"] = guest;

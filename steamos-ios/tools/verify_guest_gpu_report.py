@@ -17,12 +17,13 @@ from verify_ipa import verify as verify_ipa
 from verify_guest_metal_trace import validate as validate_metal_trace
 
 
-def validate(report, commit, build, payload, bundle, ios, machine=None, serial=None):
+def validate(report, commit, build, payload, bundle, ios, machine=None, serial=None, image_import=False):
+    test_key = "linux_image" if image_import else "linux_gpu"
     require(report.get('schema') == 1 and report.get('scope') == 'physical-ios-host-probe', 'Expected a phone report')
     require(report.get('source_commit') == commit and report.get('build') == build, 'Wrong IPA source/build')
-    require(report.get('executed_tests') == ['linux_gpu'], 'The guest GPU gate was not freshly executed')
-    gate = report.get('tests', {}).get('linux_gpu', {})
-    require(gate.get('schema') == 1 and gate.get('scope') == 'physical-ios-linux-guest-vulkan-gate', 'Wrong gate scope')
+    require(report.get('executed_tests') == [test_key], 'The guest GPU gate was not freshly executed')
+    gate = report.get('tests', {}).get(test_key, {})
+    require(gate.get('schema') == 1 and gate.get('scope') == ('physical-ios-linux-guest-image-gate' if image_import else 'physical-ios-linux-guest-vulkan-gate'), 'Wrong gate scope')
     require(gate.get('source_commit') == commit and gate.get('payload') == payload and gate.get('engine_bundle') == bundle,
             'Guest/engine provenance differs from the verified IPA')
     require(gate.get('engine_text_sections_verified') is True and
@@ -34,9 +35,9 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             gate.get('hardware_virtualization') is False and gate.get('steamos') is False, 'Wrong execution scope')
     require(gate.get('guest_gpu_device_requested') is True and gate.get('guest_gpu_host_visible_mib') == 128 and
             gate.get('requested_jit_cache_mib') == 32 and gate.get('split_wx_requested') is True, 'Wrong GPU/JIT configuration')
-    if build in ('4000012', '4000013', '4000014', '4000015', '4000016'):
+    if build in ('4000012', '4000013', '4000014', '4000015', '4000016', '4000017'):
         require(gate.get('display_backend_registered') is True, 'No observed built-in display backend registration')
-    if build in ('4000014', '4000015', '4000016'):
+    if build in ('4000014', '4000015', '4000016', '4000017'):
         require(gate.get('host_private_file_directory_prepared') is True,
                 'No observed preparation of the app-private renderer namespace')
     device = gate.get('device', {})
@@ -91,19 +92,26 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     for key in ('fresh_guest_vulkan_nonce_bound', 'graphics_kernel_device_detected', 'guest_vulkan_pixels_verified', 'graphics_tested'):
         require(gate.get(key) is True, 'Parsed GPU acceptance disagrees: ' + key)
     native_metal = False
-    if build in ('4000015', '4000016'):
+    if build in ('4000015', '4000016', '4000017'):
         require(gate.get('host_metal_completion_observer_requested') is True, 'Native guest observer was not requested')
         validate_metal_trace(gate.get('native_metal_trace'), nonce, device.get('metal_device'))
         require(gate.get('metal_host_verified') is True, 'Native completion and parsed result disagree')
         native_metal = True
     else:
         require(gate.get('metal_host_verified') is False, 'Guest pixels claim native completion without an observer')
-    for key in ('host_memory_import_verified', 'presentation_verified', 'gameplay_verified'):
+    image_verified = False
+    if image_import:
+        from verify_guest_image_import import validate as validate_image
+        validate_image(gate, text, nonce, device.get('metal_device'))
+        require(gate.get('host_memory_import_verified') is True, 'Image acceptance disagrees')
+        require(report.get('acceptance', {}).get('linux_guest_image_import') is True, 'Exported image acceptance disagrees')
+        image_verified = True
+    for key in (('presentation_verified', 'gameplay_verified') if image_import else ('host_memory_import_verified', 'presentation_verified', 'gameplay_verified')):
         require(gate.get(key) is False, 'Guest pixels claim independent host/game proof: ' + key)
     acceptance = report.get('acceptance', {})
     require(acceptance.get('linux_kernel_boot') is True and acceptance.get('linux_guest_vulkan_pixels') is True,
             'Exported acceptance disagrees')
-    if build in ('4000015', '4000016'):
+    if build in ('4000015', '4000016', '4000017'):
         require(acceptance.get('linux_guest_offscreen_metal_completion') is True, 'Exported native completion disagrees')
     for key in ('steam_arm_client', 'fex_game', 'linux_game_graphics_to_metal', 'steam_under_60_seconds',
                 'hollow_knight_60_to_80_base_fps'):
@@ -114,12 +122,13 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             'execution': 'qemu-tcg-software-system-emulation', 'pixels_checked': draw['pixels_checked'],
             'gate_elapsed_ms': gate['elapsed_ms'], 'validation_layer_observed': draw.get('validation_enabled', False),
             'hardware_virtualization_verified': False, 'metal_host_verified': native_metal,
-            'host_memory_import_verified': False, 'presentation_verified': False, 'steamos_verified': False,
+            'host_memory_import_verified': image_verified, 'presentation_verified': False, 'steamos_verified': False,
             'gameplay_verified': False, 'steam_startup_target_verified': False, 'hollow_knight_target_verified': False,
             'cryptographic_device_attestation': False}
 
 
-def unpack_private(document, commit=None, build=None):
+def unpack_private(document, commit=None, build=None, image_import=False):
+    test_key = "linux_image" if image_import else "linux_gpu"
     if document.get('scope') == 'physical-ios-host-probe':
         return document, None
     require(document.get('scope') == 'private-ios-interrupted-probe-diagnostics', 'Unknown private export scope')
@@ -132,15 +141,15 @@ def unpack_private(document, commit=None, build=None):
         except (TypeError, ValueError):
             continue
         if (isinstance(row, dict) and row.get('scope') == 'physical-ios-host-probe' and
-                row.get('executed_tests') == ['linux_gpu'] and
-                row.get('tests', {}).get('linux_gpu', {}).get('status') == 'passed' and
+                row.get('executed_tests') == [test_key] and
+                row.get('tests', {}).get(test_key, {}).get('status') == 'passed' and
                 (commit is None or row.get('source_commit') == commit) and
                 (build is None or row.get('build') == build)):
             if row not in candidates:
                 candidates.append(row)
     require(len(candidates) == 1, 'Need one complete freshly executed guest-GPU report; crash logs alone cannot pass')
     report = candidates[0]
-    nonce = report.get('tests', {}).get('linux_gpu', {}).get('run')
+    nonce = report.get('tests', {}).get(test_key, {}).get('run')
     serial = [e['text'] for e in document.get('files', []) if e.get('name') == 'serial.log' and
               e.get('relative_directory') == 'LinuxGate-' + str(nonce) and e.get('tail_truncated') is False]
     require(len(serial) == 1, 'Need complete serial logs for this exact guest nonce')
@@ -154,6 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('commit')
     parser.add_argument('--ios-version', default='27.0.1')
     parser.add_argument('--machine', default='iPhone16,2')
+    parser.add_argument('--image-import', action='store_true')
     args = parser.parse_args()
     require(__debug__, 'Do not run with python -O; package/ABI checks use assertions')
     package = verify_ipa(args.ipa, args.commit, True, None, True, True)
@@ -161,8 +171,8 @@ if __name__ == '__main__':
         prefix = 'Payload/MyPCSteamOSProbe.app/LinuxGuestGPU/'
         payload = json.loads(archive.read(prefix + 'payload-receipt.json'))
         bundle = json.loads(archive.read(prefix + 'engine-bundle.json'))
-    report, serial = unpack_private(json.loads(args.report.read_text(encoding='utf-8-sig')), args.commit, package['build'])
-    result = validate(report, args.commit, package['build'], payload, bundle, args.ios_version, args.machine, serial)
+    report, serial = unpack_private(json.loads(args.report.read_text(encoding='utf-8-sig')), args.commit, package['build'], args.image_import)
+    result = validate(report, args.commit, package['build'], payload, bundle, args.ios_version, args.machine, serial, args.image_import)
     result['report_sha256'] = hashlib.file_digest(args.report.open('rb'), 'sha256').hexdigest()
     result['verified_ipa_sha256'] = package['sha256']
     print(json.dumps(result, indent=2))

@@ -34,6 +34,7 @@ NSDictionary *MPCValidateGuestImageImport(NSString *serial, NSString *nonce, NSD
     uint64_t sequence = 0, generation = 0, resource = 0;
     NSUInteger installs = 0;
     NSMutableSet *flushed = [NSMutableSet set];
+    NSMutableDictionary *eventResources = [NSMutableDictionary dictionary];
     if (![events isKindOfClass:NSArray.class]) events = @[];
     for (NSDictionary *event in events) {
         if (!passed) break;
@@ -44,6 +45,7 @@ NSDictionary *MPCValidateGuestImageImport(NSString *serial, NSString *nonce, NSD
         if (kind == 1) {
             passed = !active && g > generation && r != 0;
             generation = g; resource = r; active = YES; installs++;
+            eventResources[@(g)] = @(r);
         } else if (kind == 2) {
             passed = active && g == generation && r == resource;
             [flushed addObject:@(g)];
@@ -78,7 +80,7 @@ NSDictionary *MPCValidateGuestImageImport(NSString *serial, NSString *nonce, NSD
             [image[@"native_registry_id"] isEqual:native[@"registry_id"]] &&
             [image[@"width"] isEqual:@1280] && [image[@"height"] isEqual:@720] &&
             [image[@"pixels_checked"] isEqual:@921600] && [image[@"mismatches"] isEqual:@0] &&
-            [flushed containsObject:generation] &&
+            [flushed containsObject:generation] && [eventResources[generation] isEqual:resource] &&
             [image[@"channel_sum"] isEqual:(i ? @603566080 : @615690240)] &&
             [image[@"consumer_status"] isEqual:@4] && [image[@"consumer_error"] isEqual:@NO];
         [resources addObject:resource]; [generations addObject:generation];

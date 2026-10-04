@@ -1,5 +1,8 @@
 name: Fresh iPhone Linux guest Vulkan gate prerelease
 on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', 'steamos-ios/tools/bundle_guest_gpu.py', 'steamos-ios/tools/verify_ipa.py', 'steamos-ios/tests/Guest*Tests.mm', 'steamos-ios/tests/RecoveryJournalTests.swift', 'steamos-ios/tests/GuestMetalTraceLedgerTests.cpp', 'steamos-ios/tests/test_guest*.py', 'steamos-ios/tools/verify_guest*.py', '.github/workflows/steamos-ios-guest-gpu-prerelease.yml']
   workflow_dispatch:
 permissions:
   contents: write
@@ -20,8 +23,8 @@ jobs:
           python3 - <<'PY'
           import json, subprocess
           pins = {
-              'gpu-engine': (37176578369, 'f3587da0d0bb97508fa3170386547b746d2b6324'),
-              'gpu-guest': (37095653651, '004853222a3b6fccc76277f9d669fdc2e42d56f1'),
+              'gpu-engine': (37215070827, '6b6e268bffdce59d2d15b319abdee46eaa4b8cee'),
+              'gpu-guest': (37215885406, '4a6bd99fb931eb42c9ab2b6bd19dc015d5d9616e'),
               'cpu-guest': (37014232445, '33c54e5be2d022bc19bcf3e1a448163016dc84af'),
               'molten': (37178467526, '3f83d181b40439f868fba52abe54f02e9b857c36'),
           }
@@ -32,14 +35,14 @@ jobs:
           PY
       - uses: actions/download-artifact@v4
         with:
-          name: Fresh-iOS-GPU-Engine
-          run-id: 37176578369
+          name: Fresh-iOS-Native-Scanout-Engine
+          run-id: 37215070827
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-engine-artifact
       - uses: actions/download-artifact@v4
         with:
-          name: Fresh-ARM-Linux-Graphics-Payload
-          run-id: 37095653651
+          name: Fresh-ARM-Linux-Image-Payload
+          run-id: 37215885406
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-guest-artifact
       - uses: actions/download-artifact@v4
@@ -72,6 +75,8 @@ jobs:
           /tmp/mpc-guest-gpu-receipt-tests
           clang++ -std=c++17 -Isteamos-ios/Host steamos-ios/tests/GuestMetalTraceLedgerTests.cpp -o /tmp/mpc-metal-ledger-tests
           /tmp/mpc-metal-ledger-tests
+          clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host steamos-ios/Host/GuestImageReceipt.mm steamos-ios/tests/GuestImageReceiptTests.mm -o /tmp/mpc-image-receipt-tests
+          /tmp/mpc-image-receipt-tests
       - name: Compile fresh physical iOS Release ARM64 host
         run: |
           python3 steamos-ios/tests/validate_sources.py
@@ -107,7 +112,7 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000016 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000017 --receipt steamos-ios/out/package/verification.json
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/cpu-guest-artifact/Linux-Gate-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -121,19 +126,19 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000016: preserve complete structured recovery receipts and match native timing acceptance.
+          Build 4000017: real Linux image export and native Metal import diagnostic.
           
-          Recovery sharing previously limited every file to a 128 KiB tail, which cut ordinary structured reports as the engine metadata and native completion ledger grew. Known JSON receipts now have a bounded 512 KiB allowance; logs retain bounded 128 KiB tails. Every entry records its captured bytes and limit. Larger files remain explicitly truncated and cannot establish a passing result. No existing logs, user data or projects are removed. Real native Swift fixtures test a complete receipt larger than the old limit, oversized JSON, log bounds, interrupted/reopened tests, retained/cancelled sharing and path/symlink exclusion.
+          The new Linux image gate first runs the preserved kernel/ABI and offscreen shader controls. It then queries external-memory support, renders phases 0 and 41 into separate GPU images, copies on the GPU into dedicated linear export images, releases external queue ownership, waits actual producer fences and exports DMA-BUFs through virtio-GPU/KMS. No host-generated pattern can establish a Linux result. Unsupported format/export/mode/layout/import/cleanup operations produce explicit stages. The disposable payload contains no SteamOS rootfs, Valve client or game.
           
-          The desktop consistency verifier now matches the unchanged native ledger for completed buffers with equal positive timestamps: those observations are retained but do not count as timed GPU work. At least two successful buffers with strictly positive duration are still required. Negative fixtures reject attempts to replace timed work with zero-duration completions. Native observer status/error/device/nonce checks remain intact.
+          The separate pinned QEMU engine has a versioned borrowed-texture callback for native scanout install/flush/disable. Native flush bypasses the old GL framebuffer CPU readback path. The fresh ARM64 iOS adapter retains each texture during consumption, checks the real Metal device/format/backing buffer/exact pitch and offset/alignment/bounds, submits a bounded diagnostic GPU blit, waits actual completion and checks every pixel independently. It correlates both guest resource identities, phases and native ownership events and requires scanout/image cleanup. Only two diagnostic readbacks are allowed; there is no steady-state presenter yet. Receipt rejection tests cannot pass phone import.
           
-          This release runs 63 Python evidence tests, 28 native guest receipt checks, 27 production completion-ledger checks, recovery/reopen/capture tests and physical ARM64 iOS Xcode Release compilation. These are source, compilation and fixture results; this package does not inherit a phone pass from a different build.
+          Install with iLoader. Close and relaunch, tap Enable JIT in StikDebug, confirm universal.js, return and run ARM64 JIT check. Then tap Run Linux image import gate FIRST. Keep the app foreground for up to three minutes. Share device report afterward. If it stops or closes, reopen and use Share saved diagnostic logs. Each Linux boot needs a fresh process. The recovery export preserves bounded complete JSON receipts and marks oversized truncation. Nothing is automatically uploaded.
           
-          Install with iLoader, close/relaunch, enable JIT through the StikDebug button and confirm universal.js, return, then run Linux guest Vulkan gate first. Keep it foreground for up to three minutes. Share device report afterward; if interrupted, reopen and use Share logs. The normal report includes the separate native_metal_trace receipt and host output. Nothing is uploaded automatically. Each QEMU diagnostic requires a fresh process.
+          ARM Linux compilation, real missing-3D/missing-device boot controls and actual software-renderer rejection passed. The native engine and actual image adapter compiled for physical ARM64 iOS; source fixtures reject stale resources, missing producer/consumer fences, incorrect pixels/layout/device/ownership, duplicate receipts and unfinished cleanup. Full app Release compilation, engine closure/exports/executable identities, source/payload hashes and ZIP CRC are checked. The uploaded IPA is redownloaded and verified before publication. These are build and fixture results, not an inherited phone pass.
           
-          The accepted QEMU/GL/Venus engine and corrected Linux Mesa payload from build 4000014 are retained. The new MoltenVK observer has its own exact source, archive and binary pins. Ten native framework identities/imports, real observer export/host markers, private renderer allocator, payload hashes and ZIP CRC are checked. The uploaded IPA is redownloaded and checked before publication. Complete original source, patches, MIT observer headers, native fixtures, recipes and applicable notices accompany the package. Earlier releases remain verifiable and preserved. No Valve client, games, signing credentials, previous projects or private phone reports are included.
+          Complete upstream engine originals, narrow patches, generated headers, build configurations, original parent runtime/source, fresh host/guest/fixtures/recipes and applicable notices accompany this release. QEMU/Linux/BusyBox GPL and other per-file/combined distribution obligations remain in force; the fresh host MIT license does not replace them. Earlier releases and owner data remain preserved. No proprietary Valve client/game, old app source, signing keys or private phone reports are included.
           
-          Native command-buffer timing is not game FPS. GPU memory import/zero-copy, moving presentation, SteamOS/Game Mode/desktop/Steam/FEX/Proton, controllers/audio/downloads/plugins and sustained game targets remain unfinished. QEMU TCG is software system emulation; FEX translates game code; Proton supplies Windows API compatibility. StikDebug JIT does not enable hardware virtualization. The owner-selected DroidDeck feature blueprint remains the component plan without adopting its Android kernel or GPU mechanisms.
+          This is an image-import diagnostic. Visible moving presentation, production zero-copy transport, frame pacing, SteamOS Game Mode/desktop/Steam/CEF, FEX/Proton, controllers/audio/downloads/overlays/plugins and sustained game targets remain unfinished. GPU timestamps are not game FPS. QEMU TCG performs software system emulation; StikDebug JIT does not enable hardware virtualization. The requested actual Linux architecture and owner-selected DroidDeck functional blueprint remain in effect.
           EOF
           gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "My-pc Linux guest Vulkan gate ${GITHUB_RUN_NUMBER}" --notes-file steamos-ios/out/package/release-notes.md \
             steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/package/verification.json \
@@ -141,7 +146,7 @@ jobs:
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000016
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000017
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()

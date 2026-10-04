@@ -21,6 +21,10 @@ static MPCImageImportContext *imageContext;
 
 static NSDictionary *consume(MPCImageImportContext *context, const MPCNativeScanoutEvent *event) {
     @autoreleasepool {
+        MPCDiagnosticStage(@"linux-native-import-entering-consumer", @{
+            @"resource_id": @(event->resource_id), @"generation": @(event->generation),
+            @"width": @(event->width), @"height": @(event->height),
+            @"row_pitch": @(event->stride), @"offset": @(event->offset)});
         // ARC retains the borrowed handle before any consumer GPU work starts.
         id<MTLTexture> texture = (__bridge id<MTLTexture>)event->texture;
         if (!texture) return @{@"error": @"missing-native-texture"};
@@ -105,6 +109,8 @@ static void scanout(void *opaque, const MPCNativeScanoutEvent *event) {
                 context.generation = event->generation;
                 context.resource = event->resource_id;
                 context.active = YES;
+                MPCDiagnosticStage(@"linux-native-image-installed", @{
+                    @"resource_id": @(event->resource_id), @"generation": @(event->generation)});
                 return;
             }
             if (event->kind != MPC_SCANOUT_FLUSH || !context.active || event->generation != context.generation ||
@@ -115,6 +121,7 @@ static void scanout(void *opaque, const MPCNativeScanoutEvent *event) {
             context.reading = YES;
         }
         NSDictionary *row = consume(context, event);
+        if (row[@"error"]) MPCDiagnosticStage(@"linux-native-import-consumer-rejected", row);
         @synchronized(context) {
             [context.images addObject:row];
             if (row[@"error"]) context.errors++;

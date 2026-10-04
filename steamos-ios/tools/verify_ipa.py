@@ -93,8 +93,8 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             vk = prefix + 'NativeVulkan/'
             inputs = json.loads(z.read(vk + 'payload-receipt.json'))
             assert inputs['scope'] == 'bundled-native-ios-vulkan-diagnostic'
-            observer = info['CFBundleVersion'] in ['4000015', '4000016']
-            if info['CFBundleVersion'] == '4000016':
+            observer = info['CFBundleVersion'] in ['4000015', '4000016', '4000017']
+            if info['CFBundleVersion'] in ['4000016', '4000017']:
                 assert b'capture_limit_bytes' in binary, 'Structured recovery export limit was not compiled'
             assert inputs['engine_run'] == (TRACE_RUN if observer else 37056046870)
             molten = z.read(prefix + 'Frameworks/MoltenVK.framework/MoltenVK')
@@ -139,15 +139,15 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             assert bundled['guest_run'] == guest_run and bundled['guest_source'] == guest_source
             assert bundled['hardware_virtualization'] is False and bundled['root_gles_version_requested'] == 3
             original = bundled['engine_receipt']
-            if info['CFBundleVersion'] in ['4000015', '4000016']:
+            if info['CFBundleVersion'] in ['4000015', '4000016', '4000017']:
                 assert bundled['guest_metal_trace_engine_receipt'] == inputs['guest_metal_trace_engine_receipt']
-            if info['CFBundleVersion'] in ['4000012', '4000013', '4000014', '4000015', '4000016']:
+            if info['CFBundleVersion'] in ['4000012', '4000013', '4000014', '4000015', '4000016', '4000017']:
                 assert b'mpc_qemu_register_egl_headless' in binary
                 assert b'_mpc_qemu_register_egl_headless' in z.read(engine)
                 assert bundled['display_backend_compiled'] is True and bundled['display_registration_preflight_required'] is True
                 for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
                     assert original['display_backend_build_audit'][field] is True
-            if info['CFBundleVersion'] in ['4000013', '4000014', '4000015', '4000016']:
+            if info['CFBundleVersion'] in ['4000013', '4000014', '4000015', '4000016', '4000017']:
                 assert b'MPC_GPU_CONTEXT_CREATE' in z.read(engine)
                 assert b'output-flush-failed' in binary and b'tail_truncated' in binary
                 assert b'guest_errors' in binary
@@ -158,7 +158,7 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                 diagnostics = original['graphics_dependency']['failure_diagnostics']
                 assert diagnostics['failure_errno_and_stage_compiled'] is True
                 assert diagnostics['allocator_policy_changed'] is False and diagnostics['success_override'] is False
-            if info['CFBundleVersion'] in ['4000014', '4000015', '4000016']:
+            if info['CFBundleVersion'] in ['4000014', '4000015', '4000016', '4000017']:
                 assert b'linux-private-file-directory-prepared' in binary and b'MPC_GPU_SHM_DIR' in binary
                 renderer = z.read(prefix + 'Frameworks/virglrenderer.1.framework/virglrenderer.1')
                 for marker in [b'MPC_GPU_PRIVATE_FILE_OPENED', b'MPC_GPU_PRIVATE_FILE_FAIL', b'MPC_GPU_SHM_DIR']:
@@ -178,9 +178,18 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                 if not relative.startswith('MoltenVK.'):
                     hashed(data, original['files']['sysroot-iOS-arm64/Frameworks/' + relative])
             payload = json.loads(z.read(gpu + 'payload-receipt.json'))
-            assert payload['scope'] == 'linux-arm64-graphics-payload-missing-3d-boot-controls'
+            assert payload['scope'] == ('linux-arm64-graphics-payload-image-export-boot-controls' if info['CFBundleVersion'] == '4000017' else 'linux-arm64-graphics-payload-missing-3d-boot-controls')
+            if info['CFBundleVersion'] == '4000017':
+                assert original['native_scanout_adapter_export'] is True
+                assert original['native_scanout_adapter']['abi'] == 1
+                assert original['native_scanout_adapter']['phone_tested'] is False
+                assert b'_mpc_qemu_configure_native_scanout' in z.read(engine)
+                for marker in [b'mpc_qemu_configure_native_scanout', b'linux-native-image-adapter-configured', b'linux-native-import-before-consumer', b'MPC_IMAGE_PRODUCER ', b'MPC_IMAGE_EXIT ', b'mpc_image=1']:
+                    assert marker in binary, 'Required image adapter was not compiled'
+                assert payload['image_gate_compiled'] is True and payload['software_image_rejected'] is True
+                assert payload['image_export_verified'] is False and payload['host_memory_import_verified'] is False
             assert payload['source_commit'] == guest_source and int(payload['workflow_run']) == guest_run
-            if info['CFBundleVersion'] in ['4000013', '4000014', '4000015', '4000016']:
+            if info['CFBundleVersion'] in ['4000013', '4000014', '4000015', '4000016', '4000017']:
                 assert payload['cases'][0]['kernel_gpu']['resource_bind_flags'] == 2
             assert payload['runtime_dependency_closure_verified'] and payload['linux_runtime_boot_verified']
             for name in ['Image', 'initramfs.cpio.gz']:
