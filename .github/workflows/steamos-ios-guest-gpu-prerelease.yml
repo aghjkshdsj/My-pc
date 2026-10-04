@@ -23,7 +23,7 @@ jobs:
           python3 - <<'PY'
           import json, subprocess
           pins = {
-              'gpu-engine': (37215070827, '6b6e268bffdce59d2d15b319abdee46eaa4b8cee'),
+              'gpu-engine': (37244178261, 'e31b9fcc6609b8ab50f8d6f72acd7cf9f1124300'),
               'gpu-guest': (37233435975, '8759ffe84d360ca61e0d7de7b2f3347682916cde'),
               'cpu-guest': (37014232445, '33c54e5be2d022bc19bcf3e1a448163016dc84af'),
               'molten': (37178467526, '3f83d181b40439f868fba52abe54f02e9b857c36'),
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Fresh-iOS-Native-Scanout-Engine
-          run-id: 37215070827
+          run-id: 37244178261
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-engine-artifact
       - uses: actions/download-artifact@v4
@@ -75,6 +75,10 @@ jobs:
           /tmp/mpc-guest-gpu-receipt-tests
           clang++ -std=c++17 -Isteamos-ios/Host steamos-ios/tests/GuestMetalTraceLedgerTests.cpp -o /tmp/mpc-metal-ledger-tests
           /tmp/mpc-metal-ledger-tests
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror -pthread -Isteamos-ios/Host steamos-ios/tests/QEMUInitThreadLeaseTests.cpp -o /tmp/mpc-rcu-lease-tests
+          /tmp/mpc-rcu-lease-tests
+          clang++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -Isteamos-ios/Host steamos-ios/tests/QEMUInitThreadLeaseTests.cpp -o /tmp/mpc-rcu-lease-sanitized
+          /tmp/mpc-rcu-lease-sanitized
           clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host steamos-ios/Host/GuestImageReceipt.mm steamos-ios/tests/GuestImageReceiptTests.mm -o /tmp/mpc-image-receipt-tests
           /tmp/mpc-image-receipt-tests
           clang -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/tests/ImagePixelContractTests.c -o /tmp/mpc-image-pixel-tests
@@ -124,8 +128,8 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000024 --receipt steamos-ios/out/package/verification.json
-          python3 steamos-ios/tools/verify_host_symbols.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/xcode/Build/Products/Release-iphoneos/MyPCSteamOSProbe.app.dSYM/Contents/Resources/DWARF/MyPCSteamOSProbe "$GITHUB_SHA" 4000024 --receipt steamos-ios/out/package/host-symbols.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000025 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_host_symbols.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/xcode/Build/Products/Release-iphoneos/MyPCSteamOSProbe.app.dSYM/Contents/Resources/DWARF/MyPCSteamOSProbe "$GITHUB_SHA" 4000025 --receipt steamos-ios/out/package/host-symbols.json
           tar -czf steamos-ios/out/package/Host-Debug-Symbols.tar.gz -C steamos-ios/out/xcode/Build/Products/Release-iphoneos MyPCSteamOSProbe.app.dSYM
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -140,13 +144,13 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000024 improves local crash diagnostics after the eight-frame checkpoint. The host publishes engine completion after worker autorelease-pool retirement and joins the worker before finalization. Additional durable checkpoints bracket serial/ABI/Vulkan/Metal/import/screen receipt stages. This is hardening and diagnostic instrumentation, not a proven fix for an unknown phone fault.
+          Build 4000025 corrects the QEMU initialization-thread lifetime in the fresh host. The pinned shared-library qemu_init registers the calling thread with RCU. The previous adapter allowed its std::thread to exit without unregistering that TLS reader. The new native engine exports the original upstream rcu_unregister_thread API. The host calls it on the same initialized thread after cleanup, lock release and autorelease-pool drain, before publishing retirement and joining the worker. This corrects an identified source bug; elimination of phone crashes is not yet verified.
 
-          Apple MetricKit crash payloads, when the OS delivers them, are stored locally and included in Share logs. They retain original OS metadata and are not automatically associated with the current probe/build/nonce. Delivery is not guaranteed, and older events cannot be retrospectively reconstructed. Only bounded crash payloads are stored/exported, and no report is automatically uploaded. Matching ARM64 host dSYM UUIDs are verified against this exact IPA and published for fault-stack symbolication; upstream framework dSYMs are not supplied by this host symbol bundle.
+          Native thread/TLS regression tests exercise explicit and destructor retirement, exception unwind, missing/double/wrong-thread calls, and an omitted-retirement negative control. Optimized and address/undefined-behavior-sanitized executions are required. They test the host lease contract, not execution of QEMU on iOS. The actual physical ARM64 iOS engine is independently audited for its defined retirement export and compiled RCU source. The package rejects private/string-only/undefined exports; device report validation requires an observed successful same-thread retirement and joined worker. Display timestamps still require actual positive callback values.
 
-          Graphics, guest payload and all native engine dependencies remain pinned to build4000023. The unchanged eight-frame diagnostic still uses distinct immutable 720p resources and intentional 125ms dwell. It is not continuous buffer reuse, a compositor or game FPS. Install with iLoader and enable JIT with StikDebug when running a Linux test; share logs after an unexpected closure. Previous projects, user data, credentials and private reports are excluded.
+          The guest eight-frame payload, Mesa/Venus, renderer, native image ABI and MoltenVK observer remain pinned. QEMU and its dependency closure are rebuilt with the unchanged source recipe plus this narrow export. Automatic local MetricKit crash capture and matching host dSYM retention continue. No private phone logs, previous applications, credentials, Valve client or game content are included.
 
-          QEMU TCG is software system emulation. Native Metal does not imply hardware virtualization. Full SteamOS desktop/Game Mode/ARM Steam/CEF, mutable frame transport/WSI, FEX/Proton, input/audio/downloads/overlays/plugins and all startup/game/sustained-performance targets remain unfinished. Complete corresponding source and original upstream licenses accompany the unchanged engine/guest packages.
+          This is a crash-fix candidate, not a new desktop/game milestone. Install with iLoader, enable JIT using StikDebug, and run one eight-frame screen test in a fresh app process. Leave the completed result open for 30 seconds so a delayed cleanup failure can be captured; then share report and saved logs. QEMU TCG remains software system emulation. Continuous moving-output transport, full SteamOS desktop/Game Mode/ARM Steam, FEX/Proton, input/audio/downloads/overlays/plugins and all game/startup/sustained-performance targets remain unfinished. Original licenses and complete corresponding source accompany the native packages.
           EOF
           gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "My-pc Linux guest Vulkan gate ${GITHUB_RUN_NUMBER}" --notes-file steamos-ios/out/package/release-notes.md \
             steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/package/verification.json \
@@ -154,7 +158,7 @@ jobs:
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000024
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000025
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()

@@ -10,6 +10,19 @@ def check(r):
     g=r['tests']['linux_frames']
     return validate(r,'test-commit','4000023',g['payload'],g['engine_bundle'],'27.0.1',frame_sequence=True)
 class FrameSequenceTests(unittest.TestCase):
+    def test_build25_requires_same_thread_rcu_retirement(self):
+        r=fixture();r['build']='4000025';g=r['tests']['linux_frames'];g['engine_worker_joined']=True
+        def check25():
+            return validate(r,'test-commit','4000025',g['payload'],g['engine_bundle'],'27.0.1',frame_sequence=True)
+        for bad in (None,False,1,'true'):
+            g['engine_init_thread_rcu_unregistered']=bad
+            with self.subTest(value=bad),self.assertRaises(ValueError):check25()
+        g['engine_init_thread_rcu_unregistered']=True
+        self.assertTrue(check25()['eight_frame_gpu_sequence_verified'])
+        self.assertFalse(check25()['presentation_verified'])
+        g['engine_worker_joined']=False
+        with self.assertRaises(ValueError):check25()
+
     def test_build24_requires_retired_joined_engine_worker(self):
         r=fixture();r['build']='4000024';g=r['tests']['linux_frames']
         def check24():

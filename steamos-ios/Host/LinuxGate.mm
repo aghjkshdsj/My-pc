@@ -3,6 +3,7 @@
 #import "GuestImageImport.h"
 #import "GuestFrameImport.h"
 #import "GuestScreenPresentation.h"
+#include "QEMUInitThreadLease.h"
 #include <CommonCrypto/CommonDigest.h>
 #include <dlfcn.h>
 #include <atomic>
@@ -18,6 +19,7 @@
 // a persistent disk or network, and neither is a complete SteamOS environment.
 static std::atomic<bool> attempted(false), finished(false);
 static std::atomic<int> engineStatus(-999);
+static std::atomic<bool> engineRCUUnregistered(false);
 
 static NSString *sha256(NSData *data) {
     CC_SHA256_CTX context;
@@ -122,7 +124,8 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         auto cleanup = reinterpret_cast<Cleanup>(dlsym(library, "qemu_cleanup"));
         auto unlockBQL = reinterpret_cast<Unlock>(dlsym(library, "bql_unlock"));
         auto unlockReplay = reinterpret_cast<Unlock>(dlsym(library, "replay_mutex_unlock"));
-        if (!initialize || !loop || !cleanup || !unlockBQL || !unlockReplay)
+        auto unregisterRCU = reinterpret_cast<Unlock>(dlsym(library, "rcu_unregister_thread"));
+        if (!initialize || !loop || !cleanup || !unlockBQL || !unlockReplay || !unregisterRCU)
             return failure(@"engine-exports", @"Required pinned QEMU entry points unavailable");
         MPCDiagnosticStage(@"linux-engine-loaded", @{});
         if (graphics) {
@@ -218,14 +221,16 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         double start = NSProcessInfo.processInfo.systemUptime;
         // The pinned qemu_init acquires BQL/replay locks. Keep them held for the
         // main loop/cleanup, matching upstream system/main.c, without its exit().
-        std::thread engineWorker([values = std::move(values), initialize, loop, cleanup, unlockBQL, unlockReplay]() mutable {
+        std::thread engineWorker([values = std::move(values), initialize, loop, cleanup, unlockBQL, unlockReplay, unregisterRCU]() mutable {
             int status = -999;
+            MPCQEMUInitThreadLease registration(unregisterRCU);
             @autoreleasepool {
                 std::vector<char *> argv;
                 for (auto &value : values) argv.push_back(value.data());
                 argv.push_back(nullptr);
                 MPCDiagnosticStage(@"linux-before-qemu-init", @{});
                 initialize(static_cast<int>(argv.size() - 1), argv.data());
+                if (!registration.initializedOnThisThread()) std::terminate();
                 MPCDiagnosticStage(@"linux-qemu-init-returned", @{});
                 // QEMU's initial TCG regions have been prepared. Release the
                 // debugger before the workload; new regions would need reattach.
@@ -242,6 +247,10 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
             // retired. Publish completion only after that drain, then join the
             // worker before parsing receipts. Timeout retains the live worker.
             @autoreleasepool {
+                MPCDiagnosticStage(@"linux-before-init-thread-rcu-unregister", @{});
+                const bool retired = registration.retire();
+                engineRCUUnregistered.store(retired && registration.retired());
+                MPCDiagnosticStage(@"linux-init-thread-rcu-unregistered", @{@"same_thread_retired": @(retired)});
                 MPCDiagnosticStage(@"linux-engine-worker-retired", @{@"engine_status": @(status)});
             }
             engineStatus.store(status);
@@ -255,6 +264,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         run[@"elapsed_ms"] = @((NSProcessInfo.processInfo.systemUptime - start) * 1000);
         run[@"engine_finished"] = @(workerRetired);
         run[@"engine_worker_joined"] = @(workerRetired);
+        run[@"engine_init_thread_rcu_unregistered"] = @(workerRetired && engineRCUUnregistered.load());
         run[@"engine_status"] = @(engineStatus.load());
         MPCDiagnosticStage(@"linux-before-serial-receipt-read", @{@"worker_retired": @(workerRetired)});
         error = nil;
@@ -269,7 +279,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
             id guest = [NSJSONSerialization JSONObjectWithData:json options:0 error:nil];
             if ([guest isKindOfClass:NSDictionary.class]) [guestRows addObject:guest];
         }
-        BOOL passed = workerRetired && engineStatus.load() == 0 && guestRows.count == 1;
+        BOOL passed = workerRetired && engineRCUUnregistered.load() && engineStatus.load() == 0 && guestRows.count == 1;
         NSDictionary *guest = guestRows.firstObject ?: @{};
         passed = passed && [guest[@"schema"] isEqual:@1] && [guest[@"run"] isEqual:nonce] &&
             [guest[@"machine"] isEqual:@"aarch64"] && [guest[@"elf_arch"] isEqual:@"aarch64"] &&

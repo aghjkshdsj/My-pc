@@ -1,5 +1,14 @@
 # Verified state and next work â€” 2026-10-04
 
+Build4000025 is being prepared to correct an identified QEMU thread-registration
+lifetime bug. Shared-library qemu_init registers its calling thread with RCU;
+the old host let that worker exit without unregistering. The new engine exports
+the original unregister API and the host retires it on that same thread before
+publishing completion. The source controls pass 115 Python tests; actual native
+build/regression executions and package verification are pending. This is a
+targeted crash-fix candidate, not verified crash elimination or a desktop/FPS
+milestone. See [thread retirement](docs/RCU-THREAD-RETIREMENT.md).
+
 **[Build4000024 / crash diagnostics](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-19)**
 passed actual physical ARM64 iOS Release run37242218149 at source
 bcfed4ecf78b86ebf415e1c02fdff44b56329363. Ten public files were independently
