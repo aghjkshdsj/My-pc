@@ -6,7 +6,7 @@ import sys
 
 root = pathlib.Path(__file__).resolve().parents[1]
 paths = [root / '.gitignore', root / 'README.md', root / 'LICENSE', root / 'STATUS.md']
-for folder in ['Host', 'Guest', 'tools', 'tests', 'docs', 'MyPCSteamOS.xcodeproj']:
+for folder in ['Host', 'Guest', 'Engine', 'tools', 'tests', 'docs', 'MyPCSteamOS.xcodeproj']:
     paths += sorted(p for p in (root / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
 paths += [root / 'evidence' / name for name in ['archive-summary.json', 'archive-files.csv']]
 paths += [root / 'evidence/primary' / name for name in ['receipts.json', 'steam-arm-stable.vdf', 'steam-arm-beta.vdf', 'steam-package-plan.json', 'valve-rootfs-metadata.json', 'hosted-vulkan-diagnostic.json', 'hosted-moltenvk-build.json']]
