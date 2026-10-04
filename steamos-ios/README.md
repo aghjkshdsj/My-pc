@@ -12,7 +12,25 @@ Steam/desktop/controller/component flows and the complete feature mapping. All
 requires new iOS adapters and is not a direct port. The requested actual
 SteamOS ARM environment remains the architecture.
 
-Current test: **[Linux guest Vulkan gate 3 / build 4000013](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-3/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+Current test: **[Linux guest Vulkan gate 4 / build 4000014](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-4/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+24,302,427 bytes, SHA-256
+`5f01aec63be5923d87b3eabf8e0a91c0e0e44853cb60a92e22b53281bfb20dd6`.
+Source `696f3b62d0064b8c33d6e34e14760cbc7558ceb6`.
+[Sources, checksums and validation](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-4).
+The host now explicitly selects a checked app-private file directory for native
+renderer communication. The renderer creates exclusive private files, unlinks
+their names immediately and retains upstream mapping/error behavior. Actual
+native Darwin allocator tests, 54 evidence tests, 28 native receipt checks,
+recovery tests and physical ARM64 iOS Release compilation passed. Independent
+public download verified the IPA and the newly changed source archives, including
+the actual helper, patch, tests and original renderer source. **The new backing
+still needs a phone test; guest shaders, Metal import/completion, presentation,
+SteamOS and game targets remain unverified.** Install with iLoader, relaunch,
+enable JIT through StikDebug and run Linux guest Vulkan gate first. Share the
+device report; if interrupted, reopen and share recovery logs. See
+[build 4000014 details](docs/GPU-GATE-4000014.md).
+
+Preserved earlier package: **[Linux guest Vulkan gate 3 / build 4000013](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-3)**.
 24,300,637 bytes, SHA-256
 `b183d0ccf406d15bb9390bfa421178098f8686f0e00649c7d10a989ac397ecfe`.
 Source `8ae27c43baa43f5c193ede199725eacd2581b753`.
@@ -22,10 +40,7 @@ bind. The renderer/QEMU report actual failure stage, errno and context/blob
 results, and the normal device report includes a bounded host log tail.
 Actual native recovery tests, 53 evidence tests, 28 production receipt checks,
 Release physical-iOS ARM64 compilation and independent public IPA verification
-passed. **Phone guest shaders, Metal import/completion, presentation, SteamOS
-and game targets remain unverified.** Install with iLoader, relaunch, enable JIT
-through StikDebug, run Linux guest Vulkan gate first, and share the device
-report; if it closes, reopen and share recovery logs. See
+passed. These package checks establish no guest shader or game result. See
 [build 4000013 details](docs/GPU-GATE-4000013.md).
 
 Preserved earlier package: [build 4000012 / guest Vulkan gate 2](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-2),
@@ -118,16 +133,14 @@ and [upstream provenance](docs/PROVENANCE.md).
 
 ## Device step
 
-The latest build 4000012 device report has already returned Linux/ABI/DRM success
-and a failed guest Vulkan initialization. Use **Share saved diagnostic logs**
-now to export that same attempt's host engine output; a rerun is unnecessary.
-The normal **Share device report** file contains the guest serial failure but
-does not include this host output. The next fix depends on that distinction.
+Earlier device reports and saved diagnostics have been received and analyzed
+locally. Use build 4000014 for the next attempt; older packages and reports are
+preserved. The current normal report includes a bounded host engine log tail.
 
 For a new attempt after a fix, use the verified build linked above.
 Install it with iLoader. Close/relaunch, use **Enable JIT in StikDebug**,
-confirm the universal.js request and return. Run **ARM64 JIT check**, then
-**Run Linux guest Vulkan gate** once, before the older Linux kernel button.
+confirm the universal.js request and return. Run **Run Linux guest Vulkan gate**
+once, before the older Linux kernel button.
 Keep the app foreground for up to three minutes and use **Share device report**
 to return its JSON; **Share saved diagnostic logs** also retains the complete
 serial and engine stages. If it closes, reopen and use the recovery Share logs
@@ -171,7 +184,7 @@ xcodebuild -project steamos-ios/MyPCSteamOS.xcodeproj -scheme MyPCSteamOSProbe \
 CI builds and verifies exact ARM64 iOS host-probe, Linux-gate and guest-GPU IPAs,
 each with accurate scope, checksums and applicable corresponding source.
 The Linux-gate-10 baseline includes a separate native offscreen Vulkan diagnostic
-and a CPU-only disposable kernel. Guest-GPU build 4000012 separately includes
+and a CPU-only disposable kernel. Guest-GPU build 4000014 separately includes
 the GPU-capable kernel, Mesa Venus runtime and native renderer transport;
 its phone Vulkan shader acceptance remains unfinished.
 Device signing is supplied by iLoader. JIT must be verified after re-signing.

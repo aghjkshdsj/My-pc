@@ -7,6 +7,14 @@ figures are reference measurements on a different platform, not achieved iPhone
 results. GPU clock pinning and Android sysfs controls are not carried into iOS.
 Base game renders remain separate from optional frame generation.
 
+Build 4000014's renderer communication adapter uses immediately unlinked
+app-private regular files. Native Darwin correctness tests passed at 256 bytes,
+16 KiB, one 720p buffer size and 16 MiB; this is not a speed or memory-budget
+measurement. On the phone, measure allocation latency, dirty/physical footprint,
+storage activity, memory pressure and sustained throughput against the actual
+working path. File-backed shared mappings must not be described as zero-copy
+GPU image import or as a proven performance improvement.
+
 The table below contains **budgets and hypotheses**, not achieved targets. Target device:
 owner-confirmed iPhone 15 Pro Max / iOS 27.0.1, with iLoader and StikDebug.
 

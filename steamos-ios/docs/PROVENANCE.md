@@ -164,6 +164,23 @@ Corresponding sources accompany the independently verified prerelease.
 Allocation policy, original license obligations and shader acceptance remain
 unchanged. Previous build receipts and releases are preserved.
 
+Build 4000014 deliberately changes the renderer's Darwin communication-file
+backing when the fresh host provides an explicit app-private directory. The
+new independent MIT helper and native tests accompany the complete original
+virgl/epoxy/ANGLE source, scoped generated patch and recipes; upstream and
+per-file licenses remain applicable to the combined libraries. Actual renderer
+run 37176336596 and integrated engine run 37176578369 passed native Darwin
+allocator tests and physical ARM64 iOS compilation. Their receipts distinguish
+the new allocation policy from the retained failure-only diagnostic patch.
+Neither native tests nor compilation establish iOS sandbox execution or Metal
+memory import. The corrected Linux/Mesa payload and MoltenVK input are retained;
+no previous application implementation or Android runtime is imported.
+The public build 4000014 IPA and newly changed fresh/engine source archives were
+independently downloaded and hashed. Nested helper, patch, tests and original
+renderer/epoxy archives match the shipped engine receipt; fresh host source
+matches the public package. Full corresponding source and applicable notices
+accompany the prerelease. No Valve client or game content is distributed.
+
 The owner-selected DroidDeck archive is pinned and inventoried separately.
 [DroidDeck blueprint and license mapping](DROIDDECK-BLUEPRINT.md) distinguishes
 GPL-3.0 application code, per-file third-party terms and external source inputs.

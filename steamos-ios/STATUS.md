@@ -16,7 +16,24 @@ are counted with their names and digests withheld. Android's Linux-kernel/PRoot
 and Adreno/AHardwareBuffer mechanisms are reference designs, not an adopted
 Darwin compatibility layer or replacement Linux distribution.
 
-**[Build 4000013 / guest Vulkan gate 3](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-3)**
+**[Build 4000014 / guest Vulkan gate 4](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-4)**
+passed run 37177283208 at source `696f3b62d0064b8c33d6e34e14760cbc7558ceb6`.
+The public IPA was independently downloaded and verified: 24,302,427 bytes,
+SHA-256 `5f01aec63be5923d87b3eabf8e0a91c0e0e44853cb60a92e22b53281bfb20dd6`.
+Actual Release ARM64 iOS compilation, 54 Python evidence tests, 28 native receipt
+checks and production recovery/capture tests passed. The new app-private renderer
+communication backing passed actual native Darwin tests and integrated engine
+compilation. Ten native framework identities/imports, real adapter markers,
+unchanged corrected guest payloads and ZIP CRC passed independent checks. The
+public fresh/engine source archives match the package and contain the helper,
+patch, native tests and original renderer source. This deliberately changes
+communication allocation policy; existing mapping errors and all shader/product
+acceptance checks remain. A fresh phone result is pending. Guest shaders, Metal
+import/completion, moving presentation, full SteamOS and performance targets are
+unfinished. See [build details](docs/GPU-GATE-4000014.md) and the build-only receipt
+`evidence/primary/ios-guest-vulkan-prerelease-4000014.json`.
+
+Preserved **[build 4000013 / guest Vulkan gate 3](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-3)**
 passed run 37175158168 at source `8ae27c43baa43f5c193ede199725eacd2581b753`.
 Actual Release ARM64 iOS compilation, 53 evidence tests, 28 native receipt
 checks and recovery/capture/bounded-tail tests passed. Independent public
@@ -27,8 +44,8 @@ markers and ZIP CRC. This build fixes the preliminary DRM render-target bind,
 checks the renderer context result, logs real Venus allocation/blob failures
 and attaches the host log tail to the normal device report. No allocator
 fallback or success override was added. See [source/build details](docs/GPU-GATE-4000013.md).
-A fresh physical-phone guest-Vulkan result is required. SteamOS, guest shader
-acceleration, moving presentation and game performance remain unfinished.
+This earlier package remains independently verifiable. It does not establish
+guest rendering, full SteamOS, moving presentation or game performance.
 
 ## Physical phone evidence
 
@@ -72,8 +89,9 @@ this report is a failed graphics test, not evidence of another app crash.
 Kernel/ABI/DRM plus the failed Vulkan attempt took 1156.26 ms, not Steam startup
 or game FPS. The normal report alone cannot distinguish the allocation/renderer/resource-
 metadata failure branches. Build 4000013 adds precise native diagnostics and
-includes the host engine output in the normal report. The new phone test is
-pending; previous raw reports and matching recovery analysis remain local.
+includes the host engine output in the normal report. Subsequent raw reports
+and matching recovery analysis remain local. The current new test is build
+4000014's app-private renderer communication adapter, described above.
 Sanitized receipt: `evidence/primary/ios-guest-vulkan-4000012-partial.json`.
 Raw reports and analysis remain private. Linux guest shaders, independent
 host Metal completion/import, presentation, SteamOS and game targets remain open.

@@ -81,6 +81,15 @@ SteamOS startup or gameplay. GPU/Steam/game gates remain open. See `STATUS.md`.
 
 ## Overlay features, services and hardware coverage
 
+Current build 4000014 adds an app-private renderer communication-file adapter
+and preserves the corrected Linux Mesa/Venus payload. Actual native Darwin file
+tests, integrated physical ARM64 iOS compilation, recovery/report tests and
+independent public IPA/source verification passed. This closes a source/build
+task within the graphics row, not the row's phone acceptance. Private allocation,
+guest shaders, independent Metal completion/import, moving output and the full
+Steam/game sessions require new device evidence. All component acceptance rows
+below remain open. See [build details](GPU-GATE-4000014.md).
+
 | Requirement | Linux side | iOS side / explicit limitation | Test |
 |---|---|---|---|
 | Game Mode | systemd user session, gamescope, Xwayland, one actual ARM Steam Gamepad UI | Host displays guest output and delivers input | Steam Home/QAM above game, scaling/focus, controller navigation |

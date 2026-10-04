@@ -13,7 +13,8 @@ paths += [root / 'evidence/primary' / name for name in ['receipts.json', 'steam-
 paths += [root.parent / '.github/workflows' / name for name in ['steamos-ios-probe.yml', 'steamos-linux-kernel-gate.yml', 'steamos-ios-engine.yml', 'steamos-linux-source-gate.yml', 'steamos-graphics-diagnostic.yml', 'steamos-ios-linux-prerelease.yml', 'steamos-rootfs-inspect.yml', 'steamos-evidence.yml', 'steamos-ios-moltenvk.yml', 'steamos-venus-transport.yml']]
 paths += [root.parent / '.github/workflows/steamos-moltenvk-artifact-audit.yml']
 paths += [root / 'evidence/primary/hosted-venus-shm-diagnostic.json']
-paths += [root / 'evidence/primary/ios-native-vulkan-prerelease.json']
+# This older mixed package/owner-result receipt stays outside future exports.
+# Device analysis is kept local; new receipts below are package-only.
 paths += [root / 'evidence/primary/hosted-ios-venus-build.json']
 paths += [root.parent / '.github/workflows/steamos-ios-venus.yml']
 paths += [root.parent / '.github/workflows/steamos-gpu-kernel-gate.yml']
@@ -32,7 +33,7 @@ paths += [root / 'evidence/primary/hosted-guest-gpu-payload.json']
 paths += [root.parent / '.github/workflows/steamos-guest-gpu-artifact-audit.yml']
 paths += [root.parent / '.github/workflows/steamos-ios-guest-gpu-prerelease.yml']
 paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease.json']
-paths += [root / 'evidence/primary/ios-guest-vulkan-backend-failure.json']
+# Keep the owner-derived backend failure analysis outside future exports.
 paths += [root / 'evidence/primary/hosted-ios-gpu-engine-build-4000011.json']
 paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease-4000012.json']
 # Keep the updated owner-derived partial phone report local. Public uploads
@@ -44,6 +45,7 @@ paths += [root / 'evidence/primary/hosted-ios-gpu-engine-build-4000012.json']
 paths += [root / 'evidence/primary/hosted-ios-gpu-engine-build-4000013.json']
 paths += [root / 'evidence/primary/hosted-guest-gpu-payload-4000012.json']
 paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease-4000013.json']
+paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease-4000014.json']
 paths += [root / 'evidence/droiddeck-summary.json', root / 'evidence/droiddeck-files.csv']
 paths = sorted(set(paths))
 rows = [{'path': p.relative_to(root.parent).as_posix(), 'mode': '100644', 'type': 'blob',

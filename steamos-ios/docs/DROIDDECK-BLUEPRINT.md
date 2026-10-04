@@ -131,10 +131,11 @@ texture presentation. Android GPU clock pinning and scheduler/sysfs controls
 are not iOS performance features. Measure sustained thermals and adapt resolution
 or frame cap using real data instead of a promised fixed clock.
 
-1. Build 4000013's real Release/native capture tests and independent IPA
-   verification have passed; obtain a fresh phone guest-Vulkan result. Its corrected DRM
-   request and added allocator/context logs address the current bring-up gap;
-   they do not establish successful rendering.
+1. [Build 4000014](GPU-GATE-4000014.md) passed native Darwin allocator tests,
+   integrated ARM64 iOS Release builds, recovery/report checks and independent
+   public IPA/source verification. Its app-private communication-file adapter
+   needs a fresh phone result. The corrected DRM request and allocator/context
+   logs remain; no guest shader or game success is inferred.
 2. Repair the observed guest transport failure, prove guest shader pixels and
    independently match host Metal completion. Exercise Linux GL as well as Vulkan.
 3. Implement and measure the moving Metal presenter, resource lifetime, pacing,

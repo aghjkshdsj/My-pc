@@ -1,11 +1,13 @@
 # Build 4000012: Linux works; guest Vulkan shared-resource creation fails
 
-The current next test is [build 4000013](GPU-GATE-4000013.md). Its independently
-verified package corrects the preliminary DRM texture bind and adds real native
-failure-stage/errno/context diagnostics plus host output in the normal report.
-The matching saved recovery export has been received and remains local; repeating
-the old Share saved logs request below is no longer needed. The new build's
-phone guest graphics result remains unverified.
+This is the preserved analysis of the build 4000012 failure. Subsequent raw
+reports and detailed matching analysis remain local. The current test is
+[build 4000014](GPU-GATE-4000014.md), an independently verified prerelease that
+uses app-private renderer communication files and retains build 4000013's
+corrected DRM bind and native failure diagnostics. The new file adapter passed
+native Darwin tests and physical iOS compilation; phone guest graphics remains
+unverified. Earlier saved logs have already been received; no repeated export
+of the old attempt is needed.
 
 The owner's fresh `linux_gpu` report matches app source
 `aa2f8ccfb15eb53a96f70775be8e83ca0c5703b2`, the independently verified build
@@ -68,7 +70,7 @@ does not establish that the phone ran out of physical RAM, that MoltenVK failed
 to render, or that the iOS platform fundamentally blocks the requested path.
 No such blocker is declared, and no substitute architecture is adopted.
 
-## Next required evidence
+## Historical follow-up and current required evidence
 
 The matched recovery export provides the host output from the existing attempt.
 Its Vulkan resource error sequence does not distinguish the exact allocation
@@ -78,11 +80,12 @@ target bind 2. CPU-mapped guest pixels cannot independently prove the host
 accepted that resource. This source correction is separate from the unresolved
 Venus blob failure.
 
-Build 4000013 has passed actual native compilation, capture and package checks.
-Run its guest Vulkan gate in a fresh JIT-enabled process and share the normal
-device report, which now includes the host engine tail; reopen and use recovery
-sharing if interrupted. Its stage/errno/context messages are the next required
-physical evidence. Do not infer successful import or relax pixel acceptance.
+Build 4000013 passed actual native compilation, capture and package checks.
+The next fresh JIT-enabled phone attempt uses build 4000014. Its normal report
+includes host private-file/context/blob diagnostics and the Linux serial;
+reopen-and-share recovery remains available if interrupted. Directory preparation
+or a file-open marker cannot establish guest pixels or GPU memory import.
+Do not relax shader, non-software-device, completion or pixel acceptance.
 
 Independent Metal completion/import, guest Vulkan shaders, moving presentation,
 SteamOS/Steam/FEX and game performance remain unfinished.
