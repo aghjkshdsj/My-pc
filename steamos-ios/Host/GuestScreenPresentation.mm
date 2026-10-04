@@ -11,15 +11,42 @@
 @property(nonatomic, strong) id<MTLCommandQueue> queue;
 @property(nonatomic, strong) id<MTLRenderPipelineState> pipeline;
 @property(nonatomic, strong) NSMutableArray *frames;
+@property(nonatomic, strong) NSMutableArray *lifecycle;
 @property(nonatomic, copy) NSString *nonce;
 @property(nonatomic, strong) dispatch_queue_t renderQueue;
 @property(nonatomic) uint64_t registry, geometry;
 @property(nonatomic) NSUInteger errors, pending;
-@property(nonatomic) BOOL visible, begun, interrupted;
+@property(nonatomic) BOOL visible, begun, interrupted, finished;
 @end
 @implementation MPCScreenContext
 @end
 static MPCScreenContext *screen;
+
+// Caller holds the context lock. GPU completion must precede retirement even
+// when the main-thread presentation has been cancelled. Signal exactly once.
+static void retire(MPCScreenContext *context, NSMutableDictionary *row, dispatch_semaphore_t done) {
+    if (![row[@"completion_join_retired"] boolValue] && [row[@"gpu_completed"] boolValue] &&
+        ([row[@"drawable_presented"] boolValue] || [row[@"presentation_aborted"] boolValue])) {
+        row[@"completion_join_retired"] = @YES;
+        context.pending--;
+        dispatch_semaphore_signal(done);
+    }
+}
+static void lifecycle(NSString *reason, BOOL interrupts) {
+    NSCAssert(NSThread.isMainThread, @"Observe screen lifecycle on the main thread");
+    NSDictionary *event;
+    @synchronized(screen) {
+        if (!screen.begun || screen.finished) return;
+        if (interrupts) screen.interrupted = YES;
+        event = @{@"reason": reason, @"host_seconds": @(CACurrentMediaTime()),
+            @"application_state": @(UIApplication.sharedApplication.applicationState),
+            @"geometry": @(screen.geometry), @"surface_visible": @(screen.visible),
+            @"interrupts_acceptance": @(interrupts)};
+        if (screen.lifecycle.count < 32) [screen.lifecycle addObject:event];
+        else { screen.errors++; screen.interrupted = YES; }
+    }
+    MPCDiagnosticStage(@"linux-screen-lifecycle", event);
+}
 
 @interface MPCGuestScreenView : UIView
 @end
@@ -29,22 +56,24 @@ static MPCScreenContext *screen;
     [super layoutSubviews];
     CGFloat scale = self.window.screen.scale ?: UIScreen.mainScreen.scale;
     CGSize size = CGSizeMake(floor(self.bounds.size.width * scale), floor(self.bounds.size.height * scale));
+    BOOL changed = NO;
     @synchronized(screen) {
         if (!CGSizeEqualToSize(size, screen.layer.drawableSize)) {
             screen.geometry++;
-            if (screen.begun) screen.interrupted = YES;
+            changed = YES;
             screen.layer.contentsScale = scale;
             screen.layer.drawableSize = size;
         }
         screen.visible = self.window != nil && !self.hidden && size.width > 0 && size.height > 0;
     }
+    if (changed) lifecycle(@"drawable-size-changed", YES);
 }
 - (void)didMoveToWindow {
     [super didMoveToWindow];
     @synchronized(screen) {
         screen.visible = self.window != nil;
-        if (screen.begun && !self.window) screen.interrupted = YES;
     }
+    if (!self.window) lifecycle(@"surface-left-window", YES);
     [self setNeedsLayout];
 }
 @end
@@ -58,6 +87,7 @@ UIView *MPCGuestScreenCreateView(void) {
     view.backgroundColor = UIColor.blackColor;
     screen = [MPCScreenContext new];
     screen.frames = [NSMutableArray array];
+    screen.lifecycle = [NSMutableArray array];
     screen.layer = (CAMetalLayer *)view.layer;
     screen.layer.device = MTLCreateSystemDefaultDevice();
     screen.layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
@@ -65,6 +95,10 @@ UIView *MPCGuestScreenCreateView(void) {
     screen.layer.maximumDrawableCount = 2;
     screen.layer.allowsNextDrawableTimeout = YES;
     screen.layer.opaque = YES;
+    // This surface has SwiftUI/UIKit controls over it. Use Apple's documented
+    // Core Animation transaction route and present on the main thread only
+    // after the command buffer's scheduling callback. No GPU wait on main.
+    screen.layer.presentsWithTransaction = YES;
     screen.registry = screen.layer.device.registryID;
     screen.queue = [screen.layer.device newCommandQueue];
     screen.renderQueue = dispatch_queue_create("com.mypc.linux-screen", DISPATCH_QUEUE_SERIAL);
@@ -85,16 +119,24 @@ UIView *MPCGuestScreenCreateView(void) {
     descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
     if (library) screen.pipeline = [screen.layer.device newRenderPipelineStateWithDescriptor:descriptor error:&error];
     if (!screen.pipeline || !screen.queue || !screen.registry) screen.errors++;
-    [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationWillResignActiveNotification object:nil
-        queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *notification) {
-        @synchronized(screen) { if (screen.begun) screen.interrupted = YES; }
-    }];
+    for (NSString *name in @[UIApplicationWillResignActiveNotification, UIApplicationDidEnterBackgroundNotification,
+                            UIApplicationDidBecomeActiveNotification, UIApplicationUserDidTakeScreenshotNotification]) {
+        [NSNotificationCenter.defaultCenter addObserverForName:name object:nil
+            queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *notification) {
+                BOOL interrupts = [notification.name isEqual:UIApplicationWillResignActiveNotification] ||
+                                  [notification.name isEqual:UIApplicationDidEnterBackgroundNotification];
+                lifecycle(notification.name, interrupts);
+            }];
+    }
     return view;
 }
 
 BOOL MPCGuestScreenBegin(NSString *nonce, NSError **error) {
+    __block BOOL active = NO;
+    void (^readState)(void) = ^{ active = UIApplication.sharedApplication.applicationState == UIApplicationStateActive; };
+    if (NSThread.isMainThread) readState(); else dispatch_sync(dispatch_get_main_queue(), readState);
     @synchronized(screen) {
-        if (!screen || screen.begun || !screen.visible || screen.errors || !screen.pipeline ||
+        if (!screen || screen.begun || !active || !screen.visible || screen.errors || !screen.pipeline ||
             screen.layer.drawableSize.width <= 0 || screen.layer.drawableSize.height <= 0) {
             if (error) *error = [NSError errorWithDomain:@"GuestScreen" code:1 userInfo:@{
                 NSLocalizedDescriptionKey: @"The visible Metal surface is not ready, or the session was already started."}];
@@ -103,7 +145,9 @@ BOOL MPCGuestScreenBegin(NSString *nonce, NSError **error) {
         screen.nonce = nonce;
         screen.begun = YES;
         MPCDiagnosticStage(@"linux-screen-surface-ready", @{@"registry_id": @(screen.registry),
-            @"drawable_width": @(screen.layer.drawableSize.width), @"drawable_height": @(screen.layer.drawableSize.height)});
+            @"drawable_width": @(screen.layer.drawableSize.width), @"drawable_height": @(screen.layer.drawableSize.height),
+            @"presentation_route": @"scheduled-main-thread-core-animation-transaction",
+            @"presents_with_transaction": @(screen.layer.presentsWithTransaction)});
         return YES;
     }
 }
@@ -122,6 +166,9 @@ NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictio
             ![image[@"mismatches"] isEqual:@0] || ![image[@"pixels_checked"] isEqual:@921600] ||
             phase != (context.frames.count ? 41u : 0u)) {
             context.errors++;
+            MPCDiagnosticStage(@"linux-screen-source-rejected", @{@"resource_id": @(resource),
+                @"generation": @(generation), @"phase": @(phase), @"interrupted": @(context.interrupted),
+                @"surface_visible": @(context.visible), @"pending": @(context.pending)});
             return @{@"error": @"screen-source-or-surface-rejected"};
         }
         context.pending++;
@@ -181,7 +228,8 @@ NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictio
                 row[@"drawable_height"] = @(drawable.texture.height);
                 row[@"drawable_pixel_format"] = @(drawable.texture.pixelFormat);
                 row[@"geometry"] = @(geometry);
-                row[@"submit_seconds"] = @(NSProcessInfo.processInfo.systemUptime);
+                row[@"submit_seconds"] = @(CACurrentMediaTime());
+                row[@"presents_with_transaction"] = @(context.layer.presentsWithTransaction);
                 row[@"viewport"] = @[@(viewport.originX), @(viewport.originY), @(viewport.width), @(viewport.height)];
             }
             [drawable addPresentedHandler:^(id<MTLDrawable> shown) {
@@ -190,10 +238,19 @@ NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictio
                     if ([row[@"drawable_presented"] boolValue]) { context.errors++; return; }
                     row[@"drawable_presented"] = @YES;
                     row[@"presented_seconds"] = @(shown.presentedTime);
-                    if ([row[@"gpu_completed"] boolValue]) { context.pending--; dispatch_semaphore_signal(done); }
+                    row[@"presented_callback_seconds"] = @(CACurrentMediaTime());
+                    retire(context, row, done);
                 }
                 MPCDiagnosticStage(@"linux-screen-drawable-presented", @{@"resource_id": @(resource),
                     @"generation": @(generation), @"phase": @(phase), @"presented_seconds": @(shown.presentedTime)});
+                // Preserve the callback's actual timestamp, including zero.
+                // A second API query is diagnostic only, never a CPU-time fallback.
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC), context.renderQueue, ^{
+                    @synchronized(context) {
+                        row[@"presented_seconds_later_query"] = @(shown.presentedTime);
+                        row[@"later_query_host_seconds"] = @(CACurrentMediaTime());
+                    }
+                });
             }];
             [command addCompletedHandler:^(id<MTLCommandBuffer> completed) {
                 (void)texture; (void)drawable;
@@ -204,12 +261,46 @@ NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictio
                     row[@"consumer_error"] = @(completed.error != nil);
                     row[@"gpu_start_seconds"] = @(completed.GPUStartTime);
                     row[@"gpu_end_seconds"] = @(completed.GPUEndTime);
+                    row[@"gpu_completed_callback_seconds"] = @(CACurrentMediaTime());
                     if (completed.status != MTLCommandBufferStatusCompleted || completed.error) context.errors++;
-                    if ([row[@"drawable_presented"] boolValue]) { context.pending--; dispatch_semaphore_signal(done); }
+                    retire(context, row, done);
                 }
             }];
+            [command addScheduledHandler:^(id<MTLCommandBuffer> scheduled) {
+                @synchronized(context) {
+                    row[@"scheduled_callback_seconds"] = @(CACurrentMediaTime());
+                    row[@"scheduled_status"] = @(scheduled.status);
+                }
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    NSDictionary *stage = nil;
+                    @synchronized(context) {
+                        NSInteger state = UIApplication.sharedApplication.applicationState;
+                        row[@"presentation_application_state"] = @(state);
+                        row[@"presentation_on_main_thread"] = @(NSThread.isMainThread);
+                        if (context.finished || context.interrupted || !context.visible || context.geometry != geometry ||
+                            state != UIApplicationStateActive || row[@"error"] ||
+                            scheduled.status == MTLCommandBufferStatusError || !context.layer.presentsWithTransaction) {
+                            row[@"presentation_aborted"] = @YES;
+                            row[@"error"] = @"scheduled-screen-presentation-rejected";
+                            context.errors++;
+                            retire(context, row, done);
+                            stage = @{@"resource_id": @(resource), @"phase": @(phase),
+                                @"application_state": @(state), @"interrupted": @(context.interrupted)};
+                        } else {
+                            row[@"presentation_enqueued_seconds"] = @(CACurrentMediaTime());
+                        }
+                    }
+                    if (stage) { MPCDiagnosticStage(@"linux-screen-scheduled-present-rejected", stage); return; }
+                    [CATransaction begin];
+                    [CATransaction setDisableActions:YES];
+                    [drawable present];
+                    [CATransaction commit];
+                    @synchronized(context) { row[@"presentation_call_completed"] = @YES; }
+                    MPCDiagnosticStage(@"linux-screen-transaction-present-enqueued", @{@"resource_id": @(resource),
+                        @"phase": @(phase), @"presentation_on_main_thread": @(NSThread.isMainThread)});
+                });
+            }];
             MPCDiagnosticStage(@"linux-screen-before-submit", @{@"resource_id": @(resource), @"phase": @(phase)});
-            [command presentDrawable:drawable];
             [command commit];
         }
     });
@@ -226,10 +317,13 @@ NSDictionary *MPCGuestScreenFinish(NSDictionary *imageImport, BOOL engineFinishe
     @synchronized(screen) {
         NSMutableArray *copies = [NSMutableArray array];
         for (NSDictionary *row in screen.frames) [copies addObject:[row copy]];
-        native = @{@"schema": @1, @"scope": @"native-metal-two-linux-image-screen", @"run": screen.nonce ?: @"",
+        if (engineFinished) screen.finished = YES;
+        native = @{@"schema": @2, @"scope": @"native-metal-two-linux-image-screen", @"run": screen.nonce ?: @"",
             @"registry_id": @(screen.registry), @"frames": copies, @"errors": @(screen.errors),
             @"pending": @(screen.pending), @"interrupted": @(screen.interrupted), @"surface_visible": @(screen.visible),
             @"surface_geometry": @(screen.geometry), @"maximum_inflight": @1, @"drawable_limit": @2,
+            @"presentation_route": @"scheduled-main-thread-core-animation-transaction",
+            @"lifecycle_events": [screen.lifecycle copy],
             @"diagnostic_source_readbacks": @2, @"drawable_cpu_readbacks": @0,
             @"continuous_animation_verified": @NO, @"frame_pacing_verified": @NO,
             @"zero_copy_transport_verified": @NO, @"gameplay_verified": @NO};

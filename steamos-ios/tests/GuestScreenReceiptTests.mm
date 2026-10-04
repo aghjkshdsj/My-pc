@@ -35,6 +35,21 @@ static void expect(NSDictionary *n, NSDictionary *image, BOOL engine, BOOL wante
         if ([r[k] boolValue]) abort();
     checks++;
 }
+static NSMutableDictionary *transaction(void) {
+    NSMutableDictionary *n = native();
+    n[@"schema"] = @2; n[@"presentation_route"] = @"scheduled-main-thread-core-animation-transaction";
+    n[@"lifecycle_events"] = @[];
+    NSMutableArray *frames = [NSMutableArray array];
+    for (unsigned i = 0; i < 2; ++i) {
+        NSMutableDictionary *f = frame(i); double t = [f[@"submit_seconds"] doubleValue];
+        [f addEntriesFromDictionary:@{@"presents_with_transaction": @YES, @"presentation_on_main_thread": @YES,
+            @"presentation_application_state": @0, @"presentation_call_completed": @YES, @"completion_join_retired": @YES,
+            @"scheduled_status": @3, @"scheduled_callback_seconds": @(t+.0005),
+            @"presentation_enqueued_seconds": @(t+.001), @"presented_callback_seconds": @(t+.017)}];
+        [frames addObject:f];
+    }
+    n[@"frames"] = frames; return n;
+}
 int main(void) { @autoreleasepool {
     expect(native(), imported(), YES, YES);
     expect(native(), imported(), NO, NO);
@@ -74,5 +89,22 @@ int main(void) { @autoreleasepool {
     f = frame(1); f[@"gpu_end_seconds"] = @4; n[@"frames"] = @[frame(0), f]; expect(n, imported(), YES, NO);
     // A drawable ID may be reused; resource/phase identity and display order decide acceptance.
     f = frame(1); f[@"drawable_id"] = @0; n[@"frames"] = @[frame(0), f]; expect(n, imported(), YES, YES);
+    n = transaction(); expect(n, imported(), YES, YES);
+    NSMutableDictionary *tf = n[@"frames"][1]; tf[@"scheduled_status"] = @4; expect(n, imported(), YES, YES);
+    NSDictionary *badTransaction = @{@"presents_with_transaction": @NO, @"presentation_on_main_thread": @NO,
+        @"presentation_application_state": @1, @"presentation_call_completed": @NO, @"completion_join_retired": @NO,
+        @"scheduled_status": @5, @"scheduled_callback_seconds": @0, @"presentation_enqueued_seconds": @99,
+        @"presented_callback_seconds": @0};
+    for (NSString *k in badTransaction) {
+        n = transaction(); tf = n[@"frames"][1]; tf[k] = badTransaction[k]; expect(n, imported(), YES, NO);
+        [tf removeObjectForKey:k]; expect(n, imported(), YES, NO);
+    }
+    n = transaction(); tf = n[@"frames"][1]; tf[@"presentation_aborted"] = @YES; expect(n, imported(), YES, NO);
+    n = transaction(); tf = n[@"frames"][1]; tf[@"presented_seconds"] = @0;
+    tf[@"presented_seconds_later_query"] = @3.02; expect(n, imported(), YES, NO);
+    n = transaction(); n[@"presentation_route"] = @"command-buffer-present"; expect(n, imported(), YES, NO);
+    n = transaction(); [n removeObjectForKey:@"lifecycle_events"]; expect(n, imported(), YES, NO);
+    n = transaction(); n[@"lifecycle_events"] = @[@{@"reason": @"background", @"host_seconds": @2,
+        @"interrupts_acceptance": @YES}]; expect(n, imported(), YES, NO);
     printf("GUEST_SCREEN_RECEIPT_FIXTURES_OK checks=%u scope=synthetic-no-device-acceptance\n", checks);
 } }

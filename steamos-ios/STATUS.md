@@ -1,5 +1,17 @@
 # Verified state and next work â€” 2026-10-04
 
+Build4000022 source now uses GPU scheduling followed by main-thread Core Animation
+drawable presentation for the same pinned two-image Linux gate. It adds bounded
+lifecycle reasons, actual scheduling/enqueue/display callback observations and a
+separate later timestamp query that cannot replace a zero callback timestamp.
+Original display acceptance and prior guest/import controls remain strict.
+The result UI distinguishes preserved import/GPU work from incomplete screen
+timing. Source/build/package validation and actual phone acceptance are separate;
+the new physical iOS build and independent package check are pending. See
+[transaction presenter](docs/GPU-GATE-4000022.md).
+
+The verified build4000021 package checkpoint below is preserved historical state.
+
 **[Build4000021 / Linux screen gate](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-12)** passed actual physical ARM64 iOS
 Release build run37228324700 at source 391c73c46b09c793c5fad546989e7b833de2b431. The published 24,387,473-byte IPA
 was independently downloaded and verified, SHA-256 bf9e9d53fe66e6bfcd374e882cb5c2ff32324aaf2cc8f969e6a564c6be42465f.

@@ -20,7 +20,9 @@ def validate(gate, nonce):
     require(imported.get('host_memory_import_verified') is True and imported.get('run') == nonce,
             'No matched Linux import before screen presentation')
     registry = imported.get('native', {}).get('registry_id')
-    fixed = dict(schema=1, scope='native-metal-two-linux-image-screen', run=nonce, registry_id=registry,
+    schema = native.get('schema')
+    require(type(schema) is int and schema in (1, 2), 'Wrong screen schema')
+    fixed = dict(schema=schema, scope='native-metal-two-linux-image-screen', run=nonce, registry_id=registry,
                  errors=0, pending=0, interrupted=False, surface_visible=True, maximum_inflight=1,
                  drawable_limit=2, diagnostic_source_readbacks=2, drawable_cpu_readbacks=0)
     require(type(registry) is int and registry > 0 and
@@ -29,6 +31,16 @@ def validate(gate, nonce):
     for row in (receipt, native):
         for key in ('continuous_animation_verified', 'frame_pacing_verified', 'zero_copy_transport_verified', 'gameplay_verified'):
             require(row.get(key) is False, 'Unsupported screen claim: ' + key)
+    if schema == 2:
+        events = native.get('lifecycle_events')
+        require(native.get('presentation_route') == 'scheduled-main-thread-core-animation-transaction' and
+                isinstance(events, list) and len(events) <= 32, 'Wrong transaction route/lifecycle capture')
+        previous = 0
+        for event in events:
+            require(isinstance(event, dict) and isinstance(event.get('reason'), str) and event['reason'] and
+                    event.get('interrupts_acceptance') is False and positive(event.get('host_seconds')) and
+                    event['host_seconds'] >= previous, 'Interrupted or malformed lifecycle observation')
+            previous = event['host_seconds']
     geometry = native.get('surface_geometry')
     require(type(geometry) is int and geometry > 0, 'No actual surface geometry')
     frames, images = native.get('frames'), imported.get('native', {}).get('images')
@@ -59,6 +71,17 @@ def validate(gate, nonce):
         require(all(positive(t) for t in times) and times == sorted(times) and times[-1] > previous_presented,
                 'Missing/nonfinite/out-of-order actual GPU/display timestamps')
         previous_presented = times[-1]
+        if schema == 2:
+            expected = dict(presents_with_transaction=True, presentation_on_main_thread=True,
+                            presentation_application_state=0, presentation_call_completed=True, completion_join_retired=True)
+            require(all(type(frame.get(k)) is type(v) and frame[k] == v for k, v in expected.items()) and
+                    frame.get('presentation_aborted', False) is False and type(frame.get('scheduled_status')) is int and
+                    frame['scheduled_status'] in (3, 4), 'Missing actual scheduled/main-thread transaction presentation')
+            scheduled, enqueued, callback = (frame.get(k) for k in ('scheduled_callback_seconds',
+                                            'presentation_enqueued_seconds', 'presented_callback_seconds'))
+            require(all(positive(t) for t in (scheduled, enqueued, callback)) and
+                    times[0] <= scheduled <= enqueued <= times[-1] <= callback,
+                    'Wrong scheduling/enqueue/display callback ordering')
         scale = min(w/1280, h/720)
         expected_viewport = [(w-1280*scale)/2, (h-720*scale)/2, 1280*scale, 720*scale]
         viewport = frame.get('viewport')

@@ -7,7 +7,7 @@ NSDictionary *MPCValidateGuestScreen(NSString *nonce, NSDictionary *imageImport,
                                    NSDictionary *native, BOOL engineFinished) {
     NSArray *images = imageImport[@"native"][@"images"], *frames = native[@"frames"];
     BOOL passed = engineFinished && [imageImport[@"host_memory_import_verified"] isEqual:@YES] &&
-        [imageImport[@"run"] isEqual:nonce] && [native[@"schema"] isEqual:@1] &&
+        [imageImport[@"run"] isEqual:nonce] && ([native[@"schema"] isEqual:@1] || [native[@"schema"] isEqual:@2]) &&
         [native[@"scope"] isEqual:@"native-metal-two-linux-image-screen"] && [native[@"run"] isEqual:nonce] &&
         [native[@"registry_id"] isEqual:imageImport[@"native"][@"registry_id"]] &&
         [native[@"registry_id"] unsignedLongLongValue] > 0 &&
@@ -19,6 +19,21 @@ NSDictionary *MPCValidateGuestScreen(NSString *nonce, NSDictionary *imageImport,
         [images isKindOfClass:NSArray.class] && images.count == 2;
     for (NSString *key in @[@"continuous_animation_verified", @"frame_pacing_verified", @"zero_copy_transport_verified", @"gameplay_verified"])
         passed = passed && [native[key] isEqual:@NO];
+    BOOL transaction = [native[@"schema"] isEqual:@2];
+    if (transaction) {
+        NSArray *events = native[@"lifecycle_events"];
+        passed = passed && [native[@"presentation_route"] isEqual:@"scheduled-main-thread-core-animation-transaction"] &&
+            [events isKindOfClass:NSArray.class] && events.count <= 32;
+        double previous = 0;
+        if ([events isKindOfClass:NSArray.class]) for (NSDictionary *event in events) {
+            passed = passed && [event isKindOfClass:NSDictionary.class];
+            if (!passed) break;
+            passed = [event[@"reason"] isKindOfClass:NSString.class] && [event[@"reason"] length] > 0 &&
+                [event[@"interrupts_acceptance"] isEqual:@NO] && positive(event[@"host_seconds"]) &&
+                [event[@"host_seconds"] doubleValue] >= previous;
+            previous = [event[@"host_seconds"] doubleValue];
+        }
+    }
     double previousPresented = 0;
     NSMutableSet *resources = [NSMutableSet set], *generations = [NSMutableSet set];
     for (NSUInteger i = 0; passed && i < 2; ++i) {
@@ -53,6 +68,19 @@ NSDictionary *MPCValidateGuestScreen(NSString *nonce, NSDictionary *imageImport,
         for (NSUInteger j = 0; passed && j < 4; ++j)
             passed = [v[j] isKindOfClass:NSNumber.class] && std::isfinite([v[j] doubleValue]) &&
                      fabs([v[j] doubleValue] - expected[j]) < 0.01;
+        if (transaction) {
+            passed = passed && [frame[@"presents_with_transaction"] isEqual:@YES] &&
+                [frame[@"presentation_on_main_thread"] isEqual:@YES] && [frame[@"presentation_application_state"] isEqual:@0] &&
+                [frame[@"presentation_call_completed"] isEqual:@YES] && [frame[@"completion_join_retired"] isEqual:@YES] &&
+                (![frame objectForKey:@"presentation_aborted"] || [frame[@"presentation_aborted"] isEqual:@NO]) &&
+                ([frame[@"scheduled_status"] isEqual:@3] || [frame[@"scheduled_status"] isEqual:@4]) &&
+                positive(frame[@"scheduled_callback_seconds"]) && positive(frame[@"presentation_enqueued_seconds"]) &&
+                positive(frame[@"presented_callback_seconds"]) &&
+                [frame[@"scheduled_callback_seconds"] doubleValue] >= [frame[@"submit_seconds"] doubleValue] &&
+                [frame[@"presentation_enqueued_seconds"] doubleValue] >= [frame[@"scheduled_callback_seconds"] doubleValue] &&
+                [frame[@"presented_seconds"] doubleValue] >= [frame[@"presentation_enqueued_seconds"] doubleValue] &&
+                [frame[@"presented_callback_seconds"] doubleValue] >= [frame[@"presented_seconds"] doubleValue];
+        }
         previousPresented = [frame[@"presented_seconds"] doubleValue];
         if (frame[@"resource_id"]) [resources addObject:frame[@"resource_id"]];
         if (frame[@"generation"]) [generations addObject:frame[@"generation"]];

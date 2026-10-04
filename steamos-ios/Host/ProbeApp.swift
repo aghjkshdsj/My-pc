@@ -193,9 +193,22 @@ final class ProbeModel: ObservableObject {
                 : "JIT \(jit["status"] ?? "failed"): \(jit["reason"] ?? jit["stage"] ?? "See the saved report.")"
         } else if let screen = tests["linux_screen"] as? [String: Any] {
             let receipt = screen["screen_presentation"] as? [String: Any]
-            testStatus = screen["presentation_verified"] as? Bool == true
-                ? "Both Linux images reached the screen. Continuous animation, desktop and games remain unfinished."
-                : "Linux screen test \(screen["status"] ?? "failed"): \(receipt?["reason"] ?? screen["reason"] ?? "Share the report and saved logs.")"
+            if screen["presentation_verified"] as? Bool == true {
+                testStatus = "Both Linux images passed the screen timing check. Continuous animation, desktop and games remain unfinished."
+            } else if screen["host_memory_import_verified"] as? Bool == true,
+                      let native = receipt?["native"] as? [String: Any] {
+                let frames = native["frames"] as? [[String: Any]] ?? []
+                let completed = frames.filter { $0["gpu_completed"] as? Bool == true && $0["consumer_error"] as? Bool == false }.count
+                let missingTimes = frames.filter { ($0["presented_seconds"] as? Double ?? 0) <= 0 }.count
+                let events = native["lifecycle_events"] as? [[String: Any]] ?? []
+                let interruption = events.first { $0["interrupts_acceptance"] as? Bool == true }?["reason"] as? String
+                testStatus = "Linux image import passed; \(completed)/2 screen draws completed. Display timing is incomplete"
+                    + (missingTimes > 0 ? " (\(missingTimes) missing timestamps)" : "")
+                    + (interruption.map { "; interruption: \($0)" } ?? (native["interrupted"] as? Bool == true ? "; screen interrupted" : ""))
+                    + ". Share the report and saved logs."
+            } else {
+                testStatus = "Linux screen test \(screen["status"] ?? "failed"): \(receipt?["reason"] ?? screen["reason"] ?? "Share the report and saved logs.")"
+            }
         } else if let image = tests["linux_image"] as? [String: Any] {
             let receipt = image["image_import"] as? [String: Any]
             let rejection = (receipt?["guest_rejections"] as? [[String: Any]])?.first

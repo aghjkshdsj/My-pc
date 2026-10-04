@@ -33,6 +33,43 @@ def fixture():
 
 
 class GuestScreenTests(unittest.TestCase):
+    def transaction_fixture(self):
+        gate, nonce = fixture(); native = gate['screen_presentation']['native']
+        native.update(schema=2, presentation_route='scheduled-main-thread-core-animation-transaction', lifecycle_events=[])
+        for frame in native['frames']:
+            t = frame['submit_seconds']
+            frame.update(presents_with_transaction=True, presentation_on_main_thread=True, presentation_application_state=0,
+                presentation_call_completed=True, completion_join_retired=True, scheduled_status=3,
+                scheduled_callback_seconds=t+.0005, presentation_enqueued_seconds=t+.001,
+                presented_callback_seconds=t+.017, presented_seconds_later_query=0)
+        return gate, nonce
+
+    def test_transaction_route_still_requires_actual_display_time(self):
+        gate, nonce = self.transaction_fixture()
+        self.assertTrue(validate(gate, nonce)['presentation_verified'])
+        # A scheduling callback can observe Completed rather than Scheduled.
+        gate['screen_presentation']['native']['frames'][1]['scheduled_status'] = 4
+        self.assertTrue(validate(gate, nonce)['presentation_verified'])
+        frame = gate['screen_presentation']['native']['frames'][1]
+        frame.update(presented_seconds=0, presented_seconds_later_query=3.02)
+        with self.assertRaises(ValueError): validate(gate, nonce)
+
+    def test_transaction_route_cannot_infer_foreground_scheduling_or_join(self):
+        wrong = dict(presents_with_transaction=False, presentation_on_main_thread=False, presentation_application_state=1,
+                     presentation_call_completed=False, completion_join_retired=False, presentation_aborted=True,
+                     scheduled_status=5, scheduled_callback_seconds=0, presentation_enqueued_seconds=99,
+                     presented_callback_seconds=0)
+        for key, value in wrong.items():
+            for missing in (False, True):
+                gate, nonce = self.transaction_fixture(); frame = gate['screen_presentation']['native']['frames'][1]
+                if missing and key=='presentation_aborted': continue
+                if missing: frame.pop(key)
+                else: frame[key] = value
+                with self.subTest(key=key, missing=missing), self.assertRaises(ValueError): validate(gate, nonce)
+        gate, nonce = self.transaction_fixture()
+        gate['screen_presentation']['native']['lifecycle_events'] = [dict(reason='background',host_seconds=2,interrupts_acceptance=True)]
+        with self.assertRaises(ValueError): validate(gate, nonce)
+
     def test_two_callbacks_and_import_are_required_without_fps_claim(self):
         gate, nonce = fixture(); result = validate(gate, nonce)
         self.assertTrue(result['presentation_verified'])
