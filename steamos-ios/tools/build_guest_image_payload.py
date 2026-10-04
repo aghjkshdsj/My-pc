@@ -55,7 +55,7 @@ def extend_newc(data, replacements):
         else:
             output.append(data[start:position])
     for name, (mode, content) in remaining.items():
-        assert name == 'vk-image-gate' and name not in names and stat.S_IFMT(mode) == stat.S_IFREG
+        assert name in ('vk-image-gate', 'kms-format-control') and name not in names and stat.S_IFMT(mode) == stat.S_IFREG
         output.append(record(name, mode, content, inode=inode))
         inode += 1
     output.append(record('TRAILER!!!', 0, inode=inode))

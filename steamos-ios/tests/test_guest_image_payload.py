@@ -19,6 +19,16 @@ class GuestImagePayloadTests(unittest.TestCase):
         self.assertIn(b'vk-image-gate', result)
         self.assertNotIn(b'old', result)
 
+    def test_adds_only_the_two_explicit_diagnostic_binaries(self):
+        end = record('TRAILER!!!', 0)
+        result = extend_newc(end, {'vk-image-gate': (stat.S_IFREG | 0o755, b'VK-ELF'),
+                                   'kms-format-control': (stat.S_IFREG | 0o755, b'KMS-ELF')})
+        self.assertIn(b'vk-image-gate', result)
+        self.assertIn(b'kms-format-control', result)
+        for name in ('../kms-format-control', '/kms-format-control', 'user-data'):
+            with self.assertRaises(AssertionError):
+                extend_newc(end, {name: (stat.S_IFREG | 0o755, b'ELF')})
+
     def test_rejects_truncation_duplicate_traversal_and_trailing_content(self):
         entry = record('init', stat.S_IFREG | 0o755, b'old')
         end = record('TRAILER!!!', 0)
