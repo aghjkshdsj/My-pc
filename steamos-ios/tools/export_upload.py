@@ -38,6 +38,7 @@ paths += [root / 'evidence/primary/ios-guest-vulkan-prerelease-4000012.json']
 # Keep the updated owner-derived partial phone report local. Public uploads
 # include source/build provenance, not this device evidence document.
 paths += [root / 'evidence/primary/hosted-ios-gl-venus-build-4000012.json']
+paths += [root / 'evidence/primary/hosted-ios-gl-venus-build-4000013.json']
 paths += [root / 'evidence/primary/hosted-gpu-kernel-test-4000012.json']
 paths += [root / 'evidence/primary/hosted-ios-gpu-engine-build-4000012.json']
 paths += [root / 'evidence/primary/hosted-guest-gpu-payload-4000012.json']

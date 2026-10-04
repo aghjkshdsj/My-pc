@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "scope": "source-built-native-ios-gl-venus-engine-compile-only",
-  "source_commit": "16b06b30619acf2689e4fcee49c64428481566d9",
-  "workflow_run": "37176336596",
+  "source_commit": "a45e05526a6bc2689a9e2d4abac25863a7e3098f",
+  "workflow_run": "37095310400",
   "pins": {
     "virglrenderer": "5d26f605f50f8e22002ec6db5fb775e1992d4e96",
     "libepoxy": "bf98587477fe68d07b93319ece7b40a7d0e2eabe"
@@ -136,21 +136,6 @@
     "host_memory_import_verified": false,
     "phone_tested": false
   },
-  "private_file_backing": {
-    "source_before_sha256": "4c13362b163281c2ce1219557b7666ccba8968a68ea1c76aa21a928a34ea9bb2",
-    "source_after_sha256": "cfc8af08b023d8efc22cf8db1e1d876914e53a339592ca9142370e30a0aeeb13",
-    "helper_sha256": "c7696cc938f6010b9afc89d7a6989fc9a89107d475107b662440a037dccbe6e0",
-    "allocator_policy_changed": true,
-    "explicit_app_private_directory_required": true,
-    "atomic_exclusive_create": true,
-    "mode_0600": true,
-    "unlink_before_mapping": true,
-    "close_on_exec": true,
-    "hosted_native_tests_passed": true,
-    "phone_tested": false,
-    "host_memory_import_verified": false,
-    "success_override": false
-  },
   "memory_import_verified": false,
   "metal_runtime_verified": false,
   "presentation_verified": false,
@@ -179,25 +164,13 @@
       "bytes": 3614720,
       "sha256": "36e30e2070a34b6f51b2bb194dd78c464a08d688bdabf5682906f85315487f47"
     },
-    "ios-private-shared-file.patch": {
-      "bytes": 1235,
-      "sha256": "3830e4a3d5f4cb5e2f12d8f3f3f441df2814e3c6d08b8257a008f8ba33dcf687"
-    },
-    "PrivateSharedFile.h": {
-      "bytes": 1386,
-      "sha256": "c7696cc938f6010b9afc89d7a6989fc9a89107d475107b662440a037dccbe6e0"
-    },
-    "RendererPrivateFileTests.c": {
-      "bytes": 3089,
-      "sha256": "d26af6aa67cb6d0475f53e085b043b701f10310cf038dfa76cf54edc1251bf6b"
-    },
     "Frameworks/epoxy.0.framework/epoxy.0": {
       "bytes": 1346728,
       "sha256": "1ce43b8386c32d836fa5ce877b5d048c8fb07ce577b11346c97ddcdcc7ae5164"
     },
     "Frameworks/virglrenderer.1.framework/virglrenderer.1": {
-      "bytes": 3007464,
-      "sha256": "89a092c0210aba08105a02d39d0733ca32daa865a937a0478100a97b7f0377b1"
+      "bytes": 3007328,
+      "sha256": "f7d43a16c38b0001a841b61e1ae40b378ba631ddaed25f92e2039cd66e3454e8"
     }
   }
 }

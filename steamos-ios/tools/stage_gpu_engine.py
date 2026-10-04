@@ -23,6 +23,13 @@ def stage(artifact, prefix):
     assert receipt['failure_diagnostics']['failure_errno_and_stage_compiled'] is True
     assert receipt['failure_diagnostics']['allocator_policy_changed'] is False
     assert receipt['failure_diagnostics']['success_override'] is False
+    private_file = receipt['private_file_backing']
+    for field in ['allocator_policy_changed', 'explicit_app_private_directory_required',
+                  'atomic_exclusive_create', 'mode_0600', 'unlink_before_mapping',
+                  'close_on_exec', 'hosted_native_tests_passed']:
+        assert private_file[field] is True
+    assert private_file['phone_tested'] is False and private_file['success_override'] is False
+    assert private_file['host_memory_import_verified'] is False
     unpacked = prefix.parent / 'gpu-dependency-input'
     assert not unpacked.exists()
     unpacked.mkdir()
