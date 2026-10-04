@@ -1,0 +1,60 @@
+{
+  "kind": "source-built-arm64-ios-moltenvk-engine",
+  "revision": "05604465d691118cfd20f53a48ecf1aad9c12f93",
+  "binary_bytes": 4854840,
+  "binary_sha256": "e5fbe9a5bd67daa7a22dd4ab244912500dc17a0ecf87105f8094f78daf7a9648",
+  "physical_ios_macho": true,
+  "imports": [
+    "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+    "/System/Library/Frameworks/UIKit.framework/UIKit",
+    "/System/Library/Frameworks/Foundation.framework/Foundation",
+    "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+    "/System/Library/Frameworks/Metal.framework/Metal",
+    "/usr/lib/libc++.1.dylib",
+    "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+    "/usr/lib/libSystem.B.dylib",
+    "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+    "/usr/lib/libobjc.A.dylib"
+  ],
+  "files": {
+    "MoltenVK-iOS-Framework.tar.gz": {
+      "bytes": 1430770,
+      "sha256": "beba92d1806d4b350b6fafbc568c1f27af4e66ea473c2c1c67ceb86f2324d175"
+    },
+    "MoltenVK-Corresponding-Source.tar.gz": {
+      "bytes": 11117319,
+      "sha256": "9577d3a782917c1da25e179de5f720ab947db89afe7c81fc978bba0d0c9a4f6f"
+    }
+  },
+  "source_commit": "3f83d181b40439f868fba52abe54f02e9b857c36",
+  "workflow_run": "37178467526",
+  "phone_tested": false,
+  "guest_transport_verified": false,
+  "metal_execution_verified": false,
+  "steamos_verified": false,
+  "gameplay_verified": false,
+  "scope": "source-built-native-ios-moltenvk-guest-metal-observer-compile-only",
+  "guest_metal_trace_observer": {
+    "schema": 1,
+    "scope": "moltenvk-real-command-completion-observer-source-only",
+    "abi": 1,
+    "source_before_sha256": "066b1511186466d48505cce40997f7381f683594385480cbfe892455fdc85b3b",
+    "source_after_sha256": "eed1f6fdf31a5061feb569de15d12bb01ffffc792fa35798110be8a63bb1024c",
+    "headers": {
+      "MetalGuestTraceABI.h": "ce5b7d98fd9c2dcae442197c4908c8a1f98913bed25df980402ad6674855290d",
+      "MoltenVKGuestTrace.h": "0b9d3082e29b913f41137cf9f4241101a8adb242c1be0c41f74ad924edc8ffc1"
+    },
+    "actual_command_submission_site": true,
+    "wait_idle_marker_excluded": true,
+    "surface_present_marker_excluded": true,
+    "adds_gpu_work": false,
+    "changes_submission_result": false,
+    "success_override": false,
+    "native_adapter_fixtures_passed": true,
+    "phone_tested": false,
+    "metal_execution_verified": false,
+    "host_memory_import_verified": false,
+    "presentation_verified": false
+  },
+  "guest_metal_trace_export_compiled": true
+}

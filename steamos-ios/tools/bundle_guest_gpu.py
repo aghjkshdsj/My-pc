@@ -14,14 +14,16 @@ ENGINE_PINS = {
     '4000012': (37092127907, '544799c0646c272e253850f588a0a2dd52c2067f'),
     '4000013': (37095545014, '76da8adfa01752df49f6a4b40609b6310b034769'),
     '4000014': (37176578369, 'f3587da0d0bb97508fa3170386547b746d2b6324'),
+    '4000015': (37176578369, 'f3587da0d0bb97508fa3170386547b746d2b6324'),
 }
 GUEST_PINS = {
     '4000011': (37079133580, 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'),
     '4000012': (37079133580, 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'),
     '4000013': (37095653651, '004853222a3b6fccc76277f9d669fdc2e42d56f1'),
     '4000014': (37095653651, '004853222a3b6fccc76277f9d669fdc2e42d56f1'),
+    '4000015': (37095653651, '004853222a3b6fccc76277f9d669fdc2e42d56f1'),
 }
-BUNDLE_BUILD = '4000014'
+BUNDLE_BUILD = '4000015'
 ENGINE_RUN, ENGINE_SOURCE = ENGINE_PINS[BUNDLE_BUILD]
 GUEST_RUN, GUEST_SOURCE = GUEST_PINS[BUNDLE_BUILD]
 
@@ -102,10 +104,10 @@ def bundle(engine_artifact, guest_artifact, app):
         assert info['CFBundleExecutable'] == path.name
         path.chmod(0o755)
         identities[relative] = macho_text(path.read_bytes())
-    # MoltenVK is staged separately from the exact already phone-tested build.
+    # The observer MoltenVK is staged separately from the unchanged QEMU/GL engine.
     molten = frames / 'MoltenVK.framework/MoltenVK'
-    from bundle_native_vulkan import BINARY_SHA
-    assert hashlib.sha256(molten.read_bytes()).hexdigest() == BINARY_SHA
+    from bundle_native_vulkan import TRACE_BINARY_SHA
+    assert hashlib.sha256(molten.read_bytes()).hexdigest() == TRACE_BINARY_SHA
     identities['MoltenVK.framework/MoltenVK'] = macho_text(molten.read_bytes())
     payload = app / 'LinuxGuestGPU'
     assert not payload.exists()
@@ -134,6 +136,8 @@ def bundle(engine_artifact, guest_artifact, app):
                 'guest_shader_verified': False, 'metal_host_verified': False,
                 'host_memory_import_verified': False, 'presentation_verified': False,
                 'steamos_verified': False, 'gameplay_verified': False}
+    native = json.loads((app / 'NativeVulkan/payload-receipt.json').read_text())
+    metadata['guest_metal_trace_engine_receipt'] = native['guest_metal_trace_engine_receipt']
     (payload / 'engine-bundle.json').write_text(json.dumps(metadata, indent=2) + '\n', encoding='utf-8')
     info = plistlib.loads((app / 'Info.plist').read_bytes())
     info['CFBundleVersion'] = BUNDLE_BUILD

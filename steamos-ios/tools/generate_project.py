@@ -13,7 +13,7 @@ def generate():
     project, target, group, product, products = map(ident, ['project', 'target', 'group', 'product', 'products'])
     sources, frameworks, resources = map(ident, ['sources', 'frameworks', 'resources'])
     objects = []
-    files = ['Host/ProbeApp.swift', 'Host/ProbeBridge.mm', 'Host/LinuxGate.mm', 'Host/NativeVulkan.mm', 'Host/NativeVulkanDraw.c', 'Host/RecoveryJournal.swift', 'Host/ProbeRecovery.mm', 'Host/StikDebugRequest.swift', 'Host/ProbeBridge.h', 'Host/Info.plist']
+    files = ['Host/ProbeApp.swift', 'Host/ProbeBridge.mm', 'Host/LinuxGate.mm', 'Host/GuestGPUReceipt.mm', 'Host/GuestMetalTrace.mm', 'Host/NativeVulkan.mm', 'Host/NativeVulkanDraw.c', 'Host/RecoveryJournal.swift', 'Host/ProbeRecovery.mm', 'Host/StikDebugRequest.swift', 'Host/ProbeBridge.h', 'Host/GuestMetalTrace.h', 'Host/GuestMetalTraceLedger.h', 'Host/Info.plist']
     for path in files:
         kind = {'swift':'sourcecode.swift','mm':'sourcecode.cpp.objcpp','c':'sourcecode.c.c','h':'sourcecode.c.h','plist':'text.plist.xml'}[path.rsplit('.',1)[1]]
         objects.append(f'{ident(path)} = {{isa = PBXFileReference; lastKnownFileType = {kind}; path = "{path}"; sourceTree = "<group>"; }};')

@@ -78,6 +78,28 @@ class GuestGPUReportTests(unittest.TestCase):
         row=self.fixture(); row['tests']['linux_gpu']['engine_text_sections_observed']={}
         with self.assertRaises(ValueError): self.check(row)
 
+    def test_build_4000015_requires_native_completion_and_scoped_acceptance(self):
+        from test_guest_metal_trace import fixture as metal_fixture
+        row=self.fixture(); row['build']='4000015'
+        gate=row['tests']['linux_gpu']; gate['device']['metal_device']='Apple fixture'
+        gate.update(display_backend_registered=True,host_private_file_directory_prepared=True,
+                    host_metal_completion_observer_requested=True,metal_host_verified=True)
+        trace=metal_fixture(); trace['run']=gate['run']; gate['native_metal_trace']=trace
+        row['acceptance']['linux_guest_offscreen_metal_completion']=True
+        def check(): return validate(row,'test-commit','4000015',{'synthetic':True},
+            {'engine_text_sections': {'fixture': {'sha256': 'not-a-device-result'}}},'27.0.1')
+        result=check(); self.assertTrue(result['metal_host_verified'])
+        self.assertFalse(result['presentation_verified']); self.assertFalse(result['gameplay_verified'])
+        for field in ('metal_host_verified','host_metal_completion_observer_requested'):
+            gate[field]=False
+            with self.assertRaises(ValueError): check()
+            gate[field]=True
+        gate['native_metal_trace']=None
+        with self.assertRaises(ValueError): check()
+        gate['native_metal_trace']=trace
+        row['acceptance']['linux_guest_offscreen_metal_completion']=False
+        with self.assertRaises(ValueError): check()
+
     def test_pixels_capabilities_and_scope_inflation_rejected(self):
         for field, value in [('software',True), ('mismatches',1), ('channel_sum',0), ('metal_host_verified',True)]:
             row=self.fixture(); row['tests']['linux_gpu']['guest_vulkan'][field]=value

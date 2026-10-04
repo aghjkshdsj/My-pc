@@ -1,4 +1,5 @@
 #import "ProbeBridge.h"
+#import "GuestMetalTrace.h"
 #include <CommonCrypto/CommonDigest.h>
 #include <dlfcn.h>
 #include <atomic>
@@ -146,6 +147,12 @@ static NSDictionary *runKernel(BOOL graphics) {
                 return failure(@"renderer-private-directory", @"Cannot prepare the app-owned renderer file namespace.");
             MPCDiagnosticStage(@"linux-private-file-directory-prepared", @{@"mode_0700": @YES,
                 @"host_memory_import_verified": @NO});
+            NSString *molten = [[NSBundle.mainBundle privateFrameworksPath]
+                stringByAppendingPathComponent:@"MoltenVK.framework/MoltenVK"];
+            if (!MPCGuestMetalTraceBegin(nonce, molten, &error))
+                return failure(@"guest-metal-observer-unavailable", error.localizedDescription);
+            MPCDiagnosticStage(@"linux-guest-metal-observer-configured", @{@"abi": @1,
+                @"adds_gpu_work": @NO, @"metal_host_verified": @NO});
         }
         NSString *serial = [[directory URLByAppendingPathComponent:@"serial.log"] path];
         NSMutableArray<NSString *> *arguments = [@[@"qemu-system-aarch64", @"-machine", @"virt", @"-cpu", @"max",
@@ -165,6 +172,7 @@ static NSDictionary *runKernel(BOOL graphics) {
         if (graphics) {
             run[@"engine_bundle"] = engineBundle;
             run[@"host_private_file_directory_prepared"] = @YES;
+            run[@"host_metal_completion_observer_requested"] = @YES;
             run[@"display_backend_registered"] = @YES;
             run[@"engine_text_sections_observed"] = observedGPUCodes;
             run[@"engine_text_sections_verified"] = @YES;
@@ -239,13 +247,20 @@ static NSDictionary *runKernel(BOOL graphics) {
                 @"guest_pixels_verified": gpu[@"guest_vulkan_pixels_verified"],
                 @"driver_detected": gpu[@"graphics_kernel_device_detected"],
                 @"nonce_bound": gpu[@"fresh_guest_vulkan_nonce_bound"]});
+            NSDictionary *metal = MPCGuestMetalTraceFinish(passed);
+            run[@"native_metal_trace"] = metal;
+            run[@"metal_host_verified"] = metal[@"metal_host_verified"];
+            MPCDiagnosticStage(@"linux-guest-metal-completion-checked", @{
+                @"metal_host_verified": metal[@"metal_host_verified"],
+                @"observed_commit_points": metal[@"observed_commit_points"],
+                @"pending": metal[@"pending"], @"failed": metal[@"failed"]});
         }
         run[@"guest"] = guest;
         run[@"status"] = passed ? @"passed" : (finished.load() ? @"failed" : @"timed-out-engine-still-running");
         run[@"linux_execution"] = @(linuxPassed);
         run[@"after"] = MPCPlatformFacts();
         run[@"limitations"] = @"This disposable Linux kernel/ABI gate is not SteamOS, Steam, FEX or a game graphics/performance test. If timed out, close and relaunch the app. Serial and pending receipts survive an engine failure.";
-        if (graphics) run[@"limitations"] = @"Guest Vulkan shader/readback gate with a source-built native Metal route requested. Guest pixels alone do not independently verify host Metal command completion, host-memory import, zero-copy, moving presentation or game FPS. This is a disposable Linux graphics test, not SteamOS/Steam/FEX. Share logs after failure; relaunch before another Linux boot.";
+        if (graphics) run[@"limitations"] = @"Guest Vulkan pixels and the native MoltenVK command-completion observer have separate receipts. Completed native command buffers do not prove host-memory import, zero-copy, moving presentation or game FPS. This is a disposable Linux graphics test, not SteamOS/Steam/FEX. Share logs after failure; relaunch before another Linux boot.";
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
         return run;
     }

@@ -14,6 +14,7 @@ import zipfile
 from run_kernel_gate import validate as validate_abi
 from verify_device_report import measurement, require
 from verify_ipa import verify as verify_ipa
+from verify_guest_metal_trace import validate as validate_metal_trace
 
 
 def validate(report, commit, build, payload, bundle, ios, machine=None, serial=None):
@@ -33,9 +34,9 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             gate.get('hardware_virtualization') is False and gate.get('steamos') is False, 'Wrong execution scope')
     require(gate.get('guest_gpu_device_requested') is True and gate.get('guest_gpu_host_visible_mib') == 128 and
             gate.get('requested_jit_cache_mib') == 32 and gate.get('split_wx_requested') is True, 'Wrong GPU/JIT configuration')
-    if build in ('4000012', '4000013', '4000014'):
+    if build in ('4000012', '4000013', '4000014', '4000015'):
         require(gate.get('display_backend_registered') is True, 'No observed built-in display backend registration')
-    if build == '4000014':
+    if build in ('4000014', '4000015'):
         require(gate.get('host_private_file_directory_prepared') is True,
                 'No observed preparation of the app-private renderer namespace')
     device = gate.get('device', {})
@@ -89,11 +90,21 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     require(all(type(draw.get(k)) is type(v) and draw[k] == v for k, v in expected.items()), 'Wrong pixels/device/scope')
     for key in ('fresh_guest_vulkan_nonce_bound', 'graphics_kernel_device_detected', 'guest_vulkan_pixels_verified', 'graphics_tested'):
         require(gate.get(key) is True, 'Parsed GPU acceptance disagrees: ' + key)
-    for key in ('metal_host_verified', 'host_memory_import_verified', 'presentation_verified', 'gameplay_verified'):
+    native_metal = False
+    if build == '4000015':
+        require(gate.get('host_metal_completion_observer_requested') is True, 'Native guest observer was not requested')
+        validate_metal_trace(gate.get('native_metal_trace'), nonce, device.get('metal_device'))
+        require(gate.get('metal_host_verified') is True, 'Native completion and parsed result disagree')
+        native_metal = True
+    else:
+        require(gate.get('metal_host_verified') is False, 'Guest pixels claim native completion without an observer')
+    for key in ('host_memory_import_verified', 'presentation_verified', 'gameplay_verified'):
         require(gate.get(key) is False, 'Guest pixels claim independent host/game proof: ' + key)
     acceptance = report.get('acceptance', {})
     require(acceptance.get('linux_kernel_boot') is True and acceptance.get('linux_guest_vulkan_pixels') is True,
             'Exported acceptance disagrees')
+    if build == '4000015':
+        require(acceptance.get('linux_guest_offscreen_metal_completion') is True, 'Exported native completion disagrees')
     for key in ('steam_arm_client', 'fex_game', 'linux_game_graphics_to_metal', 'steam_under_60_seconds',
                 'hollow_knight_60_to_80_base_fps'):
         require(acceptance.get(key) is False, 'Unsupported product claim: ' + key)
@@ -102,7 +113,7 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             'linux_kernel_abi_receipt_valid': True, 'guest_vulkan_pixels_receipt_valid': True,
             'execution': 'qemu-tcg-software-system-emulation', 'pixels_checked': draw['pixels_checked'],
             'gate_elapsed_ms': gate['elapsed_ms'], 'validation_layer_observed': draw.get('validation_enabled', False),
-            'hardware_virtualization_verified': False, 'metal_host_verified': False,
+            'hardware_virtualization_verified': False, 'metal_host_verified': native_metal,
             'host_memory_import_verified': False, 'presentation_verified': False, 'steamos_verified': False,
             'gameplay_verified': False, 'steam_startup_target_verified': False, 'hollow_knight_target_verified': False,
             'cryptographic_device_attestation': False}

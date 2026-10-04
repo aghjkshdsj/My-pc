@@ -176,7 +176,9 @@ final class ProbeModel: ObservableObject {
                 : "JIT \(jit["status"] ?? "failed"): \(jit["reason"] ?? jit["stage"] ?? "See the saved report.")"
         } else if let gpu = tests["linux_gpu"] as? [String: Any] {
             testStatus = gpu["guest_vulkan_pixels_verified"] as? Bool == true
-                ? "Linux guest Vulkan pixels passed. Metal completion, memory import, presentation and game tests remain separate."
+                ? (gpu["metal_host_verified"] as? Bool == true
+                    ? "Linux guest Vulkan pixels and native Metal completions passed. Memory import, presentation and game tests remain unfinished."
+                    : "Linux guest Vulkan pixels passed. The native Metal completion check is incomplete; share the report. Presentation and game tests remain unfinished.")
                 : "Linux guest GPU \(gpu["status"] ?? "failed"): \(gpu["reason"] ?? gpu["stage"] ?? "Share the saved report and logs.")"
         } else if let linux = tests["linux"] as? [String: Any] {
             testStatus = linux["linux_execution"] as? Bool == true
@@ -203,6 +205,7 @@ final class ProbeModel: ObservableObject {
             "controllers_observed": controllers, "tests": facts,
             "acceptance": ["linux_kernel_boot": linux,
                            "linux_guest_vulkan_pixels": (facts["linux_gpu"] as? [String: Any])?["guest_vulkan_pixels_verified"] as? Bool == true,
+                           "linux_guest_offscreen_metal_completion": (facts["linux_gpu"] as? [String: Any])?["metal_host_verified"] as? Bool == true,
                            "native_vulkan_to_metal_offscreen": (facts["native_vulkan"] as? [String: Any])?["native_vulkan_to_metal_verified"] as? Bool == true,
                            "steam_arm_client": false, "fex_game": false,
                            "linux_game_graphics_to_metal": false, "steam_under_60_seconds": false,
