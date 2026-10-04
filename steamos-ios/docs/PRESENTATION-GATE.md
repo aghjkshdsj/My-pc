@@ -170,8 +170,10 @@ flight; source textures stay retained through both handlers, including timeout
 recovery. Surface loss, foreground interruption, geometry change, missing
 completion/presentation, stale identities and incorrect viewport fail the gate.
 
-Source and independent/native rejection fixtures are implemented. Physical-iOS
-compile/package and actual phone acceptance remain pending. This closes source
+Source and independent/native rejection fixtures are implemented. Actual
+physical-iOS Release and 75 native screen / 92 Python checks passed, and the
+published IPA/source were independently verified. Actual phone screen
+acceptance remains pending. This closes source
 work for a two-image screen diagnostic only; continuous animation, moving-frame
 ownership/fences, WSI/compositor, pacing and zero-copy remain separate work.
 See GPU-GATE-4000021.md. Original engine and licensing mappings above are retained.

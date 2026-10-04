@@ -52,6 +52,7 @@ paths += [root / 'evidence/primary/hosted-ios-moltenvk-guest-metal-observer.json
 paths += [root / 'evidence/primary' / name for name in ['hosted-linux-image-payload-build-4000018.json', 'ios-guest-image-prerelease-4000018.json']]
 paths += [root / 'evidence/primary' / name for name in ['hosted-linux-image-payload-build-4000019.json', 'ios-guest-image-prerelease-4000019.json']]
 paths += [root / 'evidence/primary/ios-guest-image-prerelease-4000020.json']
+paths += [root / 'evidence/primary/ios-guest-screen-prerelease-4000021.json']
 paths += [root / 'evidence/primary' / name for name in ['hosted-ios-native-scanout-build.json', 'hosted-linux-image-payload-build.json', 'ios-guest-image-prerelease-4000017.json']]
 paths += [root.parent / '.github/workflows' / name for name in ['steamos-ios-scanout-engine.yml', 'steamos-guest-image-payload.yml', 'steamos-ios-image-source.yml']]
 paths += [root.parent / '.github/workflows/steamos-ios-metal-trace.yml']

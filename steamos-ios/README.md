@@ -1,10 +1,21 @@
 # My-pc SteamOS iOS â€” fresh bring-up
 
-Build4000021 adds a separate visible Linux two-image screen gate. Source and
-rejection checks are implemented; physical-iOS compilation/package publication
-and phone screen acceptance are pending. The exact build4000020 guest/engine
-inputs remain pinned. Continuous animation, frame pacing, full SteamOS/Steam
-and game performance remain unfinished. See [screen gate](docs/GPU-GATE-4000021.md).
+**[Build4000021 / Linux screen gate](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-12)** passed actual physical ARM64 iOS
+Release build run37228324700 at source 391c73c46b09c793c5fad546989e7b833de2b431. The published 24,387,473-byte IPA
+was independently downloaded and verified, SHA-256 bf9e9d53fe66e6bfcd374e882cb5c2ff32324aaf2cc8f969e6a564c6be42465f.
+All 23 selected source files match the published fresh-source archive. The exact
+Linux kernel/initramfs/receipt/bundle and all ten engine frameworks match the
+verified build4000020 package byte for byte. All 92 Python checks, 75 native screen
+receipt checks, preserved 28 guest / 27 completion / 56 image receipt checks and
+recovery/capture passed. Separate physical-iOS adapter compilation run37228324724
+and source boundary run37228324706 passed.
+
+Show Linux-rendered images opens a real Metal screen for the two Linux phases.
+Actual screen acceptance on the phone is pending. This is two changing test
+images; continuous animation, pacing, full SteamOS/Steam and game performance
+remain unfinished. Source/package evidence and actual device evidence remain
+separate. See [screen gate](docs/GPU-GATE-4000021.md) and the package-only
+receipt evidence/primary/ios-guest-screen-prerelease-4000021.json.
 
 
 This source directory and `MyPCSteamOS.xcodeproj` are new. The project links no

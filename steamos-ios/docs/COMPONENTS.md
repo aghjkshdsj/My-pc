@@ -2,8 +2,9 @@
 
 Current screen integration: CAMetalLayer, exact imported-guest texture GPU
 sampling, separate drawable/completion callbacks and a bounded two-frame
-acceptance join are implemented for build4000021. Compilation/publication and
-phone screen acceptance remain pending. This does not close moving animation,
+acceptance join are implemented for build4000021. Actual physical ARM64 iOS
+Release compilation, 92 Python checks, 75 native screen checks and independent
+public IPA/source verification passed. Phone screen acceptance remains pending. This does not close moving animation,
 WSI/compositor, SteamOS sessions, full product features or performance rows.
 See [current screen gate](GPU-GATE-4000021.md). Earlier bring-up entries below
 are historical checkpoints, preserved with the archive and blueprint mappings.

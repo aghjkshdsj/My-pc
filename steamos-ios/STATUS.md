@@ -1,10 +1,21 @@
 # Verified state and next work â€” 2026-10-04
 
-Build4000021 adds a separate visible Linux two-image screen gate. Source and
-rejection checks are implemented; physical-iOS compilation/package publication
-and phone screen acceptance are pending. The exact build4000020 guest/engine
-inputs remain pinned. Continuous animation, frame pacing, full SteamOS/Steam
-and game performance remain unfinished. See [screen gate](docs/GPU-GATE-4000021.md).
+**[Build4000021 / Linux screen gate](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-12)** passed actual physical ARM64 iOS
+Release build run37228324700 at source 391c73c46b09c793c5fad546989e7b833de2b431. The published 24,387,473-byte IPA
+was independently downloaded and verified, SHA-256 bf9e9d53fe66e6bfcd374e882cb5c2ff32324aaf2cc8f969e6a564c6be42465f.
+All 23 selected source files match the published fresh-source archive. The exact
+Linux kernel/initramfs/receipt/bundle and all ten engine frameworks match the
+verified build4000020 package byte for byte. All 92 Python checks, 75 native screen
+receipt checks, preserved 28 guest / 27 completion / 56 image receipt checks and
+recovery/capture passed. Separate physical-iOS adapter compilation run37228324724
+and source boundary run37228324706 passed.
+
+Show Linux-rendered images opens a real Metal screen for the two Linux phases.
+Actual screen acceptance on the phone is pending. This is two changing test
+images; continuous animation, pacing, full SteamOS/Steam and game performance
+remain unfinished. Source/package evidence and actual device evidence remain
+separate. See [screen gate](docs/GPU-GATE-4000021.md) and the package-only
+receipt evidence/primary/ios-guest-screen-prerelease-4000021.json.
 
 
 The complete SteamOS ARM/FEX product is **unfinished**. No architecture
@@ -49,9 +60,10 @@ binaries match verified build 4000019 byte-for-byte. Guest source/run remain
 453a1d1f19c04b5d49328f135db32257a22d8f30 / 37222125501; upstream engine and
 completion observer sources, licenses and full corresponding sources are retained.
 
-Fresh build20 phone image import, visible presentation, full SteamOS/Steam/CEF,
-FEX/Proton, all product component integrations and sustained game targets remain
-open. Owner analysis stays local. See [current details](docs/GPU-GATE-4000020.md),
+Build20 source/package evidence does not certify owner device results; current
+owner import acceptance remains in the private device record. Visible presentation,
+full SteamOS/Steam/CEF, FEX/Proton, product integrations and sustained game targets
+need separate acceptance. Owner analysis stays local. See [current details](docs/GPU-GATE-4000020.md),
 component coverage and `evidence/primary/ios-guest-image-prerelease-4000020.json`.
 
 Preserved **[Build 4000019 / guest image gate 10](docs/GPU-GATE-4000019.md)**

@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "scope": "source-built-ios-linux-two-image-screen-prerelease",
+  "build": "4000021",
+  "source_commit": "391c73c46b09c793c5fad546989e7b833de2b431",
+  "repository": "aghjkshdsj/My-pc",
+  "branch": "codex/steamos-ios-fresh",
+  "workflow_run": 37228324700,
+  "native_adapter_run": 37228324724,
+  "source_boundary_run": 37228324706,
+  "release_url": "https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-12",
+  "prerelease": true,
+  "physical_ios_arm64_release_build": true,
+  "python_test_count": 92,
+  "native_image_receipt_fixture_checks": 56,
+  "native_screen_receipt_fixture_checks": 75,
+  "native_metal_ledger_fixture_checks": 27,
+  "recovery_capture_fixtures_passed": true,
+  "readback_budget_distinct_resources": 2,
+  "readback_budget_repeat_callbacks": 2,
+  "readback_budget_negative_cases": 14,
+  "synthetic_pixel_contract_pixels": 1843200,
+  "independent_ipa_verification_passed": true,
+  "independent_receipt_equals_published": true,
+  "fresh_selected_source_file_count_matched": 23,
+  "reused_byte_identical_payload_and_framework_file_count": 14,
+  "exact_reused_build": "4000020",
+  "guest_source": "453a1d1f19c04b5d49328f135db32257a22d8f30",
+  "guest_run": 37222125501,
+  "engine_source": "6b6e268bffdce59d2d15b319abdee46eaa4b8cee",
+  "engine_run": 37215070827,
+  "execution": "qemu-tcg-software-system-emulation",
+  "hardware_virtualization": false,
+  "screen_gate_implemented": true,
+  "continuous_animation_implemented": false,
+  "maximum_diagnostic_screen_inflight": 1,
+  "maximum_drawables": 2,
+  "source_image_diagnostic_readbacks": 2,
+  "drawable_cpu_readbacks": 0,
+  "phone_tested": false,
+  "linux_boot_verified": false,
+  "host_memory_import_verified": false,
+  "presentation_verified": false,
+  "continuous_animation_verified": false,
+  "frame_pacing_verified": false,
+  "zero_copy_transport_verified": false,
+  "steamos_verified": false,
+  "steam_arm_client_verified": false,
+  "gameplay_verified": false,
+  "steam_startup_target_verified": false,
+  "hollow_knight_target_verified": false,
+  "private_reports_uploaded": false,
+  "source_application_reused": false,
+  "assets": [
+    {
+      "name": "cpu-guest-run.json",
+      "bytes": 13400,
+      "sha256": "e4c2d517a5a3e8a27c9db9d53f317c1e4768dbaa858c0023299886fe60dce8c9",
+      "independently_downloaded_and_hashed_this_turn": true
+    },
+    {
+      "name": "GPU-Engine-Corresponding-Source.tar.gz",
+      "bytes": 212084602,
+      "sha256": "0cb1906ae66142fc595f9f04c354a4d4925c63a9830a51b5e65e04eab119da7c",
+      "independently_downloaded_and_hashed_this_turn": false
+    },
+    {
+      "name": "gpu-engine-run.json",
+      "bytes": 13443,
+      "sha256": "0947fe692a4c13ca698dea86fe763b5f392a5b9d65f2aea2b1060b9d55092292",
+      "independently_downloaded_and_hashed_this_turn": true
+    },
+    {
+      "name": "gpu-guest-run.json",
+      "bytes": 13427,
+      "sha256": "fffff3d24a9e5f7b64fa34b762e585ce7fe25023ed57e36c7cc904fd0ee3906d",
+      "independently_downloaded_and_hashed_this_turn": true
+    },
+    {
+      "name": "Guest-GPU-Corresponding-Source.tar.gz",
+      "bytes": 380283637,
+      "sha256": "f052e808e74e83973b5d230ee6afa6e9a340f322c08cdc6cf55efc2b88722598",
+      "independently_downloaded_and_hashed_this_turn": false
+    },
+    {
+      "name": "Linux-Gate-Corresponding-Source.tar.gz",
+      "bytes": 151293901,
+      "sha256": "751f9beb8b37146b8a04854cb7519377e83ccb96022647b0892c7bfe50ed0546",
+      "independently_downloaded_and_hashed_this_turn": false
+    },
+    {
+      "name": "molten-run.json",
+      "bytes": 13476,
+      "sha256": "7984887d3756d680a4db47fe115fea59f5f092c256cf359c2b3a8080d171bf17",
+      "independently_downloaded_and_hashed_this_turn": true
+    },
+    {
+      "name": "MoltenVK-Corresponding-Source.tar.gz",
+      "bytes": 11117319,
+      "sha256": "9577d3a782917c1da25e179de5f720ab947db89afe7c81fc978bba0d0c9a4f6f",
+      "independently_downloaded_and_hashed_this_turn": false
+    },
+    {
+      "name": "MyPCSteamOS-Fresh-Source.tar.gz",
+      "bytes": 580131,
+      "sha256": "ad0cf43e0ab8824b4f14edf7b70e67ba5d30541b14cfd0bc99b2425bf063d2c3",
+      "independently_downloaded_and_hashed_this_turn": true
+    },
+    {
+      "name": "MyPCSteamOS-Guest-GPU-Gate.ipa",
+      "bytes": 24387473,
+      "sha256": "bf9e9d53fe66e6bfcd374e882cb5c2ff32324aaf2cc8f969e6a564c6be42465f",
+      "independently_downloaded_and_hashed_this_turn": true
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 1034,
+      "sha256": "96072e4695b09b2a25ca13d53ed5203c9c35e0ad00d75c8be89457197ead7b0d",
+      "independently_downloaded_and_hashed_this_turn": true
+    },
+    {
+      "name": "verification.json",
+      "bytes": 1337,
+      "sha256": "1636d4d77c7ef4d337d337140650c8e523dbeba4dd754e78f268d82e6919289e",
+      "independently_downloaded_and_hashed_this_turn": true
+    }
+  ],
+  "limitations": "Build/package/fixture evidence only. Actual build4000021 phone screen acceptance is pending. Two changing guest-generated test images are not continuous animation, SteamOS desktop/Steam ARM, production zero-copy or game FPS. Full corresponding upstream source and notices are retained; large unchanged source archive hashes are public metadata/CI checks, not independent downloads this turn.",
+  "native_guest_gpu_fixture_checks": 28
+}
