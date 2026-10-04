@@ -10,6 +10,7 @@ NSDictionary *MPCMetalProbe(void);
 NSDictionary *MPCStorageProbe(void);
 NSDictionary *MPCLinuxKernelProbe(void);
 NSDictionary *MPCLinuxGuestGPUProbe(void);
+NSDictionary *MPCLinuxGuestImageProbe(void);
 NSDictionary *MPCParseGuestGPUReceipt(NSString *text, NSString *nonce, BOOL linuxPassed);
 NSDictionary * _Nullable MPCFrameworkTextIdentity(NSString *path);
 NSDictionary *MPCNativeCPUProbe(void);

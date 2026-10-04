@@ -1,5 +1,6 @@
 #import "ProbeBridge.h"
 #import "GuestMetalTrace.h"
+#import "GuestImageImport.h"
 #include <CommonCrypto/CommonDigest.h>
 #include <dlfcn.h>
 #include <atomic>
@@ -40,7 +41,7 @@ static NSDictionary *failure(NSString *stage, NSString *reason) {
              @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO};
 }
 
-static NSDictionary *runKernel(BOOL graphics) {
+static NSDictionary *runKernel(BOOL graphics, BOOL images) {
     @autoreleasepool {
         MPCDiagnosticStage(@"linux-gate-starting", @{});
         if (attempted.load()) return failure(@"one-run-per-process", @"Close and relaunch, then request StikDebug for the new process before another Linux boot.");
@@ -64,8 +65,10 @@ static NSDictionary *runKernel(BOOL graphics) {
         NSDictionary *receipt = receiptData ? [NSJSONSerialization JSONObjectWithData:receiptData options:0 error:&error] : nil;
         if (![receipt isKindOfClass:NSDictionary.class])
             return failure(@"payload-receipt", error.localizedDescription ?: @"Missing payload provenance");
+        BOOL imagePayload = [receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-image-export-boot-controls"] &&
+                            [receipt[@"image_gate_compiled"] isEqual:@YES];
         BOOL correctScope = graphics
-            ? [receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-missing-3d-boot-controls"]
+            ? (imagePayload || (!images && [receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-missing-3d-boot-controls"]))
             : [receipt[@"kind"] isEqual:@"disposable-linux-abi-gate"];
         if (!correctScope)
             return failure(@"payload-receipt", error.localizedDescription ?: @"Missing payload provenance");
@@ -153,15 +156,22 @@ static NSDictionary *runKernel(BOOL graphics) {
                 return failure(@"guest-metal-observer-unavailable", error.localizedDescription);
             MPCDiagnosticStage(@"linux-guest-metal-observer-configured", @{@"abi": @1,
                 @"adds_gpu_work": @NO, @"metal_host_verified": @NO});
+            if (images) {
+                if (!MPCGuestImageImportBegin(nonce, library, &error))
+                    return failure(@"native-image-adapter-unavailable", error.localizedDescription);
+                MPCDiagnosticStage(@"linux-native-image-adapter-configured", @{@"abi": @1,
+                    @"host_memory_import_verified": @NO, @"presentation_verified": @NO});
+            }
         }
         NSString *serial = [[directory URLByAppendingPathComponent:@"serial.log"] path];
+        NSString *kernelOptions = images ? @"console=ttyAMA0 rdinit=/init panic=1 mpc_image=1 mpc_run=" : @"console=ttyAMA0 rdinit=/init panic=1 mpc_run=";
         NSMutableArray<NSString *> *arguments = [@[@"qemu-system-aarch64", @"-machine", @"virt", @"-cpu", @"max",
             @"-accel", @"tcg,thread=multi,split-wx=on,tb-size=32", @"-smp", @"2", @"-m", @"512", @"-nodefaults", @"-display", graphics ? @"egl-headless,gl=es" : @"none",
             @"-chardev", [NSString stringWithFormat:@"file,id=serial0,path=%@", serial], @"-serial", @"chardev:serial0",
             @"-monitor", @"none", @"-kernel", image, @"-initrd", initramfs, @"-append",
-            [@"console=ttyAMA0 rdinit=/init panic=1 mpc_run=" stringByAppendingString:nonce], @"-no-reboot"] mutableCopy];
-        if (graphics) [arguments addObjectsFromArray:@[@"-device", @"virtio-gpu-gl-pci,blob=on,venus=on,hostmem=128M", @"-d", @"guest_errors"]];
-        NSMutableDictionary *run = [@{@"schema": @1, @"scope": graphics ? @"physical-ios-linux-guest-vulkan-gate" : @"physical-ios-linux-tcg-gate",
+            [kernelOptions stringByAppendingString:nonce], @"-no-reboot"] mutableCopy];
+        if (graphics) [arguments addObjectsFromArray:@[@"-device", @"virtio-gpu-gl-pci,blob=on,venus=on,hostmem=128M,xres=1280,yres=720", @"-d", @"guest_errors"]];
+        NSMutableDictionary *run = [@{@"schema": @1, @"scope": images ? @"physical-ios-linux-guest-image-gate" : graphics ? @"physical-ios-linux-guest-vulkan-gate" : @"physical-ios-linux-tcg-gate",
             @"status": @"running", @"run": nonce, @"device": MPCPlatformFacts(),
             @"source_commit": [NSBundle.mainBundle objectForInfoDictionaryKey:@"MPCSourceCommit"] ?: @"unknown",
             @"engine": @"qemu-10.0.12-utm-aarch64-tcg", @"hardware_virtualization": @NO,
@@ -181,8 +191,10 @@ static NSDictionary *runKernel(BOOL graphics) {
             run[@"guest_vulkan_pixels_verified"] = @NO;
             run[@"metal_host_verified"] = @NO;
             run[@"presentation_verified"] = @NO;
+            run[@"host_memory_import_verified"] = @NO;
+            run[@"image_import_requested"] = @(images);
             run[@"gameplay_verified"] = @NO;
-            run[@"route_requested"] = @"Linux ARM64 Mesa Venus → virtio-GPU → native iOS virgl/Venus → MoltenVK → Metal";
+            run[@"route_requested"] = @"Linux ARM64 Mesa Venus â†’ virtio-GPU â†’ native iOS virgl/Venus â†’ MoltenVK â†’ Metal";
         }
         NSURL *reportURL = [directory URLByAppendingPathComponent:@"linux-test.json"];
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
@@ -254,6 +266,15 @@ static NSDictionary *runKernel(BOOL graphics) {
                 @"metal_host_verified": metal[@"metal_host_verified"],
                 @"observed_commit_points": metal[@"observed_commit_points"],
                 @"pending": metal[@"pending"], @"failed": metal[@"failed"]});
+            if (images) {
+                NSDictionary *import = MPCGuestImageImportFinish(text, finished.load() && engineStatus.load() == 0,
+                    linuxPassed, [metal[@"metal_host_verified"] isEqual:@YES]);
+                run[@"image_import"] = import;
+                run[@"host_memory_import_verified"] = import[@"host_memory_import_verified"];
+                passed = passed && [import[@"host_memory_import_verified"] isEqual:@YES];
+                MPCDiagnosticStage(@"linux-native-image-import-checked", @{
+                    @"host_memory_import_verified": import[@"host_memory_import_verified"], @"presentation_verified": @NO});
+            }
         }
         run[@"guest"] = guest;
         run[@"status"] = passed ? @"passed" : (finished.load() ? @"failed" : @"timed-out-engine-still-running");
@@ -261,10 +282,12 @@ static NSDictionary *runKernel(BOOL graphics) {
         run[@"after"] = MPCPlatformFacts();
         run[@"limitations"] = @"This disposable Linux kernel/ABI gate is not SteamOS, Steam, FEX or a game graphics/performance test. If timed out, close and relaunch the app. Serial and pending receipts survive an engine failure.";
         if (graphics) run[@"limitations"] = @"Guest Vulkan pixels and the native MoltenVK command-completion observer have separate receipts. Completed native command buffers do not prove host-memory import, zero-copy, moving presentation or game FPS. This is a disposable Linux graphics test, not SteamOS/Steam/FEX. Share logs after failure; relaunch before another Linux boot.";
+        if (images) run[@"limitations"] = @"The image gate correlates two immutable Linux-rendered images with their native Metal buffer layouts, GPU consumers and cleanup. Its bounded diagnostic readbacks are correctness checks. Visible presentation, production zero-copy transport, SteamOS/Steam/FEX and game performance remain unfinished.";
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
         return run;
     }
 }
 
-NSDictionary *MPCLinuxKernelProbe(void) { return runKernel(NO); }
-NSDictionary *MPCLinuxGuestGPUProbe(void) { return runKernel(YES); }
+NSDictionary *MPCLinuxKernelProbe(void) { return runKernel(NO, NO); }
+NSDictionary *MPCLinuxGuestGPUProbe(void) { return runKernel(YES, NO); }
+NSDictionary *MPCLinuxGuestImageProbe(void) { return runKernel(YES, YES); }

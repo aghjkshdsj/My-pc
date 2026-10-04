@@ -95,15 +95,19 @@ def build(parent):
 for token in $(/bin/busybox cat /proc/cmdline); do
     case "$token" in mpc_image=1) image_requested=1;; esac
 done
-if [ "$image_requested" = 1 ]; then
+case "$image_requested" in
+1)
     image_status=99
-    if [ "$vk_status" = 0 ] && [ "$abi_status" = 0 ] && [ "$gpu_status" = 0 ]; then
+    case "$vk_status:$abi_status:$gpu_status" in
+    0:0:0)
         export MPC_IMAGE_RUN="$nonce"
         /vk-image-gate /vertex.spv /fragment.spv
         image_status=$?
-    fi
+        ;;
+    esac
     /bin/busybox echo "MPC_IMAGE_GUEST_EXIT=$image_status"
-fi
+    ;;
+esac
 ''')
     (output / 'init-image-userspace').write_text(init, encoding='utf-8')
     cpio = extend_newc(gzip.decompress(inputs['initramfs.cpio.gz']), {
