@@ -14,6 +14,7 @@ def fixture():
     for index, phase in enumerate((0, 41)):
         resource, generation = index + 12, index + 1
         producers.append(dict(schema=1, run=nonce, phase=phase, resource_id=resource, width=1280, height=720,
+            tiling='drm-format-modifier', drm_modifier=0, memory_plane=0,
             row_pitch=5120, offset=0, allocation_bytes=3686400, producer_fence_completed=True, external_queue_release=True))
         images.append(dict(phase=phase, resource_id=resource, generation=generation, width=1280, height=720,
             row_pitch=5120, offset=0, backing_bytes=3686400, linear_alignment=64, native_pixel_format=70,
@@ -49,6 +50,13 @@ class GuestImageImportTests(unittest.TestCase):
         self.assertTrue(result['host_memory_import_verified'])
         for key in ('presentation_verified', 'gameplay_verified', 'zero_copy_transport_verified', 'cryptographic_device_attestation'):
             self.assertFalse(result[key])
+
+    def test_modifier_required_for_new_guest_and_bad_or_missing_modifier_rejected(self):
+        gate, nonce = fixture()
+        validate(gate, serial(gate), nonce, 'Apple fixture', require_modifier=True)
+        for key, value in [('tiling', 'linear-legacy'), ('drm_modifier', 1), ('memory_plane', 1), ('drm_modifier', None)]:
+            gate, nonce = fixture(); gate['image_import']['guest_producers'][0][key] = value
+            with self.assertRaises(ValueError): validate(gate, serial(gate), nonce, 'Apple fixture', require_modifier=True)
 
     def test_missing_or_stale_producer_fences_and_export_layout_rejected(self):
         for key, value in [('producer_fence_completed', False), ('external_queue_release', False),

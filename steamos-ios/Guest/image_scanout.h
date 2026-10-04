@@ -8,6 +8,7 @@
 #include <xf86drmMode.h>
 #include <drm_fourcc.h>
 #include <virtgpu_drm.h>
+#include "image_export_contract.h"
 
 typedef struct MPCImageExport {
     VkImage image;
@@ -36,33 +37,26 @@ static int image_extensions(VkPhysicalDevice physical, VkExtensionProperties *ex
     if (!image_run || strlen(image_run) != 32 || strspn(image_run, "0123456789abcdef") != 32)
         return image_reject("fresh-nonce", 0);
     const char *wanted[] = { VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-                             VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME };
-    for (unsigned w = 0; w < 2; ++w) {
+                             VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME,
+                             VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME };
+    for (unsigned w = 0; w < 3; ++w) {
         int found = 0;
         for (uint32_t i = 0; i < count; ++i) found |= !strcmp(extensions[i].extensionName, wanted[w]);
-        if (!found) return image_reject(w ? "dma-buf-extension" : "memory-fd-extension", 0);
+        if (!found) return image_reject(w == 2 ? "drm-modifier-extension" :
+                                       w == 1 ? "dma-buf-extension" : "memory-fd-extension", 0);
         enabled[(*enabled_count)++] = wanted[w];
     }
-    VkPhysicalDeviceExternalImageFormatInfo external = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
-        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT };
-    VkPhysicalDeviceImageFormatInfo2 query = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2, .pNext = &external,
-        .format = VK_FORMAT_R8G8B8A8_UNORM, .type = VK_IMAGE_TYPE_2D,
-        .tiling = VK_IMAGE_TILING_LINEAR, .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT };
-    VkExternalImageFormatProperties output = { .sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES };
-    VkImageFormatProperties2 properties = { .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2, .pNext = &output };
-    VkResult result = vkGetPhysicalDeviceImageFormatProperties2(physical, &query, &properties);
+    VkExternalImageFormatProperties output;
+    VkImageFormatProperties2 properties;
+    VkResult result = mpc_query_export_image(physical, vkGetPhysicalDeviceImageFormatProperties2, &properties, &output);
     printf("MPC_IMAGE_CAPABILITIES {\"schema\":1,\"run\":\"%s\",\"result\":%d,"
+           "\"tiling\":\"drm-format-modifier\",\"drm_modifier\":0,"
            "\"external_features\":%u,\"compatible_handles\":%u,\"max_width\":%u,\"max_height\":%u}\n",
            image_run, result, output.externalMemoryProperties.externalMemoryFeatures,
            output.externalMemoryProperties.compatibleHandleTypes,
            properties.imageFormatProperties.maxExtent.width, properties.imageFormatProperties.maxExtent.height);
-    if (result != VK_SUCCESS ||
-        !(output.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT) ||
-        !(output.externalMemoryProperties.compatibleHandleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) ||
-        properties.imageFormatProperties.maxExtent.width < WIDTH || properties.imageFormatProperties.maxExtent.height < HEIGHT)
-        return image_reject("linear-rgba8-export-properties", result);
+    if (!mpc_export_image_supported(result, &properties, &output, WIDTH, HEIGHT))
+        return image_reject("drm-linear-rgba8-export-properties", result);
     return 0;
 }
 static int image_open_drm(void) {
@@ -99,14 +93,26 @@ static int image_allocate(VkDevice device, const VkPhysicalDeviceMemoryPropertie
     for (unsigned i = 0; i < 2; ++i) {
         MPCImageExport *target = &exported_images[i];
         target->exported_fd = -1;
+        const uint64_t linear = DRM_FORMAT_MOD_LINEAR;
+        VkImageDrmFormatModifierListCreateInfoEXT modifier_list = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT,
+            .drmFormatModifierCount = 1, .pDrmFormatModifiers = &linear };
         VkExternalMemoryImageCreateInfo external = { .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT };
+            .pNext = &modifier_list, .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT };
         VkImageCreateInfo info = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, .pNext = &external,
             .imageType = VK_IMAGE_TYPE_2D, .format = VK_FORMAT_R8G8B8A8_UNORM, .extent = { WIDTH, HEIGHT, 1 },
-            .mipLevels = 1, .arrayLayers = 1, .samples = VK_SAMPLE_COUNT_1_BIT, .tiling = VK_IMAGE_TILING_LINEAR,
+            .mipLevels = 1, .arrayLayers = 1, .samples = VK_SAMPLE_COUNT_1_BIT,
+            .tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
             .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE };
         VkResult result = vkCreateImage(device, &info, NULL, &target->image);
         if (result) return image_reject("export-image-create", result);
+        PFN_vkGetImageDrmFormatModifierPropertiesEXT get_modifier =
+            (PFN_vkGetImageDrmFormatModifierPropertiesEXT)vkGetDeviceProcAddr(device, "vkGetImageDrmFormatModifierPropertiesEXT");
+        if (!get_modifier) return image_reject("image-modifier-function", 0);
+        VkImageDrmFormatModifierPropertiesEXT actual = { .sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_PROPERTIES_EXT };
+        result = get_modifier(device, target->image, &actual);
+        if (result || actual.drmFormatModifier != DRM_FORMAT_MOD_LINEAR)
+            return image_reject("image-modifier-not-linear", result ? result : 1);
         VkMemoryRequirements requirements;
         vkGetImageMemoryRequirements(device, target->image, &requirements);
         VkMemoryDedicatedAllocateInfo dedicated = { .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
@@ -121,7 +127,7 @@ static int image_allocate(VkDevice device, const VkPhysicalDeviceMemoryPropertie
         target->allocation = requirements.size;
         result = vkBindImageMemory(device, target->image, target->memory, 0);
         if (result) return image_reject("export-image-bind", result);
-        VkImageSubresource subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
+        VkImageSubresource subresource = { VK_IMAGE_ASPECT_MEMORY_PLANE_0_BIT_EXT, 0, 0 };
         vkGetImageSubresourceLayout(device, target->image, &subresource, &target->layout);
         VkSubresourceLayout *layout = &target->layout;
         /* Refuse unknown/non-linear or host-unalignable layout before native import. */
@@ -174,6 +180,7 @@ static int image_install(VkDevice device, unsigned pass, uint32_t phase) {
     if (drmModeAddFB2(scanout_fd, WIDTH, HEIGHT, DRM_FORMAT_ABGR8888, handles, pitches, offsets, &target->framebuffer, 0))
         return image_reject("drm-addfb2-linear-abgr", errno);
     printf("MPC_IMAGE_PRODUCER {\"schema\":1,\"run\":\"%s\",\"phase\":%u,\"resource_id\":%u,"
+           "\"tiling\":\"drm-format-modifier\",\"drm_modifier\":0,\"memory_plane\":0,"
            "\"width\":%u,\"height\":%u,\"row_pitch\":%" PRIu64 ",\"offset\":%" PRIu64 ","
            "\"allocation_bytes\":%" PRIu64 ",\"producer_fence_completed\":true,\"external_queue_release\":true}\n",
            image_run, phase, target->resource, WIDTH, HEIGHT, (uint64_t)target->layout.rowPitch,

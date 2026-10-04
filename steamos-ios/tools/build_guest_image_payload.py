@@ -77,6 +77,10 @@ def build(parent):
         assert hashlib.sha256(data).hexdigest() == PARENT_FILES[name]
         assert len(data) == receipt['files'][name]['bytes']
     binary = output / 'vk-image-gate'
+    format_test = output / 'image-format-contract-test'
+    subprocess.run(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-I/usr/include/libdrm',
+                    str(PROJECT / 'tests/GuestImageFormatTests.c'), '-o', str(format_test)], check=True)
+    subprocess.run([str(format_test)], check=True)
     command = ['gcc', '-O2', '-Wall', '-Wextra', '-Werror', '-DMPC_IMAGE_SCANOUT',
                '-DMPC_VK_DIAGNOSTIC_PREFIX="MPC_VK_IMAGE_RENDER "',
                '-I/usr/include/libdrm', str(PROJECT / 'Guest/vk_gate.c'), '-lvulkan', '-ldrm', '-o', str(binary)]
@@ -153,7 +157,8 @@ esac
     assert negative.returncode == 20 and 'MPC_VK_REJECTED software_renderer=' in negative.stdout
     assert 'MPC_IMAGE_PRODUCER' not in negative.stdout
     source_files = {name: hashlib.sha256((PROJECT / name).read_bytes()).hexdigest() for name in [
-        'Guest/vk_gate.c', 'Guest/image_scanout.h', 'Guest/renderer_classification.h',
+        'Guest/vk_gate.c', 'Guest/image_scanout.h', 'Guest/image_export_contract.h',
+        'tests/GuestImageFormatTests.c', 'Guest/renderer_classification.h',
         'tools/build_guest_image_payload.py', 'tools/make_initramfs.py',
         'tools/run_gpu_kernel_gate.py', 'tools/run_kernel_gate.py', 'Guest/init-gpu-userspace']}
     for name, content in [('init', init.encode()), ('vk-image-gate', binary.read_bytes())]:
@@ -164,6 +169,8 @@ esac
                    parent_graphics_source=PARENT_SOURCE, parent_graphics_run=PARENT_RUN,
                    parent_graphics_files=PARENT_FILES, cases=cases, image_gate_compiled=True,
                    image_export_verified=False, host_memory_import_verified=False,
+                   export_tiling='drm-format-modifier', required_drm_modifier=0,
+                   native_format_contract_tests_passed=True,
                    software_image_rejected=True, image_gate_dependencies=dependencies,
                    software_control_icd_sha256=hashlib.sha256(lvp.read_bytes()).hexdigest(),
                    image_source_files=source_files,

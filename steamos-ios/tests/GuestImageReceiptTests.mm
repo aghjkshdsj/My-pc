@@ -8,6 +8,7 @@ static NSString *line(NSString *prefix, NSDictionary *value) {
 }
 static NSMutableDictionary *producer(unsigned phase, unsigned resource) {
     return [@{@"schema": @1, @"run": nonce, @"phase": @(phase), @"resource_id": @(resource),
+        @"tiling": @"drm-format-modifier", @"drm_modifier": @0, @"memory_plane": @0,
         @"width": @1280, @"height": @720, @"row_pitch": @5120, @"offset": @0,
         @"allocation_bytes": @3686400, @"producer_fence_completed": @YES, @"external_queue_release": @YES} mutableCopy];
 }
@@ -52,6 +53,13 @@ int main(void) { @autoreleasepool {
     expect(accepted(valid, n, NO, YES, YES), NO);
     expect(accepted(valid, n, YES, NO, YES), NO);
     expect(accepted(valid, n, YES, YES, NO), NO);
+    for (NSString *key in @[@"tiling", @"drm_modifier", @"memory_plane"]) {
+        NSMutableDictionary *wrong = [p0 mutableCopy];
+        wrong[key] = [key isEqual:@"tiling"] ? @"linear-legacy" : @1;
+        expect(accepted(serial(@[wrong, p1], exit), n, YES, YES, YES), NO);
+    }
+    NSMutableDictionary *missingModifier = [p0 mutableCopy]; [missingModifier removeObjectForKey:@"drm_modifier"];
+    expect(accepted(serial(@[missingModifier, p1], exit), n, YES, YES, YES), NO);
     for (NSString *key in @[@"producer_fence_completed", @"external_queue_release", @"width", @"height", @"schema"])
     {
         NSMutableDictionary *bad = [p0 mutableCopy]; bad[key] = @0;

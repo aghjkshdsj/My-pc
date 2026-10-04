@@ -5,7 +5,7 @@ import math
 from verify_device_report import require
 
 
-def validate(gate, serial, nonce, device_name):
+def validate(gate, serial, nonce, device_name, require_modifier=False):
     require(gate.get('image_import_requested') is True, 'Image import was not requested')
     receipt = gate.get('image_import')
     require(isinstance(receipt, dict) and receipt.get('schema') == 1 and
@@ -72,6 +72,8 @@ def validate(gate, serial, nonce, device_name):
         require(isinstance(image, dict), 'Wrong native image receipt kind')
         fixed = {'schema': 1, 'run': nonce, 'phase': phase, 'width': 1280, 'height': 720,
                  'producer_fence_completed': True, 'external_queue_release': True}
+        if require_modifier:
+            fixed.update(tiling='drm-format-modifier', drm_modifier=0, memory_plane=0)
         require(all(type(producer.get(k)) is type(v) and producer[k] == v for k, v in fixed.items()),
                 'Missing fresh guest image/fence/ownership release')
         r, pitch, offset, size = (producer.get(k) for k in ('resource_id', 'row_pitch', 'offset', 'allocation_bytes'))

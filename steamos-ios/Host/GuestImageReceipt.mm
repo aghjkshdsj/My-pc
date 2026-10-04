@@ -67,6 +67,8 @@ NSDictionary *MPCValidateGuestImageImport(NSString *serial, NSString *nonce, NSD
                  pitch = [producer[@"row_pitch"] unsignedLongLongValue],
                  allocation = [producer[@"allocation_bytes"] unsignedLongLongValue];
         passed = [producer[@"schema"] isEqual:@1] && [producer[@"run"] isEqual:nonce] &&
+            [producer[@"tiling"] isEqual:@"drm-format-modifier"] &&
+            [producer[@"drm_modifier"] isEqual:@0] && [producer[@"memory_plane"] isEqual:@0] &&
             [producer[@"phase"] isEqual:phase] && [image[@"phase"] isEqual:phase] &&
             [producer[@"width"] isEqual:@1280] && [producer[@"height"] isEqual:@720] &&
             [producer[@"producer_fence_completed"] isEqual:@YES] && [producer[@"external_queue_release"] isEqual:@YES] &&

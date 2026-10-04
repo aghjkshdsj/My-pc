@@ -17,18 +17,20 @@ from verify_ipa import verify as verify_ipa
 from verify_guest_metal_trace import validate as validate_metal_trace
 
 
-def validate(report, commit, build, payload, bundle, ios, machine=None, serial=None, image_import=False):
-    test_key = "linux_image" if image_import else "linux_gpu"
+def validate(report, commit, build, payload, bundle, ios, machine=None, serial=None, image_import=False, image_control_only=False):
+    require(not (image_import and image_control_only), 'Choose import acceptance or failed-image controls')
+    image_gate = image_import or image_control_only
+    test_key = "linux_image" if image_gate else "linux_gpu"
     require(report.get('schema') == 1 and report.get('scope') == 'physical-ios-host-probe', 'Expected a phone report')
     require(report.get('source_commit') == commit and report.get('build') == build, 'Wrong IPA source/build')
     require(report.get('executed_tests') == [test_key], 'The guest GPU gate was not freshly executed')
     gate = report.get('tests', {}).get(test_key, {})
-    require(gate.get('schema') == 1 and gate.get('scope') == ('physical-ios-linux-guest-image-gate' if image_import else 'physical-ios-linux-guest-vulkan-gate'), 'Wrong gate scope')
+    require(gate.get('schema') == 1 and gate.get('scope') == ('physical-ios-linux-guest-image-gate' if image_gate else 'physical-ios-linux-guest-vulkan-gate'), 'Wrong gate scope')
     require(gate.get('source_commit') == commit and gate.get('payload') == payload and gate.get('engine_bundle') == bundle,
             'Guest/engine provenance differs from the verified IPA')
     require(gate.get('engine_text_sections_verified') is True and
             gate.get('engine_text_sections_observed') == bundle.get('engine_text_sections'), 'Engine executable code differs')
-    require(gate.get('status') == 'passed' and gate.get('linux_execution') is True and
+    require(gate.get('status') == ('failed' if image_control_only else 'passed') and gate.get('linux_execution') is True and
             gate.get('engine_finished') is True and type(gate.get('engine_status')) is int and gate['engine_status'] == 0,
             'Linux engine/guest did not complete')
     require(gate.get('engine') == 'qemu-10.0.12-utm-aarch64-tcg' and
@@ -102,10 +104,38 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     image_verified = False
     if image_import:
         from verify_guest_image_import import validate as validate_image
-        validate_image(gate, text, nonce, device.get('metal_device'))
+        validate_image(gate, text, nonce, device.get('metal_device'), require_modifier=(build == '4000018'))
         require(gate.get('host_memory_import_verified') is True, 'Image acceptance disagrees')
         require(report.get('acceptance', {}).get('linux_guest_image_import') is True, 'Exported image acceptance disagrees')
         image_verified = True
+    rejection = None
+    if image_control_only:
+        require(gate.get('image_import_requested') is True and gate.get('host_memory_import_verified') is False and
+                report.get('acceptance', {}).get('linux_guest_image_import') is False,
+                'Failed image controls cannot accept image import')
+        receipt = gate.get('image_import', {})
+        require(receipt.get('scope') == 'physical-ios-linux-guest-image-import-gate' and receipt.get('run') == nonce and
+                receipt.get('host_memory_import_verified') is False and receipt.get('presentation_verified') is False and
+                receipt.get('zero_copy_transport_verified') is False and receipt.get('gameplay_verified') is False,
+                'Wrong failed image receipt/scope')
+        def image_rows(prefix):
+            return [json.loads(line[len(prefix):]) for line in lines if line.startswith(prefix)]
+        capabilities = image_rows('MPC_IMAGE_CAPABILITIES ')
+        rejected = image_rows('MPC_IMAGE_REJECTED ')
+        require(len(capabilities) == len(rejected) == 1 and rejected == receipt.get('guest_rejections') and
+                not receipt.get('guest_producers') and not receipt.get('guest_exits') and
+                not image_rows('MPC_IMAGE_PRODUCER ') and not image_rows('MPC_IMAGE_EXIT '),
+                'Missing or mixed early image-format rejection')
+        capability, rejection = capabilities[0], rejected[0]
+        require(capability.get('schema') == 1 and capability.get('run') == nonce and capability.get('result') == -11 and
+                rejection.get('schema') == 1 and rejection.get('run') == nonce and rejection.get('code') == -11 and
+                rejection.get('stage') in ('linear-rgba8-export-properties', 'drm-linear-rgba8-export-properties') and
+                rejection.get('host_memory_import_verified') is False and rejection.get('presentation_verified') is False and
+                lines.count('MPC_IMAGE_GUEST_EXIT=21') == 1, 'Invalid or stale format rejection')
+        native = receipt.get('native', {})
+        require(native.get('run') == nonce and native.get('active') is False and native.get('reading') is False and
+                native.get('events') == [] and native.get('images') == [] and native.get('errors') == 0 and
+                native.get('diagnostic_full_image_readbacks') == 0, 'Early rejection includes unexpected native image work')
     for key in (('presentation_verified', 'gameplay_verified') if image_import else ('host_memory_import_verified', 'presentation_verified', 'gameplay_verified')):
         require(gate.get(key) is False, 'Guest pixels claim independent host/game proof: ' + key)
     acceptance = report.get('acceptance', {})
@@ -123,6 +153,7 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             'gate_elapsed_ms': gate['elapsed_ms'], 'validation_layer_observed': draw.get('validation_enabled', False),
             'hardware_virtualization_verified': False, 'metal_host_verified': native_metal,
             'host_memory_import_verified': image_verified, 'presentation_verified': False, 'steamos_verified': False,
+            'failed_image_controls_only': image_control_only, 'image_format_rejection': rejection,
             'gameplay_verified': False, 'steam_startup_target_verified': False, 'hollow_knight_target_verified': False,
             'cryptographic_device_attestation': False}
 
@@ -163,7 +194,9 @@ if __name__ == '__main__':
     parser.add_argument('commit')
     parser.add_argument('--ios-version', default='27.0.1')
     parser.add_argument('--machine', default='iPhone16,2')
-    parser.add_argument('--image-import', action='store_true')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--image-import', action='store_true')
+    mode.add_argument('--image-control-only', action='store_true', help='Verify preserved controls in a normal early-format-rejected image report; never accept import')
     args = parser.parse_args()
     require(__debug__, 'Do not run with python -O; package/ABI checks use assertions')
     package = verify_ipa(args.ipa, args.commit, True, None, True, True)
@@ -171,8 +204,14 @@ if __name__ == '__main__':
         prefix = 'Payload/MyPCSteamOSProbe.app/LinuxGuestGPU/'
         payload = json.loads(archive.read(prefix + 'payload-receipt.json'))
         bundle = json.loads(archive.read(prefix + 'engine-bundle.json'))
-    report, serial = unpack_private(json.loads(args.report.read_text(encoding='utf-8-sig')), args.commit, package['build'], args.image_import)
-    result = validate(report, args.commit, package['build'], payload, bundle, args.ios_version, args.machine, serial, args.image_import)
+    document = json.loads(args.report.read_text(encoding='utf-8-sig'))
+    if args.image_control_only:
+        require(document.get('scope') == 'physical-ios-host-probe', 'Failed-image control mode requires a normal complete report')
+        report, serial = document, None
+    else:
+        report, serial = unpack_private(document, args.commit, package['build'], args.image_import)
+    result = validate(report, args.commit, package['build'], payload, bundle, args.ios_version, args.machine, serial,
+                      args.image_import, args.image_control_only)
     result['report_sha256'] = hashlib.file_digest(args.report.open('rb'), 'sha256').hexdigest()
     result['verified_ipa_sha256'] = package['sha256']
     print(json.dumps(result, indent=2))
