@@ -29,11 +29,11 @@ int main(void) { @autoreleasepool {
     expect(fixture(),YES,YES,NO);
     for(unsigned i=0;i<8;i++) {
         for(NSString *key in @[@"resource_id",@"phase",@"row_pitch",@"native_pixel_format",@"native_registry_id",@"backing_bytes",@"native_buffer_alias_verified",@"pixel_verification_performed"]) {
-            NSMutableDictionary *g=fixture();g[@"frame_import"][@"native"][@"images"][i][key]=@99;
+            NSMutableDictionary *g=fixture();g[@"frame_import"][@"native"][@"images"][i][key]=@99999;
             expect(g,NO,NO,NO);
         }
         for(NSString *key in @[@"resource_id",@"gpu_completed",@"consumer_status",@"consumer_error",@"completion_join_retired",@"presentation_on_main_thread",@"presentation_application_state",@"source_registry_id",@"geometry",@"gpu_end_seconds"]) {
-            NSMutableDictionary *g=fixture();g[@"frame_screen"][@"native"][@"frames"][i][key]=@99;
+            NSMutableDictionary *g=fixture();g[@"frame_screen"][@"native"][@"frames"][i][key]=@99999;
             expect(g,YES,NO,NO);
         }
     }
