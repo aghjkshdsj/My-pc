@@ -72,6 +72,9 @@ static VkShaderModule shader(VkDevice device, const char *path) {
     VkShaderModule result; VK_CHECK(vkCreateShaderModule(device, &info, NULL, &result));
     free(code); return result;
 }
+#ifdef MPC_IMAGE_SCANOUT
+#include "image_scanout.h"
+#endif
 int main(int argc, char **argv) {
     if (argc < 3 || argc > 5) {
         fprintf(stderr, "usage: vk-gate vertex.spv fragment.spv [--allow-software-diagnostic] [--require-validation]\n");
@@ -175,10 +178,13 @@ int main(int argc, char **argv) {
     VkExtensionProperties *exts = calloc(ext_count + 1, sizeof(*exts));
     if (!exts) return 4;
     VK_CHECK(vkEnumerateDeviceExtensionProperties(physical, NULL, &ext_count, exts));
-    const char *device_names[1]; uint32_t enabled_device_count = 0;
+    const char *device_names[4]; uint32_t enabled_device_count = 0;
     for (uint32_t i = 0; i < ext_count; ++i)
         if (!strcmp(exts[i].extensionName, "VK_KHR_portability_subset"))
             device_names[enabled_device_count++] = "VK_KHR_portability_subset";
+#ifdef MPC_IMAGE_SCANOUT
+    if (image_extensions(physical, exts, ext_count, device_names, &enabled_device_count)) return 21;
+#endif
     float priority = 1.0f;
     VkDeviceQueueCreateInfo queue_info = { .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = family, .queueCount = 1, .pQueuePriorities = &priority };
@@ -187,6 +193,9 @@ int main(int argc, char **argv) {
         .enabledExtensionCount = enabled_device_count, .ppEnabledExtensionNames = device_names };
     VkDevice device; VK_CHECK(vkCreateDevice(physical, &device_info, NULL, &device));
     VkQueue queue; vkGetDeviceQueue(device, family, 0, &queue);
+#ifdef MPC_IMAGE_SCANOUT
+    if (image_allocate(device, &memory)) return 21;
+#endif
     VkImageCreateInfo image_info = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D, .format = VK_FORMAT_R8G8B8A8_UNORM,
         .extent = { WIDTH, HEIGHT, 1 }, .mipLevels = 1, .arrayLayers = 1,
@@ -290,6 +299,9 @@ int main(int argc, char **argv) {
         VkBufferImageCopy copy = { .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
             .imageExtent = { WIDTH, HEIGHT, 1 } };
         vkCmdCopyImageToBuffer(command, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer, 1, &copy);
+#ifdef MPC_IMAGE_SCANOUT
+        image_copy(command, image, pass, family);
+#endif
         VkBufferMemoryBarrier host = { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT, .dstAccessMask = VK_ACCESS_HOST_READ_BIT,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -312,7 +324,14 @@ int main(int argc, char **argv) {
             checksum += p[0] + p[1] + p[2] + p[3];
         }
         vkUnmapMemory(device, buffer_memory);
+#ifdef MPC_IMAGE_SCANOUT
+        if (mismatches || atomic_load(&validation_errors)) return image_reject("guest-shader-pixels", 7);
+        if (image_install(device, pass, phase)) return 21;
+#endif
     }
+#ifdef MPC_IMAGE_SCANOUT
+    if (image_cleanup(device)) return 21;
+#endif
     VK_CHECK(vkDeviceWaitIdle(device));
     vkDestroyFence(device, fence, NULL); vkDestroyCommandPool(device, pool, NULL);
     vkDestroyPipeline(device, pipeline, NULL); vkDestroyPipelineLayout(device, layout, NULL);

@@ -1,0 +1,39 @@
+name: Fresh ARM Linux exported image payload and rejection controls
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/image_scanout.h', 'steamos-ios/Guest/vk_gate.c', 'steamos-ios/tools/build_guest_image_payload.py', 'steamos-ios/tests/test_guest_image_payload.py', '.github/workflows/steamos-guest-image-payload.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  guest-image-payload:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native ARM Linux compile and rejection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc binutils qemu-system-arm libvulkan-dev libdrm-dev mesa-vulkan-drivers glslang-tools
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Graphics-Payload
+          run-id: 37095653651
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/parent-graphics-artifact
+      - name: Verify bounded initramfs extension rejection
+        run: python3 -m unittest discover -s steamos-ios/tests -p test_guest_image_payload.py -v
+      - name: Compile actual ARM image export gate and boot negative controls
+        run: python3 steamos-ios/tools/build_guest_image_payload.py steamos-ios/out/parent-graphics-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Linux-Image-Payload
+          path: |
+            steamos-ios/out/guest-image-payload/Guest-GPU-*.tar.gz
+            steamos-ios/out/guest-image-payload/payload/payload-receipt.json
+            steamos-ios/out/guest-image-payload/payload/*.log
+            steamos-ios/out/guest-image-payload/software-image-rejected.log
+          retention-days: 14
