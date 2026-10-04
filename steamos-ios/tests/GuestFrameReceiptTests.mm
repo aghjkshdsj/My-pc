@@ -10,10 +10,17 @@ static NSMutableDictionary *fixture(void) {
 static void expect(NSDictionary *g, BOOL importWanted, BOOL screenWanted, BOOL timingWanted) {
     NSString *nonce=g[@"run"];NSDictionary *imp=g[@"frame_import"];
     NSDictionary *r=MPCValidateGuestFrameImport(g[@"serial_tail"],nonce,imp[@"native"],YES,YES,YES);
-    if ([r[@"host_memory_import_verified"] boolValue]!=importWanted) abort();
+    if ([r[@"host_memory_import_verified"] boolValue]!=importWanted) {
+        fprintf(stderr,"Frame case %u import mismatch: got=%d wanted=%d pixels=%llu sum=%llu\n",checks,
+            [r[@"host_memory_import_verified"] boolValue],importWanted,[r[@"pixels_checked"] unsignedLongLongValue],
+            [r[@"channel_sum"] unsignedLongLongValue]); abort();
+    }
     NSMutableDictionary *joined=[imp mutableCopy];joined[@"host_memory_import_verified"]=r[@"host_memory_import_verified"];
     NSDictionary *screen=MPCValidateGuestFrameScreen(nonce,joined,g[@"frame_screen"][@"native"],YES);
-    if ([screen[@"gpu_sequence_verified"] boolValue]!=screenWanted || [screen[@"presentation_verified"] boolValue]!=timingWanted) abort();
+    if ([screen[@"gpu_sequence_verified"] boolValue]!=screenWanted || [screen[@"presentation_verified"] boolValue]!=timingWanted) {
+        fprintf(stderr,"Frame case %u screen mismatch: gpu=%d wanted=%d timing=%d wanted=%d\n",checks,
+            [screen[@"gpu_sequence_verified"] boolValue],screenWanted,[screen[@"presentation_verified"] boolValue],timingWanted); abort();
+    }
     for(NSString *key in @[@"gameplay_verified",@"frame_pacing_verified",@"continuous_animation_verified",@"zero_copy_transport_verified"])
         if([screen[key] boolValue]) abort();
     checks++;
