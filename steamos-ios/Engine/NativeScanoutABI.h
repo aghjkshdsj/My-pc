@@ -17,6 +17,8 @@ typedef struct MPCNativeScanoutEvent {
 typedef void (*MPCNativeScanoutCallback)(void *, const MPCNativeScanoutEvent *);
 typedef int (*MPCConfigureNativeScanout)(uint32_t, uint32_t,
                                         MPCNativeScanoutCallback, void *);
+int mpc_qemu_configure_native_scanout(uint32_t, uint32_t,
+                                    MPCNativeScanoutCallback, void *);
 #ifdef __cplusplus
 }
 #endif

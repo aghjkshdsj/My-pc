@@ -1,0 +1,27 @@
+name: Fresh iOS guest image adapter compilation and receipt rejection
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Host/GuestImage*', 'steamos-ios/Engine/NativeScanoutABI.h', 'steamos-ios/tests/GuestImageReceiptTests.mm', '.github/workflows/steamos-ios-image-source.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-image-source:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise the production image receipt rejection boundary
+        run: |
+          clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host \
+            steamos-ios/Host/GuestImageReceipt.mm steamos-ios/tests/GuestImageReceiptTests.mm -o /tmp/mpc-image-receipt-tests
+          /tmp/mpc-image-receipt-tests
+      - name: Compile the actual adapter for physical ARM64 iOS
+        run: |
+          xcrun --sdk iphoneos clang++ -target arm64-apple-ios26.0 -std=c++17 -fobjc-arc \
+            -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -c steamos-ios/Host/GuestImageImport.mm \
+            -o /tmp/GuestImageImport.o
+          xcrun --sdk iphoneos clang++ -target arm64-apple-ios26.0 -std=c++17 -fobjc-arc \
+            -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -c steamos-ios/Host/GuestImageReceipt.mm \
+            -o /tmp/GuestImageReceipt.o
