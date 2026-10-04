@@ -12,28 +12,38 @@ Steam/desktop/controller/component flows and the complete feature mapping. All
 requires new iOS adapters and is not a direct port. The requested actual
 SteamOS ARM environment remains the architecture.
 
-Current package: **[build 4000018 / guest image gate 9](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-9/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
-24,344,005 bytes, SHA-256
-`469d97698ab9a2b79941f2ef8d013cb83723b289b8340b710139b4776b2db4ec`.
-Source `f095035b922c40f004db084b34c57834e9ca8266`.
-[Sources, checksums and validation](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-9).
-Actual Release ARM64 iOS compilation, 78 Python checks, 28 native guest receipt
-checks, 27 completion-ledger checks, 37 image-receipt checks and recovery/capture
-fixtures passed. The public IPA, fresh source, checksums and verification were
-independently downloaded and checked. Publication followed CI redownload and
-exact package verification. Large source asset checks are recorded separately.
+Current package: **[build 4000019 / guest image gate 10](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-10/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+24,351,815 bytes, SHA-256
+`97bcaad90fb68d5e7d6816d96ca96edc7845e9c085b3e4f7a9f07085eb248bc1`.
+Source `ce223b3f79e876c0558e0ade50f8a79aa2933d18`.
+[Sources, checksums and validation](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-10).
+Actual Release ARM64 iOS compilation, 82 Python checks, 28 native guest receipt
+checks, 27 completion-ledger checks, 48 image-receipt checks and recovery/capture
+fixtures passed. Shared colour-order fixtures checked 1,843,200 synthetic pixels
+and rejected swapped channels. The public IPA, fresh source, checksums and
+verification were independently downloaded and checked. All 22 changed source
+files and guest recipe hashes match the source archive; both actual AArch64
+initramfs diagnostic binaries match their receipt. Large source asset checks
+are recorded separately.
 
-The fresh Linux image gate has a versioned native scanout callback and retained
-Metal alias consumer. The export query and image creation now use explicit linear
-DRM modifier tiling required by pinned Venus. Actual modifier, memory-plane layout,
-producer/consumer fences, native image pixels, identity and cleanup are checked;
-no unsupported format result is overridden. The app shows the rejected stage.
+The fresh Linux image gate keeps explicit DRM linear-modifier query/creation,
+fences, exact layout, resource identity and cleanup. Vulkan rendering/export now
+use BGRA; Linux primary scanout uses XRGB/virtio BGRX, and the retained native
+consumer requires Metal BGRA with per-pixel channel ordering. A real pinned Linux
+kernel CPU-allocation control reproduces the unsupported ABGR format rejection
+and creates/releases the corrected XRGB framebuffer through the production helper.
+This control cannot establish GPU image import. Ordinary offscreen rendering
+remains a separate acceptance gate.
+
 Image import on the phone, moving presentation, full SteamOS and game targets
-remain separate unfinished acceptance gates. Owner results and detailed analysis
-stay in ignored local `evidence/device/`, excluded from uploads.
-See [build 4000018 details](docs/GPU-GATE-4000018.md) and
+remain unfinished. Owner results and detailed analysis stay in ignored local
+`evidence/device/`, excluded from uploads. Install with iLoader; in a fresh app
+process enable JIT through StikDebug, pass ARM64 JIT check and run Linux image
+import gate once. Keep foreground and share the resulting device report.
+See [build 4000019 details](docs/GPU-GATE-4000019.md) and
 [image import/presentation acceptance](docs/PRESENTATION-GATE.md).
 
+Preserved modifier diagnostic: [build 4000018 / gate 9](docs/GPU-GATE-4000018.md).
 Preserved image diagnostic: [build 4000017 / gate 8](docs/GPU-GATE-4000017.md).
 Preserved recovery diagnostic: [build 4000016 / gate 7](docs/GPU-GATE-4000016.md).
 Earlier packages, source and user data are retained.

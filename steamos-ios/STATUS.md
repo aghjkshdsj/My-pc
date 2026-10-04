@@ -16,27 +16,38 @@ are counted with their names and digests withheld. Android's Linux-kernel/PRoot
 and Adreno/AHardwareBuffer mechanisms are reference designs, not an adopted
 Darwin compatibility layer or replacement Linux distribution.
 
-**[Build 4000018 / guest image gate 9](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-9)**
-passed run 37218735620 at source `f095035b922c40f004db084b34c57834e9ca8266`.
-The independently downloaded IPA is 24,344,005 bytes, SHA-256
-`469d97698ab9a2b79941f2ef8d013cb83723b289b8340b710139b4776b2db4ec`.
-Physical ARM64 iOS Release compilation, 78 Python checks, 28 native guest receipt
-checks, 27 completion-ledger checks, 37 image-receipt checks and real recovery/
-capture fixtures passed. Public fresh source/IPA/checksum/verification were
-independently checked; published and independent verification agree.
+**[Build 4000019 / guest image gate 10](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-10)**
+passed run 37222312731 at source `ce223b3f79e876c0558e0ade50f8a79aa2933d18`.
+The independently downloaded IPA is 24,351,815 bytes, SHA-256
+`97bcaad90fb68d5e7d6816d96ca96edc7845e9c085b3e4f7a9f07085eb248bc1`.
+Physical ARM64 iOS Release compilation, 82 Python checks, 28 native guest receipt
+checks, 27 completion-ledger checks, 48 image-receipt checks and real recovery/
+capture fixtures passed. Shared colour-order fixtures exercise 1,843,200 synthetic
+pixels and reject swapped channels. Public IPA/fresh-source/checksum/verification
+were independently checked. Published and independent verification agree; all
+22 changed source files and guest recipe hashes match, and both actual AArch64
+diagnostic binaries match their initramfs receipt.
 
-The native image producer/engine ABI/Metal consumer/receipt join are implemented.
-The corrected guest query uses explicit linear DRM modifier tiling and matching
-creation, verifies the actual modifier and memory-plane layout and preserves all
-pixel/fence/identity/cleanup rejection requirements. Native ARM Linux compilation,
-query fixtures, missing-device/2D-only boots and software rejection passed in
-run 37218376178 at source `7f77b026112b4161964f0f38ca6df700facbe750`. Exact native
-engine and observer dependencies are retained. The app now shows the rejected
-image stage. Build/source checks do not establish a new phone import pass.
-Moving presentation, full SteamOS/Steam/CEF, FEX/Proton, all product component rows
-and sustained game targets remain unfinished. Owner device analysis stays local.
-See [current build details](docs/GPU-GATE-4000018.md), the component record and
-`evidence/primary/ios-guest-image-prerelease-4000018.json`.
+Pinned Linux 6.12.111 primary-plane format is now matched at all boundaries:
+Vulkan BGRA8, DRM XRGB8888, virtio BGRX and Metal BGRA8. Actual ARM guest compilation
+and real Linux-kernel framebuffer rejection/creation/release controls passed in
+run 37222125501 at source `453a1d1f19c04b5d49328f135db32257a22d8f30`.
+Missing-device/missing-3D and software rejection remain enforced. The framebuffer
+control uses CPU allocation and cannot establish GPU image import or presentation.
+Native engine and completion observer are unchanged, with exact source/identities
+and full corresponding sources preserved. Native image consumers require the
+matching format metadata, byte ordering, fences, layouts and resource cleanup.
+
+No new phone image import pass is established by these build checks. Fresh
+4000019 image import and later moving presentation, full SteamOS/Steam/CEF,
+FEX/Proton, all product component rows and sustained game targets remain open.
+Owner device analysis stays local. See [current build details](docs/GPU-GATE-4000019.md),
+component coverage and `evidence/primary/ios-guest-image-prerelease-4000019.json`.
+
+Preserved **[Build 4000018 / guest image gate 9](docs/GPU-GATE-4000018.md)**
+passed compilation and independent package verification at source
+`f095035b922c40f004db084b34c57834e9ca8266`, run 37218735620.
+It corrected explicit modifier query/creation and memory-plane layout.
 
 Preserved **[Build 4000017 / guest image gate 8](docs/GPU-GATE-4000017.md)**
 passed physical iOS compilation and independent package verification at source

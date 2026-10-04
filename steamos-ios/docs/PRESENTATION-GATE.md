@@ -74,7 +74,7 @@ not the steady-state zero-copy presenter or a performance benchmark.
 ## Concrete implementation and remaining sequence
 
 1. Add a separate guest image diagnostic to the current disposable Linux
-   payload. Allocate an exportable RGBA8 image with explicit linear DRM modifier; query actual supported
+   payload. Allocate an exportable BGRA8 image with explicit linear DRM modifier and a kernel-supported XRGB primary framebuffer; query actual supported
    external-memory properties, exact image layout, row pitch and offset. Render
    known phases with the existing guest Vulkan shader and wait for the real
    producer fence. Export the image memory through the guest's supported Vulkan
@@ -131,3 +131,15 @@ engine archive. QEMU's applicable GPL/per-file terms, virglrenderer's MIT/per-fi
 terms and all dependency notices remain in force. Fresh host source is MIT;
 that does not replace upstream licenses or eliminate combined-distribution
 obligations. No proprietary Valve client, game or old app source is included.
+
+
+## Current BGRA/XRGB format gate
+
+Build 4000019 matches Vulkan BGRA8, DRM XRGB8888, virtio BGRX and Metal BGRA8;
+RGBA storage is never relabeled. The pinned-kernel CPU-allocation control creates
+and releases the framebuffer through the production helper and reproduces the
+old unsupported-format errno 2. It cannot prove Venus native image import. ARM
+guest run 37222125501 and full iOS package run 37222312731 passed. Native consumers
+and both receipt validators now require exact formats and colour ordering.
+Two diagnostic GPU readbacks remain bounded; steady-state presentation and
+zero-copy transport remain separate acceptance work. See GPU-GATE-4000019.md.
