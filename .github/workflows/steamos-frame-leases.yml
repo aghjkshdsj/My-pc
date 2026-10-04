@@ -1,0 +1,22 @@
+name: Mutable frame ownership source contract
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Engine/FrameLeaseLedger.h', 'steamos-ios/tests/FrameLeaseLedgerTests.cpp', '.github/workflows/steamos-frame-leases.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lease-contract:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and exercise ownership rejection and bounded reuse
+        run: |
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror steamos-ios/tests/FrameLeaseLedgerTests.cpp -o /tmp/mpc-frame-leases
+          /tmp/mpc-frame-leases
+      - name: Check real ownership code with address and undefined-behavior sanitizers
+        run: |
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer steamos-ios/tests/FrameLeaseLedgerTests.cpp -o /tmp/mpc-frame-leases-sanitized
+          /tmp/mpc-frame-leases-sanitized

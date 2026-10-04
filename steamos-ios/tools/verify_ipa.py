@@ -225,8 +225,9 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                            b'physical-ios-linux-eight-frame-screen-gate']:
                 assert marker in binary, 'Missing compiled eight-frame guest boundary'
         if info['CFBundleVersion'] == '4000024':
-            for marker in [b'linux-engine-worker-retired', b'linux-before-serial-receipt-read', b'engine_worker_joined', b'private-apple-metrickit-crash-diagnostics', b'SystemCrash-']:
-                assert marker in binary, 'Missing compiled worker/crash-diagnostic boundary'
+            for marker in [b'linux-engine-worker-retired', b'linux-before-serial-receipt-read', b'engine_worker_joined', b'private-apple-metrickit-crash-diagnostics', b'SystemCrashDiagnostics']:
+                assert marker in binary, 'Missing compiled worker/crash-diagnostic boundary: ' + marker.decode()
+            assert any(path.endswith('/MetricKit.framework/MetricKit') for path in macho_platform(binary, 2)), 'Missing native MetricKit dependency'
         return {'schema': 1, 'kind': 'ios-linux-kernel-gate' if linux_gate else 'ios-host-probe-only', 'commit': commit, 'build': info['CFBundleVersion'],
                 'bundle_id': info['CFBundleIdentifier'], 'sha256': hashlib.file_digest(path.open('rb'), 'sha256').hexdigest(),
                 'bytes': path.stat().st_size, 'zip_crc': 'passed', 'arm64_ios': True,
