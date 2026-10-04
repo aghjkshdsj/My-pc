@@ -1,4 +1,4 @@
-# Architecture and proof gates — 2026-10-02
+# Architecture and proof gates â€” 2026-10-02
 
 ## Decision and limits
 
@@ -43,8 +43,9 @@ The independently verified Linux-gate-7 passed physical-phone Linux execution;
 Linux-gate-10 separately passed the native Vulkan-to-Metal offscreen shader gate
 on Apple A17 Pro: both 720p images, all 1,843,200 pixels and zero mismatches.
 Phone Vulkan validation layers were disabled. Both prerequisites are separate
-from guest graphics, presentation, SteamOS startup and games. The existing IPA
-still has no SteamOS image, Steam/FEX, persistent disk, networking or guest GPU.
+from guest graphics, presentation, SteamOS startup and games. Those historical CPU/native-only IPAs had no guest GPU. The current separate
+guest-GPU diagnostic has a virtio-GPU/Venus transport, but still has no SteamOS
+image, Steam/FEX, persistent disk or guest network integration.
 It does not close the requested environment or performance requirements.
 
 The separate graphics-capable Linux kernel now enables built-in generic PCI,
@@ -120,12 +121,14 @@ at runtime. Headless diagnostic readback is permitted for correctness only;
 steady-state display needs the fresh Metal presenter and explicit resource/fence
 ownership, without per-frame full-image CPU copies.
 
-Pinned renderer `src/mesa/util/anon_file.c` uses `shm_open` on Apple and supports
-an app-group prefix through `APP_SANDBOX_GROUP_ID`. Our ordinary iLoader
-app has no demonstrated shared-memory entitlement/path. This is an unresolved
-runtime dependency, not a demonstrated phone failure. Test allocation/mapping
-and Vulkan host-pointer import on the phone before assuming that an advertised
-`VK_EXT_external_memory_host` extension makes Venus memory sharing work.
+The original pinned renderer's `src/mesa/util/anon_file.c` used named POSIX
+shared memory on Apple. The narrowly patched engine now uses checked app-private,
+immediately unlinked regular files, with original mapping/error semantics and
+separate native Darwin fixture/source provenance. This does not establish GPU
+image alias visibility, layout, fences or lifetime. Test those independently;
+an advertised external-memory extension or a successful file mapping is not
+image-import acceptance. The [native scanout source review](PRESENTATION-GATE.md)
+identifies existing Metal handles and the fresh presentation adapter still needed.
 
 Neptune forwards D3D commands through virtio to native DXMT/D3DMetal backends;
 it is a separate Windows-game transport, not a substitute for the Vulkan
@@ -167,9 +170,9 @@ not satisfy Game Mode. KWin/Plasma is a separate tested session.
    validate x86 Linux Hollow Knight first and Windows/Proton separately when
    available. Do not call a native ARM demo an FEX game. Complete audio/input,
    overlays/plugins/Flatpak/vendor launchers; update coverage after each test.
-6. **Performance gate:** exact Hollow Knight depot/build/renderer, 1280×720,
+6. **Performance gate:** exact Hollow Knight depot/build/renderer, 1280Ã—720,
    base render counts, frame-time percentiles and at least 20 minutes sustained.
-   Target usable Steam <60 s and Hollow Knight 60–80 base FPS. Targets remain
+   Target usable Steam <60 s and Hollow Knight 60â€“80 base FPS. Targets remain
    unverified; generated frames are separate. If CPU emulation prevents them,
    provide reproducible traces and request agreement before architecture change.
 

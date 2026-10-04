@@ -7,6 +7,13 @@ figures are reference measurements on a different platform, not achieved iPhone
 results. GPU clock pinning and Android sysfs controls are not carried into iOS.
 Base game renders remain separate from optional frame generation.
 
+Build 4000016 retains the exact GPU/guest engine identities and adds bounded
+complete recovery JSON. Its native timing verifier retains zero-duration
+completions but requires two positive durations; no command count or sum becomes
+game FPS. The [image-import/presentation gate](PRESENTATION-GATE.md) must check
+alias visibility, layout, fences, ownership and actual drawable times before
+reporting display pacing or a zero-copy performance improvement.
+
 Build 4000015 records native completion/GPU timestamps from the actual guest
 MoltenVK command-submission path. The observer adds no GPU workload, but its
 diagnostic callbacks and ledger have CPU overhead. This is correctness evidence,

@@ -81,16 +81,26 @@ SteamOS startup or gameplay. GPU/Steam/game gates remain open. See `STATUS.md`.
 
 ## Overlay features, services and hardware coverage
 
+Build 4000016 passed 63 Python evidence tests, 28 native guest receipt checks,
+27 production ledger checks, native recovery/capture fixtures, physical ARM64 iOS
+Release compilation and independent public IPA/source verification. Known JSON
+receipts have a bounded 512 KiB allowance; plain logs retain 128 KiB tails.
+Zero-duration observations cannot replace required timed GPU work. This closes
+diagnostic source/build tasks only. Current device acceptance remains in the
+local coverage record; image import, moving presentation and full product rows
+remain open. See [current package](GPU-GATE-4000016.md) and the existing native
+scanout boundary/next acceptance sequence in [the presentation gate](PRESENTATION-GATE.md).
+
 Build 4000015 adds a separately source-built MoltenVK observer for actual guest
 command-buffer completions, with no added GPU workload. Native callback/lifetime
 fixtures, 25 production ledger rejection checks, 62 evidence tests, Release iOS
 compilation, recovery tests and independent IPA/source verification passed.
-This completes a source/build diagnostic task; a fresh phone result is required
-for the native completion gate. Import, moving presentation and all full product
+This completes a source/build diagnostic task; device acceptance is recorded
+separately. Import, moving presentation and all full product
 component rows remain open. Device acceptance records are retained separately
-and locally. See [current build](GPU-GATE-4000015.md).
+and locally. See [observer build](GPU-GATE-4000015.md).
 
-Current build 4000014 adds an app-private renderer communication-file adapter
+Historical build 4000014 adds an app-private renderer communication-file adapter
 and preserves the corrected Linux Mesa/Venus payload. Actual native Darwin file
 tests, integrated physical ARM64 iOS compilation, recovery/report tests and
 independent public IPA/source verification passed. This closes a source/build

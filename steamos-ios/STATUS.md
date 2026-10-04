@@ -16,7 +16,28 @@ are counted with their names and digests withheld. Android's Linux-kernel/PRoot
 and Adreno/AHardwareBuffer mechanisms are reference designs, not an adopted
 Darwin compatibility layer or replacement Linux distribution.
 
-**[Build 4000015 / guest Vulkan gate 5](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-5)**
+**[Build 4000016 / guest Vulkan gate 7](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-7)**
+passed run 37211515640 at source `ef4192e2798ccb9f909265b408ca73666792344a`.
+Independent public IPA verification passed: 24,311,733 bytes, SHA-256
+`9abbe6e13f4fa1a726c3e5bad9f8e4934d033ab3ca1b1d86a7ad9be73a47529b`.
+Actual Release ARM64 iOS compilation, 63 Python evidence tests, 28 native guest
+receipt checks, 27 production ledger checks and recovery/capture fixtures passed.
+The real native Swift tests verify complete JSON receipts above the former limit,
+bounded oversized JSON/plain logs, interruption/reopen and exclusions. Equal
+positive start/end observations do not replace the two required timed buffers.
+Engine and Linux payload identities are unchanged. Public fresh source matches
+the shipped host/tests; published and independent IPA verification receipts agree.
+The first new run failed to compile a throwing expression inside a Swift test
+assertion. That fixture was corrected before the final successful run; no IPA
+was published from the failed run. See [build details](docs/GPU-GATE-4000016.md)
+and `evidence/primary/ios-guest-vulkan-prerelease-4000016.json`.
+
+The [image-import/presentation review](docs/PRESENTATION-GATE.md) identifies
+existing upstream Metal scanout handles and the missing fresh display adapter.
+This is source/configuration evidence, not phone image import or presentation.
+Actual device results and detailed coverage remain local in `evidence/device/`.
+
+Preserved **[Build 4000015 / guest Vulkan gate 5](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-5)**
 passed run 37204430462 at source `6aa8dc6a2be44c7941c1e89ad25e378d31485249`.
 Independent public IPA verification passed: 24,311,595 bytes, SHA-256
 `9e625eb1f51f6f8a20578fa0e8fc012b0bf0a939c6649515abdbc0409bbf8bda`.
@@ -26,7 +47,7 @@ capture tests passed. A separate source-built MoltenVK observer records actual
 guest command-buffer completions and timing without extra GPU work; the old
 QEMU/GL/Venus engine and corrected Linux payload remain exact. Public observer/
 fresh source archives match the shipped engine and host. New integrated native
-completion evidence requires a fresh phone report. Independent memory import,
+completion evidence is maintained separately in the local device record. Independent memory import,
 moving output, full SteamOS and game targets remain unfinished. Device records
 and detailed analysis remain local. See [build details](docs/GPU-GATE-4000015.md)
 and `evidence/primary/ios-guest-vulkan-prerelease-4000015.json`.
@@ -106,11 +127,12 @@ Kernel/ABI/DRM plus the failed Vulkan attempt took 1156.26 ms, not Steam startup
 or game FPS. The normal report alone cannot distinguish the allocation/renderer/resource-
 metadata failure branches. Build 4000013 adds precise native diagnostics and
 includes the host engine output in the normal report. Subsequent raw reports
-and matching recovery analysis remain local. The current new test is build
-4000014's app-private renderer communication adapter, described above.
+and matching recovery analysis remain local. Later source/build results are
+described above; the current package is build 4000016.
 Sanitized receipt: `evidence/primary/ios-guest-vulkan-4000012-partial.json`.
-Raw reports and analysis remain private. Linux guest shaders, independent
-host Metal completion/import, presentation, SteamOS and game targets remain open.
+Raw reports and analysis remain private. Current per-device shader/completion
+acceptance is recorded locally; independent image import, presentation, SteamOS
+and game targets remain open.
 
 Owner-supplied reports identify iPhone 15 Pro Max (iPhone16,2), iOS 27.0.1
 build 24A446 and 16 KiB host pages. iLoader and StikDebug 3.1.10/universal.js

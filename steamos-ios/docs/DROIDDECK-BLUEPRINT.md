@@ -131,14 +131,17 @@ texture presentation. Android GPU clock pinning and scheduler/sysfs controls
 are not iOS performance features. Measure sustained thermals and adapt resolution
 or frame cap using real data instead of a promised fixed clock.
 
-1. [Build 4000015](GPU-GATE-4000015.md) passed native observer ABI fixtures,
+1. The observer in [build 4000015](GPU-GATE-4000015.md) passed native ABI fixtures,
    integrated ARM64 iOS Release builds, recovery/report/ledger rejection checks
    and independent public IPA/source verification. Obtain fresh guest pixels
    and native Metal completion receipts from the same phone run. The corrected
    DRM request, app-private communication files and allocator/context logs remain;
    native completion does not establish memory import, presentation or gameplay.
-2. Repair the observed guest transport failure, prove guest shader pixels and
-   independently match host Metal completion. Exercise Linux GL as well as Vulkan.
+2. [Build 4000016](GPU-GATE-4000016.md) preserves complete bounded recovery receipts
+   and the exact observer/guest engines. Keep current per-device acceptance in
+   the separate local record. Follow the [native image-import/presentation gate](PRESENTATION-GATE.md)
+   through layout, alias pixels, fences and resource ownership. Exercise Linux
+   GL as well as Vulkan.
 3. Implement and measure the moving Metal presenter, resource lifetime, pacing,
    resize, overlays and bounded memory before a desktop/Steam performance claim.
 4. Assemble the verified SteamOS image and dependencies non-destructively; bring

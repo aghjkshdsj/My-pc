@@ -202,3 +202,12 @@ No Android application code, assets, binaries or signing inputs were copied into
 the fresh host. Implementation reuse would require attribution and compatible
 source/license distribution; a functional blueprint does not establish a
 completed source closure or phone performance result.
+
+
+Build 4000016 retains exact engine and Linux payload pins, and distributes the
+changed fresh recovery journal, native/Python fixtures and desktop verifier with
+its complete fresh source archive. The public archive was independently checked
+against the shipped host/test source. It includes no owner phone records. The
+native scanout review uses the exact distributed QEMU and renderer source;
+source/configuration review does not establish actual image import/presentation
+or change upstream licensing obligations.
