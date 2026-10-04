@@ -105,5 +105,38 @@ int main(void) { @autoreleasepool {
     expect(accepted(serial(@[p0, p1], badExit), n, YES, YES, YES), NO);
     NSMutableDictionary *missingEvents = [n mutableCopy]; missingEvents[@"events"] = @[];
     expect(accepted(valid, missingEvents, YES, YES, YES), NO);
+    // A modeset reinstallation can wrap the same immutable resource again.
+    NSMutableArray *reinstallEvents = [NSMutableArray array];
+    for (unsigned g = 1; g <= 3; ++g) {
+        unsigned resource = g == 3 ? 19 : 12;
+        for (unsigned kind = 1; kind <= 3; ++kind)
+            [reinstallEvents addObject:@{@"sequence": @(reinstallEvents.count + 1), @"kind": @(kind),
+                @"generation": @(g), @"resource_id": @(resource)}];
+    }
+    NSMutableDictionary *reinstalled = [n mutableCopy], *phase1 = [i1 mutableCopy]; phase1[@"generation"] = @3;
+    reinstalled[@"events"] = reinstallEvents; reinstalled[@"images"] = @[i0, phase1];
+    expect(accepted(valid, reinstalled, YES, YES, YES), YES);
+    NSMutableDictionary *duplicate = [i0 mutableCopy]; duplicate[@"generation"] = @2;
+    reinstalled[@"images"] = @[i0, duplicate];
+    expect(accepted(valid, reinstalled, YES, YES, YES), NO);
+    NSMutableDictionary *lateFirst = [i0 mutableCopy]; lateFirst[@"generation"] = @2;
+    reinstalled[@"images"] = @[lateFirst, phase1];
+    expect(accepted(valid, reinstalled, YES, YES, YES), NO);
+    reinstalled[@"images"] = @[i0, phase1];
+    for (NSString *key in @[@"generation", @"resource_id", @"kind", @"sequence"]) {
+        NSMutableArray *badEvents = [reinstallEvents mutableCopy];
+        NSMutableDictionary *badEvent = [badEvents[3] mutableCopy];
+        badEvent[key] = [key isEqual:@"resource_id"] ? @99 : [key isEqual:@"kind"] ? @2 : @1;
+        badEvents[3] = badEvent; reinstalled[@"events"] = badEvents;
+        expect(accepted(valid, reinstalled, YES, YES, YES), NO);
+    }
+    NSMutableArray *missingReinstallFlush = [reinstallEvents mutableCopy];
+    [missingReinstallFlush removeObjectAtIndex:4];
+    for (NSUInteger i = 0; i < missingReinstallFlush.count; ++i) {
+        NSMutableDictionary *event = [missingReinstallFlush[i] mutableCopy]; event[@"sequence"] = @(i + 1);
+        missingReinstallFlush[i] = event;
+    }
+    reinstalled[@"events"] = missingReinstallFlush;
+    expect(accepted(valid, reinstalled, YES, YES, YES), NO);
     printf("GUEST_IMAGE_RECEIPT_TESTS_OK checks=%u; fixtures are not phone import evidence\n", checks);
 } }

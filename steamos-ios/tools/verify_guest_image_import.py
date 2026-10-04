@@ -40,7 +40,7 @@ def validate(gate, serial, nonce, device_name, require_modifier=False, require_b
     events = native.get('events')
     require(isinstance(events, list) and 6 <= len(events) <= 64, 'Missing/unbounded native ownership events')
     active, generation, resource, installs = False, 0, 0, []
-    flushed = set()
+    flushed, first_flushed = set(), {}
     for sequence, event in enumerate(events, 1):
         require(isinstance(event, dict) and type(event.get('sequence')) is int and event['sequence'] == sequence,
                 'Reordered native image ownership')
@@ -53,12 +53,13 @@ def validate(gate, serial, nonce, device_name, require_modifier=False, require_b
         elif kind == 2:
             require(active and (g, r) == (generation, resource), 'Flush of a stale or disabled image')
             flushed.add((g, r))
+            first_flushed.setdefault(r, (g, r))
         elif kind == 3:
             require(active and (g, r) == (generation, resource), 'Duplicate or stale image disable')
             active = False
         else:
             require(False, 'Unknown native ownership event')
-    require(not active and len(installs) == 2 and len(flushed) == 2 and set(installs) == flushed,
+    require(not active and len(installs) >= 2 and set(installs) == flushed and len(first_flushed) == 2,
             'Missing import/flush/release ordering')
     registry = native.get('registry_id')
     samples = gate.get('native_metal_trace', {}).get('samples', [])
@@ -82,7 +83,7 @@ def validate(gate, serial, nonce, device_name, require_modifier=False, require_b
         require(all(type(v) is int for v in (r, pitch, offset, size)) and r > 0 and r not in resources and
                 5120 <= pitch <= 1 << 24 and offset >= 0 and offset + pitch * 720 <= size, 'Invalid export allocation/layout')
         resources.add(r)
-        require((image.get('generation'), r) == installs[index] and image.get('resource_id') == r and
+        require((image.get('generation'), r) == first_flushed.get(r) and image.get('resource_id') == r and
                 image.get('row_pitch') == pitch and image.get('offset') == offset, 'Native image/export identity differs')
         alignment = image.get('linear_alignment')
         require(type(alignment) is int and alignment > 0 and alignment & (alignment - 1) == 0 and

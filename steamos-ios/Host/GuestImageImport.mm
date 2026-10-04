@@ -3,15 +3,18 @@
 #import <Metal/Metal.h>
 #include "../Engine/NativeScanoutABI.h"
 #include "../Engine/ImagePixelContract.h"
+#include "GuestImageReadbackBudget.h"
 #include <dlfcn.h>
 #include <cmath>
 
-@interface MPCImageImportContext : NSObject
+@interface MPCImageImportContext : NSObject {
+@public
+    MPCImageReadbackBudget readbackBudget;
+}
 @property(nonatomic, copy) NSString *nonce;
 @property(nonatomic, strong) id<MTLCommandQueue> queue;
 @property(nonatomic, strong) NSMutableArray *events;
 @property(nonatomic, strong) NSMutableArray *images;
-@property(nonatomic, strong) NSMutableSet *consumed;
 @property(nonatomic) uint64_t sequence, generation, resource, registry;
 @property(nonatomic) NSUInteger errors, skippedFlushes;
 @property(nonatomic) BOOL active, reading;
@@ -116,9 +119,9 @@ static void scanout(void *opaque, const MPCNativeScanoutEvent *event) {
             }
             if (event->kind != MPC_SCANOUT_FLUSH || !context.active || event->generation != context.generation ||
                 event->resource_id != context.resource || context.reading) { context.errors++; return; }
-            if ([context.consumed containsObject:@(event->generation)]) { context.skippedFlushes++; return; }
-            if (context.images.count >= 2) { context.errors++; return; }
-            [context.consumed addObject:@(event->generation)];
+            int decision = mpc_reserve_image_readback(&context->readbackBudget, event);
+            if (decision == MPC_IMAGE_BUDGET_REPEAT) { context.skippedFlushes++; return; }
+            if (decision != MPC_IMAGE_BUDGET_CONSUME) { context.errors++; return; }
             context.reading = YES;
         }
         NSDictionary *row = consume(context, event);
@@ -142,7 +145,6 @@ BOOL MPCGuestImageImportBegin(NSString *nonce, void *engine, NSError **error) {
     imageContext.nonce = nonce;
     imageContext.events = [NSMutableArray array];
     imageContext.images = [NSMutableArray array];
-    imageContext.consumed = [NSMutableSet set];
     imageContext.registry = MTLCreateSystemDefaultDevice().registryID;
     // The engine/context stay loaded for process lifetime, including timeout recovery.
     if (!imageContext.registry || configure(1, sizeof(MPCNativeScanoutEvent), scanout, (__bridge void *)imageContext) != 1) {

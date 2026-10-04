@@ -99,6 +99,24 @@ class GuestImageImportTests(unittest.TestCase):
         gate, nonce = fixture(); gate['image_import']['native']['events'] = []
         with self.assertRaises(ValueError): self.check(gate, nonce)
 
+    def test_reinstalled_resource_preserves_two_distinct_consumers_and_first_flush(self):
+        gate, nonce = fixture(); native = gate['image_import']['native']; native['events'] = []
+        for generation, resource in [(1,12),(2,12),(3,13)]:
+            for kind in (1,2,3):
+                native['events'].append(dict(kind=kind,sequence=len(native['events'])+1,
+                                            generation=generation,resource_id=resource))
+        native['images'][1]['generation'] = 3
+        self.check(gate, nonce)
+        for mutation in ('duplicate-consumer','late-first-consumer','unknown-resource','missing-flush'):
+            bad = copy.deepcopy(gate); n = bad['image_import']['native']
+            if mutation == 'duplicate-consumer': n['images'][1] = dict(n['images'][0],generation=2)
+            if mutation == 'late-first-consumer': n['images'][0]['generation'] = 2
+            if mutation == 'unknown-resource': n['events'][3]['resource_id'] = 99
+            if mutation == 'missing-flush':
+                del n['events'][4]
+                for sequence,event in enumerate(n['events'],1): event['sequence'] = sequence
+            with self.assertRaises(ValueError): self.check(bad, nonce)
+
     def test_failed_cleanup_pending_consumer_or_scope_inflation_rejected(self):
         for key in ('images_released', 'scanout_disabled'):
             gate, nonce = fixture(); gate['image_import']['guest_exits'][0][key] = False

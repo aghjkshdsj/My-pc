@@ -36,6 +36,8 @@ NSDictionary *MPCValidateGuestImageImport(NSString *serial, NSString *nonce, NSD
     NSUInteger installs = 0;
     NSMutableSet *flushed = [NSMutableSet set];
     NSMutableDictionary *eventResources = [NSMutableDictionary dictionary];
+    NSMutableDictionary *firstFlushedGeneration = [NSMutableDictionary dictionary];
+    NSMutableSet *installedResources = [NSMutableSet set];
     if (![events isKindOfClass:NSArray.class]) events = @[];
     for (NSDictionary *event in events) {
         if (!passed) break;
@@ -47,15 +49,17 @@ NSDictionary *MPCValidateGuestImageImport(NSString *serial, NSString *nonce, NSD
             passed = !active && g > generation && r != 0;
             generation = g; resource = r; active = YES; installs++;
             eventResources[@(g)] = @(r);
+            [installedResources addObject:@(r)];
         } else if (kind == 2) {
             passed = active && g == generation && r == resource;
             [flushed addObject:@(g)];
+            if (!firstFlushedGeneration[@(r)]) firstFlushedGeneration[@(r)] = @(g);
         } else if (kind == 3) {
             passed = active && g == generation && r == resource;
             active = NO;
         } else passed = NO;
     }
-    passed = passed && !active && installs == 2 && flushed.count == 2;
+    passed = passed && !active && installs >= 2 && flushed.count == installs && installedResources.count == 2;
     NSMutableSet *resources = [NSMutableSet set], *generations = [NSMutableSet set];
     uint64_t pixels = 0, sum = 0;
     for (NSUInteger i = 0; passed && i < 2; ++i) {
@@ -90,13 +94,14 @@ NSDictionary *MPCValidateGuestImageImport(NSString *serial, NSString *nonce, NSD
             [image[@"width"] isEqual:@1280] && [image[@"height"] isEqual:@720] &&
             [image[@"pixels_checked"] isEqual:@921600] && [image[@"mismatches"] isEqual:@0] &&
             [flushed containsObject:generation] && [eventResources[generation] isEqual:resource] &&
+            [firstFlushedGeneration[resource] isEqual:generation] &&
             [image[@"channel_sum"] isEqual:(i ? @603566080 : @615690240)] &&
             [image[@"consumer_status"] isEqual:@4] && [image[@"consumer_error"] isEqual:@NO];
         [resources addObject:resource]; [generations addObject:generation];
         pixels += [image[@"pixels_checked"] unsignedLongLongValue];
         sum += [image[@"channel_sum"] unsignedLongLongValue];
     }
-    passed = passed && pixels == 1843200 && sum == 1219256320;
+    passed = passed && [resources isEqualToSet:installedResources] && pixels == 1843200 && sum == 1219256320;
     return @{@"schema": @1, @"scope": @"physical-ios-linux-guest-image-import-gate", @"run": nonce,
         @"host_memory_import_verified": @(passed), @"native": native, @"guest_producers": producers,
         @"guest_exits": exits, @"guest_rejections": rejected,

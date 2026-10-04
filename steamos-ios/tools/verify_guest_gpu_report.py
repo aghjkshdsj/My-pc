@@ -37,9 +37,9 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             gate.get('hardware_virtualization') is False and gate.get('steamos') is False, 'Wrong execution scope')
     require(gate.get('guest_gpu_device_requested') is True and gate.get('guest_gpu_host_visible_mib') == 128 and
             gate.get('requested_jit_cache_mib') == 32 and gate.get('split_wx_requested') is True, 'Wrong GPU/JIT configuration')
-    if build in ('4000012', '4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019'):
+    if build in ('4000012', '4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020'):
         require(gate.get('display_backend_registered') is True, 'No observed built-in display backend registration')
-    if build in ('4000014', '4000015', '4000016', '4000017', '4000018', '4000019'):
+    if build in ('4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020'):
         require(gate.get('host_private_file_directory_prepared') is True,
                 'No observed preparation of the app-private renderer namespace')
     device = gate.get('device', {})
@@ -94,7 +94,7 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     for key in ('fresh_guest_vulkan_nonce_bound', 'graphics_kernel_device_detected', 'guest_vulkan_pixels_verified', 'graphics_tested'):
         require(gate.get(key) is True, 'Parsed GPU acceptance disagrees: ' + key)
     native_metal = False
-    if build in ('4000015', '4000016', '4000017', '4000018', '4000019'):
+    if build in ('4000015', '4000016', '4000017', '4000018', '4000019', '4000020'):
         require(gate.get('host_metal_completion_observer_requested') is True, 'Native guest observer was not requested')
         validate_metal_trace(gate.get('native_metal_trace'), nonce, device.get('metal_device'))
         require(gate.get('metal_host_verified') is True, 'Native completion and parsed result disagree')
@@ -104,11 +104,12 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     image_verified = False
     if image_import:
         from verify_guest_image_import import validate as validate_image
-        validate_image(gate, text, nonce, device.get('metal_device'), require_modifier=(build in ('4000018', '4000019')), require_bgra=(build == '4000019'))
+        validate_image(gate, text, nonce, device.get('metal_device'), require_modifier=(build in ('4000018', '4000019', '4000020')), require_bgra=(build in ('4000019', '4000020')))
         require(gate.get('host_memory_import_verified') is True, 'Image acceptance disagrees')
         require(report.get('acceptance', {}).get('linux_guest_image_import') is True, 'Exported image acceptance disagrees')
         image_verified = True
     rejection = None
+    partial_image_progress = None
     if image_control_only:
         require(gate.get('image_import_requested') is True and gate.get('host_memory_import_verified') is False and
                 report.get('acceptance', {}).get('linux_guest_image_import') is False,
@@ -118,39 +119,43 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
                 receipt.get('host_memory_import_verified') is False and receipt.get('presentation_verified') is False and
                 receipt.get('zero_copy_transport_verified') is False and receipt.get('gameplay_verified') is False,
                 'Wrong failed image receipt/scope')
-        def image_rows(prefix):
-            return [json.loads(line[len(prefix):]) for line in lines if line.startswith(prefix)]
-        capabilities = image_rows('MPC_IMAGE_CAPABILITIES ')
-        rejected = image_rows('MPC_IMAGE_REJECTED ')
-        require(len(capabilities) == len(rejected) == 1 and rejected == receipt.get('guest_rejections') and
-                not receipt.get('guest_producers') and not receipt.get('guest_exits') and
-                not image_rows('MPC_IMAGE_PRODUCER ') and not image_rows('MPC_IMAGE_EXIT '),
-                'Missing or mixed image rejection before native consumption')
-        capability, rejection = capabilities[0], rejected[0]
-        format_rejection = (capability.get('result') == -11 and rejection.get('code') == -11 and
-            rejection.get('stage') in ('linear-rgba8-export-properties', 'drm-linear-rgba8-export-properties'))
-        framebuffer_rejection = (build == '4000018' and capability.get('result') == 0 and
-            capability.get('tiling') == 'drm-format-modifier' and capability.get('drm_modifier') == 0 and
-            type(capability.get('external_features')) is int and capability['external_features'] & 2 and
-            type(capability.get('compatible_handles')) is int and capability['compatible_handles'] & 512 and
-            type(capability.get('max_width')) is int and capability['max_width'] >= 1280 and
-            type(capability.get('max_height')) is int and capability['max_height'] >= 720 and
-            rejection.get('code') == 2 and rejection.get('stage') == 'drm-addfb2-linear-abgr')
-        require(capability.get('schema') == 1 and capability.get('run') == nonce and
-                rejection.get('schema') == 1 and rejection.get('run') == nonce and
-                (format_rejection or framebuffer_rejection) and
-                rejection.get('host_memory_import_verified') is False and rejection.get('presentation_verified') is False and
-                lines.count('MPC_IMAGE_GUEST_EXIT=21') == 1, 'Invalid or stale image rejection')
-        native = receipt.get('native', {})
-        require(native.get('run') == nonce and native.get('active') is False and native.get('reading') is False and
-                native.get('events') == [] and native.get('images') == [] and native.get('errors') == 0 and
-                native.get('diagnostic_full_image_readbacks') == 0, 'Early rejection includes unexpected native image work')
+        if build == '4000019' and receipt.get('guest_producers') and not receipt.get('guest_rejections'):
+            from verify_failed_image_progress import validate as validate_progress
+            partial_image_progress = validate_progress(gate, text, nonce, device.get('metal_device'))
+        else:
+            def image_rows(prefix):
+                return [json.loads(line[len(prefix):]) for line in lines if line.startswith(prefix)]
+            capabilities = image_rows('MPC_IMAGE_CAPABILITIES ')
+            rejected = image_rows('MPC_IMAGE_REJECTED ')
+            require(len(capabilities) == len(rejected) == 1 and rejected == receipt.get('guest_rejections') and
+                    not receipt.get('guest_producers') and not receipt.get('guest_exits') and
+                    not image_rows('MPC_IMAGE_PRODUCER ') and not image_rows('MPC_IMAGE_EXIT '),
+                    'Missing or mixed image rejection before native consumption')
+            capability, rejection = capabilities[0], rejected[0]
+            format_rejection = (capability.get('result') == -11 and rejection.get('code') == -11 and
+                rejection.get('stage') in ('linear-rgba8-export-properties', 'drm-linear-rgba8-export-properties'))
+            framebuffer_rejection = (build == '4000018' and capability.get('result') == 0 and
+                capability.get('tiling') == 'drm-format-modifier' and capability.get('drm_modifier') == 0 and
+                type(capability.get('external_features')) is int and capability['external_features'] & 2 and
+                type(capability.get('compatible_handles')) is int and capability['compatible_handles'] & 512 and
+                type(capability.get('max_width')) is int and capability['max_width'] >= 1280 and
+                type(capability.get('max_height')) is int and capability['max_height'] >= 720 and
+                rejection.get('code') == 2 and rejection.get('stage') == 'drm-addfb2-linear-abgr')
+            require(capability.get('schema') == 1 and capability.get('run') == nonce and
+                    rejection.get('schema') == 1 and rejection.get('run') == nonce and
+                    (format_rejection or framebuffer_rejection) and
+                    rejection.get('host_memory_import_verified') is False and rejection.get('presentation_verified') is False and
+                    lines.count('MPC_IMAGE_GUEST_EXIT=21') == 1, 'Invalid or stale image rejection')
+            native = receipt.get('native', {})
+            require(native.get('run') == nonce and native.get('active') is False and native.get('reading') is False and
+                    native.get('events') == [] and native.get('images') == [] and native.get('errors') == 0 and
+                    native.get('diagnostic_full_image_readbacks') == 0, 'Early rejection includes unexpected native image work')
     for key in (('presentation_verified', 'gameplay_verified') if image_import else ('host_memory_import_verified', 'presentation_verified', 'gameplay_verified')):
         require(gate.get(key) is False, 'Guest pixels claim independent host/game proof: ' + key)
     acceptance = report.get('acceptance', {})
     require(acceptance.get('linux_kernel_boot') is True and acceptance.get('linux_guest_vulkan_pixels') is True,
             'Exported acceptance disagrees')
-    if build in ('4000015', '4000016', '4000017', '4000018', '4000019'):
+    if build in ('4000015', '4000016', '4000017', '4000018', '4000019', '4000020'):
         require(acceptance.get('linux_guest_offscreen_metal_completion') is True, 'Exported native completion disagrees')
     for key in ('steam_arm_client', 'fex_game', 'linux_game_graphics_to_metal', 'steam_under_60_seconds',
                 'hollow_knight_60_to_80_base_fps'):
@@ -163,6 +168,7 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             'hardware_virtualization_verified': False, 'metal_host_verified': native_metal,
             'host_memory_import_verified': image_verified, 'presentation_verified': False, 'steamos_verified': False,
             'failed_image_controls_only': image_control_only, 'image_rejection': rejection,
+            'partial_image_progress': partial_image_progress,
             'image_format_rejection': rejection if rejection and rejection.get('code') == -11 else None,
             'gameplay_verified': False, 'steam_startup_target_verified': False, 'hollow_knight_target_verified': False,
             'cryptographic_device_attestation': False}
