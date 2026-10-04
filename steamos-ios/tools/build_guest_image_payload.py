@@ -85,7 +85,9 @@ def build(parent):
     assert 'AArch64' in subprocess.check_output(['readelf', '-h', str(binary)], text=True)
     dynamic = subprocess.check_output(['readelf', '-d', str(binary)], text=True)
     dependencies = [line.split('[')[1].split(']')[0] for line in dynamic.splitlines() if '(NEEDED)' in line]
-    assert set(dependencies) == {'libvulkan.so.1', 'libdrm.so.2', 'libc.so.6'}, dependencies
+    required = {'libvulkan.so.1', 'libdrm.so.2', 'libc.so.6'}
+    assert required <= set(dependencies) <= required | {'ld-linux-aarch64.so.1'}, dependencies
+    assert any(name.endswith('/ld-linux-aarch64.so.1') for name in receipt['inventory'])
     init = (PROJECT / 'Guest/init-gpu-userspace').read_text()
     anchor = 'vk_status=$?\n'
     assert init.count(anchor) == 1

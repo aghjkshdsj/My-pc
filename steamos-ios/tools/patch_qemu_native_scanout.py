@@ -91,6 +91,9 @@ static void mpc_scanout_emit(MPCNativeScanoutEvent *event, uint32_t kind)
     edit('ui/egl-headless.c', [
         ('#include "ui/shader.h"', '#include "ui/shader.h"\n#include "ui/mpc-native-scanout.h"\n' + bridge),
         ('    uint32_t pos_y;\n', '    uint32_t pos_y;\n    bool native_active;\n    MPCNativeScanoutEvent native_event;\n'),
+        ('    edpy->ds = new_surface;',
+         '    if (edpy->native_active) {\n        mpc_scanout_emit(&edpy->native_event, MPC_SCANOUT_DISABLE);\n'
+         '        edpy->native_active = false;\n    }\n    edpy->ds = new_surface;'),
         ('    egl_fb_destroy(&edpy->guest_fb);\n    egl_fb_destroy(&edpy->blit_fb);',
          '    if (edpy->native_active) {\n        mpc_scanout_emit(&edpy->native_event, MPC_SCANOUT_DISABLE);\n'
          '        edpy->native_active = false;\n    }\n    egl_fb_destroy(&edpy->guest_fb);\n    egl_fb_destroy(&edpy->blit_fb);'),
