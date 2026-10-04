@@ -117,13 +117,13 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             assert bundled['guest_run'] == guest_run and bundled['guest_source'] == guest_source
             assert bundled['hardware_virtualization'] is False and bundled['root_gles_version_requested'] == 3
             original = bundled['engine_receipt']
-            if info['CFBundleVersion'] in ['4000012', '4000013']:
+            if info['CFBundleVersion'] in ['4000012', '4000013', '4000014']:
                 assert b'mpc_qemu_register_egl_headless' in binary
                 assert b'_mpc_qemu_register_egl_headless' in z.read(engine)
                 assert bundled['display_backend_compiled'] is True and bundled['display_registration_preflight_required'] is True
                 for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
                     assert original['display_backend_build_audit'][field] is True
-            if info['CFBundleVersion'] == '4000013':
+            if info['CFBundleVersion'] in ['4000013', '4000014']:
                 assert b'MPC_GPU_CONTEXT_CREATE' in z.read(engine)
                 assert b'output-flush-failed' in binary and b'tail_truncated' in binary
                 assert b'guest_errors' in binary
@@ -134,6 +134,18 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                 diagnostics = original['graphics_dependency']['failure_diagnostics']
                 assert diagnostics['failure_errno_and_stage_compiled'] is True
                 assert diagnostics['allocator_policy_changed'] is False and diagnostics['success_override'] is False
+            if info['CFBundleVersion'] == '4000014':
+                assert b'linux-private-file-directory-prepared' in binary and b'MPC_GPU_SHM_DIR' in binary
+                renderer = z.read(prefix + 'Frameworks/virglrenderer.1.framework/virglrenderer.1')
+                for marker in [b'MPC_GPU_PRIVATE_FILE_OPENED', b'MPC_GPU_PRIVATE_FILE_FAIL', b'MPC_GPU_SHM_DIR']:
+                    assert marker in renderer
+                private_file = original['graphics_dependency']['private_file_backing']
+                for field in ['allocator_policy_changed', 'explicit_app_private_directory_required',
+                              'atomic_exclusive_create', 'mode_0600', 'unlink_before_mapping',
+                              'close_on_exec', 'hosted_native_tests_passed']:
+                    assert private_file[field] is True
+                assert private_file['phone_tested'] is False and private_file['success_override'] is False
+                assert private_file['host_memory_import_verified'] is False
             expected = closure(original) | {'MoltenVK.framework/MoltenVK'}
             assert set(bundled['engine_text_sections']) == expected
             for relative in expected:
@@ -144,7 +156,7 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             payload = json.loads(z.read(gpu + 'payload-receipt.json'))
             assert payload['scope'] == 'linux-arm64-graphics-payload-missing-3d-boot-controls'
             assert payload['source_commit'] == guest_source and int(payload['workflow_run']) == guest_run
-            if info['CFBundleVersion'] == '4000013':
+            if info['CFBundleVersion'] in ['4000013', '4000014']:
                 assert payload['cases'][0]['kernel_gpu']['resource_bind_flags'] == 2
             assert payload['runtime_dependency_closure_verified'] and payload['linux_runtime_boot_verified']
             for name in ['Image', 'initramfs.cpio.gz']:

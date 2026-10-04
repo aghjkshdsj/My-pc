@@ -56,6 +56,21 @@ class GuestGPUReportTests(unittest.TestCase):
                     'gameplay_verified', 'steamos_verified', 'cryptographic_device_attestation'):
             self.assertFalse(result[key])
 
+    def test_private_namespace_preparation_required_for_build_4000014(self):
+        def check(row):
+            return validate(row, 'test-commit', '4000014', {'synthetic': True},
+                            {'engine_text_sections': {'fixture': {'sha256': 'not-a-device-result'}}}, '27.0.1')
+        row = self.fixture(); row['build'] = '4000014'
+        gate = row['tests']['linux_gpu']; gate['display_backend_registered'] = True
+        for value in [None, False, 1, 'true']:
+            gate['host_private_file_directory_prepared'] = value
+            with self.assertRaises(ValueError): check(row)
+        gate['host_private_file_directory_prepared'] = True
+        result = check(row)
+        self.assertTrue(result['guest_vulkan_pixels_receipt_valid'])
+        self.assertFalse(result['host_memory_import_verified'])
+        self.assertFalse(result['presentation_verified'])
+
     def test_stale_cached_or_mixed_engine_rejected(self):
         for key, value in [('executed_tests', ['jit']), ('source_commit', 'old'), ('build', 'old')]:
             row=self.fixture(); row[key]=value

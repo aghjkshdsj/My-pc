@@ -13,13 +13,15 @@ ENGINE_PINS = {
     '4000011': (37078645613, '56f2522eed4509fe2010d2250eaa569dd503c660'),
     '4000012': (37092127907, '544799c0646c272e253850f588a0a2dd52c2067f'),
     '4000013': (37095545014, '76da8adfa01752df49f6a4b40609b6310b034769'),
+    '4000014': (37176578369, 'f3587da0d0bb97508fa3170386547b746d2b6324'),
 }
 GUEST_PINS = {
     '4000011': (37079133580, 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'),
     '4000012': (37079133580, 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'),
     '4000013': (37095653651, '004853222a3b6fccc76277f9d669fdc2e42d56f1'),
+    '4000014': (37095653651, '004853222a3b6fccc76277f9d669fdc2e42d56f1'),
 }
-BUNDLE_BUILD = '4000013'
+BUNDLE_BUILD = '4000014'
 ENGINE_RUN, ENGINE_SOURCE = ENGINE_PINS[BUNDLE_BUILD]
 GUEST_RUN, GUEST_SOURCE = GUEST_PINS[BUNDLE_BUILD]
 
@@ -60,6 +62,13 @@ def bundle(engine_artifact, guest_artifact, app):
     diagnostics = engine['graphics_dependency']['failure_diagnostics']
     assert diagnostics['failure_errno_and_stage_compiled'] is True
     assert diagnostics['allocator_policy_changed'] is False and diagnostics['success_override'] is False
+    private_file = engine['graphics_dependency']['private_file_backing']
+    for field in ['allocator_policy_changed', 'explicit_app_private_directory_required',
+                  'atomic_exclusive_create', 'mode_0600', 'unlink_before_mapping',
+                  'close_on_exec', 'hosted_native_tests_passed']:
+        assert private_file[field] is True
+    assert private_file['phone_tested'] is False and private_file['success_override'] is False
+    assert private_file['host_memory_import_verified'] is False
     for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
         assert engine['display_backend_build_audit'][field] is True
     selected = closure(engine)

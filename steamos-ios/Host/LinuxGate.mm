@@ -6,6 +6,8 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // Fresh host adapter to the documented upstream QEMU library entry points.
 // CPU and guest-GPU gates share one QEMU initialization allowance. Neither uses
@@ -130,6 +132,21 @@ static NSDictionary *runKernel(BOOL graphics) {
         NSURL *directory = [documents URLByAppendingPathComponent:[@"LinuxGate-" stringByAppendingString:nonce] isDirectory:YES];
         if (![NSFileManager.defaultManager createDirectoryAtURL:directory withIntermediateDirectories:NO attributes:nil error:&error])
             return failure(@"create-run-directory", error.localizedDescription);
+        if (graphics) {
+            // Explicit app-owned namespace for the renderer's immediately
+            // unlinked communication files; never use a global shm namespace.
+            NSURL *privateFiles = [directory URLByAppendingPathComponent:@"renderer-private" isDirectory:YES];
+            if (![NSFileManager.defaultManager createDirectoryAtURL:privateFiles withIntermediateDirectories:NO
+                    attributes:@{NSFilePosixPermissions: @0700} error:&error])
+                return failure(@"renderer-private-directory", error.localizedDescription);
+            struct stat info = {};
+            if (lstat(privateFiles.path.fileSystemRepresentation, &info) != 0 || !S_ISDIR(info.st_mode) ||
+                info.st_uid != geteuid() || (info.st_mode & 0777) != 0700 ||
+                setenv("MPC_GPU_SHM_DIR", privateFiles.path.fileSystemRepresentation, 1) != 0)
+                return failure(@"renderer-private-directory", @"Cannot prepare the app-owned renderer file namespace.");
+            MPCDiagnosticStage(@"linux-private-file-directory-prepared", @{@"mode_0700": @YES,
+                @"host_memory_import_verified": @NO});
+        }
         NSString *serial = [[directory URLByAppendingPathComponent:@"serial.log"] path];
         NSMutableArray<NSString *> *arguments = [@[@"qemu-system-aarch64", @"-machine", @"virt", @"-cpu", @"max",
             @"-accel", @"tcg,thread=multi,split-wx=on,tb-size=32", @"-smp", @"2", @"-m", @"512", @"-nodefaults", @"-display", graphics ? @"egl-headless,gl=es" : @"none",
@@ -147,6 +164,7 @@ static NSDictionary *runKernel(BOOL graphics) {
         run[@"requires_relaunch"] = @YES;
         if (graphics) {
             run[@"engine_bundle"] = engineBundle;
+            run[@"host_private_file_directory_prepared"] = @YES;
             run[@"display_backend_registered"] = @YES;
             run[@"engine_text_sections_observed"] = observedGPUCodes;
             run[@"engine_text_sections_verified"] = @YES;

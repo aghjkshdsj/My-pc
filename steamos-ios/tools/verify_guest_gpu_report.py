@@ -33,8 +33,11 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             gate.get('hardware_virtualization') is False and gate.get('steamos') is False, 'Wrong execution scope')
     require(gate.get('guest_gpu_device_requested') is True and gate.get('guest_gpu_host_visible_mib') == 128 and
             gate.get('requested_jit_cache_mib') == 32 and gate.get('split_wx_requested') is True, 'Wrong GPU/JIT configuration')
-    if build in ('4000012', '4000013'):
+    if build in ('4000012', '4000013', '4000014'):
         require(gate.get('display_backend_registered') is True, 'No observed built-in display backend registration')
+    if build == '4000014':
+        require(gate.get('host_private_file_directory_prepared') is True,
+                'No observed preparation of the app-private renderer namespace')
     device = gate.get('device', {})
     keys = ('device_machine', 'ios_version', 'os_build', 'host_page_bytes')
     require(str(device.get('device_machine', '')).startswith('iPhone') and device.get('ios_version') == ios,
