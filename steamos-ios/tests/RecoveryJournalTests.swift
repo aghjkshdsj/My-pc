@@ -126,7 +126,8 @@ struct RecoveryJournalTests {
         precondition(oversizedReceipt["tail_truncated"] as? Bool == true)
         precondition(oversizedReceipt["captured_bytes"] as? Int == 524288)
         precondition((oversizedReceipt["text"] as! String).utf8.count == 524288)
-        precondition(!String(decoding: try Data(contentsOf: oversizedExport), as: UTF8.self).contains("DO_NOT_EXPORT_SYNTHETIC_PRIVATE_FILE"))
+        let oversizedBody = String(decoding: try Data(contentsOf: oversizedExport), as: UTF8.self)
+        precondition(!oversizedBody.contains("DO_NOT_EXPORT_SYNTHETIC_PRIVATE_FILE"))
         _ = another
         print("RECOVERY_GATE_OK: abrupt-exit stages/output, reopen marker, completion/timeout, retained/cancelled share, stale/corrupt marker, path/symlink exclusion, complete JSON receipts, bounded oversized JSON/log tails and exact StikDebug request")
     }

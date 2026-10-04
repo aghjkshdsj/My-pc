@@ -2,7 +2,7 @@ name: Fresh iPhone Linux guest Vulkan gate prerelease
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', 'steamos-ios/tools/bundle_guest_gpu.py', 'steamos-ios/tools/verify_ipa.py', 'steamos-ios/tests/GuestGPUReceiptTests.mm', '.github/workflows/steamos-ios-guest-gpu-prerelease.yml']
+    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', 'steamos-ios/tools/bundle_guest_gpu.py', 'steamos-ios/tools/verify_ipa.py', 'steamos-ios/tests/GuestGPUReceiptTests.mm', 'steamos-ios/tests/RecoveryJournalTests.swift', 'steamos-ios/tests/GuestMetalTraceLedgerTests.cpp', 'steamos-ios/tests/test_guest_metal_trace.py', 'steamos-ios/tests/test_guest_gpu_report.py', 'steamos-ios/tools/verify_guest_metal_trace.py', 'steamos-ios/tools/verify_guest_gpu_report.py', '.github/workflows/steamos-ios-guest-gpu-prerelease.yml']
   workflow_dispatch:
 permissions:
   contents: write
