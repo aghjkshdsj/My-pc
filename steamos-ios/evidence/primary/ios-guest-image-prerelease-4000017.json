@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "scope": "public-ios-linux-guest-image-import-prerelease-package-only",
+  "build": "4000017",
+  "source_commit": "186c67b20b45b04a5b880bce01e392890e67872a",
+  "workflow_run": 37216717671,
+  "workflow_job": 111478601054,
+  "release_url": "https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-8",
+  "engine_source": "6b6e268bffdce59d2d15b319abdee46eaa4b8cee",
+  "engine_run": 37215070827,
+  "guest_source": "4a6bd99fb931eb42c9ab2b6bd19dc015d5d9616e",
+  "guest_run": 37215885406,
+  "physical_ios_arm64_release_build": true,
+  "python_tests": 73,
+  "native_guest_receipt_checks": 28,
+  "native_metal_ledger_checks": 27,
+  "native_image_receipt_checks": 33,
+  "native_recovery_and_capture_tests": true,
+  "source_runtime_rejection_controls_passed": true,
+  "public_ipa_redownload_and_package_verification_passed": true,
+  "independent_public_ipa_verification_passed": true,
+  "phone_tested": false,
+  "guest_shader_verified": false,
+  "metal_host_verified": false,
+  "host_memory_import_verified": false,
+  "zero_copy_transport_verified": false,
+  "presentation_verified": false,
+  "steamos_verified": false,
+  "gameplay_verified": false,
+  "hardware_virtualization": false,
+  "assets": [
+    {
+      "name": "cpu-guest-run.json",
+      "bytes": 13400,
+      "sha256": "e4c2d517a5a3e8a27c9db9d53f317c1e4768dbaa858c0023299886fe60dce8c9",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/cpu-guest-run.json",
+      "independently_downloaded_and_hash_verified": false
+    },
+    {
+      "name": "GPU-Engine-Corresponding-Source.tar.gz",
+      "bytes": 212084602,
+      "sha256": "0cb1906ae66142fc595f9f04c354a4d4925c63a9830a51b5e65e04eab119da7c",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/GPU-Engine-Corresponding-Source.tar.gz",
+      "independently_downloaded_and_hash_verified": false
+    },
+    {
+      "name": "gpu-engine-run.json",
+      "bytes": 13443,
+      "sha256": "0947fe692a4c13ca698dea86fe763b5f392a5b9d65f2aea2b1060b9d55092292",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/gpu-engine-run.json",
+      "independently_downloaded_and_hash_verified": false
+    },
+    {
+      "name": "gpu-guest-run.json",
+      "bytes": 13458,
+      "sha256": "c6ee77c0d6915d2f80fddf953aba1c3665a77dcd507845153cdd99fcbc9cd87c",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/gpu-guest-run.json",
+      "independently_downloaded_and_hash_verified": false
+    },
+    {
+      "name": "Guest-GPU-Corresponding-Source.tar.gz",
+      "bytes": 380279821,
+      "sha256": "95cf8015ebd51fdf98b3eea3a62b573cf46f989ba7001a1c96e8a66b53160aa4",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/Guest-GPU-Corresponding-Source.tar.gz",
+      "independently_downloaded_and_hash_verified": false
+    },
+    {
+      "name": "Linux-Gate-Corresponding-Source.tar.gz",
+      "bytes": 151293901,
+      "sha256": "751f9beb8b37146b8a04854cb7519377e83ccb96022647b0892c7bfe50ed0546",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/Linux-Gate-Corresponding-Source.tar.gz",
+      "independently_downloaded_and_hash_verified": false
+    },
+    {
+      "name": "molten-run.json",
+      "bytes": 13476,
+      "sha256": "7984887d3756d680a4db47fe115fea59f5f092c256cf359c2b3a8080d171bf17",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/molten-run.json",
+      "independently_downloaded_and_hash_verified": false
+    },
+    {
+      "name": "MoltenVK-Corresponding-Source.tar.gz",
+      "bytes": 11117319,
+      "sha256": "9577d3a782917c1da25e179de5f720ab947db89afe7c81fc978bba0d0c9a4f6f",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/MoltenVK-Corresponding-Source.tar.gz",
+      "independently_downloaded_and_hash_verified": false
+    },
+    {
+      "name": "MyPCSteamOS-Fresh-Source.tar.gz",
+      "bytes": 512146,
+      "sha256": "b8486368083725d4d079f9355a2884620b9919606e0f047b2a513b212a887946",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/MyPCSteamOS-Fresh-Source.tar.gz",
+      "independently_downloaded_and_hash_verified": true
+    },
+    {
+      "name": "MyPCSteamOS-Guest-GPU-Gate.ipa",
+      "bytes": 24342878,
+      "sha256": "91f9f48aae17fd84026e631fbbc4218c6360bfc81fe5bb067550573d5fab9ae3",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/MyPCSteamOS-Guest-GPU-Gate.ipa",
+      "independently_downloaded_and_hash_verified": true
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 1034,
+      "sha256": "1e0b797daea771b3e21035ffcc1ca6b3955db2e89b450443db7029db13806cf2",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/SHA256SUMS",
+      "independently_downloaded_and_hash_verified": true
+    },
+    {
+      "name": "verification.json",
+      "bytes": 1337,
+      "sha256": "7738aad68be9bdd9fa67fb17a56ab2299eda483d50c7dfc7e4951eede8da1c6d",
+      "url": "https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-8/verification.json",
+      "independently_downloaded_and_hash_verified": true
+    }
+  ]
+}

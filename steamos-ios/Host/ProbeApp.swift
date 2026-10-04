@@ -174,12 +174,15 @@ final class ProbeModel: ObservableObject {
     private func finish(runID: String, before: [AnyHashable: Any], controllers: [[String: Any]], tests: [String: Any]) {
         if let jit = tests["jit"] as? [String: Any] {
             testStatus = jit["status"] as? String == "passed"
-                ? "ARM64 JIT passed: code returned 42. Run the Linux guest Vulkan gate next."
+                ? "ARM64 JIT passed: code returned 42. Run the Linux image import gate next in this fresh process."
                 : "JIT \(jit["status"] ?? "failed"): \(jit["reason"] ?? jit["stage"] ?? "See the saved report.")"
         } else if let image = tests["linux_image"] as? [String: Any] {
+            let receipt = image["image_import"] as? [String: Any]
+            let rejection = (receipt?["guest_rejections"] as? [[String: Any]])?.first
+            let failure = rejection?["stage"] ?? receipt?["reason"] ?? image["reason"] ?? "See the saved report."
             testStatus = image["host_memory_import_verified"] as? Bool == true
                 ? "Two Linux images imported into Metal and matched. Visible presentation and games remain unfinished."
-                : "Linux image import \(image["status"] ?? "failed"): share the device report and saved logs for the failed stage."
+                : "Linux image import \(image["status"] ?? "failed"): \(failure). Share the device report and saved logs."
         } else if let gpu = tests["linux_gpu"] as? [String: Any] {
             testStatus = gpu["guest_vulkan_pixels_verified"] as? Bool == true
                 ? (gpu["metal_host_verified"] as? Bool == true
@@ -218,7 +221,7 @@ final class ProbeModel: ObservableObject {
                            "steam_arm_client": false, "fex_game": false,
                            "linux_game_graphics_to_metal": false, "steam_under_60_seconds": false,
                            "hollow_knight_60_to_80_base_fps": false],
-            "limitations": "Host Metal and JIT checks do not demonstrate Linux execution. The separate Linux gate, when bundled, validates only a disposable Linux kernel and ABI smoke. SteamOS, guest graphics, Steam, FEX and game performance remain unverified. Controller enumeration is not an input test."
+            "limitations": "Host-only Metal and JIT checks do not demonstrate Linux execution. The Linux kernel, guest offscreen Vulkan/Metal and guest image import gates have separate acceptance fields and require fresh device results. These disposable diagnostics do not establish moving presentation, full SteamOS, Steam ARM, FEX/Proton or game performance. Controller enumeration is not an input test."
         ]
         do {
             let data = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
