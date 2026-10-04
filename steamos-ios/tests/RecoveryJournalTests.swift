@@ -57,6 +57,29 @@ struct RecoveryJournalTests {
         let graphicsFiles = graphicsObject["files"] as! [[String: Any]]
         precondition(graphicsFiles.contains { $0["name"] as? String == "vulkan-diagnostic.json" &&
             ($0["text"] as? String)?.contains("synthetic_vulkan_receipt") == true })
+        // OS crash metadata can describe a different process/build from the
+        // collector. Preserve it without inventing a probe nonce association.
+        let osPayload: [String: Any] = ["crashDiagnostics": [["signal": 11, "synthetic_stack": true,
+            "diagnosticMetaData": ["appBuildVersion": "older-fixture-build"]]], "timeStampBegin": "synthetic-time"]
+        try journal.recordSystemCrash(JSONSerialization.data(withJSONObject: osPayload), collector: ["build": "newer-fixture-build"])
+        let crashShare = try journal.shareReport(snapshot: journal.pendingSnapshot())
+        let crashShareObject = try JSONSerialization.jsonObject(with: Data(contentsOf: crashShare)) as! [String: Any]
+        let crashFiles = crashShareObject["files"] as! [[String: Any]]
+        let osEntry = crashFiles.first { ($0["name"] as? String)?.hasPrefix("SystemCrash-") == true }!
+        precondition(osEntry["tail_truncated"] as? Bool == false)
+        let savedOS = try JSONSerialization.jsonObject(with: Data((osEntry["text"] as! String).utf8)) as! [String: Any]
+        precondition(savedOS["active_probe_nonce_bound"] as? Bool == false && savedOS["automatically_uploaded"] as? Bool == false)
+        precondition((savedOS["system_payload"] as! NSDictionary).isEqual(to: osPayload))
+        precondition((savedOS["collector"] as! [String: String])["build"] == "newer-fixture-build")
+        for bad in [Data("invalid-json".utf8), Data("{}".utf8), Data("{\"crashDiagnostics\":[]}".utf8), Data(repeating: 65, count: 384 * 1024 + 1)] {
+            var rejectedOS = false
+            do { try journal.recordSystemCrash(bad, collector: [:]) } catch { rejectedOS = true }
+            precondition(rejectedOS)
+        }
+        try fm.createSymbolicLink(at: journal.directory.appendingPathComponent("SystemCrash-symlink.json"),
+            withDestinationURL: normalFolder.appendingPathComponent("before.json"))
+        let symlinkOS = try JSONSerialization.jsonObject(with: Data(contentsOf: journal.shareReport(snapshot: journal.pendingSnapshot()))) as! [String: Any]
+        precondition(!(symlinkOS["files"] as! [[String: Any]]).contains { $0["name"] as? String == "SystemCrash-symlink.json" })
         // Engine metadata made actual reports slightly larger than 128 KiB.
         // The recovery export must preserve the complete structured receipt.
         let structured = ["fixture_completed": true, "payload": String(repeating: "A", count: 132392)] as [String: Any]
@@ -129,6 +152,6 @@ struct RecoveryJournalTests {
         let oversizedBody = String(decoding: try Data(contentsOf: oversizedExport), as: UTF8.self)
         precondition(!oversizedBody.contains("DO_NOT_EXPORT_SYNTHETIC_PRIVATE_FILE"))
         _ = another
-        print("RECOVERY_GATE_OK: abrupt-exit stages/output, reopen marker, completion/timeout, retained/cancelled share, stale/corrupt marker, path/symlink exclusion, complete JSON receipts, bounded oversized JSON/log tails and exact StikDebug request")
+        print("RECOVERY_GATE_OK: abrupt-exit stages/output, reopen marker, completion/timeout, retained/cancelled share, stale/corrupt marker, path/symlink exclusion, complete JSON receipts, bounded oversized JSON/log tails, bounded OS crash payload/identity/symlink rejection and exact StikDebug request")
     }
 }

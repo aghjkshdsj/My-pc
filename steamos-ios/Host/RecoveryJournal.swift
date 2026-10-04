@@ -52,6 +52,27 @@ final class RecoveryJournal {
 
     func pendingSnapshot() -> Data? { try? Data(contentsOf: marker) }
 
+    func recordSystemCrash(_ data: Data, collector: [String: String]) throws {
+        // Bound individual OS payloads before parsing or storing. Keep all
+        // saved reports; export only the three most recent complete snapshots.
+        guard data.count > 0, data.count <= 384 * 1024,
+              let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let crashes = payload["crashDiagnostics"] as? [[String: Any]], !crashes.isEmpty else {
+            throw NSError(domain: "RecoveryJournal", code: 4, userInfo: [NSLocalizedDescriptionKey: "No bounded system crash payload"])
+        }
+        let row: [String: Any] = ["schema": 1, "scope": "private-apple-metrickit-crash-diagnostics",
+            "origin": "apple-metrickit", "received_utc": ISO8601DateFormatter().string(from: Date()),
+            "collector": collector, "system_payload": payload, "automatically_uploaded": false,
+            "active_probe_nonce_bound": false,
+            "limitation": "OS-provided diagnostic, possibly from an earlier process/build. Collector identity is not crash identity. Delivery is not guaranteed; absence does not establish no crash. Inspect original system metadata and matching binary UUIDs."]
+        let encoded = try JSONSerialization.data(withJSONObject: row, options: [.sortedKeys])
+        guard encoded.count <= 512 * 1024 else {
+            throw NSError(domain: "RecoveryJournal", code: 5, userInfo: [NSLocalizedDescriptionKey: "System crash report exceeds export budget"])
+        }
+        try files.createDirectory(at: directory, withIntermediateDirectories: true)
+        try durableWrite(encoded, to: directory.appendingPathComponent("SystemCrash-\(UUID().uuidString).json"))
+    }
+
     func recordActivation(_ details: [String: Any]) throws {
         try files.createDirectory(at: directory, withIntermediateDirectories: true)
         var row = details
@@ -129,6 +150,12 @@ final class RecoveryJournal {
         if var entry = try? textFile(directory.appendingPathComponent("stikdebug-request.json")) {
             entry["relative_directory"] = "ProbeDiagnostics"; entries.append(entry)
         }
+        for url in recent(directory, prefix: "SystemCrash-", maximum: 3)
+            where url.pathExtension == "json" {
+            if var entry = try? textFile(url) {
+                entry["relative_directory"] = "ProbeDiagnostics"; entries.append(entry)
+            }
+        }
         if let snapshot {
             pending = (try? JSONSerialization.jsonObject(with: snapshot)) ?? ["unreadable_marker": String(decoding: snapshot.prefix(4096), as: UTF8.self)]
         }
@@ -158,7 +185,7 @@ final class RecoveryJournal {
         let report: [String: Any] = ["schema": 1, "scope": "private-ios-interrupted-probe-diagnostics",
             "collected_utc": ISO8601DateFormatter().string(from: Date()), "pending_test": pending,
             "last_saved_stage": snapshot.flatMap { lastStage($0) } ?? "unavailable", "files": entries,
-            "limitation": "A pending test means no result was saved. Crash, OS termination or force-close are possible; this is not an iOS crash stack or proof of cause. No automatic upload. Linux/Steam/graphics success is not inferred."]
+            "limitation": "A pending test means no result was saved. Crash, OS termination or force-close are possible; the stage journal is not a fault stack or proof of cause. Separately saved Apple MetricKit payloads, if delivered, retain their original OS metadata and are not automatically bound to a probe nonce. No automatic upload. Linux/Steam/graphics success is not inferred."]
         let output = documents.appendingPathComponent("SharedDiagnostics", isDirectory: true)
         try files.createDirectory(at: output, withIntermediateDirectories: true)
         let url = output.appendingPathComponent("MyPCSteamOS-Recovery-\(UUID().uuidString).json")

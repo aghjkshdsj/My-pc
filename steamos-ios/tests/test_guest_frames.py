@@ -10,6 +10,16 @@ def check(r):
     g=r['tests']['linux_frames']
     return validate(r,'test-commit','4000023',g['payload'],g['engine_bundle'],'27.0.1',frame_sequence=True)
 class FrameSequenceTests(unittest.TestCase):
+    def test_build24_requires_retired_joined_engine_worker(self):
+        r=fixture();r['build']='4000024';g=r['tests']['linux_frames']
+        def check24():
+            return validate(r,'test-commit','4000024',g['payload'],g['engine_bundle'],'27.0.1',frame_sequence=True)
+        for bad in (None,False,1):
+            g['engine_worker_joined']=bad
+            with self.subTest(value=bad),self.assertRaises(ValueError):check24()
+        g['engine_worker_joined']=True
+        self.assertTrue(check24()['eight_frame_gpu_sequence_verified'])
+        self.assertFalse(check24()['presentation_verified'])
     def test_zero_display_time_allows_only_explicit_gpu_sequence(self):
         result=check(fixture());self.assertTrue(result['eight_frame_gpu_sequence_verified'])
         for key in ('presentation_verified','gameplay_verified','steamos_verified','hollow_knight_target_verified','cryptographic_device_attestation'):

@@ -5,6 +5,7 @@ import Darwin
 
 @main
 struct ProbeApp: App {
+    init() { SystemCrashDiagnostics.shared.start() }
     var body: some Scene { WindowGroup { ProbeScreen() } }
 }
 

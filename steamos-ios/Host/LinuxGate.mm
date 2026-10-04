@@ -218,7 +218,8 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         double start = NSProcessInfo.processInfo.systemUptime;
         // The pinned qemu_init acquires BQL/replay locks. Keep them held for the
         // main loop/cleanup, matching upstream system/main.c, without its exit().
-        std::thread([values = std::move(values), initialize, loop, cleanup, unlockBQL, unlockReplay]() mutable {
+        std::thread engineWorker([values = std::move(values), initialize, loop, cleanup, unlockBQL, unlockReplay]() mutable {
+            int status = -999;
             @autoreleasepool {
                 std::vector<char *> argv;
                 for (auto &value : values) argv.push_back(value.data());
@@ -230,22 +231,35 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
                 // debugger before the workload; new regions would need reattach.
                 MPCDetachJITDebugger();
                 MPCDiagnosticStage(@"linux-before-qemu-main-loop", @{});
-                int status = loop();
+                status = loop();
                 MPCDiagnosticStage(@"linux-before-qemu-cleanup", @{@"engine_status": @(status)});
                 cleanup(status);
                 unlockBQL();
                 unlockReplay();
-                engineStatus.store(status);
-                finished.store(true);
                 MPCDiagnosticStage(@"linux-engine-finished", @{@"engine_status": @(status)});
             }
-        }).detach();
+            // A cleanup return did not mean this thread's autorelease pool had
+            // retired. Publish completion only after that drain, then join the
+            // worker before parsing receipts. Timeout retains the live worker.
+            @autoreleasepool {
+                MPCDiagnosticStage(@"linux-engine-worker-retired", @{@"engine_status": @(status)});
+            }
+            engineStatus.store(status);
+            finished.store(true);
+        });
         while (!finished.load() && NSProcessInfo.processInfo.systemUptime - start < 180)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        const bool workerRetired = finished.load();
+        if (workerRetired) engineWorker.join();
+        else engineWorker.detach();
         run[@"elapsed_ms"] = @((NSProcessInfo.processInfo.systemUptime - start) * 1000);
-        run[@"engine_finished"] = @(finished.load());
+        run[@"engine_finished"] = @(workerRetired);
+        run[@"engine_worker_joined"] = @(workerRetired);
         run[@"engine_status"] = @(engineStatus.load());
+        MPCDiagnosticStage(@"linux-before-serial-receipt-read", @{@"worker_retired": @(workerRetired)});
+        error = nil;
         NSString *text = [NSString stringWithContentsOfFile:serial encoding:NSUTF8StringEncoding error:&error] ?: @"";
+        MPCDiagnosticStage(@"linux-serial-receipt-read", @{@"characters": @(text.length), @"read_error": @(error != nil)});
         run[@"serial_tail"] = text.length > 16000 ? [text substringFromIndex:text.length - 16000] : text;
         NSMutableArray<NSDictionary *> *guestRows = [NSMutableArray array];
         for (NSString *line in [text componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
@@ -255,7 +269,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
             id guest = [NSJSONSerialization JSONObjectWithData:json options:0 error:nil];
             if ([guest isKindOfClass:NSDictionary.class]) [guestRows addObject:guest];
         }
-        BOOL passed = finished.load() && engineStatus.load() == 0 && guestRows.count == 1;
+        BOOL passed = workerRetired && engineStatus.load() == 0 && guestRows.count == 1;
         NSDictionary *guest = guestRows.firstObject ?: @{};
         passed = passed && [guest[@"schema"] isEqual:@1] && [guest[@"run"] isEqual:nonce] &&
             [guest[@"machine"] isEqual:@"aarch64"] && [guest[@"elf_arch"] isEqual:@"aarch64"] &&
@@ -264,7 +278,9 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         for (NSString *key in @[@"signals", @"mmap_protection", @"pthread_tls_futex", @"fork_exec"])
             passed = passed && [guest[key] isEqual:@YES];
         BOOL linuxPassed = passed;
+        MPCDiagnosticStage(@"linux-kernel-receipt-checked", @{@"linux_execution": @(linuxPassed), @"abi_rows": @(guestRows.count)});
         if (graphics) {
+            MPCDiagnosticStage(@"linux-before-guest-vulkan-receipt-check", @{});
             NSDictionary *gpu = MPCParseGuestGPUReceipt(text, nonce, linuxPassed);
             [run addEntriesFromDictionary:gpu];
             passed = [gpu[@"guest_vulkan_pixels_verified"] isEqual:@YES];
@@ -272,6 +288,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
                 @"guest_pixels_verified": gpu[@"guest_vulkan_pixels_verified"],
                 @"driver_detected": gpu[@"graphics_kernel_device_detected"],
                 @"nonce_bound": gpu[@"fresh_guest_vulkan_nonce_bound"]});
+            MPCDiagnosticStage(@"linux-before-metal-observer-finish", @{});
             NSDictionary *metal = MPCGuestMetalTraceFinish(passed);
             run[@"native_metal_trace"] = metal;
             run[@"metal_host_verified"] = metal[@"metal_host_verified"];
@@ -280,11 +297,13 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
                 @"observed_commit_points": metal[@"observed_commit_points"],
                 @"pending": metal[@"pending"], @"failed": metal[@"failed"]});
             if (frames) {
-                NSDictionary *importResult = MPCGuestFrameImportFinish(text, finished.load() && engineStatus.load() == 0,
+                MPCDiagnosticStage(@"linux-before-frame-import-finish", @{});
+                NSDictionary *importResult = MPCGuestFrameImportFinish(text, workerRetired && engineStatus.load() == 0,
                     linuxPassed, [metal[@"metal_host_verified"] isEqual:@YES]);
                 run[@"frame_import"] = importResult;
                 run[@"host_memory_import_verified"] = importResult[@"host_memory_import_verified"];
-                NSDictionary *screenResult = MPCGuestScreenFinish(importResult, finished.load() && engineStatus.load() == 0);
+                MPCDiagnosticStage(@"linux-before-frame-screen-finish", @{});
+                NSDictionary *screenResult = MPCGuestScreenFinish(importResult, workerRetired && engineStatus.load() == 0);
                 run[@"frame_screen"] = screenResult;
                 run[@"gpu_sequence_verified"] = screenResult[@"gpu_sequence_verified"];
                 run[@"presentation_verified"] = screenResult[@"presentation_verified"];
@@ -293,7 +312,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
                 MPCDiagnosticStage(@"linux-eight-frame-sequence-checked", @{@"gpu_sequence_verified": screenResult[@"gpu_sequence_verified"],
                     @"presentation_verified": screenResult[@"presentation_verified"]});
             } else if (images) {
-                NSDictionary *importResult = MPCGuestImageImportFinish(text, finished.load() && engineStatus.load() == 0,
+                NSDictionary *importResult = MPCGuestImageImportFinish(text, workerRetired && engineStatus.load() == 0,
                     linuxPassed, [metal[@"metal_host_verified"] isEqual:@YES]);
                 run[@"image_import"] = importResult;
                 run[@"host_memory_import_verified"] = importResult[@"host_memory_import_verified"];
@@ -301,7 +320,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
                 MPCDiagnosticStage(@"linux-native-image-import-checked", @{
                     @"host_memory_import_verified": importResult[@"host_memory_import_verified"], @"presentation_verified": @NO});
                 if (screenOutput) {
-                    NSDictionary *screenResult = MPCGuestScreenFinish(importResult, finished.load() && engineStatus.load() == 0);
+                    NSDictionary *screenResult = MPCGuestScreenFinish(importResult, workerRetired && engineStatus.load() == 0);
                     run[@"screen_presentation"] = screenResult;
                     run[@"presentation_verified"] = screenResult[@"presentation_verified"];
                     passed = passed && [screenResult[@"presentation_verified"] isEqual:@YES];
@@ -311,7 +330,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
             }
         }
         run[@"guest"] = guest;
-        run[@"status"] = passed ? @"passed" : (finished.load() ? @"failed" : @"timed-out-engine-still-running");
+        run[@"status"] = passed ? @"passed" : (workerRetired ? @"failed" : @"timed-out-engine-still-running");
         run[@"linux_execution"] = @(linuxPassed);
         run[@"after"] = MPCPlatformFacts();
         run[@"limitations"] = @"This disposable Linux kernel/ABI gate is not SteamOS, Steam, FEX or a game graphics/performance test. If timed out, close and relaunch the app. Serial and pending receipts survive an engine failure.";

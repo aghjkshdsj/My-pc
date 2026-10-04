@@ -2,7 +2,7 @@ name: Fresh iPhone Linux guest Vulkan gate prerelease
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', 'steamos-ios/tools/bundle_guest_gpu.py', 'steamos-ios/tools/verify_ipa.py', 'steamos-ios/tests/Guest*Tests.mm', 'steamos-ios/tests/GuestImageReadbackBudgetTests.c', 'steamos-ios/tests/GuestFrameBudgetTests.c', 'steamos-ios/tests/frame_sequence_fixture.json', 'steamos-ios/tests/RecoveryJournalTests.swift', 'steamos-ios/tests/GuestMetalTraceLedgerTests.cpp', 'steamos-ios/tests/test_guest*.py', 'steamos-ios/tests/test_failed_image_controls.py', 'steamos-ios/tests/test_failed_image_progress.py', 'steamos-ios/tools/verify_guest*.py', 'steamos-ios/tools/verify_failed_image_progress.py', 'steamos-ios/tools/verify_failed_screen_progress.py', 'steamos-ios/tests/test_failed_screen_progress.py', '.github/workflows/steamos-ios-guest-gpu-prerelease.yml']
+    paths: ['steamos-ios/Host/**', 'steamos-ios/MyPCSteamOS.xcodeproj/**', 'steamos-ios/tools/bundle_guest_gpu.py', 'steamos-ios/tools/verify_ipa.py', 'steamos-ios/tools/verify_host_symbols.py', 'steamos-ios/tests/test_host_symbols.py', 'steamos-ios/tests/Guest*Tests.mm', 'steamos-ios/tests/GuestImageReadbackBudgetTests.c', 'steamos-ios/tests/GuestFrameBudgetTests.c', 'steamos-ios/tests/frame_sequence_fixture.json', 'steamos-ios/tests/RecoveryJournalTests.swift', 'steamos-ios/tests/GuestMetalTraceLedgerTests.cpp', 'steamos-ios/tests/test_guest*.py', 'steamos-ios/tests/test_failed_image_controls.py', 'steamos-ios/tests/test_failed_image_progress.py', 'steamos-ios/tools/verify_guest*.py', 'steamos-ios/tools/verify_failed_image_progress.py', 'steamos-ios/tools/verify_failed_screen_progress.py', 'steamos-ios/tests/test_failed_screen_progress.py', '.github/workflows/steamos-ios-guest-gpu-prerelease.yml']
   workflow_dispatch:
 permissions:
   contents: write
@@ -124,7 +124,9 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000023 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000024 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_host_symbols.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/xcode/Build/Products/Release-iphoneos/MyPCSteamOSProbe.app.dSYM/Contents/Resources/DWARF/MyPCSteamOSProbe "$GITHUB_SHA" 4000024 --receipt steamos-ios/out/package/host-symbols.json
+          tar -czf steamos-ios/out/package/Host-Debug-Symbols.tar.gz -C steamos-ios/out/xcode/Build/Products/Release-iphoneos MyPCSteamOSProbe.app.dSYM
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/cpu-guest-artifact/Linux-Gate-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -138,23 +140,21 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000023 adds a separate bounded sequence of eight distinct immutable 1280x720 frames rendered inside ARM Linux. Phases are 0,17,34,51,68,85,102,119, with an intentional minimum 125ms guest dwell. Eight exported guest resource IDs must join eight native Metal buffer aliases and eight screen GPU completions. Only first/last source images use full native diagnostic pixel readback (1,843,200 pixels); the guest checks all eight rendered images (7,372,800 pixels). No host-generated pattern substitutes for a guest image.
+          Build 4000024 improves local crash diagnostics after the eight-frame checkpoint. The host publishes engine completion after worker autorelease-pool retirement and joins the worker before finalization. Additional durable checkpoints bracket serial/ABI/Vulkan/Metal/import/screen receipt stages. This is hardening and diagnostic instrumentation, not a proven fix for an unknown phone fault.
 
-          GPU sequence acceptance and actual positive display timestamps have separate fields. A GPU sequence can pass with actual presentedTime=0 while display timing stays unverified. CPU callbacks, a later API query, screenshots and GPU durations never supply actual display timestamps or game FPS. The existing two-image presentation gate keeps its strict acceptance. One native consumer in flight and at most two drawables are retained; all eight source images are immutable. This is not steady-state buffer reuse or continuous/sustained animation.
+          Apple MetricKit crash payloads, when the OS delivers them, are stored locally and included in Share logs. They retain original OS metadata and are not automatically associated with the current probe/build/nonce. Delivery is not guaranteed, and older events cannot be retrospectively reconstructed. Only bounded crash payloads are stored/exported, and no report is automatically uploaded. Matching ARM64 host dSYM UUIDs are verified against this exact IPA and published for fault-stack symbolication; upstream framework dSYMs are not supplied by this host symbol bundle.
 
-          Install with iLoader, close/reopen, enable JIT through StikDebug and pass ARM64 JIT. Open Show eight Linux-rendered frames and Start eight-frame test as the first Linux boot in this fresh process. Keep the app foreground without rotating until it finishes, then share the report and saved logs. Nothing is automatically uploaded. Previous projects, credentials, private phone exports and game data are excluded.
+          Graphics, guest payload and all native engine dependencies remain pinned to build4000023. The unchanged eight-frame diagnostic still uses distinct immutable 720p resources and intentional 125ms dwell. It is not continuous buffer reuse, a compositor or game FPS. Install with iLoader and enable JIT with StikDebug when running a Linux test; share logs after an unexpected closure. Previous projects, user data, credentials and private reports are excluded.
 
-          The Linux kernel and native QEMU/Venus/ANGLE/MoltenVK engine stay pinned. A separate frame binary and initramfs extension carry complete corresponding source, original upstream sources/licenses, patches, current compile headers and build recipes. Existing two-image diagnostic binaries are preserved. Hosted ARM Linux tests reject missing-3D and software renderers; synthetic receipt controls and an actual physical iOS ARM64 Release build precede package verification/publication. They cannot prove a phone rendering result.
-
-          QEMU TCG is software system emulation. FEX CPU translation and Proton Windows compatibility remain future guest components. Native Metal does not imply hardware virtualization. Full SteamOS desktop/Game Mode/Steam ARM/CEF, compositor/WSI, FEX/Proton, input/audio/downloads/overlays/plugins, Steam under one minute, Hollow Knight 60-80 base rendered FPS, sustained frame pacing and thermals remain unfinished and unverified. The requested Linux architecture remains selected; no Valve client or game content is distributed.
+          QEMU TCG is software system emulation. Native Metal does not imply hardware virtualization. Full SteamOS desktop/Game Mode/ARM Steam/CEF, mutable frame transport/WSI, FEX/Proton, input/audio/downloads/overlays/plugins and all startup/game/sustained-performance targets remain unfinished. Complete corresponding source and original upstream licenses accompany the unchanged engine/guest packages.
           EOF
           gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "My-pc Linux guest Vulkan gate ${GITHUB_RUN_NUMBER}" --notes-file steamos-ios/out/package/release-notes.md \
             steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/package/verification.json \
-            steamos-ios/out/package/SHA256SUMS steamos-ios/out/package/*-Source.tar.gz steamos-ios/out/package/*-run.json
+            steamos-ios/out/package/SHA256SUMS steamos-ios/out/package/Host-Debug-Symbols.tar.gz steamos-ios/out/package/host-symbols.json steamos-ios/out/package/*-Source.tar.gz steamos-ios/out/package/*-run.json
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000023
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000024
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()
@@ -163,5 +163,7 @@ jobs:
           path: |
             steamos-ios/out/package/*.ipa
             steamos-ios/out/package/verification.json
+            steamos-ios/out/package/host-symbols.json
+            steamos-ios/out/package/Host-Debug-Symbols.tar.gz
             steamos-ios/out/package/SHA256SUMS
           retention-days: 14
