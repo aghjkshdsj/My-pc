@@ -1,0 +1,46 @@
+name: Fresh iOS MoltenVK guest Metal completion observer
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Engine/MetalGuestTraceABI.h', 'steamos-ios/Engine/MoltenVKGuestTrace.h', 'steamos-ios/tools/patch_molten_trace.py', 'steamos-ios/tools/package_molten_trace.py', 'steamos-ios/tests/MoltenTraceAdapterTests.mm', '.github/workflows/steamos-ios-metal-trace.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios-metal-trace:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise production observer ABI and callback lifetime fixtures
+        run: |
+          clang++ -std=c++17 -fobjc-arc -framework Foundation -framework Metal -Isteamos-ios/Engine steamos-ios/tests/MoltenTraceAdapterTests.mm -o /tmp/mpc-metal-observer-tests
+          /tmp/mpc-metal-observer-tests
+      - name: Prepare exact engine and apply the actual command completion observer
+        run: |
+          python3 steamos-ios/tools/prepare_moltenvk.py prepare steamos-ios/out/moltenvk-trace
+          python3 steamos-ios/tools/patch_molten_trace.py steamos-ios/out/moltenvk-trace/MoltenVK steamos-ios/out/moltenvk-trace
+          python3 - <<'PY'
+          import json, pathlib
+          p=pathlib.Path('steamos-ios/out/moltenvk-trace/metal-trace-source-receipt.json')
+          d=json.loads(p.read_text()); d['native_adapter_fixtures_passed']=True
+          p.write_text(json.dumps(d,indent=2)+'\n')
+          PY
+      - name: Compile real physical ARM64 iOS observer engine
+        run: |
+          cd steamos-ios/out/moltenvk-trace/MoltenVK
+          bash fetchDependencies-pinned --ios -v
+          xcodebuild build -project MoltenVKPackaging.xcodeproj -scheme 'MoltenVK Package (iOS only)' -sdk iphoneos -destination 'generic/platform=iOS' -configuration Release CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=26.0 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES > ../engine-build.log 2>&1
+      - name: Audit actual exported observer, code, imports and full corresponding source
+        run: python3 steamos-ios/tools/package_molten_trace.py steamos-ios/out/moltenvk-trace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iOS-MoltenVK-Guest-Metal-Observer
+          path: |
+            steamos-ios/out/moltenvk-trace/*-receipt.json
+            steamos-ios/out/moltenvk-trace/engine-build.log
+            steamos-ios/out/moltenvk-trace/engine-exports.txt
+            steamos-ios/out/moltenvk-trace/MoltenVK-*.tar.gz
+            steamos-ios/out/moltenvk-trace/SHA256SUMS
+          retention-days: 14
