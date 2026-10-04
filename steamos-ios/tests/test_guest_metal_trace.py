@@ -67,6 +67,16 @@ class GuestMetalTraceTests(unittest.TestCase):
         self.assertEqual(self.check(row)['timed_completions'],2)
         row['samples'][0].update(gpu_start_seconds=0,gpu_end_seconds=0);row['timed_completions']=1
         with self.assertRaises(ValueError): self.check(row)
+    def test_equal_positive_timestamps_do_not_count_as_timed_work(self):
+        row=fixture();entry=copy.deepcopy(row['samples'][0])
+        entry.update(token=3,gpu_start_seconds=7.0,gpu_end_seconds=7.0)
+        row['samples'].append(entry);row.update(observed_commit_points=3,completed=3)
+        result=self.check(row)
+        self.assertEqual(result['native_command_completions'],3)
+        self.assertEqual(result['timed_completions'],2)
+        row['samples'][0].update(gpu_start_seconds=4.0,gpu_end_seconds=4.0)
+        row['timed_completions']=1
+        with self.assertRaises(ValueError): self.check(row)
 
 
 if __name__ == '__main__': unittest.main()

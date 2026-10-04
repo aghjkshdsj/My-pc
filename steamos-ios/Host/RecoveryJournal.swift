@@ -82,7 +82,12 @@ final class RecoveryJournal {
         try files.moveItem(at: marker, to: saved)
     }
 
-    private func textFile(_ url: URL, limit: Int = 131072) throws -> [String: Any] {
+    private func textFile(_ url: URL) throws -> [String: Any] {
+        // Receipts include the pinned engine metadata and bounded Metal ledger.
+        // Keep ordinary receipts intact instead of exporting an invalid JSON
+        // suffix. Both classes remain bounded; oversized entries stay explicitly
+        // truncated and cannot establish a successful diagnostic result.
+        let limit = url.pathExtension == "json" ? 512 * 1024 : 128 * 1024
         let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
         guard values.isRegularFile == true, values.isSymbolicLink != true else {
             throw NSError(domain: "RecoveryJournal", code: 3, userInfo: [NSLocalizedDescriptionKey: "Not a regular diagnostic file"])
@@ -92,7 +97,8 @@ final class RecoveryJournal {
         let size = UInt64(max(0, values.fileSize ?? 0))
         if size > UInt64(limit) { try handle.seek(toOffset: size - UInt64(limit)) }
         let data = try handle.read(upToCount: limit) ?? Data()
-        return ["name": url.lastPathComponent, "file_bytes": size, "tail_truncated": size > UInt64(limit),
+        return ["name": url.lastPathComponent, "file_bytes": size, "captured_bytes": data.count,
+                "capture_limit_bytes": limit, "tail_truncated": size > UInt64(limit),
                 "text": String(decoding: data, as: UTF8.self)]
     }
 

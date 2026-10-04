@@ -34,9 +34,9 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             gate.get('hardware_virtualization') is False and gate.get('steamos') is False, 'Wrong execution scope')
     require(gate.get('guest_gpu_device_requested') is True and gate.get('guest_gpu_host_visible_mib') == 128 and
             gate.get('requested_jit_cache_mib') == 32 and gate.get('split_wx_requested') is True, 'Wrong GPU/JIT configuration')
-    if build in ('4000012', '4000013', '4000014', '4000015'):
+    if build in ('4000012', '4000013', '4000014', '4000015', '4000016'):
         require(gate.get('display_backend_registered') is True, 'No observed built-in display backend registration')
-    if build in ('4000014', '4000015'):
+    if build in ('4000014', '4000015', '4000016'):
         require(gate.get('host_private_file_directory_prepared') is True,
                 'No observed preparation of the app-private renderer namespace')
     device = gate.get('device', {})
@@ -91,7 +91,7 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     for key in ('fresh_guest_vulkan_nonce_bound', 'graphics_kernel_device_detected', 'guest_vulkan_pixels_verified', 'graphics_tested'):
         require(gate.get(key) is True, 'Parsed GPU acceptance disagrees: ' + key)
     native_metal = False
-    if build == '4000015':
+    if build in ('4000015', '4000016'):
         require(gate.get('host_metal_completion_observer_requested') is True, 'Native guest observer was not requested')
         validate_metal_trace(gate.get('native_metal_trace'), nonce, device.get('metal_device'))
         require(gate.get('metal_host_verified') is True, 'Native completion and parsed result disagree')
@@ -103,7 +103,7 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     acceptance = report.get('acceptance', {})
     require(acceptance.get('linux_kernel_boot') is True and acceptance.get('linux_guest_vulkan_pixels') is True,
             'Exported acceptance disagrees')
-    if build == '4000015':
+    if build in ('4000015', '4000016'):
         require(acceptance.get('linux_guest_offscreen_metal_completion') is True, 'Exported native completion disagrees')
     for key in ('steam_arm_client', 'fex_game', 'linux_game_graphics_to_metal', 'steam_under_60_seconds',
                 'hollow_knight_60_to_80_base_fps'):

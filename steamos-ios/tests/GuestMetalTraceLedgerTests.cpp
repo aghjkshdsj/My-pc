@@ -42,5 +42,10 @@ int main() {
     ledger = fixture();
     for (size_t i = ledger.entries.size(); i < MPCMetalTraceLedger::capacity + 1; ++i) ledger.observe(99, "fixture", false);
     check(ledger.entries.size() == MPCMetalTraceLedger::capacity && ledger.overflow == 1 && !ledger.accepted("fixture"));
+    ledger = fixture(); token = ledger.observe(99, "fixture", false);
+    ledger.complete(token, 4, false, 0, 99, "fixture", 7, 7);
+    check(ledger.accepted("fixture") && ledger.timed() == 2 && ledger.invalidTiming == 0);
+    ledger.entries[0].end = ledger.entries[0].start;
+    check(!ledger.accepted("fixture") && ledger.timed() == 1);
     printf("GUEST_METAL_LEDGER_TESTS_PASSED checks=%u scope=rejection-fixtures-only GPU-proof=false\n", checks);
 }

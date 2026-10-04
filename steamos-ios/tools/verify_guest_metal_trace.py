@@ -39,8 +39,11 @@ def validate(trace, nonce, expected_device):
         start, end = entry.get('gpu_start_seconds'), entry.get('gpu_end_seconds')
         require(all(type(v) in (int, float) and math.isfinite(v) and v >= 0 for v in (start, end)),
                 'Invalid native GPU timestamps')
-        require((start == end == 0) or (start > 0 and end > start), 'Incomplete or reversed GPU timing')
-        if start > 0: timed += 1
+        # Completed buffers may have equal positive timestamps at the reported
+        # precision. Match the shipped native ledger: keep these observations,
+        # but only strictly positive durations count as timed GPU work.
+        require((start == end == 0) or (start > 0 and end >= start), 'Incomplete or reversed GPU timing')
+        if start > 0 and end > start: timed += 1
     require(type(trace.get('timed_completions')) is int and trace['timed_completions'] == timed and timed >= 2,
             'Missing native GPU execution timing')
     return {'scope': 'guest-native-metal-completion-receipt-consistency-only',

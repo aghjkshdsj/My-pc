@@ -110,7 +110,7 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000015 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000016 --receipt steamos-ios/out/package/verification.json
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/cpu-guest-artifact/Linux-Gate-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -124,11 +124,13 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000015: independent native completion observations for actual Linux guest Vulkan commands.
+          Build 4000016: preserve complete structured recovery receipts and match native timing acceptance.
           
-          The separate source-built MoltenVK observer attaches a native Metal completion handler at the actual guest command-submission site before its unchanged commit. It reports actual status, errors, GPU device identity and GPU start/end times. It adds no GPU workload and excludes queue-idle and presentation marker submissions. The fresh host configures it only for a fresh Linux guest run and records a bounded completion ledger. Missing, duplicate, failed, stale, overflowed, unfinished or inconsistent observations cannot pass. At least two successfully completed buffers with valid GPU execution timing are required alongside correct guest shader pixels.
+          Recovery sharing previously limited every file to a 128 KiB tail, which cut ordinary structured reports as the engine metadata and native completion ledger grew. Known JSON receipts now have a bounded 512 KiB allowance; logs retain bounded 128 KiB tails. Every entry records its captured bytes and limit. Larger files remain explicitly truncated and cannot establish a passing result. No existing logs, user data or projects are removed. Real native Swift fixtures test a complete receipt larger than the old limit, oversized JSON, log bounds, interrupted/reopened tests, retained/cancelled sharing and path/symlink exclusion.
           
-          Actual native observer ABI/callback-lifetime fixtures and physical ARM64 iOS engine compilation passed. This release additionally runs 62 Python evidence tests, 28 native guest receipt checks, 25 production completion-ledger rejection checks, recovery/reopen/capture tests and Xcode Release compilation. These are compilation and fixture results; the integrated native completion observation still requires a fresh phone report.
+          The desktop consistency verifier now matches the unchanged native ledger for completed buffers with equal positive timestamps: those observations are retained but do not count as timed GPU work. At least two successful buffers with strictly positive duration are still required. Negative fixtures reject attempts to replace timed work with zero-duration completions. Native observer status/error/device/nonce checks remain intact.
+          
+          This release runs 63 Python evidence tests, 28 native guest receipt checks, 27 production completion-ledger checks, recovery/reopen/capture tests and physical ARM64 iOS Xcode Release compilation. These are source, compilation and fixture results; this package does not inherit a phone pass from a different build.
           
           Install with iLoader, close/relaunch, enable JIT through the StikDebug button and confirm universal.js, return, then run Linux guest Vulkan gate first. Keep it foreground for up to three minutes. Share device report afterward; if interrupted, reopen and use Share logs. The normal report includes the separate native_metal_trace receipt and host output. Nothing is uploaded automatically. Each QEMU diagnostic requires a fresh process.
           
@@ -142,7 +144,7 @@ jobs:
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000015
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000016
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()
