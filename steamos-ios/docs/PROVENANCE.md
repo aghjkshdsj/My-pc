@@ -211,3 +211,27 @@ against the shipped host/test source. It includes no owner phone records. The
 native scanout review uses the exact distributed QEMU and renderer source;
 source/configuration review does not establish actual image import/presentation
 or change upstream licensing obligations.
+
+
+Build 4000017 adds fresh MIT `Engine/NativeScanoutABI.h`, guest image export/KMS
+source, QEMU native scanout patch, ARM64 iOS import consumer, receipt validators,
+fixtures and build recipes. The source-built native engine variant is pinned to
+6b6e268bffdce59d2d15b319abdee46eaa4b8cee / run 37215070827, with original QEMU,
+compiled configuration and narrow patch/header in complete corresponding source.
+It retains the same pinned renderer/MoltenVK/ANGLE dependency provenance. The
+standalone guest extension retains exact parent kernel/runtime/source, adds only
+its init/image diagnostic and includes build headers plus libdrm/Vulkan copyright.
+No Android/old-app source or private signing/device material is a fresh input.
+
+The explicit DRM modifier correction is fresh query/creation source against the
+same pinned Mesa/Vulkan/libdrm APIs. Guest run 37218376178 at source
+7f77b026112b4161964f0f38ca6df700facbe750 passed actual ARM compilation and negative
+controls; its corresponding source includes the query contract and native
+fixtures. Applicable QEMU/Linux/BusyBox GPL, glibc LGPL, compiler exceptions and
+renderer/graphics per-file terms remain unchanged. Fresh MIT files do not remove
+combined-distribution obligations. Complete original sources/patches/recipes,
+configuration and notices accompany prereleases, without proprietary Valve/game
+content. Public package receipt flags distinguish independently downloaded IPA/
+fresh source/checksum/verification from large source assets checked only against
+CI/release hash metadata. Neither kind of package check certifies phone import,
+zero-copy transport, presentation or gameplay.

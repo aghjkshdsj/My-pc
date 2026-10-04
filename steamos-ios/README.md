@@ -12,22 +12,31 @@ Steam/desktop/controller/component flows and the complete feature mapping. All
 requires new iOS adapters and is not a direct port. The requested actual
 SteamOS ARM environment remains the architecture.
 
-Current package: **[build 4000016 / guest Vulkan gate 7](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-7/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
-24,311,733 bytes, SHA-256
-`9abbe6e13f4fa1a726c3e5bad9f8e4934d033ab3ca1b1d86a7ad9be73a47529b`.
-Source `ef4192e2798ccb9f909265b408ca73666792344a`.
-[Sources, checksums and validation](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-7).
-Actual Release ARM64 iOS compilation, 63 evidence tests, 28 native receipt checks,
-27 production ledger checks and recovery/capture fixtures passed. The public IPA
-and fresh source archive were independently downloaded and checked. Recovery
-exports now preserve complete JSON receipts within 512 KiB; plain logs remain
-bounded at 128 KiB. Native zero-duration completions do not replace the required
-two positive-duration buffers. The actual GPU/guest engine identities are retained.
-Per-device acceptance is recorded separately in local `evidence/device/`, excluded
-from uploads; a new package-only receipt never inherits an earlier phone pass.
-Memory import, moving presentation, full SteamOS and game targets remain unfinished.
-See [build 4000016 details](docs/GPU-GATE-4000016.md) and the
-[next image-import/presentation gate](docs/PRESENTATION-GATE.md).
+Current package: **[build 4000018 / guest image gate 9](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-9/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+24,344,005 bytes, SHA-256
+`469d97698ab9a2b79941f2ef8d013cb83723b289b8340b710139b4776b2db4ec`.
+Source `f095035b922c40f004db084b34c57834e9ca8266`.
+[Sources, checksums and validation](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-9).
+Actual Release ARM64 iOS compilation, 78 Python checks, 28 native guest receipt
+checks, 27 completion-ledger checks, 37 image-receipt checks and recovery/capture
+fixtures passed. The public IPA, fresh source, checksums and verification were
+independently downloaded and checked. Publication followed CI redownload and
+exact package verification. Large source asset checks are recorded separately.
+
+The fresh Linux image gate has a versioned native scanout callback and retained
+Metal alias consumer. The export query and image creation now use explicit linear
+DRM modifier tiling required by pinned Venus. Actual modifier, memory-plane layout,
+producer/consumer fences, native image pixels, identity and cleanup are checked;
+no unsupported format result is overridden. The app shows the rejected stage.
+Image import on the phone, moving presentation, full SteamOS and game targets
+remain separate unfinished acceptance gates. Owner results and detailed analysis
+stay in ignored local `evidence/device/`, excluded from uploads.
+See [build 4000018 details](docs/GPU-GATE-4000018.md) and
+[image import/presentation acceptance](docs/PRESENTATION-GATE.md).
+
+Preserved image diagnostic: [build 4000017 / gate 8](docs/GPU-GATE-4000017.md).
+Preserved recovery diagnostic: [build 4000016 / gate 7](docs/GPU-GATE-4000016.md).
+Earlier packages, source and user data are retained.
 
 Preserved observer package: [build 4000015 / guest Vulkan gate 5](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-5),
 source `6aa8dc6a2be44c7941c1e89ad25e378d31485249`, 24,311,595 bytes,

@@ -7,6 +7,14 @@ figures are reference measurements on a different platform, not achieved iPhone
 results. GPU clock pinning and Android sysfs controls are not carried into iOS.
 Base game renders remain separate from optional frame generation.
 
+The new image diagnostic retains two immutable guest images and waits real
+producer/consumer completion before releasing them. It includes two bounded
+full-image native GPU readbacks solely to check alias pixels. The explicit linear
+DRM modifier correction preserves those checks. Serialized fences, diagnostic
+readbacks and kernel/setup/cleanup timings are not production frame pacing, a
+zero-copy improvement, Steam startup time or base game FPS. Measure the future
+bounded asynchronous presenter and sustained real workloads separately.
+
 Build 4000016 retains the exact GPU/guest engine identities and adds bounded
 complete recovery JSON. Its native timing verifier retains zero-duration
 completions but requires two positive durations; no command count or sum becomes

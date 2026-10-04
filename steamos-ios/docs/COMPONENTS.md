@@ -81,6 +81,26 @@ SteamOS startup or gameplay. GPU/Steam/game gates remain open. See `STATUS.md`.
 
 ## Overlay features, services and hardware coverage
 
+Build 4000017 implements a separate Linux image producer, native engine ABI,
+retained Metal texture consumer and strict guest/native receipt join. It passed
+physical ARM64 iOS compilation, 73 Python checks, 28 guest receipt checks,
+27 completion-ledger checks, 33 image-receipt checks and package verification.
+The next guest source corrects the export query to explicit DRM modifier tiling;
+actual ARM compilation, native query rejection fixtures, missing-device/2D-only
+boots and software-renderer rejection passed in run 37218376178. Native receipt
+checks now reject wrong/missing modifier metadata (37 checks).
+
+| New coverage task | Source/build state | Device/product state |
+|---|---|---|
+| Linux image export format | Explicit modifier query and matching creation, returned modifier and memory-plane layout checks compiled | Actual supported image export still requires a fresh device result |
+| Guest/native image transport | Versioned resource/generation/ownership callback and retained native alias consumer implemented | Both image phases, fences and release must pass on the phone |
+| Visible Metal presentation | Contract and source boundary documented | CAMetalLayer moving presenter, pacing, lifecycle and resize unfinished |
+| Full product components | Existing archive and DroidDeck mapping retained below | SteamOS/client/desktop/Game Mode/FEX/Proton/input/audio/downloads/plugins/game targets remain open |
+
+Actual owner records remain in ignored local `evidence/device/`. These source
+checks do not close any unverified device or product row. See
+[current export/import diagnostic](GPU-GATE-4000018.md) and [presentation acceptance](PRESENTATION-GATE.md).
+
 Build 4000016 passed 63 Python evidence tests, 28 native guest receipt checks,
 27 production ledger checks, native recovery/capture fixtures, physical ARM64 iOS
 Release compilation and independent public IPA/source verification. Known JSON
@@ -88,7 +108,7 @@ receipts have a bounded 512 KiB allowance; plain logs retain 128 KiB tails.
 Zero-duration observations cannot replace required timed GPU work. This closes
 diagnostic source/build tasks only. Current device acceptance remains in the
 local coverage record; image import, moving presentation and full product rows
-remain open. See [current package](GPU-GATE-4000016.md) and the existing native
+remain open. See [preserved recovery package](GPU-GATE-4000016.md) and the existing native
 scanout boundary/next acceptance sequence in [the presentation gate](PRESENTATION-GATE.md).
 
 Build 4000015 adds a separately source-built MoltenVK observer for actual guest

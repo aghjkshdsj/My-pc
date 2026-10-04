@@ -16,7 +16,34 @@ are counted with their names and digests withheld. Android's Linux-kernel/PRoot
 and Adreno/AHardwareBuffer mechanisms are reference designs, not an adopted
 Darwin compatibility layer or replacement Linux distribution.
 
-**[Build 4000016 / guest Vulkan gate 7](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-7)**
+**[Build 4000018 / guest image gate 9](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-9)**
+passed run 37218735620 at source `f095035b922c40f004db084b34c57834e9ca8266`.
+The independently downloaded IPA is 24,344,005 bytes, SHA-256
+`469d97698ab9a2b79941f2ef8d013cb83723b289b8340b710139b4776b2db4ec`.
+Physical ARM64 iOS Release compilation, 78 Python checks, 28 native guest receipt
+checks, 27 completion-ledger checks, 37 image-receipt checks and real recovery/
+capture fixtures passed. Public fresh source/IPA/checksum/verification were
+independently checked; published and independent verification agree.
+
+The native image producer/engine ABI/Metal consumer/receipt join are implemented.
+The corrected guest query uses explicit linear DRM modifier tiling and matching
+creation, verifies the actual modifier and memory-plane layout and preserves all
+pixel/fence/identity/cleanup rejection requirements. Native ARM Linux compilation,
+query fixtures, missing-device/2D-only boots and software rejection passed in
+run 37218376178 at source `7f77b026112b4161964f0f38ca6df700facbe750`. Exact native
+engine and observer dependencies are retained. The app now shows the rejected
+image stage. Build/source checks do not establish a new phone import pass.
+Moving presentation, full SteamOS/Steam/CEF, FEX/Proton, all product component rows
+and sustained game targets remain unfinished. Owner device analysis stays local.
+See [current build details](docs/GPU-GATE-4000018.md), the component record and
+`evidence/primary/ios-guest-image-prerelease-4000018.json`.
+
+Preserved **[Build 4000017 / guest image gate 8](docs/GPU-GATE-4000017.md)**
+passed physical iOS compilation and independent package verification at source
+186c67b20b45b04a5b880bce01e392890e67872a, run 37216717671. It introduced the separate
+native image import diagnostic. Its original package/source are retained.
+
+Preserved **[Build 4000016 / guest Vulkan gate 7](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-7)**
 passed run 37211515640 at source `ef4192e2798ccb9f909265b408ca73666792344a`.
 Independent public IPA verification passed: 24,311,733 bytes, SHA-256
 `9abbe6e13f4fa1a726c3e5bad9f8e4934d033ab3ca1b1d86a7ad9be73a47529b`.
@@ -33,8 +60,9 @@ was published from the failed run. See [build details](docs/GPU-GATE-4000016.md)
 and `evidence/primary/ios-guest-vulkan-prerelease-4000016.json`.
 
 The [image-import/presentation review](docs/PRESENTATION-GATE.md) identifies
-existing upstream Metal scanout handles and the missing fresh display adapter.
-This is source/configuration evidence, not phone image import or presentation.
+existing upstream Metal scanout handles, the implemented fresh import adapter and
+the moving presenter still required. Compile evidence does not accept phone import
+or presentation.
 Actual device results and detailed coverage remain local in `evidence/device/`.
 
 Preserved **[Build 4000015 / guest Vulkan gate 5](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-5)**
@@ -312,8 +340,8 @@ Official rootfs 20260921.6090922 / 0.5.0 resolves a 10,737,418,240-byte image,
 image hash, RAUC CMS trust and generic-virt compatibility remain open.
 No Valve/game/credential data has been redistributed.
 
-Next: integrate the compiled native Venus renderer and prove real guest GL and Vulkan transport
-to Metal and moving presentation; integrate authenticated SteamOS, actual ARM
+Next: accept the corrected guest image import on the phone, implement moving Metal
+presentation and guest WSI/compositor/OpenGL, then integrate authenticated SteamOS, actual ARM
 Steam/CEF, Game Mode/desktop and FEX/Proton through the coverage ledger.
 Native host/Metal optimization does not remove guest TCG translation costs.
 **Steam usable under 60 seconds and Hollow Knight 60–80 base rendered FPS at
@@ -429,8 +457,8 @@ All of those gates remain unverified.
 Build 4000011's subsequent phone attempt failed at missing EGL-headless backend,
 as recorded above. The owner has now run the replacement build 4000012: Linux
 and DRM memory checks passed, while Vulkan initialization failed as described
-above. The next device action is to share the existing saved diagnostic logs
-for that attempt; another identical run is not needed to obtain them.
+above. This is preserved historical build 4000012 analysis; current device procedure is
+in the build 4000018 record, without repeating historical rejected configurations.
 See `docs/GUEST-GPU-FAILURE.md` for the exact protocol decoding, reviewed pinned
 source and unresolved cause. No guest Vulkan pass, Steam installation or
 gameplay is inferred from the partial result.

@@ -1,7 +1,8 @@
-# Guest image import and moving presentation: next integration gate
+# Guest image import and moving presentation: implementation and acceptance
 
-This is a pinned source review and implementation contract. It is not a phone
-image-import result, presenter implementation or game performance measurement.
+The image producer, versioned native engine callback, ARM64 iOS consumer and
+strict receipt join are implemented and compiled. Actual phone image import,
+a moving presenter and game performance require separate device acceptance.
 Device acceptance is maintained separately in the ignored `evidence/device/`
 record. The Linux/SteamOS architecture and DroidDeck functional blueprint remain
 selected; this gate extends the fresh host's existing Linux graphics transport.
@@ -17,11 +18,11 @@ These are build/source facts, not evidence of native scanout on the phone.
 
 | Pinned source boundary | Observed implementation | Fresh integration still required |
 |---|---|---|
-| QEMU `hw/display/virtio-gpu-virgl.c`, `virgl_scanout_native_blob` | Requests a handle for a guest scanout resource; accepts a Metal texture when configured; installs the texture and a renderer cleanup callback on the console | Versioned host callback/adapter, explicit engine/ABI identity and resource generation |
+| QEMU `hw/display/virtio-gpu-virgl.c`, `virgl_scanout_native_blob` | Requests a handle for a guest scanout resource; accepts a Metal texture when configured; installs the texture and a renderer cleanup callback on the console | Versioned callback implemented; actual guest/native identity and device events still need acceptance |
 | QEMU `include/ui/console.h`, `ScanoutTextureNative` / `ScanoutTextureCleanup` | Carries the native handle and its cleanup ownership | Retain the texture while native display work uses it; do not depend on a borrowed pointer after scanout replacement |
 | virglrenderer `src/virglrenderer.c`, `virgl_renderer_create_handle_for_scanout` | Can return a retained native vrend texture, or wrap a shared-memory resource through the EGL/Metal path | Actual Venus exported-image blob, format/stride/offset checks and guest/native identity correlation |
 | virglrenderer `src/vrend/vrend_metal.m`, `virgl_metal_create_texture_from_shm` | Maps the backing file, makes an MTLBuffer with `newBufferWithBytesNoCopy`, and creates a linear texture over it; the buffer deallocator unmaps the memory | Allocation bounds, exact row pitch, host page alignment, visibility, producer/consumer fences and destruction tests |
-| QEMU `ui/egl-headless.c`, `egl_scanout_texture` / `egl_scanout_flush` | Receives a native texture argument but uses the GL backing ID; its flush can read a framebuffer into a CPU surface | A fresh native Metal presentation branch; this headless listener cannot establish native moving presentation |
+| QEMU `ui/egl-headless.c`, `egl_scanout_texture` / `egl_scanout_flush` | Receives a native texture argument but uses the GL backing ID; its flush can read a framebuffer into a CPU surface | Native import branch implemented; a paced CAMetalLayer presenter and moving presentation remain required |
 
 The renderer revision is `5d26f605f50f8e22002ec6db5fb775e1992d4e96`.
 The private-file allocator is the separately recorded narrow patch. Reusing
@@ -37,10 +38,43 @@ existing shared-memory scanout route should be tested before adding another
 image transport. An ordinary Linux DMA-BUF file descriptor is never relabeled
 an IOSurface.
 
-## Concrete implementation sequence
+## Implemented image diagnostic and current source correction
+
+Build 4000017 adds the native callback ABI and separate Linux image diagnostic.
+The native engine variant at `6b6e268bffdce59d2d15b319abdee46eaa4b8cee`, run
+37215070827, reuses the pinned renderer and original console cleanup ownership.
+Fresh native install/flush/disable reports carry actual resource ID and generation;
+flush bypasses the headless GL/CPU readback branch. The fresh consumer retains each
+borrowed texture, verifies the real Metal buffer alias and layout, waits actual GPU
+completion and checks two full guest image phases independently. It cannot accept
+image import from the preserved offscreen shader check alone.
+
+Pinned Mesa 26.2.2 Venus rejects external DMA-BUF image queries using legacy
+tiling. The corrected guest uses explicit DRM-format-modifier tiling with the
+linear modifier, a matching creation list, actual returned-modifier checks and
+memory-plane-0 layout. It preserves exact pitch/bounds, producer fences, native
+resource identity, pixel checks and cleanup. The native ARM Linux query fixtures
+and negative boots passed in run 37218376178, source
+`7f77b026112b4161964f0f38ca6df700facbe750`. Native image receipt checks increased
+from 33 to 37. Source/build checks are not actual phone import acceptance.
+
+The modifier query and creation contract follow Khronos
+[query documentation](https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceImageDrmFormatModifierInfoEXT.html)
+and [creation documentation](https://docs.vulkan.org/refpages/latest/refpages/source/VkImageDrmFormatModifierListCreateInfoEXT.html).
+Host layout checks use the actual Metal texture's
+[buffer offset](https://developer.apple.com/documentation/metal/mtltexture/bufferoffset),
+[row pitch](https://developer.apple.com/documentation/metal/mtltexture/bufferbytesperrow)
+and device linear-alignment query. Linux handles are not treated as IOSurfaces.
+
+Steps 1-3 below now have real implementation and compilation; device acceptance
+remains independent. Steps 4-6 remain unfinished. The diagnostic performs two
+bounded full-image native readbacks and serializes producer completion. This is
+not the steady-state zero-copy presenter or a performance benchmark.
+
+## Concrete implementation and remaining sequence
 
 1. Add a separate guest image diagnostic to the current disposable Linux
-   payload. Allocate an exportable, linear RGBA8 image; query actual supported
+   payload. Allocate an exportable RGBA8 image with explicit linear DRM modifier; query actual supported
    external-memory properties, exact image layout, row pitch and offset. Render
    known phases with the existing guest Vulkan shader and wait for the real
    producer fence. Export the image memory through the guest's supported Vulkan

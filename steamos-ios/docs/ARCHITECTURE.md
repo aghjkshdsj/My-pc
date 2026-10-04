@@ -128,7 +128,13 @@ separate native Darwin fixture/source provenance. This does not establish GPU
 image alias visibility, layout, fences or lifetime. Test those independently;
 an advertised external-memory extension or a successful file mapping is not
 image-import acceptance. The [native scanout source review](PRESENTATION-GATE.md)
-identifies existing Metal handles and the fresh presentation adapter still needed.
+identifies existing Metal handles. The versioned native scanout callback and fresh
+ARM64 iOS image consumer are now implemented and compiled. Explicit DRM modifier
+query/creation matches the pinned Venus external-image contract; actual imported
+pixels, producer/consumer synchronization and cleanup still require device
+acceptance. A paced CAMetalLayer presenter and moving guest output remain
+unfinished. This does not replace the actual Linux environment with a native
+preview or Darwin Linux ABI layer.
 
 Neptune forwards D3D commands through virtio to native DXMT/D3DMetal backends;
 it is a separate Windows-game transport, not a substitute for the Vulkan
