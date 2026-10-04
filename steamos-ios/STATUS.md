@@ -16,33 +16,41 @@ are counted with their names and digests withheld. Android's Linux-kernel/PRoot
 and Adreno/AHardwareBuffer mechanisms are reference designs, not an adopted
 Darwin compatibility layer or replacement Linux distribution.
 
-**[Build 4000019 / guest image gate 10](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-10)**
-passed run 37222312731 at source `ce223b3f79e876c0558e0ade50f8a79aa2933d18`.
-The independently downloaded IPA is 24,351,815 bytes, SHA-256
-`97bcaad90fb68d5e7d6816d96ca96edc7845e9c085b3e4f7a9f07085eb248bc1`.
-Physical ARM64 iOS Release compilation, 82 Python checks, 28 native guest receipt
-checks, 27 completion-ledger checks, 48 image-receipt checks and real recovery/
-capture fixtures passed. Shared colour-order fixtures exercise 1,843,200 synthetic
-pixels and reject swapped channels. Public IPA/fresh-source/checksum/verification
-were independently checked. Published and independent verification agree; all
-22 changed source files and guest recipe hashes match, and both actual AArch64
-diagnostic binaries match their initramfs receipt.
+**[Build 4000020 / guest image gate 11](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-11)**
+passed run 37225278118 at source `85314b25222cf3fe14058ead85cc7869d9474e4b`.
+Independently downloaded IPA: 24,352,061 bytes, SHA-256
+`580244c2dd508fa0e8ba990c4d6035d1b1755530125229101cabc81ff872e0fd`.
+Physical ARM64 iOS Release, 87 Python checks, 28 native guest checks, 27 ledger
+checks, 56 image-receipt checks and recovery/capture passed. The actual production
+readback budget was tested across two distinct resources, repeated callbacks and
+14 invalid event/layout cases. Pixel-order fixtures still cover 1,843,200 synthetic
+pixels. Native image adapter compilation passed separate run 37225278163.
 
-Pinned Linux 6.12.111 primary-plane format is now matched at all boundaries:
-Vulkan BGRA8, DRM XRGB8888, virtio BGRX and Metal BGRA8. Actual ARM guest compilation
-and real Linux-kernel framebuffer rejection/creation/release controls passed in
-run 37222125501 at source `453a1d1f19c04b5d49328f135db32257a22d8f30`.
-Missing-device/missing-3D and software rejection remain enforced. The framebuffer
-control uses CPU allocation and cannot establish GPU image import or presentation.
-Native engine and completion observer are unchanged, with exact source/identities
-and full corresponding sources preserved. Native image consumers require the
-matching format metadata, byte ordering, fences, layouts and resource cleanup.
+A scanout reinstallation may retain the same immutable resource while changing
+the display generation. The host now reserves one readback per distinct resource,
+rejecting altered layout/format. Native and independent receipt validators retain
+all generation/ownership ordering, require flush/disable for every installation,
+and demand both distinct phase0/phase41 consumers at each resource's first flush.
+Repeated first-image pixels cannot establish full import. The 4000019 duplicate
+consumer failure has a strict private progress checker; original report status
+is never rewritten into success.
 
-No new phone image import pass is established by these build checks. Fresh
-4000019 image import and later moving presentation, full SteamOS/Steam/CEF,
-FEX/Proton, all product component rows and sustained game targets remain open.
-Owner device analysis stays local. See [current build details](docs/GPU-GATE-4000019.md),
-component coverage and `evidence/primary/ios-guest-image-prerelease-4000019.json`.
+Public IPA, fresh source, checksums and verification were independently checked.
+Published and independent verification agree. All 15 changed source files match.
+The exact kernel/initramfs/guest receipt/engine bundle and all ten framework
+binaries match verified build 4000019 byte-for-byte. Guest source/run remain
+453a1d1f19c04b5d49328f135db32257a22d8f30 / 37222125501; upstream engine and
+completion observer sources, licenses and full corresponding sources are retained.
+
+Fresh build20 phone image import, visible presentation, full SteamOS/Steam/CEF,
+FEX/Proton, all product component integrations and sustained game targets remain
+open. Owner analysis stays local. See [current details](docs/GPU-GATE-4000020.md),
+component coverage and `evidence/primary/ios-guest-image-prerelease-4000020.json`.
+
+Preserved **[Build 4000019 / guest image gate 10](docs/GPU-GATE-4000019.md)**
+passed run 37222312731 at ce223b3f79e876c0558e0ade50f8a79aa2933d18. It aligned
+Vulkan BGRA8, DRM XRGB, virtio BGRX and Metal BGRA8, with real Linux framebuffer
+format controls and independent package checks. Its sources/packages are preserved.
 
 Preserved **[Build 4000018 / guest image gate 9](docs/GPU-GATE-4000018.md)**
 passed compilation and independent package verification at source

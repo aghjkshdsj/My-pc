@@ -79,20 +79,24 @@ SteamOS startup or gameplay. GPU/Steam/game gates remain open. See `STATUS.md`.
 | InputPlumber | 1 | Placeholder only; external ARM build. Input source becomes host GameController/UIKit -> virtio input -> guest evdev/InputPlumber | Physical controller hotplug/buttons/axes/triggers, OSK, haptics and no duplicate devices |
 | docs | 4 | Reviewed build/fixes, release, Decky/FEX/Box64 and Discover/Flatpak lessons | Requirements translated into regressions; source claims distinguished from phone evidence |
 
-## Current Linux display-format coverage
+## Current native immutable-resource coverage
 
-Build 4000019 compiles actual guest BGRA rendering/export and XRGB primary
-framebuffer setup, with matching virtio BGRX and Metal BGRA consumers. The pinned
-Linux kernel CPU-allocation control rejects ABGR with errno 2 and creates/releases
-XRGB through the production helper. These hosted controls prove kernel format
-handling only. Native compilation and 48 ownership/format/pixel rejection checks
-plus shared colour-order fixtures passed. Both receipt validators require exact
-Vulkan/DRM/virtio/Metal formats and per-pixel channel ordering. Full iOS Release
-and independent source/IPA verification passed. Phone image import, moving
-presentation and all SteamOS/client/game component acceptances remain open.
-See GPU-GATE-4000019.md and the two public package-only 4000019 receipts. Private
-owner results remain excluded. The archive and DroidDeck coverage below is
-preserved; earlier bring-up paragraphs are historical checkpoints.
+Build 4000020 reserves one bounded diagnostic readback for each distinct immutable
+Linux export resource. Reinstallations are tracked by generation/lifecycle while
+unchanged repeated resources do not spend another readback. Changed format,
+layout, crop or orientation is rejected. Native/Python acceptance requires every
+installation's flush/disable sequence, both distinct phases/resources at their
+first flush, exact native device/layout/pixels/fences and guest cleanup.
+
+Actual budget fixtures, 56 native image checks, 87 Python checks and physical iOS
+Release compilation passed. Independent source/IPA verification passed; all 15
+changed source files match and the full guest/engine closure is byte-identical to
+verified build19. Its BGRA/XRGB format and real pinned-kernel framebuffer controls
+are retained. These hosted checks cannot establish a new phone import pass.
+Phone image import, visible presentation and all SteamOS/client/game component
+acceptances remain open. See GPU-GATE-4000020.md and its public package-only
+receipt. Private owner results remain excluded. Earlier bring-up paragraphs below
+are historical checkpoints; original archive/DroidDeck feature mappings remain.
 
 ## Overlay features, services and hardware coverage
 

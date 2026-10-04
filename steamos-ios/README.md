@@ -12,37 +12,37 @@ Steam/desktop/controller/component flows and the complete feature mapping. All
 requires new iOS adapters and is not a direct port. The requested actual
 SteamOS ARM environment remains the architecture.
 
-Current package: **[build 4000019 / guest image gate 10](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-10/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
-24,351,815 bytes, SHA-256
-`97bcaad90fb68d5e7d6816d96ca96edc7845e9c085b3e4f7a9f07085eb248bc1`.
-Source `ce223b3f79e876c0558e0ade50f8a79aa2933d18`.
-[Sources, checksums and validation](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-10).
-Actual Release ARM64 iOS compilation, 82 Python checks, 28 native guest receipt
-checks, 27 completion-ledger checks, 48 image-receipt checks and recovery/capture
-fixtures passed. Shared colour-order fixtures checked 1,843,200 synthetic pixels
-and rejected swapped channels. The public IPA, fresh source, checksums and
-verification were independently downloaded and checked. All 22 changed source
-files and guest recipe hashes match the source archive; both actual AArch64
-initramfs diagnostic binaries match their receipt. Large source asset checks
-are recorded separately.
+Current package: **[build 4000020 / guest image gate 11](https://github.com/aghjkshdsj/My-pc/releases/download/steamos-ios-guest-gpu-gate-11/MyPCSteamOS-Guest-GPU-Gate.ipa)**.
+24,352,061 bytes, SHA-256
+`580244c2dd508fa0e8ba990c4d6035d1b1755530125229101cabc81ff872e0fd`.
+Source `85314b25222cf3fe14058ead85cc7869d9474e4b`.
+[Sources, checksums and validation](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-11).
+Actual Release ARM64 iOS compilation, 87 Python checks, 28 native guest receipt
+checks, 27 completion-ledger checks, 56 image-receipt checks and recovery/capture
+fixtures passed. The production budget tests preserve two distinct resource
+readbacks across repeated callbacks and reject 14 invalid event/layout cases.
+Shared colour-order fixtures retain 1,843,200 synthetic pixel checks. These
+fixtures cannot establish a new phone import pass.
 
-The fresh Linux image gate keeps explicit DRM linear-modifier query/creation,
-fences, exact layout, resource identity and cleanup. Vulkan rendering/export now
-use BGRA; Linux primary scanout uses XRGB/virtio BGRX, and the retained native
-consumer requires Metal BGRA with per-pixel channel ordering. A real pinned Linux
-kernel CPU-allocation control reproduces the unsupported ABGR format rejection
-and creates/releases the corrected XRGB framebuffer through the production helper.
-This control cannot establish GPU image import. Ordinary offscreen rendering
-remains a separate acceptance gate.
+The native image diagnostic now consumes each immutable guest resource once.
+Reinstallation with a newer display generation does not consume another readback.
+Changed format/layout is rejected. Both receipt validators still require every
+installation's valid flush/disable lifecycle, distinct phases/resources, first
+flush generations, exact device/layout/pixels/fences and cleanup. Two copies of
+the first image cannot pass. The exact successful BGRA/XRGB guest, kernel,
+initramfs, engine bundle and all ten native framework binaries are preserved
+byte-for-byte from independently verified build 4000019.
 
-Image import on the phone, moving presentation, full SteamOS and game targets
-remain unfinished. Owner results and detailed analysis stay in ignored local
-`evidence/device/`, excluded from uploads. Install with iLoader; in a fresh app
-process enable JIT through StikDebug, pass ARM64 JIT check and run Linux image
-import gate once. Keep foreground and share the resulting device report.
-See [build 4000019 details](docs/GPU-GATE-4000019.md) and
+Published IPA, source, checksum and verification were independently downloaded
+and checked. All 15 changed source files match. Image import on the phone, moving
+presentation, full SteamOS and game targets remain unfinished. Owner results and
+detailed analysis stay in ignored local `evidence/device/`, excluded from uploads.
+Install with iLoader; in a fresh process enable JIT through StikDebug, pass ARM64
+JIT check and run Linux image import gate once. Keep foreground and share the
+resulting device report. See [build 4000020 details](docs/GPU-GATE-4000020.md) and
 [image import/presentation acceptance](docs/PRESENTATION-GATE.md).
 
+Preserved format diagnostic: [build 4000019 / gate 10](docs/GPU-GATE-4000019.md).
 Preserved modifier diagnostic: [build 4000018 / gate 9](docs/GPU-GATE-4000018.md).
 Preserved image diagnostic: [build 4000017 / gate 8](docs/GPU-GATE-4000017.md).
 Preserved recovery diagnostic: [build 4000016 / gate 7](docs/GPU-GATE-4000016.md).

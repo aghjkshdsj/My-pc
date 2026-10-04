@@ -143,3 +143,20 @@ guest run 37222125501 and full iOS package run 37222312731 passed. Native consum
 and both receipt validators now require exact formats and colour ordering.
 Two diagnostic GPU readbacks remain bounded; steady-state presentation and
 zero-copy transport remain separate acceptance work. See GPU-GATE-4000019.md.
+
+
+## Immutable diagnostic resources versus display generations
+
+Build 4000020 reserves one GPU readback per distinct immutable diagnostic guest
+resource. A display reinstallation can change generation while retaining the same
+image. Repeated callbacks are tracked, but unchanged resource reinstallation does
+not consume another readback; modified metadata is rejected. Both validators still
+require every installation's valid first flush/disable lifecycle and two distinct
+phase0/phase41 resources/pixel results. Hosted regression/physical iOS Release and
+independent source/IPA checks passed; fresh phone import remains required.
+
+This is restricted to the pinned two-image immutable diagnostic. A steady-state
+presenter must handle changing contents, fences and frame IDs for reused buffers,
+and cannot skip new frames merely because a resource ID repeats. It must establish
+drawable completion and frame pacing without steady-state full-image CPU readback.
+No moving presentation/zero-copy/game performance pass is inherited.
