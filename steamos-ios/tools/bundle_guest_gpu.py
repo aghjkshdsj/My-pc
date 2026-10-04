@@ -12,11 +12,16 @@ from verify_ipa import macho_platform, macho_text
 ENGINE_PINS = {
     '4000011': (37078645613, '56f2522eed4509fe2010d2250eaa569dd503c660'),
     '4000012': (37092127907, '544799c0646c272e253850f588a0a2dd52c2067f'),
+    '4000013': (37095545014, '76da8adfa01752df49f6a4b40609b6310b034769'),
 }
-BUNDLE_BUILD = '4000012'
+GUEST_PINS = {
+    '4000011': (37079133580, 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'),
+    '4000012': (37079133580, 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'),
+    '4000013': (37095653651, '004853222a3b6fccc76277f9d669fdc2e42d56f1'),
+}
+BUNDLE_BUILD = '4000013'
 ENGINE_RUN, ENGINE_SOURCE = ENGINE_PINS[BUNDLE_BUILD]
-GUEST_RUN = 37079133580
-GUEST_SOURCE = 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'
+GUEST_RUN, GUEST_SOURCE = GUEST_PINS[BUNDLE_BUILD]
 
 
 def hashed(data, expected):
@@ -51,6 +56,10 @@ def bundle(engine_artifact, guest_artifact, app):
     assert not engine['hardware_virtualization'] and not engine['phone_tested']
     assert engine['adapter']['root_gles_version_requested'] == 3
     assert engine['adapter']['builtin_headless_registration_preflight'] is True
+    assert engine['adapter']['context_create_result_checked'] is True
+    diagnostics = engine['graphics_dependency']['failure_diagnostics']
+    assert diagnostics['failure_errno_and_stage_compiled'] is True
+    assert diagnostics['allocator_policy_changed'] is False and diagnostics['success_override'] is False
     for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
         assert engine['display_backend_build_audit'][field] is True
     selected = closure(engine)
@@ -96,6 +105,7 @@ def bundle(engine_artifact, guest_artifact, app):
     assert receipt['scope'] == 'linux-arm64-graphics-payload-missing-3d-boot-controls'
     assert receipt['source_commit'] == GUEST_SOURCE and int(receipt['workflow_run']) == GUEST_RUN
     assert receipt['linux_runtime_boot_verified'] and receipt['runtime_dependency_closure_verified']
+    assert receipt['cases'][0]['kernel_gpu']['resource_bind_flags'] == 2
     assert not any(receipt[key] for key in ['guest_shader_verified', 'phone_tested', 'metal_verified',
                                            'presentation_verified', 'steamos_verified', 'gameplay_verified'])
     with tarfile.open(guest_artifact / 'Guest-GPU-Payload.tar.gz') as archive:

@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <mutex>
+#include <sys/stat.h>
 
 // Save before unsafe execution. No Foundation, allocation or UI in a signal
 // handler: recovery happens on next launch from the durable pending marker.
@@ -66,4 +67,38 @@ BOOL MPCDiagnosticStage(NSString *stage, NSDictionary *details) {
 void MPCStopDiagnosticCapture(void) {
     std::lock_guard<std::mutex> guard(captureLock);
     stopLocked();
+}
+
+NSDictionary *MPCDiagnosticOutputSnapshot(NSString *directory) {
+    // The caller supplies its freshly created journal directory. Read a bounded
+    // regular-file tail; do not follow a substituted final-component symlink.
+    std::lock_guard<std::mutex> guard(captureLock);
+    fflush(stdout); fflush(stderr);
+    if (outputFD >= 0 && fsync(outputFD) != 0)
+        return @{@"status": @"unavailable", @"reason": @"output-flush-failed", @"errno": @(errno)};
+    NSString *path = [directory stringByAppendingPathComponent:@"engine-output.log"];
+    int fd = open(path.fileSystemRepresentation, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    struct stat info = {};
+    if (fd < 0) return @{@"status": @"unavailable", @"errno": @(errno)};
+    if (fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_size < 0) {
+        close(fd); return @{@"status": @"unavailable", @"reason": @"not-readable-regular-file"};
+    }
+    const off_t limit = 64 * 1024;
+    const off_t start = info.st_size > limit ? info.st_size - limit : 0;
+    NSMutableData *data = [NSMutableData dataWithLength:static_cast<NSUInteger>(info.st_size - start)];
+    size_t total = 0;
+    while (total < data.length) {
+        ssize_t count = pread(fd, static_cast<unsigned char *>(data.mutableBytes) + total,
+                              data.length - total, start + static_cast<off_t>(total));
+        if (count < 0 && errno == EINTR) continue;
+        if (count <= 0) { close(fd); return @{@"status": @"unavailable", @"reason": @"short-read"}; }
+        total += static_cast<size_t>(count);
+    }
+    close(fd);
+    NSString *text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    NSString *encoding = @"utf8";
+    if (!text) { text = [[NSString alloc] initWithData:data encoding:NSISOLatin1StringEncoding]; encoding = @"latin1-fallback"; }
+    return @{@"status": @"captured", @"tail": text ?: @"", @"encoding": encoding,
+             @"file_bytes": @(info.st_size), @"captured_bytes": @(data.length),
+             @"tail_truncated": @(start != 0)};
 }

@@ -103,9 +103,10 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             assert inputs['files']['MoltenVK']['sha256'] == BINARY_SHA
             assert inputs['engine_text_section'] == macho_text(molten)
         if guest_gpu:
-            from bundle_guest_gpu import ENGINE_PINS, GUEST_RUN, GUEST_SOURCE, closure, hashed
+            from bundle_guest_gpu import ENGINE_PINS, GUEST_PINS, closure, hashed
             assert linux_gate and native_vulkan and info['CFBundleVersion'] in ENGINE_PINS
             engine_run, engine_source = ENGINE_PINS[info['CFBundleVersion']]
+            guest_run, guest_source = GUEST_PINS[info['CFBundleVersion']]
             for marker in [b'virtio-gpu-gl-pci,blob=on,venus=on,hostmem=128M', b'egl-headless,gl=es',
                            b'MPC_GPU_GUEST_RUN=', b'tcg,thread=multi,split-wx=on,tb-size=32']:
                 assert marker in binary, 'Required guest GPU/JIT adapter was not compiled'
@@ -113,15 +114,26 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             bundled = json.loads(z.read(gpu + 'engine-bundle.json'))
             assert bundled['scope'] == 'bundled-physical-ios-linux-guest-gpu-gate'
             assert bundled['engine_run'] == engine_run and bundled['engine_source'] == engine_source
-            assert bundled['guest_run'] == GUEST_RUN and bundled['guest_source'] == GUEST_SOURCE
+            assert bundled['guest_run'] == guest_run and bundled['guest_source'] == guest_source
             assert bundled['hardware_virtualization'] is False and bundled['root_gles_version_requested'] == 3
             original = bundled['engine_receipt']
-            if info['CFBundleVersion'] == '4000012':
+            if info['CFBundleVersion'] in ['4000012', '4000013']:
                 assert b'mpc_qemu_register_egl_headless' in binary
                 assert b'_mpc_qemu_register_egl_headless' in z.read(engine)
                 assert bundled['display_backend_compiled'] is True and bundled['display_registration_preflight_required'] is True
                 for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
                     assert original['display_backend_build_audit'][field] is True
+            if info['CFBundleVersion'] == '4000013':
+                assert b'MPC_GPU_CONTEXT_CREATE' in z.read(engine)
+                assert b'output-flush-failed' in binary and b'tail_truncated' in binary
+                assert b'guest_errors' in binary
+                renderer = z.read(prefix + 'Frameworks/virglrenderer.1.framework/virglrenderer.1')
+                for marker in [b'MPC_GPU_ALLOC_FAIL', b'MPC_GPU_SHMEM_FAIL', b'MPC_GPU_BLOB_FAIL']:
+                    assert marker in renderer
+                assert original['adapter']['context_create_result_checked'] is True
+                diagnostics = original['graphics_dependency']['failure_diagnostics']
+                assert diagnostics['failure_errno_and_stage_compiled'] is True
+                assert diagnostics['allocator_policy_changed'] is False and diagnostics['success_override'] is False
             expected = closure(original) | {'MoltenVK.framework/MoltenVK'}
             assert set(bundled['engine_text_sections']) == expected
             for relative in expected:
@@ -131,7 +143,9 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                     hashed(data, original['files']['sysroot-iOS-arm64/Frameworks/' + relative])
             payload = json.loads(z.read(gpu + 'payload-receipt.json'))
             assert payload['scope'] == 'linux-arm64-graphics-payload-missing-3d-boot-controls'
-            assert payload['source_commit'] == GUEST_SOURCE and int(payload['workflow_run']) == GUEST_RUN
+            assert payload['source_commit'] == guest_source and int(payload['workflow_run']) == guest_run
+            if info['CFBundleVersion'] == '4000013':
+                assert payload['cases'][0]['kernel_gpu']['resource_bind_flags'] == 2
             assert payload['runtime_dependency_closure_verified'] and payload['linux_runtime_boot_verified']
             for name in ['Image', 'initramfs.cpio.gz']:
                 hashed(z.read(gpu + name), payload['files'][name])

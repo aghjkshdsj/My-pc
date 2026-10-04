@@ -149,7 +149,7 @@ final class ProbeModel: ObservableObject {
         let diagnosticPath = diagnosticDirectory
         Task.detached(priority: .userInitiated) {
             MPCDiagnosticStage("probe-entering", ["kind": kind])
-            let tests: [String: Any]
+            var tests: [String: Any]
             switch kind {
             case "linux": tests = ["linux": MPCLinuxKernelProbe()]
             case "linux-gpu": tests = ["linux_gpu": MPCLinuxGuestGPUProbe()]
@@ -160,6 +160,11 @@ final class ProbeModel: ObservableObject {
             MPCDiagnosticStage("probe-returned", ["kind": kind])
             let linux = (tests["linux"] ?? tests["linux_gpu"]) as? [String: Any]
             if linux?["status"] as? String != "timed-out-engine-still-running" { MPCStopDiagnosticCapture() }
+            if var gpu = tests["linux_gpu"] as? [String: Any] {
+                gpu["engine_output"] = MPCDiagnosticOutputSnapshot(diagnosticPath)
+                gpu["engine_output_capture_finished"] = gpu["engine_finished"] as? Bool == true
+                tests["linux_gpu"] = gpu
+            }
             await self.finish(runID: runID, before: before, controllers: controllers, tests: tests)
         }
     }
@@ -167,7 +172,7 @@ final class ProbeModel: ObservableObject {
     private func finish(runID: String, before: [AnyHashable: Any], controllers: [[String: Any]], tests: [String: Any]) {
         if let jit = tests["jit"] as? [String: Any] {
             testStatus = jit["status"] as? String == "passed"
-                ? "ARM64 JIT passed: code returned 42. Run the Linux kernel gate next."
+                ? "ARM64 JIT passed: code returned 42. Run the Linux guest Vulkan gate next."
                 : "JIT \(jit["status"] ?? "failed"): \(jit["reason"] ?? jit["stage"] ?? "See the saved report.")"
         } else if let gpu = tests["linux_gpu"] as? [String: Any] {
             testStatus = gpu["guest_vulkan_pixels_verified"] as? Bool == true

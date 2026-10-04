@@ -23,8 +23,8 @@ jobs:
           python3 - <<'PY'
           import json, subprocess
           pins = {
-              'gpu-engine': (37092127907, '544799c0646c272e253850f588a0a2dd52c2067f'),
-              'gpu-guest': (37079133580, 'cb99fc4740385ddcb37119bbc164d5671ea61ce0'),
+              'gpu-engine': (37095545014, '76da8adfa01752df49f6a4b40609b6310b034769'),
+              'gpu-guest': (37095653651, '004853222a3b6fccc76277f9d669fdc2e42d56f1'),
               'cpu-guest': (37014232445, '33c54e5be2d022bc19bcf3e1a448163016dc84af'),
               'molten': (37056046870, '5f9805fded4390780798c25b8a7465db36234fe3'),
           }
@@ -36,13 +36,13 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Fresh-iOS-GPU-Engine
-          run-id: 37092127907
+          run-id: 37095545014
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-engine-artifact
       - uses: actions/download-artifact@v4
         with:
           name: Fresh-ARM-Linux-Graphics-Payload
-          run-id: 37079133580
+          run-id: 37095653651
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-guest-artifact
       - uses: actions/download-artifact@v4
@@ -108,7 +108,7 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000012 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000013 --receipt steamos-ios/out/package/verification.json
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/cpu-guest-artifact/Linux-Gate-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -122,19 +122,17 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000012: corrected disposable Linux ARM64 guest Vulkan probe.
+          Build 4000013: corrected Linux DRM resource request and readable Venus failure diagnostics.
 
-          The build 4000011 phone recovery captured QEMU's unavailable egl-headless display exit before Linux boot. JIT and nine engine identities passed, but the exact archived configuration had Pixman disabled. This build explicitly enables Pixman and audits the actual headless compile command and backend-registration export. The app calls the real built-in registration before qemu_init; a missing export now returns a readable failure. Registration alone does not prove an EGL/Metal context or guest shader. Raw phone reports and signing identifiers stay private.
+          The matched build 4000012 phone report and saved recovery log prove Linux ABI success, but guest Vulkan initialization failed before rendering. The renderer also rejected our preliminary texture request because its bind flags incorrectly described a buffer. This build requests a render target and passed real hosted ARM Linux driver tests plus both missing-GPU and 2D-only Vulkan rejection controls. Correcting that request does not establish the cause of the separate Venus blob failure.
 
-          The fresh host bundles the source-built graphics-enabled QEMU TCG engine, an explicit ANGLE Metal/GLES 3 root context, virgl/Venus, the already phone-tested MoltenVK build, and a complete source-pinned ARM Linux Mesa 26.2.2/Venus runtime initramfs. The guest requests virtio-gpu-gl with blob/Venus and a 128 MiB host-visible aperture. The exact compiled framework closure and signing-compatible executable sections are checked before execution. This new guest path has not passed on a phone until a fresh device receipt returns.
+          The source-built ARM64 iOS renderer now records failure stage, errno, allocation size and blob/context result. QEMU checks and reports its real context-creation result and enables guest-error logging. The normal Share device report also includes a bounded 64 KiB host engine log tail; the full saved recovery export remains available. Logs stay private and are never uploaded automatically. No allocator fallback, success override or relaxed shader acceptance was added.
 
-          Install using iLoader, close/relaunch the app, tap Enable JIT in StikDebug and confirm universal.js, return, then tap Run Linux guest Vulkan gate once. Keep it foreground for up to three minutes. Use Share saved diagnostic logs afterward. If it closes, reopen and use the recovery Share logs prompt. Logs remain private and are never uploaded automatically. Each QEMU gate requires a fresh process; run the GPU gate before the older CPU gate.
+          Install using iLoader, close/relaunch, tap Enable JIT in StikDebug, confirm universal.js, return, then tap Run Linux guest Vulkan gate once. Keep it foreground for up to three minutes. Use Share device report afterward. If it closes, reopen and use the recovery Share logs prompt. Run the GPU gate first: each QEMU gate requires a fresh process.
 
-          A passing guest receipt requires fresh matching nonce markers, Linux ABI success, actual virtio-GPU 3D/blob/host-visible/context capabilities, a non-software Vulkan device, two 1280x720 shader phases, 1,843,200 checked pixels, no mismatch and channel sum 1,219,256,320. Native validator rejection fixtures are protocol tests, not GPU evidence. Guest pixels cannot independently attest host Metal command completion, working host-memory import, zero-copy or moving presentation; those results remain false. Headless readback is a correctness diagnostic, not the sustained game presenter.
+          This diagnostic bundles the fresh native host, source-built QEMU TCG engine, ANGLE Metal/GLES, virgl/Venus, the already phone-tested MoltenVK engine and the corrected ARM Linux Mesa/Venus payload. Exact source, framework import/code closure, diagnostic markers, guest checksums and ZIP CRC are checked before release. Native recovery/export and production receipt-rejection tests run in the build. Corresponding original sources, patches, recipes and license notices accompany the IPA; the fresh host MIT license does not replace upstream GPL/LGPL and other licenses. No Valve client, game content or previous projects are bundled.
 
-          Previous owner-supplied phone evidence verified Linux CPU/ABI on build 4000007 and native Vulkan-to-Metal offscreen shader readback on build 4000010. The new combined route, SteamOS, Steam/FEX/Proton, compositor, audio/controllers/downloads/plugins, gameplay and the startup/FPS targets remain unfinished. No game FPS or accelerated Linux boot is claimed. QEMU TCG is software system emulation; StikDebug JIT is not hardware virtualization. This disposable gate preserves the requested SteamOS architecture and all previous projects/data.
-
-          Actual ARM Linux CI boots verified the complete new runtime closure and rejected both a 2D-only GPU and a missing GPU at Vulkan device enumeration. Real Xcode compiled the native engine and host; package verification checks physical ARM64 iOS, framework dependencies, payload hashes and ZIP CRC. Corresponding sources, patches, build configurations, exact Linux package/source versions and license notices accompany the IPA. Fresh host MIT does not replace GPL/LGPL or other upstream licenses. No Valve client or game data is included.
+          Owner evidence previously passed Linux boot/ABI and separate native Vulkan-to-Metal offscreen shader readback. This build has not passed guest Vulkan on the phone. Independent host Metal completion/import, moving presentation, SteamOS/Steam/FEX/Proton, controllers/audio/downloads/plugins and the startup/game FPS targets remain unfinished. Guest acceptance still requires a fresh nonce, Linux/DRM capability evidence, a non-software Vulkan device and two 1280x720 shader phases with 1,843,200 correct pixels. Diagnostic duration is not game FPS. QEMU TCG is software system emulation; StikDebug JIT does not supply hardware virtualization. The requested SteamOS architecture and previous user data are preserved.
           EOF
           gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "My-pc Linux guest Vulkan gate ${GITHUB_RUN_NUMBER}" --notes-file steamos-ios/out/package/release-notes.md \
             steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/package/verification.json \
@@ -142,7 +140,7 @@ jobs:
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000012
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000013
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()

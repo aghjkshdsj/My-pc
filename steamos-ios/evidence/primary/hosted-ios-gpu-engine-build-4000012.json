@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "scope": "source-built-physical-ios-qemu-gpu-engine-compile-only",
-  "source_commit": "76da8adfa01752df49f6a4b40609b6310b034769",
-  "workflow_run": "37095545014",
+  "source_commit": "544799c0646c272e253850f588a0a2dd52c2067f",
+  "workflow_run": "37092127907",
   "recipe": {
     "schema": 1,
     "utm_revision": "7eadb056ae0f91d979059544d0ddcd2d5a40be92",
@@ -43,8 +43,8 @@
   "graphics_dependency": {
     "schema": 1,
     "scope": "source-built-native-ios-gl-venus-engine-compile-only",
-    "source_commit": "a45e05526a6bc2689a9e2d4abac25863a7e3098f",
-    "workflow_run": "37095310400",
+    "source_commit": "7281f4759ba47cfcfc492a4093ee56b5bf9730d9",
+    "workflow_run": "37078312649",
     "pins": {
       "virglrenderer": "5d26f605f50f8e22002ec6db5fb775e1992d4e96",
       "libepoxy": "bf98587477fe68d07b93319ece7b40a7d0e2eabe"
@@ -157,27 +157,6 @@
     "same_process_thread_renderer": true,
     "phone_tested": false,
     "linux_graphics_verified": false,
-    "failure_diagnostics": {
-      "files": {
-        "src/mesa/util/anon_file.c": {
-          "original_sha256": "13a8c3be72d9bd32df5d055b0c5ece82b370963ee3df0bdc28dc631f72f1c205",
-          "patched_sha256": "4c13362b163281c2ce1219557b7666ccba8968a68ea1c76aa21a928a34ea9bb2"
-        },
-        "src/venus/vkr_context.c": {
-          "original_sha256": "10b9c514043bc69bdaddeac992ea7946801db06c776e11d40c48856071296391",
-          "patched_sha256": "6ecae79d50f0370fef74c7f2f6d95c73e8eb9624d31c701678f82bcec540efff"
-        },
-        "src/virglrenderer.c": {
-          "original_sha256": "27a3cf55334576f73d0a3f7ef8dd71a51666a630480f939b8e84d666a1cb5a5b",
-          "patched_sha256": "13d30cf8b10de27fb96578dd6cf7aaf44d9df64e25de2aac9f4eace74d82423e"
-        }
-      },
-      "failure_errno_and_stage_compiled": true,
-      "allocator_policy_changed": false,
-      "success_override": false,
-      "host_memory_import_verified": false,
-      "phone_tested": false
-    },
     "memory_import_verified": false,
     "metal_runtime_verified": false,
     "presentation_verified": false,
@@ -194,10 +173,6 @@
         "bytes": 542,
         "sha256": "44685f61af8dddab61579521246e21a0b68ee200c32f7bc0d00cd3dfe4722466"
       },
-      "venus-failure-diagnostics.patch": {
-        "bytes": 3341,
-        "sha256": "26c6f93dd2985ca1eb13870c4898fcc183f1bbb7af57576e1d6b32e8fda8a55a"
-      },
       "virglrenderer-source.tar": {
         "bytes": 17909760,
         "sha256": "64894d65871603793b696bc7f21b0d17375007fb26e7a47028cf7252fa7d5f3c"
@@ -212,7 +187,7 @@
       },
       "Frameworks/virglrenderer.1.framework/virglrenderer.1": {
         "bytes": 3007328,
-        "sha256": "f7d43a16c38b0001a841b61e1ae40b378ba631ddaed25f92e2039cd66e3454e8"
+        "sha256": "0796b72ae0a69b226bd69a49d0747e28462673ab5870f17d936fd4e9d2775154"
       }
     }
   },
@@ -230,7 +205,7 @@
       },
       "hw/display/virtio-gpu-virgl.c": {
         "original_sha256": "fa586e30890ca8e55899b69151bcba043acb89b1deddd2b89f8c27d4fb81c1e0",
-        "patched_sha256": "e61a14566ef0dd87972c9558cb08fb6f14a34ed4c5f9d63c800fb29e4c4ba6a9"
+        "patched_sha256": "6f27d019f9c7255dcd2df37eb31392adc6e28721d7b5fc982abab2abca5fad9a"
       },
       "ui/egl-headless.c": {
         "original_sha256": "24010e5fcd9c1e20f3a2e1757b7f60f5a3bff83b4a894269b001d1d17e6d3b35",
@@ -244,7 +219,6 @@
     "metal_backend_explicitly_requested": true,
     "root_gles_version_requested": 3,
     "builtin_headless_registration_preflight": true,
-    "context_create_result_checked": true,
     "steady_state_presenter": false,
     "phone_tested": false,
     "guest_graphics_verified": false,
@@ -448,7 +422,7 @@
     },
     "sysroot-iOS-arm64/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu": {
       "bytes": 28220064,
-      "sha256": "e6cdc7b44a75e81112807b952449b3542edd448d572132dae95d7214f5b809b0"
+      "sha256": "5cfe9751886d4447c4d2ba7a0b7d1a22025b4c799bceeba0d888200cf513098f"
     },
     "sysroot-iOS-arm64/Frameworks/glib-2.0.0.framework/glib-2.0.0": {
       "bytes": 1805856,
@@ -504,7 +478,7 @@
     },
     "sysroot-iOS-arm64/Frameworks/virglrenderer.1.framework/virglrenderer.1": {
       "bytes": 3007328,
-      "sha256": "f7d43a16c38b0001a841b61e1ae40b378ba631ddaed25f92e2039cd66e3454e8"
+      "sha256": "0796b72ae0a69b226bd69a49d0747e28462673ab5870f17d936fd4e9d2775154"
     }
   }
 }

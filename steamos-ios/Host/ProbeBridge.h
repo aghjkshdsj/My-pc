@@ -17,6 +17,7 @@ NSDictionary *MPCNativeVulkanProbe(NSString *diagnosticDirectory);
 BOOL MPCStartDiagnosticCapture(NSString *directory);
 BOOL MPCDiagnosticStage(NSString *stage, NSDictionary *details);
 void MPCStopDiagnosticCapture(void);
+NSDictionary *MPCDiagnosticOutputSnapshot(NSString *directory);
 BOOL MPCDetachJITDebugger(void);
 BOOL MPCConfigureQEMUJIT(void);
 #ifdef __cplusplus
