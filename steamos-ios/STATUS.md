@@ -1,5 +1,36 @@
 # Verified state and next work â€” 2026-10-04
 
+**[Build4000023 / eight Linux frames](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-17)**
+passed physical ARM64 iOS Release run37234851404 at source
+0e8e9ada1379790ae8c2b7bdea46cbc08ab7eaae. The public IPA was independently
+downloaded and verified: 24,435,502 bytes, SHA256
+d46041e816aecf069923d1d4cfd36c3ea3a55fe314c5c242ec386c9d96a4b1cf.
+All 34 selected source files match the fresh-source archive. The kernel and ten
+native frameworks are byte-identical to the verified build4000022 package.
+The new guest corresponding-source archive was independently downloaded,
+hashed and checked, including its exact parent archive, current compile headers,
+copyright notices and all 13 frame source hashes. The three unchanged upstream
+source archives have metadata/CI digest checks only this turn.
+
+The new test receives eight distinct immutable Linux-rendered 720p images,
+with eight native aliases and screen GPU completions. Only first/last source
+images have full native correctness readbacks. GPU sequence acceptance and
+actual display timing are separate; zero callback display timestamps still
+leave timing unverified, and cannot establish FPS. The old two-image gate stays
+strict. One consumer in flight and two drawables are allowed. Minimum guest
+dwell is 125ms, not a measured frame-rate target or steady-state buffer protocol.
+
+All 107 Python checks, 149 native frame receipt checks, 100 original screen
+checks, existing image/guest/ledger/recovery/capture checks and the new resource
+budget passed. Actual eight-frame phone verification remains pending. Full
+SteamOS desktop, ARM Steam, FEX/Proton, compositor/WSI, input/audio/downloads,
+overlays/plugins, startup targets, Hollow Knight FPS and sustained thermals
+remain unfinished. QEMU TCG is software system emulation, not virtualization.
+See [eight-frame gate](docs/GPU-GATE-4000023.md) and package-only receipt
+evidence/primary/ios-eight-linux-frame-prerelease-4000023.json.
+
+Earlier package checkpoints are retained below.
+
 **[Build4000022 / Linux screen gate](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-13)**
 passed physical ARM64 iOS Release run37230949031 at source
 4ed0113618e9529a3744b32f1e4985a70919aa76. The published IPA was independently
@@ -16,7 +47,7 @@ imported Linux texture in a main-thread Core Animation transaction. It records
 bounded interruption reasons and actual scheduling/enqueue/callback clocks.
 A zero callback display timestamp remains failure; a later API query never
 replaces it. The result UI explains preserved import/GPU work separately from
-screen timing. No build22 phone result exists yet. Continuous animation, pacing,
+screen timing. This historical checkpoint records package evidence only; owner results are kept private. Continuous animation, pacing,
 full SteamOS/Steam ARM and game targets remain unfinished. See
 [transaction screen gate](docs/GPU-GATE-4000022.md) and the package-only receipt
 in evidence/primary/ios-guest-screen-prerelease-4000022.json.

@@ -1,5 +1,17 @@
 # Component coverage record
 
+Current build4000023 adds a separate eight-immutable-image Linux producer and
+bounded native alias/screen GPU consumer. Source/IPA and corresponding-source
+verification passed, with 107 Python and 149 native frame checks plus the
+preserved original rejection boundaries. Kernel/ten frameworks are unchanged;
+the initramfs adds a separate AArch64 frame binary. Phone acceptance remains
+pending and is separate from package verification. Actual display timestamps,
+continuous output, mutable-buffer synchronization, WSI/compositor, all SteamOS
+product families and performance rows remain open. This does not complete a
+desktop or game row. See [eight-frame gate](GPU-GATE-4000023.md). Previous entries
+below are historical; every archive and DroidDeck mapping is preserved.
+
+
 Current build4000022 source adds scheduled main-thread Core Animation
 presentation, bounded lifecycle evidence and strict schema2 display receipts.
 Physical iOS Release, separate native adapter compilation, 98 Python and 100

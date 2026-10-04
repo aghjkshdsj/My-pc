@@ -199,3 +199,13 @@ pacing, WSI/compositor, desktop/client/gameplay or sustained performance.
 See GPU-GATE-4000022.md and the package-only public receipt. Upstream reuse and
 licensing mappings, archived implementations and private device records remain
 separate and preserved.
+
+## Bounded eight-frame checkpoint
+
+Build4000023 adds eight distinct immutable guest-produced images with native
+aliases and screen GPU completions, plus two endpoint source readbacks. GPU
+sequence acceptance is distinct from actual positive drawable timestamps;
+neither accepts continuous animation, pacing, mutable-buffer synchronization,
+WSI/compositor or games. The original two-image strict display gate is preserved.
+Source/package/native rejection checks passed; phone eight-frame tests are
+pending. Details and exact build/dependency evidence: GPU-GATE-4000023.md.
