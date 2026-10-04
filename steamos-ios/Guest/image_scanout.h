@@ -177,9 +177,9 @@ static int image_install(VkDevice device, unsigned pass, uint32_t phase) {
         return image_reject("drm-virtio-resource-identity", errno);
     target->resource = resource.res_handle;
     printf("MPC_IMAGE_DRM_RESOURCE {\"schema\":1,\"run\":\"%s\",\"phase\":%u,"
-           "\"gem_handle\":%u,\"resource_id\":%u,\"blob_mem\":%u,\"resource_bytes\":%u,"
+           "\"gem_handle\":%u,\"resource_id\":%u,\"resource_bytes\":%u,"
            "\"row_pitch\":%" PRIu64 ",\"offset\":%" PRIu64 "}\n",image_run,phase,target->gem_handle,
-           target->resource,resource.blob_mem,resource.size,(uint64_t)target->layout.rowPitch,(uint64_t)target->layout.offset);
+           target->resource,resource.size,(uint64_t)target->layout.rowPitch,(uint64_t)target->layout.offset);
     fflush(stdout);
     if (mpc_add_image_framebuffer(scanout_fd, WIDTH, HEIGHT, target->gem_handle,
                                 target->layout.rowPitch, target->layout.offset, &target->framebuffer))
