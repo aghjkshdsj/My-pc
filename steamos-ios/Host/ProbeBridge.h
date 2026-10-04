@@ -13,6 +13,7 @@ NSDictionary *MPCLinuxKernelProbe(void);
 NSDictionary *MPCLinuxGuestGPUProbe(void);
 NSDictionary *MPCLinuxGuestImageProbe(void);
 NSDictionary *MPCLinuxGuestScreenProbe(void);
+NSDictionary *MPCLinuxGuestFrameProbe(void);
 UIView *MPCGuestScreenCreateView(void);
 NSDictionary *MPCParseGuestGPUReceipt(NSString *text, NSString *nonce, BOOL linuxPassed);
 NSDictionary * _Nullable MPCFrameworkTextIdentity(NSString *path);

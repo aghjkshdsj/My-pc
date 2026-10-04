@@ -7,7 +7,7 @@ import math
 from verify_device_report import require
 
 
-def validate(gate, nonce):
+def validate(gate, nonce, transaction=False):
     receipt = gate.get('screen_presentation', {})
     imported = gate.get('image_import', {})
     require(gate.get('status') == 'failed' and gate.get('screen_presentation_requested') is True and
@@ -18,8 +18,8 @@ def validate(gate, nonce):
             receipt.get('reason') == 'screen-presentation-acceptance-incomplete', 'Wrong failed screen receipt')
     native = receipt.get('native', {})
     registry = imported.get('native', {}).get('registry_id')
-    fixed = dict(schema=1, scope='native-metal-two-linux-image-screen', run=nonce, registry_id=registry,
-                 pending=0, interrupted=True, surface_visible=True, maximum_inflight=1,
+    fixed = dict(schema=2 if transaction else 1, scope='native-metal-two-linux-image-screen', run=nonce, registry_id=registry,
+                 pending=0, interrupted=not transaction, surface_visible=True, maximum_inflight=1,
                  drawable_limit=2, diagnostic_source_readbacks=2, drawable_cpu_readbacks=0)
     require(type(registry) is int and registry > 0 and imported.get('run') == nonce and
             all(type(native.get(k)) is type(v) and native[k] == v for k, v in fixed.items()),
@@ -28,9 +28,12 @@ def validate(gate, nonce):
         for key in ('continuous_animation_verified', 'frame_pacing_verified', 'zero_copy_transport_verified', 'gameplay_verified'):
             require(row.get(key) is False, 'Unsupported failed-screen claim: ' + key)
     frames, images = native.get('frames'), imported.get('native', {}).get('images')
-    require(isinstance(frames, list) and len(frames) in (1, 2) and isinstance(images, list) and len(images) == 2 and
+    require(isinstance(frames, list) and len(frames) in ((2,) if transaction else (1, 2)) and isinstance(images, list) and len(images) == 2 and
             type(native.get('errors')) is int and native['errors'] == 2-len(frames),
             'Wrong partial frame count/rejection count')
+    if transaction:
+        require(native.get('presentation_route') == 'scheduled-main-thread-core-animation-transaction' and
+                native.get('lifecycle_events') == [], 'Not the known uninterrupted transaction attempt')
     geometry = native.get('surface_geometry')
     require(type(geometry) is int and geometry > 0, 'No observed screen geometry')
     resources, generations, durations = set(), set(), []
@@ -62,8 +65,20 @@ def validate(gate, nonce):
             all(type(v) in (int, float) and math.isfinite(v) and abs(v-e) < .01
                 for v, e in zip(viewport, expected_viewport)), 'Wrong screen viewport')
         durations.append((times[2]-times[1])*1000)
+        if transaction:
+            route = dict(presents_with_transaction=True, presentation_on_main_thread=True, presentation_application_state=0,
+                         presentation_call_completed=True, completion_join_retired=True, presented_seconds_later_query=0)
+            require(all(type(frame.get(k)) is type(v) and frame[k] == v for k,v in route.items()) and
+                    frame.get('presentation_aborted', False) is False and type(frame.get('scheduled_status')) is int and
+                    frame['scheduled_status'] in (3, 4), 'Wrong transaction/late-query evidence')
+            scheduled,enqueued,callback,completed,later=(frame.get(k) for k in ('scheduled_callback_seconds',
+                'presentation_enqueued_seconds','presented_callback_seconds','gpu_completed_callback_seconds','later_query_host_seconds'))
+            require(all(type(v) in (int,float) and math.isfinite(v) and v>0 for v in (scheduled,enqueued,callback,completed,later)) and
+                    times[0] <= scheduled <= enqueued <= callback <= later and times[-1] <= callback and times[-1] <= completed,
+                    'Wrong scheduling/GPU/callback/late-query ordering')
     return dict(scope='failed-screen-gate-preserved-gpu-progress-only',
-        failure='zero-actual-display-timestamps-and-sticky-interruption', completed_screen_gpu_consumers=len(frames),
+        failure='zero-callback-and-late-display-timestamps-without-interruption' if transaction else 'zero-actual-display-timestamps-and-sticky-interruption',
+        completed_screen_gpu_consumers=len(frames),
         imported_resources=list(sorted(resources)), screen_consumer_gpu_durations_ms=durations,
         drawable_callbacks_with_zero_display_time=len(frames), presentation_verified=False,
         continuous_animation_verified=False, frame_pacing_verified=False, gameplay_verified=False,

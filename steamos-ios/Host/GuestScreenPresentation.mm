@@ -1,6 +1,7 @@
 // Fresh, bounded two-image screen diagnostic, MIT. No host-generated image.
 #import "GuestScreenPresentation.h"
 #import "ProbeBridge.h"
+#import "GuestFrameImport.h"
 #import <UIKit/UIKit.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <Metal/Metal.h>
@@ -16,7 +17,7 @@
 @property(nonatomic, strong) dispatch_queue_t renderQueue;
 @property(nonatomic) uint64_t registry, geometry;
 @property(nonatomic) NSUInteger errors, pending;
-@property(nonatomic) BOOL visible, begun, interrupted, finished;
+@property(nonatomic) BOOL visible, begun, interrupted, finished, frameSequence;
 @end
 @implementation MPCScreenContext
 @end
@@ -131,7 +132,7 @@ UIView *MPCGuestScreenCreateView(void) {
     return view;
 }
 
-BOOL MPCGuestScreenBegin(NSString *nonce, NSError **error) {
+static BOOL beginScreen(NSString *nonce, BOOL frames, NSError **error) {
     __block BOOL active = NO;
     void (^readState)(void) = ^{ active = UIApplication.sharedApplication.applicationState == UIApplicationStateActive; };
     if (NSThread.isMainThread) readState(); else dispatch_sync(dispatch_get_main_queue(), readState);
@@ -143,6 +144,7 @@ BOOL MPCGuestScreenBegin(NSString *nonce, NSError **error) {
             return NO;
         }
         screen.nonce = nonce;
+        screen.frameSequence = frames;
         screen.begun = YES;
         MPCDiagnosticStage(@"linux-screen-surface-ready", @{@"registry_id": @(screen.registry),
             @"drawable_width": @(screen.layer.drawableSize.width), @"drawable_height": @(screen.layer.drawableSize.height),
@@ -151,6 +153,9 @@ BOOL MPCGuestScreenBegin(NSString *nonce, NSError **error) {
         return YES;
     }
 }
+
+BOOL MPCGuestScreenBegin(NSString *nonce, NSError **error) { return beginScreen(nonce, NO, error); }
+BOOL MPCGuestFrameScreenBegin(NSString *nonce, NSError **error) { return beginScreen(nonce, YES, error); }
 
 NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictionary *image) {
     MPCScreenContext *context = screen;
@@ -161,10 +166,11 @@ NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictio
     NSUInteger phase = [image[@"phase"] unsignedIntegerValue];
     @synchronized(context) {
         if (!context || !context.begun || !context.visible || context.interrupted || context.pending ||
-            context.frames.count >= 2 || !texture || texture.device.registryID != context.registry ||
+            context.frames.count >= (context.frameSequence ? 8u : 2u) || !texture || texture.device.registryID != context.registry ||
             ![image[@"resource_id"] isEqual:@(resource)] || ![image[@"generation"] isEqual:@(generation)] ||
-            ![image[@"mismatches"] isEqual:@0] || ![image[@"pixels_checked"] isEqual:@921600] ||
-            phase != (context.frames.count ? 41u : 0u)) {
+            ![image[@"mismatches"] isEqual:@0] || ![image[@"pixels_checked"] isEqual:(context.frameSequence && context.frames.count != 0 && context.frames.count != 7 ? @0 : @921600)] ||
+            (context.frameSequence && ![image[@"pixel_verification_performed"] isEqual:@(context.frames.count == 0 || context.frames.count == 7)]) ||
+            phase != (context.frameSequence ? context.frames.count * 17u : context.frames.count ? 41u : 0u)) {
             context.errors++;
             MPCDiagnosticStage(@"linux-screen-source-rejected", @{@"resource_id": @(resource),
                 @"generation": @(generation), @"phase": @(phase), @"interrupted": @(context.interrupted),
@@ -318,7 +324,7 @@ NSDictionary *MPCGuestScreenFinish(NSDictionary *imageImport, BOOL engineFinishe
         NSMutableArray *copies = [NSMutableArray array];
         for (NSDictionary *row in screen.frames) [copies addObject:[row copy]];
         if (engineFinished) screen.finished = YES;
-        native = @{@"schema": @2, @"scope": @"native-metal-two-linux-image-screen", @"run": screen.nonce ?: @"",
+        native = @{@"schema": @2, @"scope": screen.frameSequence ? @"native-metal-eight-linux-frame-screen" : @"native-metal-two-linux-image-screen", @"run": screen.nonce ?: @"",
             @"registry_id": @(screen.registry), @"frames": copies, @"errors": @(screen.errors),
             @"pending": @(screen.pending), @"interrupted": @(screen.interrupted), @"surface_visible": @(screen.visible),
             @"surface_geometry": @(screen.geometry), @"maximum_inflight": @1, @"drawable_limit": @2,
@@ -328,5 +334,5 @@ NSDictionary *MPCGuestScreenFinish(NSDictionary *imageImport, BOOL engineFinishe
             @"continuous_animation_verified": @NO, @"frame_pacing_verified": @NO,
             @"zero_copy_transport_verified": @NO, @"gameplay_verified": @NO};
     }
-    return MPCValidateGuestScreen(screen.nonce ?: @"", imageImport, native, engineFinished);
+    return screen.frameSequence ? MPCValidateGuestFrameScreen(screen.nonce ?: @"", imageImport, native, engineFinished) : MPCValidateGuestScreen(screen.nonce ?: @"", imageImport, native, engineFinished);
 }

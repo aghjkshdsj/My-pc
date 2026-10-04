@@ -3,6 +3,7 @@ import copy
 import math
 import unittest
 from test_guest_screen import fixture
+import test_guest_screen
 from verify_failed_screen_progress import validate
 from verify_guest_screen import validate as validate_passed
 
@@ -18,6 +19,32 @@ def failed_fixture():
 
 
 class FailedScreenProgressTests(unittest.TestCase):
+    def transaction_failure(self):
+        gate, nonce = test_guest_screen.GuestScreenTests().transaction_fixture()
+        gate.update(status='failed', presentation_verified=False)
+        gate['screen_presentation'].update(presentation_verified=False, reason='screen-presentation-acceptance-incomplete')
+        for frame in gate['screen_presentation']['native']['frames']:
+            frame.update(presented_seconds=0, presented_seconds_later_query=0,
+                gpu_completed_callback_seconds=frame['gpu_end_seconds']+.0001,
+                later_query_host_seconds=frame['presented_callback_seconds']+.1)
+        return gate, nonce
+
+    def test_uninterrupted_transaction_still_does_not_accept_display_time(self):
+        gate, nonce = self.transaction_failure()
+        result = validate(gate, nonce, transaction=True)
+        self.assertFalse(result['presentation_verified'])
+        self.assertEqual(result['completed_screen_gpu_consumers'], 2)
+        with self.assertRaises(ValueError): validate_passed(gate, nonce)
+
+    def test_transaction_failure_requires_exact_original_route_and_zero_queries(self):
+        for key,value in [('presented_seconds_later_query',3.1),('presentation_on_main_thread',False),
+                          ('scheduled_status',5),('completion_join_retired',False),('later_query_host_seconds',0),
+                          ('gpu_completed_callback_seconds',math.nan)]:
+            gate,nonce=self.transaction_failure(); gate['screen_presentation']['native']['frames'][1][key]=value
+            with self.subTest(key=key),self.assertRaises(ValueError): validate(gate,nonce,transaction=True)
+        gate,nonce=self.transaction_failure(); gate['screen_presentation']['native']['interrupted']=True
+        with self.assertRaises(ValueError): validate(gate,nonce,transaction=True)
+
     def test_completed_gpu_work_never_establishes_display_or_fps(self):
         gate, nonce = failed_fixture(); result = validate(gate, nonce)
         self.assertEqual(result['completed_screen_gpu_consumers'], 2)

@@ -57,6 +57,7 @@ paths += [root / 'evidence/primary/ios-guest-screen-prerelease-4000022.json']
 paths += [root / 'evidence/primary' / name for name in ['hosted-ios-native-scanout-build.json', 'hosted-linux-image-payload-build.json', 'ios-guest-image-prerelease-4000017.json']]
 paths += [root.parent / '.github/workflows' / name for name in ['steamos-ios-scanout-engine.yml', 'steamos-guest-image-payload.yml', 'steamos-ios-image-source.yml']]
 paths += [root.parent / '.github/workflows/steamos-ios-metal-trace.yml']
+paths += [root.parent / '.github/workflows/steamos-guest-frame-payload.yml']
 paths += [root / 'evidence/droiddeck-summary.json', root / 'evidence/droiddeck-files.csv']
 paths = sorted(set(paths))
 rows = [{'path': p.relative_to(root.parent).as_posix(), 'mode': '100644', 'type': 'blob',

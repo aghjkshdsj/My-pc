@@ -23,6 +23,7 @@ final class ProbeModel: ObservableObject {
     @Published var testStatus = ""
     @Published var showLinuxScreen = false
     @Published var screenStarted = false
+    @Published var frameSequence = true
     private var requestedStikDebug = false
     private var facts: [String: Any] = [:]
     private let journal = RecoveryJournal(documents: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0])
@@ -30,16 +31,17 @@ final class ProbeModel: ObservableObject {
     private var recoveredSnapshot: Data?
     private var activeRunID: String?
 
-    func openLinuxScreen() {
+    func openLinuxScreen(frames: Bool = true) {
         guard !busy && !engineNeedsRelaunch else { return }
         screenStarted = false
+        frameSequence = frames
         showLinuxScreen = true
     }
 
     func startLinuxScreen() {
         guard showLinuxScreen && !screenStarted && !busy && !engineNeedsRelaunch else { return }
         screenStarted = true
-        run(kind: "linux-screen")
+        run(kind: frameSequence ? "linux-frames" : "linux-screen")
     }
 
     func checkRecovery() {
@@ -122,7 +124,7 @@ final class ProbeModel: ObservableObject {
     func run(kind: String) {
         guard !busy && !engineNeedsRelaunch else { return }
         busy = true
-        testStatus = "Starting \(kind == "linux-screen" ? "Linux screen test" : kind == "linux-image" ? "Linux image import gate" : kind == "linux-gpu" ? "Linux guest Vulkan gate" : kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : kind == "vulkan" ? "native Vulkan â†’ Metal check" : "host probes")â€¦"
+        testStatus = "Starting \(kind == "linux-frames" ? "Eight-frame Linux test" : kind == "linux-screen" ? "Linux screen test" : kind == "linux-image" ? "Linux image import gate" : kind == "linux-gpu" ? "Linux guest Vulkan gate" : kind == "linux" ? "Linux kernel gate" : kind == "jit" ? "ARM64 JIT check" : kind == "vulkan" ? "native Vulkan â†’ Metal check" : "host probes")â€¦"
         exportURL = nil
         let runID = UUID().uuidString
         activeRunID = runID
@@ -169,14 +171,15 @@ final class ProbeModel: ObservableObject {
             case "linux-gpu": tests = ["linux_gpu": MPCLinuxGuestGPUProbe()]
             case "linux-image": tests = ["linux_image": MPCLinuxGuestImageProbe()]
             case "linux-screen": tests = ["linux_screen": MPCLinuxGuestScreenProbe()]
+            case "linux-frames": tests = ["linux_frames": MPCLinuxGuestFrameProbe()]
             case "jit": tests = ["jit": MPCExecuteJITProbe()]
             case "vulkan": tests = ["native_vulkan": MPCNativeVulkanProbe(diagnosticPath)]
             default: tests = ["native_cpu": MPCNativeCPUProbe(), "metal": MPCMetalProbe(), "storage": MPCStorageProbe()]
             }
             MPCDiagnosticStage("probe-returned", ["kind": kind])
-            let linux = (tests["linux"] ?? tests["linux_gpu"] ?? tests["linux_image"] ?? tests["linux_screen"]) as? [String: Any]
+            let linux = (tests["linux"] ?? tests["linux_gpu"] ?? tests["linux_image"] ?? tests["linux_screen"] ?? tests["linux_frames"]) as? [String: Any]
             if linux?["status"] as? String != "timed-out-engine-still-running" { MPCStopDiagnosticCapture() }
-            let gpuKey = kind == "linux-screen" ? "linux_screen" : kind == "linux-image" ? "linux_image" : "linux_gpu"
+            let gpuKey = kind == "linux-frames" ? "linux_frames" : kind == "linux-screen" ? "linux_screen" : kind == "linux-image" ? "linux_image" : "linux_gpu"
             if var gpu = tests[gpuKey] as? [String: Any] {
                 gpu["engine_output"] = MPCDiagnosticOutputSnapshot(diagnosticPath)
                 gpu["engine_output_capture_finished"] = gpu["engine_finished"] as? Bool == true
@@ -189,8 +192,16 @@ final class ProbeModel: ObservableObject {
     private func finish(runID: String, before: [AnyHashable: Any], controllers: [[String: Any]], tests: [String: Any]) {
         if let jit = tests["jit"] as? [String: Any] {
             testStatus = jit["status"] as? String == "passed"
-                ? "ARM64 JIT passed: code returned 42. Open Show Linux-rendered images next in this fresh process."
+                ? "ARM64 JIT passed: code returned 42. Open Show eight Linux-rendered frames next in this fresh process."
                 : "JIT \(jit["status"] ?? "failed"): \(jit["reason"] ?? jit["stage"] ?? "See the saved report.")"
+        } else if let frames = tests["linux_frames"] as? [String: Any] {
+            let screen = frames["frame_screen"] as? [String: Any]
+            let native = screen?["native"] as? [String: Any]
+            let rows = native?["frames"] as? [[String: Any]] ?? []
+            let completed = rows.filter { $0["gpu_completed"] as? Bool == true && $0["consumer_error"] as? Bool == false }.count
+            testStatus = frames["gpu_sequence_verified"] as? Bool == true
+                ? "Eight Linux frames imported; 8/8 screen GPU draws completed. " + (frames["presentation_verified"] as? Bool == true ? "Display timestamps passed. " : "Display timing remains incomplete. ") + "Desktop, games and FPS remain unfinished. Share the report and logs."
+                : "Eight-frame test \(frames["status"] ?? "failed"): \(completed)/8 draws completed. \(screen?["reason"] ?? frames["reason"] ?? frames["stage"] ?? "Share the saved logs.")"
         } else if let screen = tests["linux_screen"] as? [String: Any] {
             let receipt = screen["screen_presentation"] as? [String: Any]
             if screen["presentation_verified"] as? Bool == true {
@@ -232,14 +243,15 @@ final class ProbeModel: ObservableObject {
                 : "Native Vulkan \(vulkan["status"] ?? "failed"): \(vulkan["reason"] ?? vulkan["stage"] ?? "See the saved logs.")"
         } else { testStatus = "Host probes finished. See the saved measurements below." }
         facts.merge(tests) { _, new in new }
-        let kernel = (tests["linux"] ?? tests["linux_gpu"] ?? tests["linux_image"] ?? tests["linux_screen"]) as? [String: Any]
+        let kernel = (tests["linux"] ?? tests["linux_gpu"] ?? tests["linux_image"] ?? tests["linux_screen"] ?? tests["linux_frames"]) as? [String: Any]
         engineNeedsRelaunch = kernel?["status"] as? String == "timed-out-engine-still-running" ||
             kernel?["requires_relaunch"] as? Bool == true ||
             (tests["native_vulkan"] as? [String: Any])?["requires_relaunch"] as? Bool == true
         let linux = (facts["linux"] as? [String: Any])?["linux_execution"] as? Bool == true ||
             (facts["linux_gpu"] as? [String: Any])?["linux_execution"] as? Bool == true ||
             (facts["linux_image"] as? [String: Any])?["linux_execution"] as? Bool == true ||
-            (facts["linux_screen"] as? [String: Any])?["linux_execution"] as? Bool == true
+            (facts["linux_screen"] as? [String: Any])?["linux_execution"] as? Bool == true ||
+            (facts["linux_frames"] as? [String: Any])?["linux_execution"] as? Bool == true
         let result: [String: Any] = [
             "schema": 1, "run_id": runID, "collected_utc": ISO8601DateFormatter().string(from: Date()),
             "source_commit": Bundle.main.object(forInfoDictionaryKey: "MPCSourceCommit") as? String ?? "local-unrecorded",
@@ -248,10 +260,12 @@ final class ProbeModel: ObservableObject {
             "executed_tests": tests.keys.sorted(),
             "controllers_observed": controllers, "tests": facts,
             "acceptance": ["linux_kernel_boot": linux,
-                           "linux_guest_vulkan_pixels": ((facts["linux_screen"] ?? facts["linux_image"] ?? facts["linux_gpu"]) as? [String: Any])?["guest_vulkan_pixels_verified"] as? Bool == true,
-                           "linux_guest_offscreen_metal_completion": ((facts["linux_screen"] ?? facts["linux_image"] ?? facts["linux_gpu"]) as? [String: Any])?["metal_host_verified"] as? Bool == true,
-                           "linux_guest_image_import": ((facts["linux_screen"] ?? facts["linux_image"]) as? [String: Any])?["host_memory_import_verified"] as? Bool == true,
+                           "linux_guest_vulkan_pixels": ((facts["linux_frames"] ?? facts["linux_screen"] ?? facts["linux_image"] ?? facts["linux_gpu"]) as? [String: Any])?["guest_vulkan_pixels_verified"] as? Bool == true,
+                           "linux_guest_offscreen_metal_completion": ((facts["linux_frames"] ?? facts["linux_screen"] ?? facts["linux_image"] ?? facts["linux_gpu"]) as? [String: Any])?["metal_host_verified"] as? Bool == true,
+                           "linux_guest_image_import": ((facts["linux_frames"] ?? facts["linux_screen"] ?? facts["linux_image"]) as? [String: Any])?["host_memory_import_verified"] as? Bool == true,
                            "linux_guest_two_image_screen_presentation": (facts["linux_screen"] as? [String: Any])?["presentation_verified"] as? Bool == true,
+                           "linux_guest_eight_frame_gpu_sequence": (facts["linux_frames"] as? [String: Any])?["gpu_sequence_verified"] as? Bool == true,
+                           "linux_guest_eight_frame_display_timing": (facts["linux_frames"] as? [String: Any])?["presentation_verified"] as? Bool == true,
                            "linux_guest_continuous_animation": false,
                            "linux_guest_frame_pacing": false,
                            "native_vulkan_to_metal_offscreen": (facts["native_vulkan"] as? [String: Any])?["native_vulkan_to_metal_verified"] as? Bool == true,
@@ -284,7 +298,9 @@ struct ProbeScreen: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("SteamOS platform bring-up").font(.title2.bold())
                     Text("This prerelease tests separate parts of Linux graphics on your iPhone. The SteamOS desktop and game environment are unfinished.")
-                    Button("Show Linux-rendered images") { model.openLinuxScreen() }
+                    Button("Show eight Linux-rendered frames") { model.openLinuxScreen() }
+                        .buttonStyle(.borderedProminent).disabled(model.busy || model.engineNeedsRelaunch)
+                    Button("Show Linux-rendered images") { model.openLinuxScreen(frames: false) }
                         .buttonStyle(.borderedProminent).disabled(model.busy || model.engineNeedsRelaunch)
                     Text("This opens a real Metal screen for two images rendered inside Linux. Enable JIT first, then start the test from that screen. Continuous animation and the desktop are still unfinished.").font(.callout)
                     Button("Run Metal and storage probes") { model.run(kind: "host") }
@@ -341,10 +357,10 @@ struct LinuxScreenTest: View {
             LinuxSurface().ignoresSafeArea()
             VStack {
                 Text("Linux GPU screen test").font(.headline)
-                Text("Two Linux-rendered images · SteamOS desktop unfinished").font(.caption)
+                Text(model.frameSequence ? "Eight Linux-rendered frames · desktop and FPS unfinished" : "Two Linux-rendered images · SteamOS desktop unfinished").font(.caption)
                 Spacer()
                 if !model.screenStarted {
-                    Button("Start Linux screen test") { model.startLinuxScreen() }
+                    Button(model.frameSequence ? "Start eight-frame test" : "Start Linux screen test") { model.startLinuxScreen() }
                         .buttonStyle(.borderedProminent)
                     Text("Enable JIT before starting. Keep this screen open and avoid rotating during the test.").font(.callout)
                 } else {
