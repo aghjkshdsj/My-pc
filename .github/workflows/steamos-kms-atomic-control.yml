@@ -1,0 +1,38 @@
+name: ARM Linux standard atomic display API controls
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/kms_atomic_gate.c', 'steamos-ios/tools/build_kms_atomic_gate.py', 'steamos-ios/tools/verify_kms_atomic_gate.py', 'steamos-ios/tests/test_kms_atomic_gate.py', '.github/workflows/steamos-kms-atomic-control.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  kms-atomic:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actual ARM DRM compiler and Linux boot tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc binutils qemu-system-arm libdrm-dev
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Frame-Payload
+          run-id: 37233435975
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/parent-frame-artifact
+      - name: Reject altered atomic event and fence receipts
+        run: python3 -m unittest discover -s steamos-ios/tests -p test_kms_atomic_gate.py -v
+      - name: Compile AArch64 producer and boot atomic API and missing-device controls
+        run: python3 steamos-ios/tools/build_kms_atomic_gate.py steamos-ios/out/parent-frame-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Linux-KMS-Atomic-Control
+          path: |
+            steamos-ios/out/guest-kms-atomic/KMS-Atomic-*.tar.gz
+            steamos-ios/out/guest-kms-atomic/payload/kms-atomic-receipt.json
+            steamos-ios/out/guest-kms-atomic/payload/*.log
+          retention-days: 14
