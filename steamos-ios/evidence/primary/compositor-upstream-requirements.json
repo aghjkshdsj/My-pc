@@ -38,6 +38,10 @@
     "LICENSE": {
       "bytes": 1161,
       "sha256": "67f7248bcd38ff1054a090970eed17cd9bd6cc147260c3d807872c779c714b60"
+    },
+    "render/pixman/meson.build": {
+      "bytes": 150,
+      "sha256": "4a3aad7f10a5aed2b191bb28ff1143f4e39a1a919fc5a16c77833fe7cc270f04"
     }
   },
   "minimum_versions": {
@@ -46,7 +50,7 @@
     "wayland_protocols": "1.47",
     "libdrm": "2.4.129",
     "xkbcommon": "1.8.0",
-    "pixman": "0.43.0",
+    "pixman": "0.46.0",
     "libdisplay_info": "0.2.0",
     "libseat": "0.2.0",
     "gbm": "21.1",
@@ -74,5 +78,6 @@
   "external_semaphore_fd_optional_and_queried": true,
   "compositor_compiled": false,
   "compositor_on_phone_verified": false,
-  "steam_os_desktop_verified": false
+  "steam_os_desktop_verified": false,
+  "pixman_note": "The renderer subdirectory strengthens the top-level 0.43.0 requirement to 0.46.0; actual build rejects 0.44.2. Pixman support is unconditional; the diagnostic explicitly selects Vulkan without renderer fallback."
 }

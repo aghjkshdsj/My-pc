@@ -15,7 +15,7 @@ PINS={
  'wayland':('https://gitlab.freedesktop.org/wayland/wayland.git','1.24.0','736d12ac67c20c60dc406dc49bb06be878501f86'),
  'wayland-protocols':('https://gitlab.freedesktop.org/wayland/wayland-protocols.git','1.47','88223018d1b578d0d8869866da66d9608e05f928'),
  'libdrm':('https://gitlab.freedesktop.org/mesa/drm.git','libdrm-2.4.129','a8e5e10a873f67f557dc70e5407af4553f35edd9'),
- 'pixman':('https://gitlab.freedesktop.org/pixman/pixman.git','pixman-0.44.2','46655e15671e1ca62d699821d75a85d341d7229c'),
+ 'pixman':('https://gitlab.freedesktop.org/pixman/pixman.git','pixman-0.46.4','9cc163c9da0fb4da430641715313d95a6ec466d9'),
  'libxkbcommon':('https://github.com/xkbcommon/libxkbcommon.git','xkbcommon-1.8.0','76740e0c4583ae49675e7ba8213d31ee09aa00d2'),
  'libdisplay-info':('https://gitlab.freedesktop.org/emersion/libdisplay-info.git','0.2.0','66b802d05b374cd8f388dc6ad1e7ae4f08cb3300'),
  'wlroots':('https://gitlab.freedesktop.org/wlroots/wlroots.git','0.20.2','d783533489e1f75d6886c2ab5c5960090ef268f8')}
@@ -46,7 +46,7 @@ def close_runtime(root,executables,source_output):
  for line in capture('ldconfig','-p').splitlines():
   match=re.match(r'\s*(\S+)\s+\([^)]*AArch64[^)]*\)\s+=>\s+(\S+)',line,re.I)
   if match:cache.setdefault(match[1],pathlib.Path(match[2]))
- queue=[p for p in directory.rglob('*') if p.is_file() and not p.is_symlink() and p.read_bytes()[:4]==b'\x7fELF']+executables
+ queue=[p for p in root.rglob('*') if p.is_file() and not p.is_symlink() and p.read_bytes()[:4]==b'\x7fELF']+executables
  checked=set();copied={}
  while queue:
   path=queue.pop().resolve(strict=True)

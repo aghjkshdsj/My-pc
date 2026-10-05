@@ -14,7 +14,7 @@ are independent of that optional diagnostic dependency. The correction separates
 validation availability from ownership completion, rejects malformed availability
 metadata and validation errors, and preserves the original verdict in independent
 audits. Vulkan API/synchronization validation remains unavailable, not verified.
-Build 4000029 is the corrected checker/UI, published as [native-kms-4](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-native-kms-4), source e05c10984c38c3836dc2eceac3f8a3abfd07c481. Its actual device-iOS application build and 42 optimized/sanitized production receipt rejection controls pass in [run 37346914737](https://github.com/aghjkshdsj/My-pc/actions/runs/37346914737). IPA, fresh source and matching symbols were independently downloaded and verified on the PC. The corrected UI has not yet been device-tested; the accepted raw phone observations are from build 4000028.
+Build 4000029 is the corrected checker/UI, published as [native-kms-4](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-native-kms-4), source e05c10984c38c3836dc2eceac3f8a3abfd07c481. Its actual device-iOS application build and 42 optimized/sanitized production receipt rejection controls pass in [run 37346914737](https://github.com/aghjkshdsj/My-pc/actions/runs/37346914737). IPA, fresh source and matching symbols were independently downloaded and verified on the PC. The corrected UI now has a passing build-4000029 phone report, in addition to the accepted build-4000028 raw observations.
 Local verification: 151 Python tests pass (one unavailable local C compiler skip).
 Actual optimized/sanitized production receipt controls passed on the macOS builder.
 
@@ -27,6 +27,10 @@ Knight 60–80 base rendered FPS at 720p remain unverified. QEMU TCG is software
 system emulation. No architecture substitution or hypervisor claim is made.
 
 The new source-only compositor prerequisite inventory and separate ARM build/rejection workflow are implemented. They query actual Vulkan/DRM identity, shared-image and synchronization capabilities without submitting graphics. Actual ARM64 compile, software-driver rejection and missing-ICD rejection pass in [run 37348402397](https://github.com/aghjkshdsj/My-pc/actions/runs/37348402397), source 28e29268308dd4d5bbf0c673f7a7e11b66a4638d. The actual log receipt was independently checked; artifact binary bytes, positive guest GPU capabilities and a running compositor remain unverified. The program is not installed in an IPA. See `docs/COMPOSITOR-NEXT-STAGE.md`; no new compositor acceptance is implied.
+
+The new build-4000029 phone report passes the strict raw completion audit, with matching app acceptance and saved recovery result, and no pending-test marker. The corrected UI is now device-tested; API validation remains unavailable.
+
+The actual upstream Wayland/wlroots compositor and dependency/source-closure build is implemented. Its first build compiled six dependency libraries and rejected an insufficient Pixman pin; the corrected 0.46.4 pin is rebuilding. Existing guest Mesa GBM is confirmed in the exact published initramfs. Positive compositor/WSI/input/device execution remains open.
 
 Earlier checkpoints below are retained as history.
 
