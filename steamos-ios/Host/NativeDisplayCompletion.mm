@@ -14,10 +14,12 @@
 @property(nonatomic,strong) dispatch_queue_t executor;
 @property(nonatomic,strong) NSMutableDictionary<NSNumber *,NSNumber *> *installed;
 @property(nonatomic,strong) NSMutableDictionary<NSString *,NSNumber *> *tickets;
+@property(nonatomic,strong) NSMutableArray<NSDictionary *> *terminals;
 @property(nonatomic) MPCCompleteNativeRead complete;
 @property(nonatomic) MPCCancelNativeRead cancel;
 @property(nonatomic) uint64_t sequence, accepted, completed, gpuErrors, canceled, rejected, invalidCompletions;
 @property(nonatomic) NSUInteger pending, maxPending;
+@property(nonatomic) NSUInteger completing;
 @property(nonatomic) uint64_t retainedBytes, peakRetainedBytes;
 @property(nonatomic) double gpuSeconds;
 @end
@@ -40,7 +42,7 @@ static void finish(MPCNativeCompletionContext *c, MPCNativeReadToken t,
         NSNumber *bytes=c.tickets[key];
         if (!bytes) { c.invalidCompletions++; return; }
         c.retainedBytes-=bytes.unsignedLongLongValue;
-        [c.tickets removeObjectForKey:key]; c.pending--;
+        [c.tickets removeObjectForKey:key]; c.pending--; c.completing++;
         if (!submitted) c.canceled++;
         else if (command.status == MTLCommandBufferStatusError) c.gpuErrors++;
         else {
@@ -50,7 +52,18 @@ static void finish(MPCNativeCompletionContext *c, MPCNativeReadToken t,
         }
     }
     int accepted = submitted ? c.complete(&t,(uint32_t)command.status) : c.cancel(&t);
-    if (!accepted) { @synchronized(c) { c.invalidCompletions++; } }
+    @synchronized(c) {
+        if (!accepted) c.invalidCompletions++;
+        c.completing--;
+        if (c.terminals.count==64) [c.terminals removeObjectAtIndex:0];
+        [c.terminals addObject:@{@"session":@(t.session),@"command":@(t.command),
+            @"reader":@(t.reader),@"generation":@(t.generation),@"resource_id":@(t.resource_id),
+            @"gpu_command_submitted":@(submitted),@"actual_metal_status":@(submitted?command.status:0),
+            @"actual_metal_error_code":@(submitted?command.error.code:0),
+            @"gpu_start_seconds":@(submitted?command.GPUStartTime:0),
+            @"gpu_end_seconds":@(submitted?command.GPUEndTime:0),
+            @"engine_terminal_accepted":@(accepted!=0)}];
+    }
 }
 
 static BOOL validateImage(MPCNativeCompletionContext *c, MPCNativeScanoutEvent e,
@@ -170,6 +183,7 @@ BOOL MPCNativeDisplayCompletionBegin(void *engine,CAMetalLayer *layer,NSError **
     c.queue=[c.device newCommandQueue];
     c.executor=dispatch_queue_create("com.mypc.native-display-completion",DISPATCH_QUEUE_SERIAL);
     c.installed=[NSMutableDictionary dictionary];c.tickets=[NSMutableDictionary dictionary];
+    c.terminals=[NSMutableArray array];
     NSString *source=@"#include <metal_stdlib>\nusing namespace metal;\n"
         "struct V { float4 p [[position]]; float2 uv; };\n"
         "vertex V nativeVertex(uint i [[vertex_id]]) { float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};"
@@ -202,6 +216,7 @@ NSDictionary *MPCNativeDisplayCompletionReport(void)
             @"actual_gpu_errors":@(c.gpuErrors),@"canceled_before_submission":@(c.canceled),
             @"rejected_events":@(c.rejected),@"invalid_completions":@(c.invalidCompletions),
             @"pending_readers":@(c.pending),@"max_pending_readers":@(c.maxPending),
+            @"completion_callbacks_in_progress":@(c.completing),@"recent_terminals":[c.terminals copy],
             @"retained_backing_bytes":@(c.retainedBytes),@"peak_retained_backing_bytes":@(c.peakRetainedBytes),
             @"retained_backing_budget_bytes":@(128u*1024u*1024u),
             @"installed_images":@(c.installed.count),@"gpu_seconds_sum":@(c.gpuSeconds),
