@@ -13,11 +13,12 @@
 @property(nonatomic,strong) id<MTLRenderPipelineState> pipeline;
 @property(nonatomic,strong) dispatch_queue_t executor;
 @property(nonatomic,strong) NSMutableDictionary<NSNumber *,NSNumber *> *installed;
-@property(nonatomic,strong) NSMutableSet<NSString *> *tickets;
+@property(nonatomic,strong) NSMutableDictionary<NSString *,NSNumber *> *tickets;
 @property(nonatomic) MPCCompleteNativeRead complete;
 @property(nonatomic) MPCCancelNativeRead cancel;
 @property(nonatomic) uint64_t sequence, accepted, completed, gpuErrors, canceled, rejected, invalidCompletions;
 @property(nonatomic) NSUInteger pending, maxPending;
+@property(nonatomic) uint64_t retainedBytes, peakRetainedBytes;
 @property(nonatomic) double gpuSeconds;
 @end
 @implementation MPCNativeCompletionContext
@@ -36,8 +37,10 @@ static void finish(MPCNativeCompletionContext *c, MPCNativeReadToken t,
     if (submitted && command.status != MTLCommandBufferStatusCompleted &&
         command.status != MTLCommandBufferStatusError) return;
     @synchronized(c) {
-        if (![c.tickets containsObject:key]) { c.invalidCompletions++; return; }
-        [c.tickets removeObject:key]; c.pending--;
+        NSNumber *bytes=c.tickets[key];
+        if (!bytes) { c.invalidCompletions++; return; }
+        c.retainedBytes-=bytes.unsignedLongLongValue;
+        [c.tickets removeObjectForKey:key]; c.pending--;
         if (!submitted) c.canceled++;
         else if (command.status == MTLCommandBufferStatusError) c.gpuErrors++;
         else {
@@ -53,7 +56,8 @@ static void finish(MPCNativeCompletionContext *c, MPCNativeReadToken t,
 static BOOL validateImage(MPCNativeCompletionContext *c, MPCNativeScanoutEvent e,
                           id<MTLTexture> texture, id<MTLBuffer> backing)
 {
-    if (!texture || !backing || !e.width || !e.height || e.width > 8192 || e.height > 8192 ||
+    if (!texture || !backing || backing.length > 32u*1024u*1024u ||
+        !e.width || !e.height || e.width > 8192 || e.height > 8192 ||
         !e.crop_width || !e.crop_height || e.x > e.width || e.y > e.height ||
         e.crop_width > e.width-e.x || e.crop_height > e.height-e.y ||
         e.format != 2 /* virtio B8G8R8X8_UNORM */ || e.y_0_top > 1 ||
@@ -86,7 +90,7 @@ static int nativeEvent(void *opaque,const MPCNativeCompletionEvent *event)
             backing=texture.buffer;
         }
         @synchronized(c) {
-            if (!image.sequence || image.sequence != c.sequence+1 || !image.resource_id || !image.generation) {
+            if (!image.sequence || image.sequence <= c.sequence || !image.resource_id || !image.generation) {
                 c.rejected++; return 0;
             }
             c.sequence=image.sequence;
@@ -106,8 +110,10 @@ static int nativeEvent(void *opaque,const MPCNativeCompletionEvent *event)
                 token.resource_id!=image.resource_id || token.generation!=image.generation ||
                 c.pending>=16 || !validateImage(c,image,texture,backing)) { c.rejected++; return 0; }
             key=ticketKey(token);
-            if ([c.tickets containsObject:key]) { c.rejected++; return 0; }
-            [c.tickets addObject:key]; c.accepted++; c.pending++;
+            if (c.tickets[key] || backing.length > 128u*1024u*1024u-c.retainedBytes) { c.rejected++; return 0; }
+            c.tickets[key]=@(backing.length); c.accepted++; c.pending++;
+            c.retainedBytes+=backing.length;
+            c.peakRetainedBytes=MAX(c.peakRetainedBytes,c.retainedBytes);
             c.maxPending=MAX(c.maxPending,c.pending);
         }
         dispatch_async(c.executor, ^{
@@ -153,7 +159,8 @@ BOOL MPCNativeDisplayCompletionBegin(void *engine,CAMetalLayer *layer,NSError **
     auto complete=reinterpret_cast<MPCCompleteNativeRead>(dlsym(engine,"mpc_qemu_complete_native_read"));
     auto cancel=reinterpret_cast<MPCCancelNativeRead>(dlsym(engine,"mpc_qemu_cancel_native_read"));
     if (!engine || !configure || !complete || !cancel || nativeCompletion || !layer.device ||
-        layer.pixelFormat!=MTLPixelFormatBGRA8Unorm || layer.presentsWithTransaction) {
+        layer.pixelFormat!=MTLPixelFormatBGRA8Unorm || layer.presentsWithTransaction ||
+        !layer.allowsNextDrawableTimeout) {
         if(error)*error=[NSError errorWithDomain:@"NativeCompletion" code:1 userInfo:@{
             NSLocalizedDescriptionKey:@"Exclusive native completion ABI2 and a stable pure-Metal surface are required."}];
         return NO;
@@ -162,7 +169,7 @@ BOOL MPCNativeDisplayCompletionBegin(void *engine,CAMetalLayer *layer,NSError **
     c.layer=layer;c.device=layer.device;c.complete=complete;c.cancel=cancel;
     c.queue=[c.device newCommandQueue];
     c.executor=dispatch_queue_create("com.mypc.native-display-completion",DISPATCH_QUEUE_SERIAL);
-    c.installed=[NSMutableDictionary dictionary];c.tickets=[NSMutableSet set];
+    c.installed=[NSMutableDictionary dictionary];c.tickets=[NSMutableDictionary dictionary];
     NSString *source=@"#include <metal_stdlib>\nusing namespace metal;\n"
         "struct V { float4 p [[position]]; float2 uv; };\n"
         "vertex V nativeVertex(uint i [[vertex_id]]) { float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};"
@@ -195,6 +202,8 @@ NSDictionary *MPCNativeDisplayCompletionReport(void)
             @"actual_gpu_errors":@(c.gpuErrors),@"canceled_before_submission":@(c.canceled),
             @"rejected_events":@(c.rejected),@"invalid_completions":@(c.invalidCompletions),
             @"pending_readers":@(c.pending),@"max_pending_readers":@(c.maxPending),
+            @"retained_backing_bytes":@(c.retainedBytes),@"peak_retained_backing_bytes":@(c.peakRetainedBytes),
+            @"retained_backing_budget_bytes":@(128u*1024u*1024u),
             @"installed_images":@(c.installed.count),@"gpu_seconds_sum":@(c.gpuSeconds),
             @"desktop_verified":@NO,@"steam_verified":@NO,@"gameplay_verified":@NO,
             @"producer_dependency_verified":@NO,@"display_timing_verified":@NO};

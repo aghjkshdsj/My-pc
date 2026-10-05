@@ -18,7 +18,7 @@ PINS = {
     'include/hw/virtio/virtio-gpu.h': '25e032f22e32d860fea74c1e598de1df0268111a1d2e7367dcbdd9e5f42a8a73',
     'ui/egl-headless.c': '53dc53535c5b4fdc7b0c366786fc178c909a6a54da75f12205bf01eceebd72c3',
     'hw/display/virtio-gpu-virgl.c': '2aa4d94f53aa5c10153a76fb9e64658d02d423427c9bd0e0001e842b5472d368',
-    'system/qemu.symbols': '201f70b8fd8b95d4e08e5b1a96b93c66d6df2c50bbbab8a066d971935360f93a',
+    'system/qemu.symbols': 'cbab6f11cff2a08f50b04aa316ec03f13609ee9175b1e99db134ec0a8a394290',
 }
 def sha(text): return hashlib.sha256(text.encode()).hexdigest()
 def once(text, old, new):

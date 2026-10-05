@@ -66,3 +66,10 @@ defined exports, compiled translation units and exact patched source hashes.
 
 QEMU TCG here remains software system emulation. FEX is x86 instruction
 translation; Proton is Windows compatibility. No hypervisor is added or claimed.
+
+The generic host consumer has an explicit 16-reader / 128 MiB retained-backing
+budget (32 MiB per backing), a stable pure-Metal surface and asynchronous Metal
+completion callbacks. It counts cancellation before submission separately from
+real GPU errors. No device GPU terminal or display timing is inferred from an
+enqueue, CPU timeout or cancellation. Source events may have gaps when the
+engine rejects an unowned refresh; accepted event sequence numbers must increase.
