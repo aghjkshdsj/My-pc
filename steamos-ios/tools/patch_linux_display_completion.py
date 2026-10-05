@@ -97,6 +97,25 @@ def transform(original):
              '\t\t\t\treturn;\n\t\t\t}\n\t\t}\n\t}\n'
              '\tbo = gem_to_virtio_gpu_obj(plane->state->fb->obj[0]);\n\tif (bo->dumb)')
     p = once(p, '\tvirtio_gpu_resource_flush(plane,\n', '\tvirtio_gpu_resource_flush(plane, state,\n')
+    # Nonblocking state swaps can advance plane->state while an older commit is
+    # waiting. Work only from this transaction's retained new state.
+    start = p.index('static void virtio_gpu_resource_flush(')
+    end = p.index('static int virtio_gpu_plane_prepare_fb(', start)
+    display = p[start:end]
+    display = once(display, '{\n\tstruct drm_device *dev = plane->dev;',
+                   '{\n\tstruct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);\n'
+                   '\tstruct drm_device *dev = plane->dev;')
+    display = once(display, '\tstruct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,',
+                   '\tstruct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);\n'
+                   '\tstruct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,')
+    display = display.replace('plane->state', 'new_state')
+    display = once(display, '!output->crtc.state->active',
+                   '!drm_atomic_get_new_crtc_state(state, &output->crtc)->active')
+    damage = '\tif (!drm_atomic_helper_damage_merged(old_state, new_state, &rect))\n\t\treturn;\n\n'
+    display = once(display, damage, '')
+    display = once(display, '\tbo = gem_to_virtio_gpu_obj(new_state->fb->obj[0]);\n\tif (bo->dumb)',
+                   damage + '\tbo = gem_to_virtio_gpu_obj(new_state->fb->obj[0]);\n\tif (bo->dumb)')
+    p = p[:start] + display + p[end:]
     p = once(p, '\tif (!bo || (plane->type == DRM_PLANE_TYPE_PRIMARY && !bo->guest_blob))\n',
              '\tif (bo && mpc_native_display_fences && plane->type == DRM_PLANE_TYPE_PRIMARY) {\n'
              '\t\tint ret = drm_gem_plane_helper_prepare_fb(plane, new_state);\n'

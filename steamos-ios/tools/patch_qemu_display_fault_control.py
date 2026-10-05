@@ -30,6 +30,9 @@ def transform(original):
     texts['include/hw/virtio/virtio-gpu.h'] = h
     c = texts['hw/display/virtio-gpu.c']
     c = once(c, '#include "qemu/error-report.h"', '#include "qemu/error-report.h"\n#include "qemu/timer.h"')
+    c = once(c, '        cmd->suspended = false;\n',
+             '        cmd->suspended = false;\n'
+             '        cmd->mpc_control_issued = false;\n        cmd->mpc_control_ready = false;\n')
     c = once(c, 'static void virtio_gpu_reset_bh(void *opaque);',
              'static void virtio_gpu_reset_bh(void *opaque);\n\n'
              '/* Hosted CPU control only; this is not a Metal completion callback. */\n'
