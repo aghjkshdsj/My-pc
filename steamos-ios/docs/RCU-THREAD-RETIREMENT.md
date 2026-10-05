@@ -48,10 +48,13 @@ including new engine corresponding source, were independently checked; all
 eighteen selected source files match, the actual export is defined, and host
 dSYM UUID D7C40BC0-BB7F-331B-AF02-CCD7118B1D92 matches the packaged executable.
 IPA SHA256: 1242db7d93eead6a9f3c00b268979b7db24e7c2b20586490a18468297ebae6ed.
-These are build/package checks. No corrected-phone result has been supplied.
-One completed screen test followed by 30 seconds in the foreground can check
-both the gate and delayed cleanup stability; it cannot prove all future crashes
-are eliminated. Original and corrected results stay separate in private evidence.
+These are build/package checks. Original and corrected device results stay
+separate in the private local coverage record; a completed owner-observed run
+cannot prove all future crashes are eliminated. Readiness to advance is assessed
+against that private evidence rather than compilation or elapsed time alone.
+Next work is [moving-output integration](MOVING-OUTPUT-INTEGRATION.md), with
+explicit native-reader completion, guest buffer reacquisition and lifecycle
+ownership. An unchanged diagnostic rerun is not a new transport milestone.
 
 No new engine architecture, renderer or external dependency is substituted.
 QEMU TCG remains software system emulation, with the existing native

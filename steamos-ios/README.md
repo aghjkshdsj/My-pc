@@ -18,10 +18,13 @@ unchanged corresponding-source archives have metadata/hosted checks this turn.
 
 The host now unregisters qemu_init's RCU reader on that same worker after
 cleanup, lock release and pool drain, before publishing completion and joining.
-This corrects an identified registration-lifetime bug. The corrected phone build
-and elimination of delayed crashes remain unverified. It is a crash-fix candidate,
-not a new desktop/game/performance milestone. Keep the completed screen-test
-result in the foreground for 30 seconds, then share report and saved logs.
+This corrects an identified registration-lifetime bug. Current device verdicts
+are assessed in the private local coverage record; build/package evidence alone
+cannot certify elimination of every delayed crash. This package adds no desktop,
+game or performance milestone. Implementation now moves to changing Linux output
+with explicit native reader release and guest reacquisition. See
+[moving-output integration](docs/MOVING-OUTPUT-INTEGRATION.md); another unchanged
+eight-frame repetition is not a prerequisite for that work.
 See [thread retirement](docs/RCU-THREAD-RETIREMENT.md) and the package-only receipt
 evidence/primary/ios-init-thread-retirement-prerelease-4000025.json.
 

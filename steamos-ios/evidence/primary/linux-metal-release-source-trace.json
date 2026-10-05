@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "scope": "pinned-linux-qemu-native-release-source-trace-only",
+  "engine_release": "steamos-ios-guest-gpu-gate-20",
+  "engine_source_archive_sha256": "6ecdd1f67d84a63f927c8e9c37a6bed7c8623d863de92a219a852dd287236572",
+  "qemu_input_sha256": "7c9605290b34152debb842e965a55d2e4fbba4793e536ab677b4027e5dc0ba1a",
+  "guest_release": "steamos-ios-guest-gpu-gate-17",
+  "nested_source_packages": [
+    "Parent-Guest-GPU-Corresponding-Source.tar.gz",
+    "Parent-Guest-GPU-Corresponding-Source.tar.gz",
+    "GPU-Kernel-Corresponding-Source.tar.gz"
+  ],
+  "kernel_input_sha256": "9e59dc67624188fa12a6601f9598499cd6662a9066be572b59f935e3d7849810",
+  "files": [
+    {
+      "component": "qemu-original-pinned-input",
+      "path": "ui/console.c",
+      "bytes": 48711,
+      "sha256": "d7a17f8c1eb69fc15245bd6371bc78d79aab3e3a871b3a6f2318314119e46b7f"
+    },
+    {
+      "component": "qemu-original-pinned-input",
+      "path": "hw/display/virtio-gpu-base.c",
+      "bytes": 9381,
+      "sha256": "3a6160648b5a6d5e67774d382e4452b0389a6af396fcbdf05632b217819d9df6"
+    },
+    {
+      "component": "qemu-original-pinned-input",
+      "path": "hw/display/virtio-gpu-virgl.c",
+      "bytes": 48493,
+      "sha256": "1e965a052c77eb663a6e90e4c815e8a2d38f186f3e130cb1c5acbac04c70dc03"
+    },
+    {
+      "component": "qemu-original-pinned-input",
+      "path": "ui/egl-headless.c",
+      "bytes": 7330,
+      "sha256": "24010e5fcd9c1e20f3a2e1757b7f60f5a3bff83b4a894269b001d1d17e6d3b35"
+    },
+    {
+      "component": "linux-6.12.111-original-pinned-input",
+      "path": "drivers/gpu/drm/virtio/virtgpu_plane.c",
+      "bytes": 13016,
+      "sha256": "81fb8aed2433252c38e98337b3da34c6c18d7793d9beca6af684b75a6c261e10"
+    },
+    {
+      "component": "linux-6.12.111-original-pinned-input",
+      "path": "drivers/gpu/drm/virtio/virtgpu_display.c",
+      "bytes": 11181,
+      "sha256": "3e69c9b0bd14191009256e9b3b9ff8e2b2170c8e8d2b2d97da81f3b7a9ac2164"
+    },
+    {
+      "component": "linux-6.12.111-original-pinned-input",
+      "path": "drivers/gpu/drm/virtio/virtgpu_vq.c",
+      "bytes": 37941,
+      "sha256": "73f4ea19d59267017631621f44dd5d7cc68661112a3251abb45dfc23b23f0665"
+    },
+    {
+      "component": "linux-6.12.111-original-pinned-input",
+      "path": "drivers/gpu/drm/virtio/virtgpu_kms.c",
+      "bytes": 10433,
+      "sha256": "3a74354b85d141c60796671ff428f1a8c7b5b5c623f5d769e85cc03e8541b626"
+    }
+  ],
+  "findings": [
+    {
+      "finding": "Display flush callback scope ends synchronously; ABI1 has no native completion/release token.",
+      "source": {
+        "path": "ui/console.c",
+        "line": 1202
+      },
+      "fresh_abi_sha256": "74af109698654cf6e21c51a5ea2e0218bb22731dfa80593af2a4e42342392796",
+      "fresh_scanout_patch_sha256": "0785c39c7081e9bfe75b6011f9f0df02a7005bb43ac01c8027826488193501aa"
+    },
+    {
+      "finding": "The inherited console timer force-clears a live GL block. This is unsuitable as mutable-source reuse authority.",
+      "source": {
+        "path": "ui/console.c",
+        "line": 167
+      },
+      "timer_source": {
+        "path": "ui/console.c",
+        "line": 234
+      }
+    },
+    {
+      "finding": "Console unblock restarts the virtual GPU processing path; arbitrary Metal callback threads cannot call it directly.",
+      "source": {
+        "path": "hw/display/virtio-gpu-base.c",
+        "line": 128
+      }
+    },
+    {
+      "finding": "Virtio flush invokes display update; renderer-fence response is a distinct mechanism with no ABI1 native-consumer dependency.",
+      "source": {
+        "path": "hw/display/virtio-gpu-virgl.c",
+        "line": 1199
+      }
+    },
+    {
+      "finding": "Primary-plane preparation only allocates this flush fence for the dumb-buffer branch; the current host3d exported image does not gain a native Metal release fence here.",
+      "source": {
+        "path": "drivers/gpu/drm/virtio/virtgpu_plane.c",
+        "line": 264
+      }
+    },
+    {
+      "finding": "The fenced resource-flush path waits at most 50ms and does not use the wait return value to certify native completion.",
+      "source": {
+        "path": "drivers/gpu/drm/virtio/virtgpu_plane.c",
+        "line": 179
+      }
+    }
+  ],
+  "required_next_work": [
+    "Exact per-content producer/consumer ticket; unchanged resource ID cannot mean unchanged content.",
+    "Explicit native terminal completion posted onto the owning engine executor.",
+    "Guest-visible release/reacquisition dependency; neither enqueue, timeout nor fake vblank can replace completion.",
+    "Bounded three-buffer moving-image gate; actual producer/consumer/display and allocation measurements.",
+    "Linux WSI/compositor integration before SteamOS desktop, Game Mode and ARM Steam."
+  ],
+  "modified_upstream_source": false,
+  "compiled_new_engine": false,
+  "guest_native_release_dependency_verified": false,
+  "mutable_transport_integrated": false,
+  "continuous_phone_animation_verified": false,
+  "steamos_desktop_verified": false,
+  "steam_arm_verified": false,
+  "game_fps_verified": false,
+  "hardware_virtualization": false,
+  "private_device_inputs_included": false
+}

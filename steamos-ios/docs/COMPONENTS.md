@@ -4,8 +4,11 @@ Current build25 corrects the missing same-thread RCU retirement in the fresh
 QEMU adapter. Its native engine export, device-target iOS build, actual packaged
 export, source archive and host symbols pass independent checks. Native TLS
 lease tests pass optimized/sanitized execution, alongside all preserved receipt
-controls. Corrected-phone stability is pending; no desktop, ARM Steam, mutable
-transport, game or performance row is completed by this package. See
+controls. Device stability/readiness verdicts are kept in the private local
+record; no desktop, ARM Steam, mutable transport, game or performance row is
+completed by this package. Next implementation is explicit native-reader release
+and guest buffer reacquisition; the source-only trace identifies the inherited
+forced-unblock timer and guest fence gaps. See MOVING-OUTPUT-INTEGRATION.md and
 [thread retirement](RCU-THREAD-RETIREMENT.md). Owner inputs/results remain only
 in the private local record; the original archive/blueprint mapping is preserved.
 
