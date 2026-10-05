@@ -96,7 +96,7 @@ private struct ShareSheet: UIViewControllerRepresentable {
         if linux {
             needsRelaunch = result["requires_relaunch"] as? Bool == true
             message = result["standard_kms_native_completion_verified"] as? Bool == true
-                ? "Linux standard display completion passed: eight Linux frames, positive output fences, matching flip events and actual Metal completion. Desktop, Steam and games remain unfinished. Share the report and logs."
+                ? "Linux standard display completion passed: eight Linux frames, positive output fences, matching flip events and actual Metal completion. \(result["validation_status"] as? String == "unavailable" ? "Vulkan validation layers are unavailable. " : "")Desktop, Steam and games remain unfinished. Share the report and logs."
                 : "Linux display test \(result["status"] ?? "failed"): \(result["reason"] ?? result["stage"] ?? "Share the report and saved logs.")"
         } else {
             message = result["status"] as? String == "passed" ? "ARM64 JIT passed. Open the Linux standard display test next." : "JIT \(result["status"] ?? "failed"): \(result["reason"] ?? "Share logs.")"

@@ -16,7 +16,7 @@ def verify(path,commit,dwarf=None):
         assert all(not pathlib.PurePosixPath(n).is_absolute() and '..' not in pathlib.PurePosixPath(n).parts for n in z.namelist())
         prefix='Payload/MyPCSteamOSNativeKMS.app/'
         info=plistlib.loads(z.read(prefix+'Info.plist'))
-        assert info['CFBundleIdentifier']=='com.aghjkshdsj.mypc.steamos.nativekms' and info['CFBundleVersion']=='4000028'
+        assert info['CFBundleIdentifier']=='com.aghjkshdsj.mypc.steamos.nativekms' and info['CFBundleVersion']=='4000029'
         assert info['MPCSourceCommit']==commit and info['CFBundleExecutable']=='MyPCSteamOSNativeKMS'
         host=z.read(prefix+info['CFBundleExecutable']);macho_platform(host,2)
         for marker in [b'mpc_qemu_configure_native_completion',b'mpc_qemu_complete_native_read',b'mpc_qemu_cancel_native_read',
@@ -49,7 +49,7 @@ def verify(path,commit,dwarf=None):
         for n in ['QEMU-COPYING','Fresh-Source-LICENSE','UPSTREAM-NOTICES.txt']:assert len(z.read(prefix+n))>100
         symbol=macho_uuid(host,2)
         if dwarf:assert macho_uuid(dwarf.read_bytes(),10)==symbol
-    return dict(schema=1,scope='physical-ios-standard-linux-kms-package-only',source_commit=commit,build='4000028',
+    return dict(schema=1,scope='physical-ios-standard-linux-kms-package-only',source_commit=commit,build='4000029',
         ipa_bytes=path.stat().st_size,ipa_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),host_uuid=symbol,
         framework_count=len(present),exact_debug_symbols_verified=bool(dwarf),phone_tested=False,
         standard_kms_native_completion_verified=False,desktop_verified=False,steam_verified=False,gameplay_verified=False)

@@ -44,7 +44,7 @@ def generate():
     (scheme/'MyPCSteamOSNativeKMS.xcscheme').write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2600" version="1.3"><BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{ident('target')}" BuildableName="MyPCSteamOSNativeKMS.app" BlueprintName="MyPCSteamOSNativeKMS" ReferencedContainer="container:NativeKMS.xcodeproj"/></BuildActionEntry></BuildActionEntries></BuildAction></Scheme>\n''',newline='\n')
     info=plistlib.loads((PROJECT/'Host/Info.plist').read_bytes())
-    info['CFBundleDisplayName']='My-pc Linux Display';info['CFBundleVersion']='4000028'
+    info['CFBundleDisplayName']='My-pc Linux Display';info['CFBundleVersion']='4000029'
     info['UISupportedInterfaceOrientations']=['UIInterfaceOrientationPortrait']
     info['UIRequiresFullScreen']=True
     (PROJECT/'NativeKMS/Info.plist').write_bytes(plistlib.dumps(info))

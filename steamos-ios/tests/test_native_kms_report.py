@@ -5,7 +5,7 @@ import pathlib
 import sys
 import unittest
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'tools'))
-from native_kms_fixture import fixture,mutations
+from native_kms_fixture import fixture,mutations,without_validation
 from verify_native_kms_report import audit
 from bundle_native_kms import ENGINE_RUN,ENGINE_SOURCE,GUEST_RUN,GUEST_SOURCE,FILES,ENGINE_CODE
 SOURCE='bff919948ae41240b4e479bf7f826675149c2b3e'
@@ -53,4 +53,23 @@ class NativeKMSReportTests(unittest.TestCase):
             for key in path[:-1]:target=target[key]
             target[path[-1]]=value
             with self.subTest(path=path),self.assertRaises(ValueError):audit(report,SOURCE)
+    def test_unavailable_validation_is_separate_from_completion(self):
+        report=private_fixture()
+        report['test']['serial_output']=without_validation(dict(serial=report['test']['serial_output']))['serial']
+        result=audit(report,SOURCE)
+        self.assertTrue(result['eight_linux_kms_native_completion_joins_verified'])
+        self.assertFalse(result['validation_layer_verified'])
+        self.assertEqual(result['validation_status'],'unavailable')
+    def test_old_failed_label_is_preserved_and_requires_explicit_audit(self):
+        report=private_fixture();run=report['test']
+        run['serial_output']=without_validation(dict(serial=run['serial_output']))['serial']
+        run['status']='failed';run['standard_kms_native_completion_verified']=False
+        run['guest_metal_trace']['metal_host_verified']=False
+        with self.assertRaises(ValueError):audit(report,SOURCE)
+        result=audit(report,SOURCE,observations_only=True)
+        self.assertTrue(result['eight_linux_kms_native_completion_joins_verified'])
+        self.assertFalse(result['reported_app_verified']);self.assertFalse(result['app_and_independent_verdict_agree'])
+        self.assertEqual(result['reported_app_status'],'failed')
+        run['native']['pending_readers']=1
+        with self.assertRaises(ValueError):audit(report,SOURCE,observations_only=True)
 if __name__=='__main__':unittest.main()

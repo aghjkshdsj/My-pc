@@ -43,5 +43,21 @@ def mutations(base):
     f=copy.deepcopy(base);f['serial']+='MPC_NATIVE_KMS_HELD {}\n';yield f
     f=copy.deepcopy(base);f['serial']+='MPC_NATIVE_KMS_FLIP {}\n';yield f
     f=copy.deepcopy(base);f['serial']+='MPC_NATIVE_KMS_GUEST_EXIT=0\n';yield f
+    for old,new in [('"validation_enabled": true','"validation_enabled": false'),
+        ('"synchronization_validation_requested": true','"synchronization_validation_requested": false'),
+        ('"validation_enabled": true','"validation_enabled": 1'),
+        ('"synchronization_validation_requested": true','"synchronization_validation_requested": "true"'),
+        ('"validation_enabled": true','"validation_enabled": null'),
+        ('"synchronization_validation_requested": true','"synchronization_validation_requested": null'),
+        ('"validation_errors": 0','"validation_errors": false'),
+        ('"validation_errors": 0','"validation_errors": 0.0')]:
+        f=copy.deepcopy(base);f['serial']=f['serial'].replace(old,new,1);yield f
+    f=without_validation(base);f['serial']=f['serial'].replace('"validation_errors": 0','"validation_errors": 1');yield f
+
+def without_validation(base):
+    f=copy.deepcopy(base)
+    f['serial']=f['serial'].replace('"validation_enabled": true','"validation_enabled": false').replace(
+        '"synchronization_validation_requested": true','"synchronization_validation_requested": false')
+    return f
 if __name__=='__main__':
-    b=fixture();pathlib.Path(sys.argv[1]).write_text(json.dumps(dict(valid=b,invalid=list(mutations(b))),indent=2)+'\n')
+    b=fixture();pathlib.Path(sys.argv[1]).write_text(json.dumps(dict(valid=b,validation_unavailable=without_validation(b),invalid=list(mutations(b))),indent=2)+'\n')

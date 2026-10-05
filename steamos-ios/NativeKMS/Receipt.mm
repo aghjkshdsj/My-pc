@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: MIT */
 #import "Bridge.h"
+static BOOL jsonBoolean(id value) {
+    return [value isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)value)==CFBooleanGetTypeID();
+}
 static NSArray *rows(NSString *text,NSString *prefix) {
     NSMutableArray *result=[NSMutableArray array];
     for(NSString *line in [text componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
@@ -60,19 +63,29 @@ NSDictionary *MPCNativeKMSReceipt(NSString *text,NSString *nonce,NSDictionary *n
         [tickets addObject:ticket];if(t[@"generation"])[generations addObject:t[@"generation"]];
     }
     NSDictionary *e=exit.firstObject?:@{},*r=render.firstObject?:@{};
+    // API validation is an optional diagnostic dependency. Pixel/fence/reader
+    // ownership checks remain mandatory when that layer is unavailable.
+    BOOL validationKnown=jsonBoolean(r[@"validation_enabled"]) && jsonBoolean(r[@"synchronization_validation_requested"]) &&
+        [r[@"validation_enabled"] isEqual:r[@"synchronization_validation_requested"]];
+    BOOL validationEnabled=validationKnown && [r[@"validation_enabled"] boolValue];
     valid=valid && [e[@"run"] isEqual:nonce] && [e[@"status"] isEqual:@0] && [e[@"phases"] isEqual:@8] &&
         [e[@"scanout_disabled"] isEqual:@YES] && [e[@"images_released"] isEqual:@YES] &&
         [r[@"machine"] isEqual:@"aarch64"] && [r[@"software"] isEqual:@NO] &&
         [r[@"width"] isEqual:@1280] && [r[@"height"] isEqual:@720] && [r[@"shader_phases"] isEqual:@8] &&
         [r[@"pixels_checked"] isEqual:@7372800] && [r[@"mismatches"] isEqual:@0] &&
-        [r[@"channel_sum"] isEqual:@5157519360ULL] && [r[@"validation_enabled"] isEqual:@YES] &&
-        [r[@"synchronization_validation_requested"] isEqual:@YES] && [r[@"validation_errors"] isEqual:@0];
+        [r[@"channel_sum"] isEqual:@5157519360ULL] && validationKnown &&
+        [r[@"validation_errors"] isKindOfClass:NSNumber.class] && !jsonBoolean(r[@"validation_errors"]) &&
+        !CFNumberIsFloatType((__bridge CFNumberRef)r[@"validation_errors"]) &&
+        [r[@"validation_errors"] isEqual:@0];
     NSArray *lines=[text componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet];
     for(NSString *line in @[@"MPC_LINUX_EXIT=0",@"MPC_GPU_KERNEL_EXIT=0",@"MPC_GPU_GUEST_EXIT=0",@"MPC_NATIVE_KMS_GUEST_EXIT=0"])
         valid=valid && [[lines filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"SELF == %@",line]] count]==1;
     valid=valid && ![text containsString:@"MPC_NATIVE_KMS_REJECTED "] && ![text containsString:@"MPC_NATIVE_KMS_HELD "];
     return @{@"scope":@"standard-linux-kms-native-metal-completion-join",@"linux_execution":@(linux),
         @"standard_kms_native_completion_verified":@(valid),@"producer":producer,@"flips":flips,@"guest_render":render,
+        @"vulkan_validation_enabled":@(validationEnabled),@"synchronization_validation_enabled":@(validationEnabled),
+        @"validation_layer_verified":@(valid && validationEnabled),
+        @"validation_status":validationKnown?(validationEnabled?@"enabled":@"unavailable"):@"invalid-metadata",
         @"cleanup":exit,@"native":native,@"desktop_verified":@NO,@"steam_verified":@NO,@"gameplay_verified":@NO,
         @"display_timing_verified":@NO,@"game_fps_verified":@NO};
 }

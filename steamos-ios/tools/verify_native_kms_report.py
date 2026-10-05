@@ -20,12 +20,14 @@ def row_list(text,prefix):
         if not line.startswith(prefix):continue
         value=json.loads(line[len(prefix):]);require(type(value) is dict,'Invalid '+prefix+' row');result.append(value)
     return result
-def audit(report,expected_source):
+def audit(report,expected_source,observations_only=False,expected_build='4000028'):
     require(type(report) is dict and report.get('scope')=='private-native-kms-device-test','Wrong private report scope')
-    require(report.get('build')=='4000028' and report.get('source_commit')==expected_source,'Wrong package build/source')
+    require(report.get('build')==expected_build and report.get('source_commit')==expected_source,'Wrong package build/source')
     run=report.get('test');require(type(run) is dict,'Missing actual Linux test')
     require(run.get('source_commit')==expected_source and run.get('scope')=='standard-linux-kms-native-metal-completion-join','Wrong test/source')
-    require(run.get('status')=='passed' and run.get('standard_kms_native_completion_verified') is True,'App did not accept joined path')
+    require(run.get('status') in ['passed','failed'] and type(run.get('standard_kms_native_completion_verified')) is bool,'Missing app verdict')
+    app_accepted=run['status']=='passed' and run['standard_kms_native_completion_verified'] is True
+    require(observations_only or app_accepted,'App did not accept joined path; use explicit observations-only audit for older checker results')
     require(run.get('hardware_virtualization') is False,'Unsupported virtualization claim')
     for key in ['engine_finished','engine_worker_joined','engine_init_thread_rcu_unregistered','linux_execution']:
         require(run.get(key) is True,'Missing '+key)
@@ -85,10 +87,14 @@ def audit(report,expected_source):
     r=render[0]
     require(all(r.get(k)==v for k,v in dict(machine='aarch64',width=1280,height=720,shader_phases=8,pixels_checked=7372800,
         mismatches=0,channel_sum=5157519360,validation_errors=0).items()),'Failed Linux rendered pixels')
-    require(r.get('software') is False and r.get('validation_enabled') is True and r.get('synchronization_validation_requested') is True,'Software/unvalidated producer')
+    require(r.get('software') is False,'Software producer')
+    validation=r.get('validation_enabled');sync_validation=r.get('synchronization_validation_requested')
+    require(type(validation) is bool and type(sync_validation) is bool and validation==sync_validation,'Invalid validation availability metadata')
+    require(type(r.get('validation_errors')) is int and r['validation_errors']==0,'Invalid/failed API validation counter')
     trace=run.get('guest_metal_trace',{})
     require(trace.get('scope')=='native-moltenvk-guest-command-completion' and trace.get('run')==nonce,'Unbound guest Metal observer')
-    require(trace.get('observer_configured') is True and trace.get('callbacks_drained') is True and trace.get('metal_host_verified') is True and trace.get('adds_gpu_work') is False,'Incomplete real guest Metal trace')
+    require(trace.get('observer_configured') is True and trace.get('callbacks_drained') is True and trace.get('adds_gpu_work') is False,'Incomplete real guest Metal trace')
+    require(type(trace.get('metal_host_verified')) is bool and (observations_only or trace['metal_host_verified'] is True),'Missing app guest Metal verdict')
     for key in ['pending','failed','overflow','unknown_callbacks','duplicate_callbacks','identity_errors','initial_errors','invalid_timing']:
         require(type(trace.get(key)) is int and trace[key]==0,'Failed observer '+key)
     samples=trace.get('samples',[]);require(type(samples) is list and len(samples)>0 and trace.get('completed')==len(samples)==trace.get('observed_commit_points'),'Missing actual observer samples')
@@ -103,13 +109,20 @@ def audit(report,expected_source):
         timed+=start>0 and end>start
     require(timed>=2 and trace.get('timed_completions')==timed,'Incomplete actual guest GPU timing')
     return dict(schema=1,scope='independent-private-device-standard-kms-completion-audit',source_commit=expected_source,
-        build='4000028',reported_target_device_and_os_matched=True,eight_linux_kms_native_completion_joins_verified=True,
+        build=expected_build,observations_only=observations_only,reported_app_status=run['status'],
+        reported_app_verified=run['standard_kms_native_completion_verified'],app_and_independent_verdict_agree=app_accepted,
+        vulkan_validation_enabled=validation,synchronization_validation_enabled=sync_validation,
+        validation_layer_verified=validation,validation_status='enabled' if validation else 'unavailable',
+        reported_target_device_and_os_matched=True,eight_linux_kms_native_completion_joins_verified=True,
         immutable_resources=8,positive_output_fences=8,matching_page_flip_events=7,actual_metal_reader_completions=8,
         engine_same_worker_retirement_and_join_verified=True,display_timing_verified=False,desktop_verified=False,
         steam_verified=False,gameplay_verified=False,game_fps_verified=False,hardware_virtualization=False)
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('report',type=pathlib.Path);p.add_argument('expected_source')
-    p.add_argument('--output',type=pathlib.Path);a=p.parse_args();result=audit(json.loads(a.report.read_text()),a.expected_source)
+    p.add_argument('--output',type=pathlib.Path)
+    p.add_argument('--observations-only',action='store_true',help='Recheck raw observations while preserving the original app verdict')
+    p.add_argument('--expected-build',default='4000028')
+    a=p.parse_args();result=audit(json.loads(a.report.read_text()),a.expected_source,a.observations_only,a.expected_build)
     text=json.dumps(result,indent=2)+'\n'
     if a.output:a.output.write_text(text)
     print(text)

@@ -1,3 +1,34 @@
+# Bounded Linux-to-Metal standard display completion verified on the phone
+
+On 2026-10-05 an independent raw-observation audit accepts both supplied build
+4000028 runs: eight completed Vulkan producers, eight matching actual Metal
+readers, eight positive Linux output fences, seven matching page-flip events,
+zero outstanding ownership/callbacks, and same-worker engine retirement/join.
+The supplied saved-log export has no pending test and exactly matches one saved
+completed report. It is not itself a crash report. Original reports remain private
+and unchanged. Thirty-six altered copies of these real reports are rejected.
+
+The app's original failed labels were a checker bug: it required API validation
+layers, which this diagnostic payload does not contain. Pixel/fence/reader checks
+are independent of that optional diagnostic dependency. The correction separates
+validation availability from ownership completion, rejects malformed availability
+metadata and validation errors, and preserves the original verdict in independent
+audits. Vulkan API/synchronization validation remains unavailable, not verified.
+Build 4000029 is the corrected checker/UI; its build and publication are pending.
+Local verification: 151 Python tests pass (one unavailable local C compiler skip).
+Actual optimized/sanitized production receipt controls run on the macOS builder.
+
+Next: a real Linux compositor, changing/reused buffers, Linux client presentation
+and input, with capability and error/retention controls before phone acceptance.
+The eight immutable images do not prove those lifetime paths. Display timing,
+production FPS, sustained thermals, SteamOS Plasma/Game Mode, Valve ARM Steam/CEF,
+FEX/Proton and gameplay remain unfinished. Steam under one minute and Hollow
+Knight 60–80 base rendered FPS at 720p remain unverified. QEMU TCG is software
+system emulation. No architecture substitution or hypervisor claim is made.
+
+Earlier checkpoints below are retained as history.
+
+---
 # Native standard Linux display app compiled; phone join remains unverified
 
 On 2026-10-05 the actual modified QEMU/Venus device-iOS ARM64 engine compiled

@@ -1,3 +1,37 @@
+## Phone evidence and optional API validation correction, 2026-10-05
+
+Both supplied build-4000028 reports pass the independent eight-image raw
+completion/ownership audit. Each has eight actual native reader completions,
+eight positive standard Linux output fences, seven matching flip events, zero
+pending readers/callbacks/backings/images and a completed same-worker engine
+retirement/join. Their original app verdicts remain failed; the recovery export
+contains an identical completed result and no pending-test marker.
+
+The older receipt mistakenly required `VK_LAYER_KHRONOS_validation` despite
+this payload's optional-validation producer not bundling that layer. The new
+receipt accepts explicitly typed, consistent availability flags (both enabled
+or both unavailable), while still requiring zero reported validation errors and
+all the same actual pixel/fence/reader/teardown checks. Missing metadata,
+inconsistent flags, numeric/string boolean substitutes, an invalid error count,
+and actual ownership failures are rejected. Unavailable layers never become
+verified API validation. Build 4000029 also displays this limitation.
+
+The private independent checker requires explicit `--observations-only` for
+older failed app verdicts; it preserves original status/verification fields and
+rechecks actual engine/payload/device identity, complete raw serial rows and
+actual guest Metal samples. This option bypasses only derived app labels.
+It does not bypass missing completions, errors, stale identities or cleanup.
+Both originals pass; 36 altered real-report copies fail. Private source reports
+and audit files are excluded from public uploads. This is a bounded device
+observation audit, not signed hardware attestation or a performance benchmark.
+
+Ordinary compositor/WSI, mutable buffers, client release synchronization,
+interrupt/reset/cursor lifetime stress, display timing, desktop/Steam/games and
+performance targets remain open. Historical build notes below retain their
+original pending-device statements as history.
+
+---
+
 # Native display completion fork
 
 This separate engine variant connects the new Linux display response contract

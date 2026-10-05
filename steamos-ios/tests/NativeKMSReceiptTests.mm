@@ -8,6 +8,14 @@ int main(int argc,const char **argv) {
         NSDictionary *f=all[@"valid"];
         NSDictionary *r=MPCNativeKMSReceipt(f[@"serial"],f[@"nonce"],f[@"native"],YES);
         assert([r[@"standard_kms_native_completion_verified"] isEqual:@YES]);
+        assert([r[@"validation_layer_verified"] isEqual:@YES]);
+        NSDictionary *unavailable=all[@"validation_unavailable"];
+        NSDictionary *u=MPCNativeKMSReceipt(unavailable[@"serial"],unavailable[@"nonce"],unavailable[@"native"],YES);
+        assert([u[@"standard_kms_native_completion_verified"] isEqual:@YES]);
+        assert([u[@"validation_layer_verified"] isEqual:@NO]);
+        assert([u[@"vulkan_validation_enabled"] isEqual:@NO]);
+        assert([u[@"synchronization_validation_enabled"] isEqual:@NO]);
+        assert([u[@"validation_status"] isEqual:@"unavailable"]);
         NSMutableDictionary *reordered=[f[@"native"] mutableCopy];
         reordered[@"recent_terminals"]=[[f[@"native"][@"recent_terminals"] reverseObjectEnumerator] allObjects];
         assert([MPCNativeKMSReceipt(f[@"serial"],f[@"nonce"],reordered,YES)[@"standard_kms_native_completion_verified"] isEqual:@YES]);
