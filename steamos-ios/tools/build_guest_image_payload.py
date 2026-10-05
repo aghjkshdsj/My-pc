@@ -24,7 +24,7 @@ PARENT_FILES = {'Image': 'a8f995e831fcfe43807873c1579ab0f80658afb701b80b08047f00
 def extend_newc(data, replacements, additions=('vk-image-gate', 'kms-format-control')):
     """Keep accepted raw records, never extract paths or follow archive symlinks."""
     assert len(data) < 128 * 1024 * 1024
-    assert set(additions) <= {'vk-image-gate', 'kms-format-control', 'vk-frames-gate'}
+    assert set(additions) <= {'vk-image-gate', 'kms-format-control', 'vk-frames-gate', 'release-channel-probe', 'vk-moving-gate'}
     position, names, output, inode = 0, set(), [], 20000
     remaining = dict(replacements)
     while True:

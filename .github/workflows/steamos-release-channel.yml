@@ -1,0 +1,41 @@
+name: ARM Linux native-release channel prerequisite
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Engine/FrameReleaseWire.h', 'steamos-ios/Guest/frame_release_channel.h', 'steamos-ios/Guest/release_channel_probe.c', 'steamos-ios/tests/FrameReleaseWireTests.c', 'steamos-ios/tools/build_release_channel_gate.py', '.github/workflows/steamos-release-channel.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  channel-gate:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM Linux compiler and system emulator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc binutils qemu-system-arm
+      - name: Exercise release wire integrity and identity rejection
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/tests/FrameReleaseWireTests.c -o /tmp/mpc-release-wire
+          /tmp/mpc-release-wire
+          gcc -std=c11 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Wall -Wextra -Werror steamos-ios/tests/FrameReleaseWireTests.c -o /tmp/mpc-release-wire-sanitized
+          /tmp/mpc-release-wire-sanitized
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Frame-Payload
+          run-id: 37233435975
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/parent-frame-artifact
+      - name: Boot actual Linux UART and reject stale or incomplete releases
+        run: python3 steamos-ios/tools/build_release_channel_gate.py steamos-ios/out/parent-frame-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ARM-Linux-Release-Channel-Receipt
+          path: |
+            steamos-ios/out/release-channel-gate/channel-receipt.json
+            steamos-ios/out/release-channel-gate/*.log
+          retention-days: 14
