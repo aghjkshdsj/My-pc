@@ -73,3 +73,14 @@ completion callbacks. It counts cancellation before submission separately from
 real GPU errors. No device GPU terminal or display timing is inferred from an
 enqueue, CPU timeout or cancellation. Source events may have gaps when the
 engine rejects an unowned refresh; accepted event sequence numbers must increase.
+
+The separate standard-KMS producer is derived from the exact pinned Vulkan
+diagnostic sources without changing them. It retains the real Vulkan producer
+fence wait and external queue release, then uses TEST_ONLY, a blocking atomic
+modeset and seven nonblocking atomic flips with actual output sync-file checks.
+The old legacy SetCrtc/DirtyFB and fixed dwell are removed from that variant.
+No custom UART release is used. A missing terminal/event or invalid ownership
+query leaves the guest paused with its images/GEM resources retained. Successful
+cleanup requires all eight prior frame dependencies to be positive before
+disabling the output. Its hosted missing-3D/device/software controls cannot
+establish a positive native path; that still requires the actual iPhone.

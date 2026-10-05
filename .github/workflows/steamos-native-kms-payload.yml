@@ -1,0 +1,54 @@
+name: ARM Linux standard KMS Vulkan producer and rejection controls
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/native_atomic_scanout.h', 'steamos-ios/tools/prepare_native_kms_guest.py', 'steamos-ios/tools/build_native_kms_payload.py', 'steamos-ios/tests/test_native_kms_producer.py', '.github/workflows/steamos-native-kms-payload.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  producer:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native AArch64 compiler and explicit negative-control tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc binutils qemu-system-arm libvulkan-dev libdrm-dev mesa-vulkan-drivers
+      - name: Verify the exact successful kernel workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json,subprocess
+          row=json.loads(subprocess.check_output(['gh','api','repos/aghjkshdsj/My-pc/actions/runs/37327189927']))
+          assert row['head_sha']=='a3455de052b85b994de9341d6d74081ea31dd6b0' and row['conclusion']=='success'
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Frame-Payload
+          run-id: 37233435975
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/parent-frame-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Display-Completion-Kernel
+          run-id: 37327189927
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/completion-kernel-artifact
+      - name: Test derivation isolation and explicit payload addition
+        run: python3 -m unittest discover -s steamos-ios/tests -p test_native_kms_producer.py -v
+      - name: Compile actual standard KMS producer and boot real missing-3D controls
+        run: python3 steamos-ios/tools/build_native_kms_payload.py steamos-ios/out/parent-frame-artifact steamos-ios/out/completion-kernel-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Native-KMS-Payload
+          path: |
+            steamos-ios/out/native-kms-payload/Native-KMS-*.tar.gz
+            steamos-ios/out/native-kms-payload/payload
+            steamos-ios/out/native-kms-payload/software-rejected.log
+            steamos-ios/out/native-kms-payload/generated/native-kms-producer-source.json
+          retention-days: 14
