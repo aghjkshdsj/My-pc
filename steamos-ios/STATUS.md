@@ -1,4 +1,51 @@
-# Verified state and next work â€” 2026-10-04
+# Verified state and next work - 2026-10-04
+
+**[Build4000026 / 120 changing Linux frames](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-22)**
+passed device-target ARM64 iOS Release run37251790340 at compiled source
+b62ad0a5ee279b283d0986cb9a64b6d171516333. The final public IPA and thirteen
+other public assets were independently downloaded and hashed. The unchanged
+engine corresponding-source archive was rehashed from its prior independent
+download. All fourteen published checksum entries passed. The exact host dSYM
+matches UUID 8433DD91-2AA4-326E-B06C-83A131B01E4C. IPA: 24,510,062 bytes,
+SHA256: 14b6bb8afe85e4fcf41d58544173c8288b445326ba748a9e7e18cba1ba68f4fd.
+
+All 46 selected source files match the published fresh-source archive after
+explicit UTF-8 CRLF normalization. The new complete guest source archive was
+independently checked against all 16 moving-source hashes, the exact retained
+parent archive, required compile headers/copyrights and the packaged init
+script. All 107 initramfs records were checked; only init changed and the ARM64
+vk-moving-gate was added. All ten native frameworks, the graphics kernel and
+the prior CPU payload remain byte-identical to build25.
+
+The new phone test renders 120 changing phases at 1280x720 across three reused
+buffers. Native Metal terminal completion authorizes each explicit diagnostic
+UART release. Linux waits for a separate actual Vulkan external ownership
+reacquisition fence before writing again. The final three acquisitions drain
+the pool before shutdown. Readback is restricted to first/last images. Source
+buffer reuse and positive display timestamps have separate verdicts; drawable
+IDs may be zero or recycled, and missing display time cannot pass timing.
+
+| Check | Verified scope | Still pending |
+| --- | --- | --- |
+| Hosted ARM Linux UART | Seven actual kernel boots accept valid/fragmented replies and reject wrong session/resource, corrupt, partial and missing replies | Actual iOS moving release path |
+| ARM moving payload | AArch64 binary and dependency closure; two missing-3D boot controls and software Vulkan rejection | 120 actual GPU frames/reuses on the phone |
+| Native ownership/recovery | 123 Python tests; 57 moving receipt rejection checks and 1,100,086 ownership checks per optimized/sanitized execution; 100,000 synthetic content reuses | Actual source-reader and display receipts |
+| iOS package | Physical-device target compilation, exact bundle/source closure, independently downloaded IPA and matching host symbols | Owner execution of build26 |
+
+Install the linked build26 and choose **Show changing Linux frames** then
+**Start moving-frame test** as the first Linux test after a fresh launch, JIT
+enablement and a passing ARM64 JIT check. Keep foreground without rotating
+until finished and share the report/saved logs. Phone acceptance is pending.
+See [build26 gate](docs/GPU-GATE-4000026.md) and the package-only audit
+evidence/primary/ios-moving-output-prerelease-4000026.json.
+
+Production KMS/Wayland/WSI fencing and compositor integration remain unfinished;
+this explicit UART is a diagnostic handoff. SteamOS desktop/Game Mode, Valve
+ARM Steam/CEF, FEX/Proton, controllers/audio/storage/downloads/overlays/plugins
+and every startup/game/sustained-performance target remain open. QEMU TCG is
+software system emulation, not hardware virtualization. This package grants
+no measured performance result or new device acceptance percentage. Previous
+entries below are historical checkpoints; private owner evidence stays local.
 
 **[Build4000025 / initialization-thread retirement](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-20)**
 passed ARM64 iOS device-target Release run37245060441 at source

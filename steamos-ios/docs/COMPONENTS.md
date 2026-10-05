@@ -1,6 +1,32 @@
 # Component coverage record
 
-Current build25 corrects the missing same-thread RCU retirement in the fresh
+Current build4000026 connects the new ARM Linux three-buffer producer to native
+reader completion and explicit guest reacquisition. It is compiled and packaged
+in [prerelease22](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-22).
+The public IPA, exact host dSYM, complete new guest corresponding source and
+selected fresh source pass independent download/hash/closure checks. Owner
+moving-output acceptance is pending; no new desktop/client/game/performance
+row is completed. The prior eight-frame diagnostic remains available.
+
+| Component | Build26 verified state | Acceptance remaining |
+| --- | --- | --- |
+| ARM Linux execution | Existing exact kernel/CPU payload preserved; new AArch64 moving binary, actual hosted kernel UART and missing-3D controls pass | Actual moving workload on owner iPhone |
+| Mutable buffer ownership | Three stable resources and 120 content tickets; explicit actual Metal completion release and separate Vulkan reacquisition wired; optimized/sanitized ownership controls pass | 120 source releases/reacquisitions and drained pool on phone |
+| Native Metal screen | Compiled120-draw path; actual native aliases and command callbacks; first/last-only readback; recycled/zero drawable IDs allowed | Actual GPU and separate positive display-time receipts |
+| Recovery and retirement | Preserved same-worker RCU unregister/join and MetricKit; bounded 2 MiB structured receipt / 1 MiB log export passes native tests | Actual new workload lifecycle/recovery behavior |
+| Production display stack | Pinned engine retained; diagnostic UART handoff implemented | Real KMS/Wayland/WSI synchronization, compositor and desktop/Game Mode |
+| SteamOS/Valve ARM Steam/FEX/Proton | Original archive and DroidDeck requirements remain accounted for below | Full product integration and game launch |
+| Controllers/audio/network/storage/downloads/overlays/plugins | Original coverage and missing external dependencies retained | Implementation, feature/lifecycle verification and sustained measurements |
+| Performance targets | No build26 phone measurement | Steam usable under 60 s; Hollow Knight 60–80 base rendered FPS at 720p; memory, downloads, pacing and thermals |
+
+The package-only audit is evidence/primary/ios-moving-output-prerelease-4000026.json.
+See [build26](GPU-GATE-4000026.md) and [moving integration](MOVING-OUTPUT-INTEGRATION.md).
+QEMU TCG remains software system emulation; no architecture substitution or
+hardware virtualization is claimed. Entries below are historical snapshots;
+the full original component mapping is preserved and private owner evidence
+remains in the local ignored record.
+
+Historical build25 corrects the missing same-thread RCU retirement in the fresh
 QEMU adapter. Its native engine export, device-target iOS build, actual packaged
 export, source archive and host symbols pass independent checks. Native TLS
 lease tests pass optimized/sanitized execution, alongside all preserved receipt
