@@ -41,7 +41,7 @@ def pc_files(stage,output):
     lambda m:m[1]+'='+str(stage)+m[2],text,flags=re.M)
   (output/p.name).write_text(text)
 
-def close_runtime(root,executables,source_output):
+def close_runtime(root,executables,source_output,additional_packages=()):
  directory=root/'usr/lib';cache={}
  for line in capture('ldconfig','-p').splitlines():
   match=re.match(r'\s*(\S+)\s+\([^)]*AArch64[^)]*\)\s+=>\s+(\S+)',line,re.I)
@@ -70,7 +70,7 @@ def close_runtime(root,executables,source_output):
   assert 'not found' not in text
   for resolved in re.findall(r'=>\s+(/\S+)',text):assert pathlib.Path(resolved).is_relative_to(root),(path,resolved)
   listings[str(path.relative_to(root))]=text
- return dict(files=copied,loader_listings=listings,distribution_sources=fetch_sources(list(copied.values()),source_output))
+ return dict(files=copied,loader_listings=listings,distribution_sources=fetch_sources([*copied.values(),*additional_packages],source_output))
 
 def build(mesa):
  assert os.uname().sysname=='Linux' and os.uname().machine=='aarch64'
@@ -114,6 +114,19 @@ def build(mesa):
   else:run('meson','install','-C',str(directory),'--destdir',str(stage),env=env)
   upstream[name]['options']=opts
   upstream[name]['dependency_introspection']=json.loads((directory/'meson-info/intro-dependencies.json').read_text())
+ # Seat daemon and keymap data are ordinary guest dependencies, not host data.
+ seatd=pathlib.Path('/usr/bin/seatd');assert seatd.is_file();shutil.copy2(seatd,stage/'usr/bin/seatd')
+ data_packages=[package(seatd),package(pathlib.Path('/usr/share/hwdata/pnp.ids')),
+    package(pathlib.Path('/usr/share/X11/xkb/rules/evdev'))]
+ shutil.copytree('/usr/share/X11/xkb',stage/'usr/share/X11/xkb',symlinks=True)
+ for row in data_packages:
+  notice=pathlib.Path('/usr/share/doc')/row['binary'].split(':')[0]/'copyright';assert notice.is_file()
+  dest=stage/'usr/share/doc'/row['binary'].split(':')[0]/'copyright';dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(notice,dest)
+ capability=stage/'usr/bin/mpc-compositor-capabilities'
+ flags=subprocess.check_output(
+    ['pkg-config','--cflags','--libs','libdrm'],env=env,text=True).split()
+ run('gcc','-std=gnu11','-O2','-Wall','-Wextra','-Werror',str(PROJECT/'Guest/compositor_capabilities.c'),
+    '-o',str(capability),*flags,'-lvulkan',env=env);arm(capability)
  # Explicit feature checks prevent an accidentally omitted renderer/backend.
  config=(output/'build-wlroots/include/wlr/config.h').read_text()
  for key in ['WLR_HAS_VULKAN_RENDERER','WLR_HAS_DRM_BACKEND','WLR_HAS_LIBINPUT_BACKEND','WLR_HAS_GBM_ALLOCATOR','WLR_HAS_SESSION']:
@@ -126,7 +139,7 @@ def build(mesa):
  # Remove hosted build paths from movable guest ELF search paths.
  for path in [binary,*[p for p in stage.rglob('*') if p.is_file() and not p.is_symlink() and p.read_bytes()[:4]==b'\x7fELF']]:
   run('patchelf','--set-rpath','/usr/lib',str(path))
- closure=close_runtime(stage,[binary],output/'runtime-source')
+ closure=close_runtime(stage,[binary],output/'runtime-source',data_packages)
  runtime_env=dict(env,WLR_BACKENDS='headless',WLR_RENDERER='vulkan',WLR_RENDER_DRM_DEVICE='/nonexistent-mypc-drm',
     XDG_RUNTIME_DIR=str(output/'session'),LIBSEAT_BACKEND='seatd')
  pathlib.Path(runtime_env['XDG_RUNTIME_DIR']).mkdir(mode=0o700)
@@ -146,9 +159,13 @@ def build(mesa):
  with tarfile.open(output/'Guest-Compositor-Runtime.tar.gz','w:gz') as t:t.add(stage,arcname='runtime');t.add(output/'receipt.json',arcname='receipt.json')
  with tarfile.open(output/'Guest-Compositor-Corresponding-Source.tar.gz','w:gz') as t:
   for p in sources.glob('*-source.tar.gz'):t.add(p,arcname=p.name)
-  t.add(output/'runtime-source',arcname='runtime-source')
+  # apt-lists is a temporary authenticated index/cache, not corresponding source.
+  # Its root-owned lock need not be chmod'ed or redistributed.
+  t.add(output/'runtime-source/packages',arcname='runtime-source/packages')
+  t.add(output/'runtime-source/apt-sourceparts',arcname='runtime-source/apt-sourceparts')
   t.add(mesa/'Guest-Mesa-Corresponding-Source.tar.gz',arcname='Guest-Mesa-Corresponding-Source.tar.gz')
-  for name in ['tools/build_guest_compositor.py','tools/stage_guest_runtime.py']:t.add(PROJECT/name,arcname=name)
+  for name in ['tools/build_guest_compositor.py','tools/stage_guest_runtime.py','Guest/compositor_capabilities.c',
+               'Guest/renderer_classification.h']:t.add(PROJECT/name,arcname=name)
   t.add(PROJECT.parent/'.github/workflows/steamos-guest-compositor.yml',arcname='steamos-guest-compositor.yml')
   t.add(output/'receipt.json',arcname='receipt.json')
  print(json.dumps(dict(scope=result['scope'],arm64_compiled=True,missing_renderer_rejected=True,phone_tested=False)))

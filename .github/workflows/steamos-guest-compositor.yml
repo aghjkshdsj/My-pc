@@ -2,7 +2,7 @@ name: Actual upstream ARM Linux Vulkan compositor build
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/tools/build_guest_compositor.py', '.github/workflows/steamos-guest-compositor.yml']
+    paths: ['steamos-ios/tools/build_guest_compositor.py', 'steamos-ios/Guest/compositor_capabilities.c', '.github/workflows/steamos-guest-compositor.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,7 +16,7 @@ jobs:
       - name: Install authenticated ARM build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gcc g++ ninja-build pkg-config python3-venv libffi-dev libexpat1-dev libxml2-dev bison flex libudev-dev libseat-dev libinput-dev hwdata libvulkan-dev glslang-tools patchelf xkb-data
+          sudo apt-get install -y --no-install-recommends gcc g++ ninja-build pkg-config python3-venv libffi-dev libexpat1-dev libxml2-dev bison flex libudev-dev libseat-dev seatd libinput-dev hwdata libvulkan-dev glslang-tools patchelf xkb-data
           python3 -m venv --system-site-packages steamos-ios/out/compositor-build-tools
           steamos-ios/out/compositor-build-tools/bin/python -m pip install meson==1.8.3
           echo "$PWD/steamos-ios/out/compositor-build-tools/bin" >> "$GITHUB_PATH"
