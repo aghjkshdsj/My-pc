@@ -64,7 +64,7 @@ static inline int mpc_wire_session(const char *nonce, uint64_t *high, uint64_t *
     uint64_t halves[2] = {0,0};
     for (unsigned i = 0; i < 32; ++i) {
         unsigned char c = (unsigned char)nonce[i];
-        unsigned v = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10u : 99u;
+        unsigned v = c >= '0' && c <= '9' ? (unsigned)(c - '0') : c >= 'a' && c <= 'f' ? (unsigned)(c - 'a') + 10u : 99u;
         if (v > 15u) return 0;
         halves[i / 16] = (halves[i / 16] << 4) | v;
     }
@@ -72,3 +72,4 @@ static inline int mpc_wire_session(const char *nonce, uint64_t *high, uint64_t *
     *high = halves[0]; *low = halves[1]; return 1;
 }
 #endif
+
