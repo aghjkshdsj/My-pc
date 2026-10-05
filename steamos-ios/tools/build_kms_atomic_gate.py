@@ -67,7 +67,7 @@ done
                 '-kernel', str(payload / 'Image'), '-initrd', str(payload / 'initramfs.cpio.gz'),
                 '-append', 'console=ttyAMA0 rdinit=/init panic=1 mpc_kms_atomic=1 mpc_run=' + nonce, '-no-reboot']
         if present:
-            args += ['-device', 'virtio-gpu-pci']
+            args += ['-device', 'virtio-gpu-pci,xres=1280,yres=720']
         name = 'atomic-device' if present else 'atomic-missing-device'
         try:
             process = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180)

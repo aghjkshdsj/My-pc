@@ -61,6 +61,8 @@ static int select_output(Output *o) {
     for (int c = 0; c < r->count_connectors && !o->connector; ++c) {
         drmModeConnector *conn = drmModeGetConnector(o->fd, r->connectors[c]);
         if (!conn) continue;
+        printf("MPC_KMS_DISCOVERY {\"connector\":%u,\"connection\":%u,\"modes\":%d,\"encoders\":%d}\n",
+               conn->connector_id, conn->connection, conn->count_modes, conn->count_encoders);
         if (conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0 &&
             conn->count_modes <= 128 && conn->count_encoders > 0 && conn->count_encoders <= 32) {
             for (int m = 0; m < conn->count_modes && !o->connector; ++m) {
@@ -100,6 +102,8 @@ static int select_output(Output *o) {
     }
     drmModeFreePlaneResources(planes);
     if (!o->plane) return -1;
+    printf("MPC_KMS_DISCOVERY {\"selected_connector\":%u,\"selected_crtc\":%u,\"selected_plane\":%u}\n",
+           o->connector, o->crtc, o->plane);
 #define PROP(field, object, type, name) o->field = property(o->fd, object, type, name, NULL)
     PROP(connector_crtc, o->connector, DRM_MODE_OBJECT_CONNECTOR, "CRTC_ID");
     PROP(crtc_mode, o->crtc, DRM_MODE_OBJECT_CRTC, "MODE_ID");
