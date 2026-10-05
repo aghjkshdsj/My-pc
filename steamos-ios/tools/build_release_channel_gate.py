@@ -107,12 +107,14 @@ def build(parent):
 for token in $(/bin/busybox cat /proc/cmdline); do
     case "$token" in mpc_channel=1) channel_requested=1;; esac
 done
-if [ "$channel_requested" = 1 ]; then
+case "$channel_requested" in
+1)
     export MPC_CHANNEL_RUN="$nonce"
     /release-channel-probe
     channel_status=$?
     /bin/busybox echo "MPC_CHANNEL_EXIT=$channel_status"
-fi
+    ;;
+esac
 '''
     init=init.replace(anchor,insert+anchor)
     cpio=extend_newc(original,{'init':(stat.S_IFREG|0o755,init.encode()),

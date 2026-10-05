@@ -31,7 +31,8 @@ def build(parent):
 for token in $(/bin/busybox cat /proc/cmdline); do
     case "$token" in mpc_moving=1) moving_requested=1;; esac
 done
-if [ "$moving_requested" = 1 ]; then
+case "$moving_requested" in
+1)
     moving_status=99
     case "$vk_status:$abi_status:$gpu_status" in
     0:0:0)
@@ -41,7 +42,8 @@ if [ "$moving_requested" = 1 ]; then
         ;;
     esac
     /bin/busybox echo "MPC_MOVE_GUEST_EXIT=$moving_status"
-fi
+    ;;
+esac
 '''
     init=init.replace(anchor,insert+anchor)
     cpio=extend_newc(original,{'init':(stat.S_IFREG|0o755,init.encode()),
