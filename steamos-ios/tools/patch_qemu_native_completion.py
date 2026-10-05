@@ -99,7 +99,7 @@ def transform(original):
     changed['hw/display/virtio-gpu-virgl.c'] = v
     s = changed['system/qemu.symbols']
     s = once(s, 'mpc_qemu_configure_native_scanout;',
-             'mpc_qemu_configure_native_scanout;\n    mpc_qemu_configure_native_completion;\n    mpc_qemu_complete_native_read;')
+             'mpc_qemu_configure_native_scanout;\n    mpc_qemu_configure_native_completion;\n    mpc_qemu_complete_native_read;\n    mpc_qemu_cancel_native_read;')
     changed['system/qemu.symbols'] = s
     return changed
 
@@ -112,6 +112,7 @@ def patch(qemu, receipt_dir):
 struct VirtIOGPU;
 int mpc_qemu_configure_native_completion(uint32_t, uint32_t, MPCNativeCompletionCallback, void *);
 int mpc_qemu_complete_native_read(const MPCNativeReadToken *, uint32_t);
+int mpc_qemu_cancel_native_read(const MPCNativeReadToken *);
 bool mpc_native_completion_enabled(void);
 bool mpc_native_completion_busy(struct VirtIOGPU *);
 bool mpc_native_completion_begin(struct VirtIOGPU *);

@@ -8,7 +8,8 @@
 extern "C" {
 #endif
 enum { MPC_NATIVE_COMPLETION_ABI = 2, MPC_NATIVE_READ_COMPLETED = 4,
-       MPC_NATIVE_READ_ERROR = 5, MPC_NATIVE_MAX_READERS = 16 };
+       MPC_NATIVE_READ_ERROR = 5, MPC_NATIVE_READ_CANCELED = 6,
+       MPC_NATIVE_MAX_READERS = 16 };
 typedef struct MPCNativeReadToken {
     uint64_t session, command, reader, generation;
     uint32_t resource_id, reserved;
@@ -32,6 +33,9 @@ typedef int (*MPCConfigureNativeCompletion)(uint32_t, uint32_t,
  * Returns 0 for invalid, stale or duplicate tokens. Missing completions retain
  * ownership indefinitely, including during reset/shutdown. */
 typedef int (*MPCCompleteNativeRead)(const MPCNativeReadToken *, uint32_t);
+/* Separate failure path: cancel only BEFORE submitting any GPU command that
+ * reads this ticket's source. Never use this for a submitted or stuck GPU read. */
+typedef int (*MPCCancelNativeRead)(const MPCNativeReadToken *);
 #ifdef __cplusplus
 }
 #endif

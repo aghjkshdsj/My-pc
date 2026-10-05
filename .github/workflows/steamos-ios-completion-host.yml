@@ -1,0 +1,24 @@
+name: Fresh iOS asynchronous native display consumer
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Host/NativeDisplayCompletion.*', 'steamos-ios/Engine/NativeCompletionABI.h', 'steamos-ios/tools/build_native_completion_host.py', '.github/workflows/steamos-ios-completion-host.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install public offline Metal shader compiler
+        run: xcodebuild -downloadComponent MetalToolchain
+      - name: Compile actual device iOS ARM64 consumer and exact inline Metal shader
+        run: python3 steamos-ios/tools/build_native_completion_host.py steamos-ios/out/completion-host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iOS-Native-Completion-Host
+          path: steamos-ios/out/completion-host/*
+          retention-days: 14

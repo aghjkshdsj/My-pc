@@ -34,6 +34,7 @@ static void qemu_bh_delete(QEMUBH *b) { assert(bql_locked()); assert(b); free(b)
 static void virtio_gpu_process_cmdq(VirtIOGPU *);
 static MPCNativeScanoutCallback mpc_scanout_callback;
 static uint64_t mpc_scanout_sequence;
+int mpc_qemu_cancel_native_read(const MPCNativeReadToken *);
 #include "../Engine/QEMUNativeCompletion.inc"
 static MPCNativeReadToken reads[16];
 static unsigned read_count;
@@ -122,6 +123,13 @@ int main(void)
     for(unsigned i=0;i<16;i++) assert(mpc_qemu_complete_native_read(&reads[15-i],4));
     bql_lock();mpc_completion_resume(&g);assert(test_failed);mpc_native_completion_drain(&g);bql_unlock();
     assert(atomic_load(&test_processed)==2);
-    puts("MPC_NATIVE_COMPLETION_CPU_CONTROL passed: delayed/error/stale/duplicate/fanout/missing/drain/new-session; Metal and actual QEMU runtime unverified");
+    read_count=0;bql_lock();assert(mpc_native_completion_begin(&g));emit(42,400);
+    mpc_native_completion_seal(1);bql_unlock();
+    assert(!mpc_qemu_complete_native_read(&reads[0],MPC_NATIVE_READ_CANCELED));
+    assert(mpc_qemu_cancel_native_read(&reads[0]));
+    assert(!mpc_qemu_cancel_native_read(&reads[0]));
+    bql_lock();mpc_completion_resume(&g);assert(test_failed);mpc_native_completion_drain(&g);bql_unlock();
+    assert(atomic_load(&test_processed)==3);
+    puts("MPC_NATIVE_COMPLETION_CPU_CONTROL passed: delayed/error/stale/duplicate/fanout/missing/drain/new-session/cancel-before-submission; Metal and actual QEMU runtime unverified");
     return 0;
 }

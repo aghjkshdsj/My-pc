@@ -10,7 +10,7 @@ from collect_gpu_engine_sources import collect, digest, PROJECT
 
 def audit_completion(exports, commands, source, actual):
     assert source['scope']=='native-completion-adapter-source-only' and source['abi']==2
-    for symbol in ('mpc_qemu_configure_native_completion','mpc_qemu_complete_native_read'):
+    for symbol in ('mpc_qemu_configure_native_completion','mpc_qemu_complete_native_read','mpc_qemu_cancel_native_read'):
         assert re.search(r'^[0-9a-fA-F]+[ \t]+T[ \t]+_'+symbol+r'[ \t]*$',exports,re.M),symbol
     for path in ('/ui/egl-headless.c','/hw/display/virtio-gpu.c','/hw/display/virtio-gpu-gl.c','/hw/display/virtio-gpu-virgl.c'):
         rows=[c for c in commands if c.get('file','').endswith(path)]

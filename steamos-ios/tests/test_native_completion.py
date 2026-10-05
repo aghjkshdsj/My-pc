@@ -18,7 +18,7 @@ class NativeCompletionTests(unittest.TestCase):
     def setUpClass(cls):
         (PROJECT/'out').mkdir(exist_ok=True)
     def test_incomplete_export_or_source_rejected(self):
-        exports='0001 T _mpc_qemu_configure_native_completion\n0002 T _mpc_qemu_complete_native_read\n'
+        exports='0001 T _mpc_qemu_configure_native_completion\n0002 T _mpc_qemu_complete_native_read\n0003 T _mpc_qemu_cancel_native_read\n'
         commands=[{'file':'../'+n,'command':'clang -c ../'+n} for n in
             ('ui/egl-headless.c','hw/display/virtio-gpu.c','hw/display/virtio-gpu-gl.c','hw/display/virtio-gpu-virgl.c')]
         source={'scope':'native-completion-adapter-source-only','abi':2,

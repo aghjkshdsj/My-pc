@@ -42,8 +42,7 @@ int mpc_qemu_configure_native_completion(uint32_t abi, uint32_t bytes,
     mpc_completion_callback = callback;
     return 1;
 }
-__attribute__((visibility("default")))
-int mpc_qemu_complete_native_read(const MPCNativeReadToken *token, uint32_t status)
+static int mpc_native_read_finish(const MPCNativeReadToken *token, uint32_t status)
 {
     bool accepted;
     if (!mpc_completion_callback) return 0;
@@ -57,6 +56,15 @@ int mpc_qemu_complete_native_read(const MPCNativeReadToken *token, uint32_t stat
     qemu_mutex_unlock(&mpc_completion_mutex);
     return accepted;
 }
+__attribute__((visibility("default")))
+int mpc_qemu_complete_native_read(const MPCNativeReadToken *token, uint32_t status)
+{
+    if (status != MPC_NATIVE_READ_COMPLETED && status != MPC_NATIVE_READ_ERROR) return 0;
+    return mpc_native_read_finish(token, status);
+}
+__attribute__((visibility("default")))
+int mpc_qemu_cancel_native_read(const MPCNativeReadToken *token)
+{ return mpc_native_read_finish(token, MPC_NATIVE_READ_CANCELED); }
 bool mpc_native_completion_enabled(void) { return mpc_completion_callback != NULL; }
 bool mpc_native_completion_busy(VirtIOGPU *g)
 {
@@ -95,7 +103,7 @@ static void mpc_completion_emit(MPCNativeScanoutEvent *image, uint32_t kind)
         if (!ok) return; /* Fail the command, submit no untracked read. */
         if (!mpc_completion_callback(mpc_completion_context, &e)) {
             /* Rejection means the host submitted NO read. */
-            mpc_qemu_complete_native_read(&e.token, MPC_NATIVE_READ_ERROR);
+            mpc_qemu_cancel_native_read(&e.token);
         }
     } else {
         mpc_completion_callback(mpc_completion_context, &e);

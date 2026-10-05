@@ -12,6 +12,8 @@ resource and installation-generation token. The host must immediately retain
 the borrowed texture/backing before returning acceptance. It must submit no GPU
 read if it rejects the event. Only actual GPU Completed/Error can return a
 ticket; CPU deadlines and display presentation times cannot return ownership.
+The separate cancel entry point fails a retained ticket only before any GPU
+command reads its source. It is never reported as an actual GPU terminal.
 
 The exact RESOURCE_FLUSH remains suspended at the owned QEMU command-queue
 head, outside the renderer fence queue. Up to 16 matching native readers join.
@@ -49,7 +51,7 @@ defined exports, compiled translation units and exact patched source hashes.
 
 ## Remaining work
 
-1. Connect a bounded generic host consumer to ABI2. Retain texture/backing through
+1. Compile and integrate the new bounded generic host consumer with ABI2. Retain texture/backing through
    actual Metal terminal callbacks; report command errors; never wait for GPU on
    the main thread. Keep CPU-copy diagnostics separate.
 2. Join actual guest Vulkan/WSI producer dependencies before the host samples the

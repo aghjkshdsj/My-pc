@@ -35,14 +35,14 @@ static inline bool mpc_join_complete(MPCNativeCompletionLedger *l,
     const MPCNativeReadToken *t, uint32_t status)
 {
     if (!t || !l->active || (status != MPC_NATIVE_READ_COMPLETED &&
-        status != MPC_NATIVE_READ_ERROR) || t->reserved ||
+        status != MPC_NATIVE_READ_ERROR && status != MPC_NATIVE_READ_CANCELED) || t->reserved ||
         t->session != l->session || t->command != l->command) return false;
     for (uint32_t i = 0; i < l->count; i++) {
         const MPCNativeReadToken *x = &l->tokens[i];
         if (x->reader == t->reader && x->generation == t->generation &&
             x->resource_id == t->resource_id && !l->states[i]) {
             l->states[i] = status; l->pending--;
-            l->failed |= status == MPC_NATIVE_READ_ERROR; return true;
+            l->failed |= status != MPC_NATIVE_READ_COMPLETED; return true;
         }
     }
     return false;
