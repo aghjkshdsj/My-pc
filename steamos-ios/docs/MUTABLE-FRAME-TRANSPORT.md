@@ -81,7 +81,7 @@ already propagates native iPhone release completion. Source reuse stays within
 the selected ARM Linux/QEMU/Venus/native Metal architecture. No substitute
 Darwin syscall layer, old VM app, native preview or Madeira app is adopted.
 
-Steam<60s, Hollow Knight60�80baseFPS at 720p, sustained pacing/thermals, games,
+Steam<60s, Hollow Knight60–80baseFPS at 720p, sustained pacing/thermals, games,
 audio/controllers/downloads/overlays/plugins and the complete desktop/client
 remain unfinished. This ledger creates no new percentage or device milestone.
 

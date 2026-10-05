@@ -76,7 +76,7 @@ After that transport gate, implement Linux WSI and a real compositor session,
 then the requested SteamOS desktop and Game Mode, and then Valve ARM Steam/CEF
 with its external runtime dependencies. FEX/Proton, controllers, audio, downloads,
 overlays/plugins and sustained game testing remain tracked in COMPONENTS.md.
-Steam usable under60s and Hollow Knight60�80 base rendered FPS at720p remain
+Steam usable under60s and Hollow Knight60–80 base rendered FPS at720p remain
 unverified targets. QEMU TCG is software system emulation; FEX and Proton are
 separate translation/compatibility components, not Linux hardware virtualization.
 
