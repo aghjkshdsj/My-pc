@@ -26,7 +26,7 @@ FEX/Proton and gameplay remain unfinished. Steam under one minute and Hollow
 Knight 60–80 base rendered FPS at 720p remain unverified. QEMU TCG is software
 system emulation. No architecture substitution or hypervisor claim is made.
 
-The new source-only compositor prerequisite inventory and separate ARM build/rejection workflow are implemented. They query actual Vulkan/DRM identity, shared-image and synchronization capabilities without submitting graphics. Compile/control and positive phone results are pending. See `docs/COMPOSITOR-NEXT-STAGE.md`; no new compositor acceptance is implied.
+The new source-only compositor prerequisite inventory and separate ARM build/rejection workflow are implemented. They query actual Vulkan/DRM identity, shared-image and synchronization capabilities without submitting graphics. Actual ARM64 compile, software-driver rejection and missing-ICD rejection pass in [run 37348402397](https://github.com/aghjkshdsj/My-pc/actions/runs/37348402397), source 28e29268308dd4d5bbf0c673f7a7e11b66a4638d. The actual log receipt was independently checked; artifact binary bytes, positive guest GPU capabilities and a running compositor remain unverified. The program is not installed in an IPA. See `docs/COMPOSITOR-NEXT-STAGE.md`; no new compositor acceptance is implied.
 
 Earlier checkpoints below are retained as history.
 

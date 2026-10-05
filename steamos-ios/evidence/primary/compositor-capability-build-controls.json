@@ -1,0 +1,27 @@
+{
+  "scope": "arm-linux-query-inventory-compile-negative-controls",
+  "source_commit": "28e29268308dd4d5bbf0c673f7a7e11b66a4638d",
+  "workflow_run": "37348402397",
+  "arm64_compiled": true,
+  "controls": [
+    {
+      "case": "software",
+      "exit": 20,
+      "rejected": true
+    },
+    {
+      "case": "missing-icd",
+      "exit": 3,
+      "rejected": true
+    }
+  ],
+  "phone_tested": false,
+  "compositor_verified": false,
+  "desktop_verified": false,
+  "job": 111892759946,
+  "workflow_url": "https://github.com/aghjkshdsj/My-pc/actions/runs/37348402397",
+  "log_receipt_independently_checked": true,
+  "binary_artifact_bytes_independently_verified": false,
+  "positive_guest_gpu_prerequisites_verified": false,
+  "upstream_candidate_commit": "d783533489e1f75d6886c2ab5c5960090ef268f8"
+}
