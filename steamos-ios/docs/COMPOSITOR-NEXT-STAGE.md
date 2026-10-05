@@ -1,6 +1,10 @@
 # Ordinary Linux compositor integration after the eight-image phone checkpoint
 
-Checked 2026-10-05. This stage extends the requested ARM Linux guest and native
+Checked 2026-10-05. Official wlroots 0.20.2 source was cloned into an isolated
+ignored reference directory and resolved to commit
+`d783533489e1f75d6886c2ab5c5960090ef268f8`. Its actual renderer/DRM/allocator
+build requirements and MIT license were read; this is source inspection, not
+a compositor build. This stage extends the requested ARM Linux guest and native
 Metal bridge. It is not an architecture substitution. A small upstream Wayland
 compositor is an integration control; SteamOS Plasma and gamescope still require
 their own actual sessions, dependencies and device tests.
@@ -18,7 +22,7 @@ not a new device run, production frame pacing, mutable-buffer or client WSI proo
 | Work | Concrete implementation | Acceptance and current state |
 | --- | --- | --- |
 | GPU/DRM prerequisite inventory | New `Guest/compositor_capabilities.c` queries actual Vulkan device DRM identity, matches the primary character device, queries atomic/syncobj capabilities, timeline feature, sync-file semaphore support and BGRA linear DMA-BUF image features | Source implemented; actual ARM compile/software and missing-ICD controls pending. Not installed in an IPA; no positive phone result. A successful query does not prove allocator/import compatibility |
-| Upstream compositor selection | Evaluate an exact pinned wlroots release with Vulkan renderer, DRM backend and a minimal Wayland compositor/client | API documentation confirms these distinct interfaces; exact source revision, build/license closure and renderer compatibility still need verification. Do not silently fall back to Pixman/CPU graphics |
+| Upstream compositor selection | Evaluate pinned wlroots 0.20.2 (`d7835334…`) with Vulkan renderer, DRM backend and a minimal Wayland compositor/client | Official source identity and MIT license inspected. Complete build/license closure and runtime renderer compatibility remain unverified. Do not silently fall back to Pixman/CPU graphics |
 | Allocator/import | Supply the actual compatible GBM/DRM allocator and test allocation → Vulkan import → render → external release → native read → Linux fence → reuse | Existing disposable runtime has Vulkan/libdrm; GBM/Wayland/libseat/libinput/xkbcommon and compositor closure are not yet staged. Eight Vulkan-exported immutable buffers do not establish compositor-allocated buffer import |
 | Changing buffers and clients | Run an actual Wayland surface, compositor render passes and a bounded swapchain, with Linux release synchronization | Verify a minimum three-buffer repeated-use sequence, frame identities and completed readers before overwrite. Exercise client disconnect, window destruction, failed/missing producers/readers, output disable and stop. No CPU deadline authorizes release |
 | Input | Native touch/controller/key events → actual Linux input device → compositor seat → client response | Source and end-to-end device tests remain open. A painted cursor or native label is not Linux input proof |
@@ -33,6 +37,17 @@ on its own descriptor. Missing properties are recorded as missing; software or
 ambiguous devices and failed Vulkan enumeration cannot become compositor proof.
 The hosted workflow compiles this actual ARM program and runs unsuitable-runtime
 controls. Those hosted controls are not positive hardware rendering results.
+
+Actual wlroots 0.20.2 sources additionally require Meson ≥1.3, Wayland/server/
+scanner ≥1.24.0, protocols ≥1.47, libdrm ≥2.4.129, xkbcommon ≥1.8.0 and Pixman
+≥0.43.0. DRM needs hwdata, libdisplay-info ≥0.2.0 and session support (libudev,
+libseat ≥0.2.0); GBM allocator needs GBM ≥21.1. Vulkan build needs loader/headers
+≥1.2.182 and glslang. The actual renderer demands external-memory FD, image-format
+list, DMA-BUF, foreign queue family, DRM modifier, timeline semaphore and
+synchronization2 extensions, then enables timeline/synchronization2 features.
+External semaphore FD support is queried separately. The inventory now records
+these exact requirements; a Vulkan version number alone cannot satisfy them.
+See `evidence/primary/compositor-upstream-requirements.json` for inspected hashes.
 
 Any diagnostic runtime extension must keep exact source/package/header versions,
 authenticated dependency checks and corresponding-source/license closure. It

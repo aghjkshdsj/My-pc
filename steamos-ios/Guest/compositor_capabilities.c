@@ -64,12 +64,18 @@ int main(void) {
     int modifier=extension(ext,n,VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME);
     int memoryfd=extension(ext,n,VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
     int semfd=extension(ext,n,VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
+    int image_list=extension(ext,n,VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
+    int foreign=extension(ext,n,VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME);
+    int timeline_ext=extension(ext,n,VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
+    int sync2_ext=extension(ext,n,VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
     free(ext);
     VkPhysicalDeviceDrmPropertiesEXT identity={.sType=VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRM_PROPERTIES_EXT};
     VkPhysicalDeviceProperties2 properties={.sType=VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,.pNext=drm?&identity:NULL};
     vkGetPhysicalDeviceProperties2(device,&properties);
     VkPhysicalDeviceTimelineSemaphoreFeatures timeline={.sType=VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES};
-    VkPhysicalDeviceFeatures2 features={.sType=VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,.pNext=&timeline};
+    VkPhysicalDeviceSynchronization2Features sync2={.sType=VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,.pNext=&timeline};
+    VkPhysicalDeviceFeatures2 features={.sType=VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .pNext=(sync2_ext||base.apiVersion>=VK_API_VERSION_1_3)?(void *)&sync2:(void *)&timeline};
     vkGetPhysicalDeviceFeatures2(device,&features);
     VkPhysicalDeviceExternalSemaphoreInfo seminfo={.sType=VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO,.handleType=VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT};
     VkExternalSemaphoreProperties sem={.sType=VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES};
@@ -103,6 +109,8 @@ int main(void) {
     printf(",\"renderer\":");string(base.deviceName);
     printf(",\"memory_fd_extension\":%s,\"dma_buf_extension\":%s,\"drm_modifier_extension\":%s,\"semaphore_fd_extension\":%s",
         memoryfd?"true":"false",dma?"true":"false",modifier?"true":"false",semfd?"true":"false");
+    printf(",\"image_format_list_extension\":%s,\"queue_family_foreign_extension\":%s,\"timeline_semaphore_extension\":%s,\"synchronization2_extension\":%s,\"synchronization2_feature\":%s",
+        image_list?"true":"false",foreign?"true":"false",timeline_ext?"true":"false",sync2_ext?"true":"false",sync2.synchronization2?"true":"false");
     printf(",\"software\":false,\"api_version\":%u,\"physical_device_drm\":%s,\"has_primary\":%s,\"has_render\":%s,\"primary_node_matched\":%s,\"atomic_client_cap\":%s,\"drm_syncobj\":%" PRIu64 ",\"drm_syncobj_timeline\":%" PRIu64 ",\"vulkan_timeline\":%s,\"sync_fd_semaphore_features\":%u,\"bgra_linear_dmabuf_query_result\":%d,\"bgra_linear_dmabuf_memory_features\":%u,\"max_width\":%u,\"max_height\":%u,\"compositor_verified\":false,\"allocation_import_verified\":false,\"client_release_verified\":false,\"desktop_verified\":false,\"fps_verified\":false}\n",
         base.apiVersion,drm?"true":"false",identity.hasPrimary?"true":"false",identity.hasRender?"true":"false",matched?"true":"false",atomic?"true":"false",syncobj,syncobj_timeline,timeline.timelineSemaphore?"true":"false",sem.externalSemaphoreFeatures,image_result,external.externalMemoryProperties.externalMemoryFeatures,image.imageFormatProperties.maxExtent.width,image.imageFormatProperties.maxExtent.height);
     // A successful inventory is not a compositor-compatibility verdict. Missing

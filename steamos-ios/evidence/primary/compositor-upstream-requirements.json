@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "scope": "official-upstream-compositor-source-requirements-inspection",
+  "date": "2026-10-05",
+  "upstream": "https://gitlab.freedesktop.org/wlroots/wlroots.git",
+  "tag": "0.20.2",
+  "commit": "d783533489e1f75d6886c2ab5c5960090ef268f8",
+  "license": "MIT",
+  "files": {
+    "meson.build": {
+      "bytes": 4251,
+      "sha256": "3e9a7c0e644aa2f588dda7ad7f925be03a9776877df8dfc85145600e3bff658e"
+    },
+    "protocol/meson.build": {
+      "bytes": 6377,
+      "sha256": "46d708b9b91f5cbe9b4ac211ee1e6ed4d103b1ba438ccf467d3ab44d027a9a99"
+    },
+    "render/vulkan/meson.build": {
+      "bytes": 1227,
+      "sha256": "721ddc63cae86bcbe1e6b0acd6dac52feca6aab092f5446183764e495270747c"
+    },
+    "render/vulkan/vulkan.c": {
+      "bytes": 22372,
+      "sha256": "940772109e7cb8f6d16b8c8a9afb7582b4dc45fb67049fb674b82707bd6e340d"
+    },
+    "render/allocator/meson.build": {
+      "bytes": 1168,
+      "sha256": "1bfca993e1e02b531ce15fe145f6de30c3d4195a9f199a7abab371ce21dc70a6"
+    },
+    "backend/drm/meson.build": {
+      "bytes": 1291,
+      "sha256": "856830347b777b629bcd40154a6bde1f2465f5b3c29728d0936c609b93a36ca0"
+    },
+    "backend/session/meson.build": {
+      "bytes": 505,
+      "sha256": "9ba3a30c815353be2371490123a1f45b5fd98f30ddee428e194258d4f8d8aa84"
+    },
+    "LICENSE": {
+      "bytes": 1161,
+      "sha256": "67f7248bcd38ff1054a090970eed17cd9bd6cc147260c3d807872c779c714b60"
+    }
+  },
+  "minimum_versions": {
+    "meson": "1.3",
+    "wayland": "1.24.0",
+    "wayland_protocols": "1.47",
+    "libdrm": "2.4.129",
+    "xkbcommon": "1.8.0",
+    "pixman": "0.43.0",
+    "libdisplay_info": "0.2.0",
+    "libseat": "0.2.0",
+    "gbm": "21.1",
+    "vulkan_build_headers_and_loader": "1.2.182"
+  },
+  "additional_dependencies": [
+    "hwdata",
+    "libudev",
+    "glslang",
+    "libinput for input backend"
+  ],
+  "required_vulkan_extensions": [
+    "VK_KHR_external_memory_fd",
+    "VK_KHR_image_format_list",
+    "VK_EXT_external_memory_dma_buf",
+    "VK_EXT_queue_family_foreign",
+    "VK_EXT_image_drm_format_modifier",
+    "VK_KHR_timeline_semaphore",
+    "VK_KHR_synchronization2"
+  ],
+  "required_vulkan_features": [
+    "timelineSemaphore",
+    "synchronization2"
+  ],
+  "external_semaphore_fd_optional_and_queried": true,
+  "compositor_compiled": false,
+  "compositor_on_phone_verified": false,
+  "steam_os_desktop_verified": false
+}

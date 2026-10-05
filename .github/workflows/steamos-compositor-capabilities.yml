@@ -34,10 +34,13 @@ jobs:
               text=result.stdout+result.stderr;(root/(name+'.log')).write_text(text)
               assert result.returncode==code and f'MPC_COMPOSITOR_REJECTED stage={stage} code={code}' in text
               assert 'MPC_COMPOSITOR_CAPABILITIES ' not in text
+              print(result.stdout.strip())
               results.append(dict(case=name,exit=code,rejected=True))
-          (root/'controls.json').write_text(json.dumps(dict(scope='arm-linux-query-inventory-compile-negative-controls',
+          receipt=dict(scope='arm-linux-query-inventory-compile-negative-controls',
               source_commit=os.environ['GITHUB_SHA'],workflow_run=os.environ['GITHUB_RUN_ID'],arm64_compiled=True,
-              controls=results,phone_tested=False,compositor_verified=False,desktop_verified=False),indent=2)+'\n')
+              controls=results,phone_tested=False,compositor_verified=False,desktop_verified=False)
+          (root/'controls.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          print(json.dumps(receipt))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
