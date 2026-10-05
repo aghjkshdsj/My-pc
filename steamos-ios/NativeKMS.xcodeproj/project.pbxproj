@@ -1,0 +1,61 @@
+// !$*UTF8*$!
+{archiveVersion=1;classes={};objectVersion=56;objects={
+8EFAA9557D9D8D85A74A94CD = {isa=PBXFileReference; lastKnownFileType=sourcecode.swift; path="NativeKMS/App.swift"; sourceTree="<group>";};
+5219A39BB9282A262003CB02 = {isa=PBXBuildFile; fileRef=8EFAA9557D9D8D85A74A94CD;};
+FACD31024B87823AA7B3D268 = {isa=PBXFileReference; lastKnownFileType=sourcecode.cpp.objcpp; path="NativeKMS/Gate.mm"; sourceTree="<group>";};
+CDF2322356E3A274486F6044 = {isa=PBXBuildFile; fileRef=FACD31024B87823AA7B3D268;};
+A2D51BE7C1C8D06494265E47 = {isa=PBXFileReference; lastKnownFileType=sourcecode.cpp.objcpp; path="NativeKMS/Surface.mm"; sourceTree="<group>";};
+3FB68A113939C6EB8D0E416F = {isa=PBXBuildFile; fileRef=A2D51BE7C1C8D06494265E47;};
+61D2B283236492CCB89C1DC0 = {isa=PBXFileReference; lastKnownFileType=sourcecode.cpp.objcpp; path="NativeKMS/Receipt.mm"; sourceTree="<group>";};
+4957553E7AC3689B590829D9 = {isa=PBXBuildFile; fileRef=61D2B283236492CCB89C1DC0;};
+FC9B8641A6AA4FE906921B26 = {isa=PBXFileReference; lastKnownFileType=sourcecode.cpp.objcpp; path="NativeKMS/FrameworkIdentity.mm"; sourceTree="<group>";};
+225850E86F75056A0721052B = {isa=PBXBuildFile; fileRef=FC9B8641A6AA4FE906921B26;};
+7BF6D1A43ED01C015E9173F3 = {isa=PBXFileReference; lastKnownFileType=sourcecode.cpp.objcpp; path="Host/ProbeBridge.mm"; sourceTree="<group>";};
+A2CF4E3B323DFB1B2E824990 = {isa=PBXBuildFile; fileRef=7BF6D1A43ED01C015E9173F3;};
+6DFBF16268E27D743AC7DC21 = {isa=PBXFileReference; lastKnownFileType=sourcecode.cpp.objcpp; path="Host/ProbeRecovery.mm"; sourceTree="<group>";};
+28AEFFAF235EE808CC82E755 = {isa=PBXBuildFile; fileRef=6DFBF16268E27D743AC7DC21;};
+FAB632F1C98A54B51A36E54E = {isa=PBXFileReference; lastKnownFileType=sourcecode.swift; path="Host/RecoveryJournal.swift"; sourceTree="<group>";};
+3250C12E2C29EE409D4D548B = {isa=PBXBuildFile; fileRef=FAB632F1C98A54B51A36E54E;};
+4D92DE5164B6EDC94544AFC9 = {isa=PBXFileReference; lastKnownFileType=sourcecode.swift; path="Host/StikDebugRequest.swift"; sourceTree="<group>";};
+E4DB139BF30531EB53930D85 = {isa=PBXBuildFile; fileRef=4D92DE5164B6EDC94544AFC9;};
+80123E9755F10BD2F00A31D8 = {isa=PBXFileReference; lastKnownFileType=sourcecode.swift; path="Host/SystemCrashDiagnostics.swift"; sourceTree="<group>";};
+EAFDC80D5C6647D10561FE8C = {isa=PBXBuildFile; fileRef=80123E9755F10BD2F00A31D8;};
+5EB9FE81A3E798474922DD17 = {isa=PBXFileReference; lastKnownFileType=sourcecode.cpp.objcpp; path="Host/GuestMetalTrace.mm"; sourceTree="<group>";};
+E79584A1E8024626CF0B2973 = {isa=PBXBuildFile; fileRef=5EB9FE81A3E798474922DD17;};
+848DF97D0F5D93623ED2DF48 = {isa=PBXFileReference; lastKnownFileType=sourcecode.cpp.objcpp; path="Host/NativeDisplayCompletion.mm"; sourceTree="<group>";};
+770D9FCC456369CF548C5774 = {isa=PBXBuildFile; fileRef=848DF97D0F5D93623ED2DF48;};
+A8792157CB4F27FB949C035F = {isa=PBXFileReference; explicitFileType=wrapper.application; path=MyPCSteamOSNativeKMS.app; sourceTree=BUILT_PRODUCTS_DIR;};
+0A3E27B8CA818264D75C8D81 = {isa=PBXGroup; name=Products; children=(A8792157CB4F27FB949C035F,); sourceTree="<group>";};
+AD936FCBED631FA67E05C3EA = {isa=PBXGroup; children=(8EFAA9557D9D8D85A74A94CD,FACD31024B87823AA7B3D268,A2D51BE7C1C8D06494265E47,61D2B283236492CCB89C1DC0,FC9B8641A6AA4FE906921B26,7BF6D1A43ED01C015E9173F3,6DFBF16268E27D743AC7DC21,FAB632F1C98A54B51A36E54E,4D92DE5164B6EDC94544AFC9,80123E9755F10BD2F00A31D8,5EB9FE81A3E798474922DD17,848DF97D0F5D93623ED2DF48,0A3E27B8CA818264D75C8D81,); sourceTree="<group>";};
+878A52FC5FF6A57D50B7B870 = {isa=PBXSourcesBuildPhase; buildActionMask=2147483647; files=(5219A39BB9282A262003CB02,CDF2322356E3A274486F6044,3FB68A113939C6EB8D0E416F,4957553E7AC3689B590829D9,225850E86F75056A0721052B,A2CF4E3B323DFB1B2E824990,28AEFFAF235EE808CC82E755,3250C12E2C29EE409D4D548B,E4DB139BF30531EB53930D85,EAFDC80D5C6647D10561FE8C,E79584A1E8024626CF0B2973,770D9FCC456369CF548C5774,); runOnlyForDeploymentPostprocessing=0;};
+E2AA269EB967A8853A258BFA = {isa=PBXFrameworksBuildPhase; buildActionMask=2147483647; files=(); runOnlyForDeploymentPostprocessing=0;};
+41D311A605520FC7B8B9A980 = {isa=PBXResourcesBuildPhase; buildActionMask=2147483647; files=(); runOnlyForDeploymentPostprocessing=0;};
+73EBF6644258C120893E685D = {isa=XCBuildConfiguration; name=Debug; buildSettings={SDKROOT=iphoneos; IPHONEOS_DEPLOYMENT_TARGET=26.0;};};
+6C7EFF6369083C8E1F2B1994 = {isa=XCBuildConfiguration; name=Debug; buildSettings={
+            SDKROOT=iphoneos; IPHONEOS_DEPLOYMENT_TARGET=26.0; ARCHS=arm64; SUPPORTED_PLATFORMS=iphoneos;
+            CLANG_ENABLE_OBJC_ARC=YES; CLANG_ENABLE_MODULES=YES; CLANG_CXX_LANGUAGE_STANDARD="c++17";
+            PRODUCT_NAME=MyPCSteamOSNativeKMS; PRODUCT_BUNDLE_IDENTIFIER=com.aghjkshdsj.mypc.steamos.nativekms;
+            INFOPLIST_FILE=NativeKMS/Info.plist; GENERATE_INFOPLIST_FILE=NO; SWIFT_VERSION=5.0;
+            SWIFT_OBJC_BRIDGING_HEADER=NativeKMS/Bridge.h; SWIFT_OPTIMIZATION_LEVEL="-O";
+            SWIFT_COMPILATION_MODE=wholemodule; GCC_OPTIMIZATION_LEVEL=2; DEBUG_INFORMATION_FORMAT="dwarf-with-dsym";
+            ENABLE_DEBUG_DYLIB=NO; TARGETED_DEVICE_FAMILY="1,2"; MPC_SOURCE_COMMIT="local-unrecorded";
+            OTHER_LDFLAGS="$(inherited) -framework Metal -framework QuartzCore -framework UIKit -framework MetricKit";
+            LD_RUNPATH_SEARCH_PATHS="$(inherited) @executable_path/Frameworks";
+            };};
+0B0C687DF8B6B8DC790B519C = {isa=XCBuildConfiguration; name=Release; buildSettings={SDKROOT=iphoneos; IPHONEOS_DEPLOYMENT_TARGET=26.0;};};
+DD75E2CB1C510A828AC72D96 = {isa=XCBuildConfiguration; name=Release; buildSettings={
+            SDKROOT=iphoneos; IPHONEOS_DEPLOYMENT_TARGET=26.0; ARCHS=arm64; SUPPORTED_PLATFORMS=iphoneos;
+            CLANG_ENABLE_OBJC_ARC=YES; CLANG_ENABLE_MODULES=YES; CLANG_CXX_LANGUAGE_STANDARD="c++17";
+            PRODUCT_NAME=MyPCSteamOSNativeKMS; PRODUCT_BUNDLE_IDENTIFIER=com.aghjkshdsj.mypc.steamos.nativekms;
+            INFOPLIST_FILE=NativeKMS/Info.plist; GENERATE_INFOPLIST_FILE=NO; SWIFT_VERSION=5.0;
+            SWIFT_OBJC_BRIDGING_HEADER=NativeKMS/Bridge.h; SWIFT_OPTIMIZATION_LEVEL="-O";
+            SWIFT_COMPILATION_MODE=wholemodule; GCC_OPTIMIZATION_LEVEL=2; DEBUG_INFORMATION_FORMAT="dwarf-with-dsym";
+            ENABLE_DEBUG_DYLIB=NO; TARGETED_DEVICE_FAMILY="1,2"; MPC_SOURCE_COMMIT="local-unrecorded";
+            OTHER_LDFLAGS="$(inherited) -framework Metal -framework QuartzCore -framework UIKit -framework MetricKit";
+            LD_RUNPATH_SEARCH_PATHS="$(inherited) @executable_path/Frameworks";
+            };};
+AAB2723FF2C8E6D1C298C1E4 = {isa=XCConfigurationList; buildConfigurations=(73EBF6644258C120893E685D,0B0C687DF8B6B8DC790B519C,); defaultConfigurationIsVisible=0; defaultConfigurationName=Release;};
+04229C262AC03CB8C1234C52 = {isa=XCConfigurationList; buildConfigurations=(6C7EFF6369083C8E1F2B1994,DD75E2CB1C510A828AC72D96,); defaultConfigurationIsVisible=0; defaultConfigurationName=Release;};
+34A04005BCAF206EEC990BD9 = {isa=PBXNativeTarget; name=MyPCSteamOSNativeKMS; productName=MyPCSteamOSNativeKMS; productType="com.apple.product-type.application"; productReference=A8792157CB4F27FB949C035F; buildConfigurationList=04229C262AC03CB8C1234C52; buildPhases=(878A52FC5FF6A57D50B7B870,E2AA269EB967A8853A258BFA,41D311A605520FC7B8B9A980,); buildRules=(); dependencies=();};
+244210E48437B6556980A702 = {isa=PBXProject; attributes={LastUpgradeCheck=2600;}; buildConfigurationList=AAB2723FF2C8E6D1C298C1E4; compatibilityVersion="Xcode 14.0"; developmentRegion=en; knownRegions=(en,Base,); mainGroup=AD936FCBED631FA67E05C3EA; productRefGroup=0A3E27B8CA818264D75C8D81; projectDirPath=""; projectRoot=""; targets=(34A04005BCAF206EEC990BD9,);};
+};rootObject=244210E48437B6556980A702;}

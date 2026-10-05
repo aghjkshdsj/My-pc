@@ -1,0 +1,34 @@
+name: Fresh iPhone standard Linux KMS application
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/NativeKMS/**', 'steamos-ios/NativeKMS.xcodeproj/**', 'steamos-ios/tools/bundle_native_kms.py', 'steamos-ios/tools/verify_native_kms_ipa.py', 'steamos-ios/tests/*NativeKMS*', 'steamos-ios/tests/native_kms_fixture.py', '.github/workflows/steamos-native-kms-app.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: steamos-native-kms-app-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  application:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise actual production receipt with fault controls
+        run: |
+          python3 steamos-ios/tests/native_kms_fixture.py /tmp/native-kms-fixture.json
+          clang++ -std=c++17 -O2 -fobjc-arc -framework Foundation steamos-ios/NativeKMS/Receipt.mm steamos-ios/tests/NativeKMSReceiptTests.mm -o /tmp/native-kms-receipt
+          /tmp/native-kms-receipt /tmp/native-kms-fixture.json
+          clang++ -std=c++17 -O1 -g -fobjc-arc -fsanitize=address,undefined -fno-omit-frame-pointer -framework Foundation steamos-ios/NativeKMS/Receipt.mm steamos-ios/tests/NativeKMSReceiptTests.mm -o /tmp/native-kms-receipt-sanitized
+          /tmp/native-kms-receipt-sanitized /tmp/native-kms-fixture.json
+      - name: Compile separate physical iOS application with actual consumer
+        run: |
+          xcodebuild -project steamos-ios/NativeKMS.xcodeproj -scheme MyPCSteamOSNativeKMS -configuration Release -sdk iphoneos -destination generic/platform=iOS -derivedDataPath steamos-ios/out/native-kms-xcode CODE_SIGNING_ALLOWED=NO MPC_SOURCE_COMMIT="$GITHUB_SHA" build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-iPhone-Native-KMS-Application-Compile
+          path: steamos-ios/out/native-kms-xcode/Build/Products/Release-iphoneos/*
+          retention-days: 14
