@@ -76,6 +76,9 @@ done
             raise
         (payload / (name + '.log')).write_bytes(process.stdout)
         assert process.returncode == 0, 'Linux engine did not shut down'
+        for line in process.stdout.decode('utf-8', errors='strict').splitlines():
+            if line.startswith(('MPC_KMS_', 'MPC_LINUX_ABI ', 'MPC_LINUX_EXIT=')):
+                print(line, flush=True)
         result = validate(process.stdout.decode('utf-8', errors='strict'), nonce, present)
         cases.append(dict(name=name, engine_exit=process.returncode, serial_sha256=digest(payload / (name + '.log')), **result))
     names = ['Guest/kms_atomic_gate.c', 'tools/build_kms_atomic_gate.py', 'tools/verify_kms_atomic_gate.py',
@@ -107,6 +110,10 @@ done
         archive.add(output / 'init-kms-userspace', arcname='init-kms-userspace')
         archive.add(payload / 'kms-atomic-receipt.json', arcname='kms-atomic-receipt.json')
         archive.add(PROJECT.parent / '.github/workflows/steamos-kms-atomic-control.yml', arcname='steamos-kms-atomic-control.yml')
+    checksums = {name: digest(output / name) for name in
+                 ('KMS-Atomic-Control-Payload.tar.gz', 'KMS-Atomic-Corresponding-Source.tar.gz')}
+    (payload / 'artifact-checksums.json').write_text(json.dumps(checksums, indent=2) + '\n', encoding='utf-8')
+    print('MPC_KMS_ARTIFACTS ' + json.dumps(checksums), flush=True)
     print(json.dumps(dict(scope=receipt['scope'], atomic_api_verified=True,
                          capabilities=cases[0]['capabilities'], physical_iphone=False, metal_verified=False)))
 

@@ -2,10 +2,13 @@
 import copy
 import json
 import pathlib
+import stat
 import sys
 import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'tools'))
 from verify_kms_atomic_gate import validate
+from build_guest_image_payload import extend_newc
+from make_initramfs import record
 
 NONCE = '0123456789abcdef' * 2
 
@@ -42,6 +45,14 @@ def serial(rows, present=True):
 
 
 class AtomicReceiptTests(unittest.TestCase):
+    def test_atomic_binary_requires_explicit_safe_addition(self):
+        end = record('TRAILER!!!', 0)
+        update = {'kms-atomic-gate': (stat.S_IFREG | 0o755, b'ARM-ELF')}
+        with self.assertRaises(AssertionError): extend_newc(end, update)
+        self.assertIn(b'kms-atomic-gate', extend_newc(end, update, additions=('kms-atomic-gate',)))
+        for name in ('../kms-atomic-gate', '/kms-atomic-gate', 'user-data'):
+            with self.assertRaises(AssertionError):
+                extend_newc(end, {name: (stat.S_IFREG | 0o755, b'ELF')}, additions=(name,))
     def test_all_observed_fence_property_combinations_keep_native_verdict_false(self):
         for input_fence in (False, True):
             for output_fence in (False, True):
