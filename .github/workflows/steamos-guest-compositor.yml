@@ -1,0 +1,50 @@
+name: Actual upstream ARM Linux Vulkan compositor build
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/tools/build_guest_compositor.py', '.github/workflows/steamos-guest-compositor.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compositor:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install authenticated ARM build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc g++ ninja-build pkg-config python3-venv libffi-dev libexpat1-dev libxml2-dev bison flex libudev-dev libseat-dev libinput-dev hwdata libvulkan-dev glslang-tools patchelf xkb-data
+          python3 -m venv --system-site-packages steamos-ios/out/compositor-build-tools
+          steamos-ios/out/compositor-build-tools/bin/python -m pip install meson==1.8.3
+          echo "$PWD/steamos-ios/out/compositor-build-tools/bin" >> "$GITHUB_PATH"
+      - name: Verify exact existing Mesa build provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/aghjkshdsj/My-pc/actions/runs/37074804870 > steamos-ios/out/compositor-mesa-run.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('steamos-ios/out/compositor-mesa-run.json'))
+          assert r['conclusion']=='success' and r['head_sha']=='9ddc641f25d83a230affb90c7e59174a041bde30'
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Mesa-Userspace
+          run-id: 37074804870
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/compositor-mesa-input
+      - name: Compile upstream compositor and close the Linux runtime/source dependencies
+        run: python3 steamos-ios/tools/build_guest_compositor.py steamos-ios/out/compositor-mesa-input
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Linux-Compositor
+          path: |
+            steamos-ios/out/guest-compositor/Guest-Compositor-*.tar.gz
+            steamos-ios/out/guest-compositor/receipt.json
+            steamos-ios/out/guest-compositor/missing-renderer.log
+            steamos-ios/out/guest-compositor/build-*/meson-logs/meson-log.txt
+          retention-days: 14
