@@ -10,6 +10,7 @@ import tarfile
 from verify_ipa import macho_platform, macho_text
 
 ENGINE_PINS = {
+    '4000026': (37244178261, 'e31b9fcc6609b8ab50f8d6f72acd7cf9f1124300'),
     '4000025': (37244178261, 'e31b9fcc6609b8ab50f8d6f72acd7cf9f1124300'),
     '4000024': (37215070827, '6b6e268bffdce59d2d15b319abdee46eaa4b8cee'),
     '4000023': (37215070827, '6b6e268bffdce59d2d15b319abdee46eaa4b8cee'),
@@ -27,6 +28,7 @@ ENGINE_PINS = {
     '4000019': (37215070827, '6b6e268bffdce59d2d15b319abdee46eaa4b8cee'),
 }
 GUEST_PINS = {
+    '4000026': (37249739205, 'c17f369ff17df6337a77dc90e6780232a2f859ec'),
     '4000025': (37233435975, '8759ffe84d360ca61e0d7de7b2f3347682916cde'),
     '4000024': (37233435975, '8759ffe84d360ca61e0d7de7b2f3347682916cde'),
     '4000023': (37233435975, '8759ffe84d360ca61e0d7de7b2f3347682916cde'),
@@ -43,7 +45,7 @@ GUEST_PINS = {
     '4000020': (37222125501, '453a1d1f19c04b5d49328f135db32257a22d8f30'),
     '4000019': (37222125501, '453a1d1f19c04b5d49328f135db32257a22d8f30'),
 }
-BUNDLE_BUILD = '4000025'
+BUNDLE_BUILD = '4000026'
 ENGINE_RUN, ENGINE_SOURCE = ENGINE_PINS[BUNDLE_BUILD]
 GUEST_RUN, GUEST_SOURCE = GUEST_PINS[BUNDLE_BUILD]
 
@@ -90,6 +92,33 @@ def verify_frame_payload(receipt):
         assert len(receipt['frame_source_files'][name])==64
 
 
+def verify_moving_payload(receipt):
+    import copy
+    expected = dict(moving_sequence_compiled=True, moving_frame_count=120, moving_buffer_count=3,
+        moving_buffer_reuses=117, moving_reacquisitions_with_final_drain=120,
+        moving_endpoint_pixels=1843200, moving_guest_readbacks=2, moving_native_readbacks=2,
+        software_moving_renderer_rejected=True, moving_buffer_reuse_verified=False,
+        moving_display_timing_verified=False, game_fps_verified=False)
+    assert all(type(receipt.get(k)) is type(v) and receipt[k] == v for k,v in expected.items())
+    assert receipt['parent_frame_source'] == '8759ffe84d360ca61e0d7de7b2f3347682916cde'
+    assert receipt['parent_frame_run'] == 37233435975
+    original = copy.deepcopy(receipt)
+    original['files']['initramfs.cpio.gz'] = dict(bytes=10087447, sha256='40e92bcd95cb4877ae23e259d1edf7aee9c33c314a5843be8179e9fe95208989')
+    assert receipt['parent_frame_files'] == {k:v['sha256'] for k,v in original['files'].items()}
+    verify_frame_payload(original)
+    assert receipt['files']['initramfs.cpio.gz'] == dict(bytes=10107338, sha256='8451aca180ea20c55470c5ab50a835c0f9117e3aaee88cd38077d1167cd90c81')
+    assert receipt['moving_negative_boot_cases'][0]['has_2d_device'] is True
+    assert receipt['moving_negative_boot_cases'][1]['has_2d_device'] is False
+    assert len(receipt['moving_negative_boot_cases']) == 2
+    assert all(x['moving_execution_rejected_before_3d'] is True for x in receipt['moving_negative_boot_cases'])
+    assert receipt['inventory']['vk-moving-gate']['bytes'] > 0
+    for name in ('Guest/vk_gate.c', 'Guest/moving_scanout.h', 'Engine/MovingFrameContract.h',
+        'Guest/frame_release_channel.h', 'Engine/FrameReleaseWire.h', 'tools/build_moving_frame_payload.py'):
+        assert len(receipt['moving_source_files'][name]) == 64
+    synthetic = receipt['moving_synthetic_contract']
+    assert synthetic['distinct_phases'] == 120 and synthetic['fixed_resources'] == 3 and synthetic['endpoint_pixels'] == 1843200
+    assert receipt['moving_endpoint_channel_sum'] == synthetic['channel_sum']
+
 def bundle(engine_artifact, guest_artifact, app):
     engine = json.loads((engine_artifact / 'gpu-engine-receipt.json').read_text(encoding='utf-8'))
     assert engine['scope'] == 'source-built-physical-ios-qemu-gpu-engine-compile-only'
@@ -111,11 +140,11 @@ def bundle(engine_artifact, guest_artifact, app):
     assert private_file['host_memory_import_verified'] is False
     for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
         assert engine['display_backend_build_audit'][field] is True
-    if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025'):
+    if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         assert engine['native_scanout_adapter_export'] is True
         assert engine['native_scanout_adapter']['abi'] == 1
         assert engine['native_scanout_adapter']['phone_tested'] is False
-    if BUNDLE_BUILD == '4000025':
+    if BUNDLE_BUILD in ('4000025', '4000026'):
         retirement = engine['init_thread_retirement_build_audit']
         assert all(retirement[field] is True for field in ('shared_library_init_registers_thread', 'rcu_unregister_definition_exported', 'rcu_source_compiled'))
         assert retirement['host_unregister_executed'] is False and retirement['phone_crash_fixed'] is False
@@ -159,15 +188,15 @@ def bundle(engine_artifact, guest_artifact, app):
     assert not payload.exists()
     payload.mkdir()
     receipt = json.loads((guest_artifact / 'payload/payload-receipt.json').read_text(encoding='utf-8'))
-    if BUNDLE_BUILD in ('4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025'):
+    if BUNDLE_BUILD in ('4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         assert receipt['export_tiling'] == 'drm-format-modifier' and receipt['required_drm_modifier'] == 0
         assert receipt['native_format_contract_tests_passed'] is True
         assert 'Guest/image_export_contract.h' in receipt['image_source_files']
-    assert receipt['scope'] == ('linux-arm64-graphics-payload-eight-frame-boot-controls' if BUNDLE_BUILD in ('4000023', '4000024', '4000025') else 'linux-arm64-graphics-payload-image-export-boot-controls' if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025') else 'linux-arm64-graphics-payload-missing-3d-boot-controls')
-    if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025'):
+    assert receipt['scope'] == ('linux-arm64-graphics-payload-moving-frames-boot-controls' if BUNDLE_BUILD == '4000026' else 'linux-arm64-graphics-payload-eight-frame-boot-controls' if BUNDLE_BUILD in ('4000023', '4000024', '4000025') else 'linux-arm64-graphics-payload-image-export-boot-controls' if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025') else 'linux-arm64-graphics-payload-missing-3d-boot-controls')
+    if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         assert receipt['image_gate_compiled'] is True and receipt['software_image_rejected'] is True
         assert receipt['image_export_verified'] is False and receipt['host_memory_import_verified'] is False
-    if BUNDLE_BUILD in ('4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025'):
+    if BUNDLE_BUILD in ('4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         expected_formats = dict(export_vulkan_format=44, scanout_drm_fourcc=875713112,
             scanout_virtio_format=2, native_metal_pixel_format=80, channel_order='bgra')
         assert all(type(receipt.get(k)) is type(v) and receipt[k] == v for k,v in expected_formats.items())
@@ -177,8 +206,8 @@ def bundle(engine_artifact, guest_artifact, app):
         for name in ['Engine/ImagePixelContract.h', 'Guest/image_framebuffer.h', 'Guest/kms_format_probe.c', 'tests/ImagePixelContractTests.c']:
             assert name in receipt['image_source_files']
         assert 'kms-format-control' in receipt['inventory']
-    if BUNDLE_BUILD in ('4000023', '4000024', '4000025'):
-        verify_frame_payload(receipt)
+    if BUNDLE_BUILD in ('4000023', '4000024', '4000025', '4000026'):
+        verify_moving_payload(receipt) if BUNDLE_BUILD == '4000026' else verify_frame_payload(receipt)
     assert receipt['source_commit'] == GUEST_SOURCE and int(receipt['workflow_run']) == GUEST_RUN
     assert receipt['linux_runtime_boot_verified'] and receipt['runtime_dependency_closure_verified']
     assert receipt['cases'][0]['kernel_gpu']['resource_bind_flags'] == 2

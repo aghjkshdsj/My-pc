@@ -82,7 +82,7 @@ struct RecoveryJournalTests {
         precondition(!(symlinkOS["files"] as! [[String: Any]]).contains { $0["name"] as? String == "SystemCrash-symlink.json" })
         // Engine metadata made actual reports slightly larger than 128 KiB.
         // The recovery export must preserve the complete structured receipt.
-        let structured = ["fixture_completed": true, "payload": String(repeating: "A", count: 132392)] as [String: Any]
+        let structured = ["fixture_completed": true, "payload": String(repeating: "A", count: 1150000)] as [String: Any]
         let structuredData = try JSONSerialization.data(withJSONObject: structured, options: [.sortedKeys])
         try journal.complete(runID: normal.runID, result: structuredData)
         precondition(journal.pendingSnapshot() == nil)
@@ -94,7 +94,7 @@ struct RecoveryJournalTests {
             $0["relative_directory"] as? String == "ProbeDiagnostics/" + normal.runID
         }!
         precondition(completeReceipt["tail_truncated"] as? Bool == false)
-        precondition(completeReceipt["capture_limit_bytes"] as? Int == 524288)
+        precondition(completeReceipt["capture_limit_bytes"] as? Int == 2097152)
         let completeText = completeReceipt["text"] as! String
         precondition(Data(completeText.utf8) == structuredData)
         let parsedReceipt = try JSONSerialization.jsonObject(with: Data(completeText.utf8)) as! [String: Any]
@@ -124,7 +124,7 @@ struct RecoveryJournalTests {
         // user files never enter an export. Large logs are bounded tails.
         let linux = documents.appendingPathComponent("LinuxGate-fixture", isDirectory: true)
         try fm.createDirectory(at: linux, withIntermediateDirectories: false)
-        try Data(repeating: 65, count: 262144).write(to: linux.appendingPathComponent("serial.log"))
+        try Data(repeating: 65, count: 1500000).write(to: linux.appendingPathComponent("serial.log"))
         let unrelated = documents.appendingPathComponent("unrelated-user-file.txt")
         try Data("DO_NOT_EXPORT_SYNTHETIC_PRIVATE_FILE".utf8).write(to: unrelated)
         try fm.createSymbolicLink(at: linux.appendingPathComponent("linux-test.json"), withDestinationURL: unrelated)
@@ -134,10 +134,10 @@ struct RecoveryJournalTests {
         let object = try JSONSerialization.jsonObject(with: Data(body.utf8)) as! [String: Any]
         let entries = object["files"] as! [[String: Any]]
         let serial = entries.first { $0["name"] as? String == "serial.log" }!
-        precondition(serial["tail_truncated"] as? Bool == true && (serial["text"] as! String).utf8.count == 131072)
+        precondition(serial["tail_truncated"] as? Bool == true && (serial["text"] as! String).utf8.count == 1048576)
         // Bigger JSON is still bounded and explicitly incomplete, never silently
         // accepted as a valid receipt. Existing symlink exclusion stays intact.
-        let oversized = try JSONSerialization.data(withJSONObject: ["payload": String(repeating: "B", count: 786432)])
+        let oversized = try JSONSerialization.data(withJSONObject: ["payload": String(repeating: "B", count: 3000000)])
         try oversized.write(to: normalFolder.appendingPathComponent("result.json"))
         let oversizedExport = try journal.shareReport(snapshot: nil)
         let oversizedObject = try JSONSerialization.jsonObject(with: Data(contentsOf: oversizedExport)) as! [String: Any]
@@ -147,8 +147,8 @@ struct RecoveryJournalTests {
             $0["relative_directory"] as? String == "ProbeDiagnostics/" + normal.runID
         }!
         precondition(oversizedReceipt["tail_truncated"] as? Bool == true)
-        precondition(oversizedReceipt["captured_bytes"] as? Int == 524288)
-        precondition((oversizedReceipt["text"] as! String).utf8.count == 524288)
+        precondition(oversizedReceipt["captured_bytes"] as? Int == 2097152)
+        precondition((oversizedReceipt["text"] as! String).utf8.count == 2097152)
         let oversizedBody = String(decoding: try Data(contentsOf: oversizedExport), as: UTF8.self)
         precondition(!oversizedBody.contains("DO_NOT_EXPORT_SYNTHETIC_PRIVATE_FILE"))
         _ = another

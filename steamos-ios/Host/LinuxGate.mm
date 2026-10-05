@@ -3,6 +3,7 @@
 #import "GuestImageImport.h"
 #import "GuestFrameImport.h"
 #import "GuestScreenPresentation.h"
+#import "MovingFrameTransport.h"
 #include "QEMUInitThreadLease.h"
 #include <CommonCrypto/CommonDigest.h>
 #include <dlfcn.h>
@@ -45,7 +46,7 @@ static NSDictionary *failure(NSString *stage, NSString *reason) {
              @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO};
 }
 
-static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BOOL frames) {
+static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BOOL frames, BOOL moving = NO) {
     @autoreleasepool {
         MPCDiagnosticStage(@"linux-gate-starting", @{});
         if (attempted.load()) return failure(@"one-run-per-process", @"Close and relaunch, then request StikDebug for the new process before another Linux boot.");
@@ -69,14 +70,17 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         NSDictionary *receipt = receiptData ? [NSJSONSerialization JSONObjectWithData:receiptData options:0 error:&error] : nil;
         if (![receipt isKindOfClass:NSDictionary.class])
             return failure(@"payload-receipt", error.localizedDescription ?: @"Missing payload provenance");
-        BOOL framePayload = [receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-eight-frame-boot-controls"] &&
+        BOOL movingPayload = [receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-moving-frames-boot-controls"] &&
+            [receipt[@"moving_sequence_compiled"] isEqual:@YES] && [receipt[@"moving_frame_count"] isEqual:@120] &&
+            [receipt[@"moving_buffer_count"] isEqual:@3];
+        BOOL framePayload = ([receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-eight-frame-boot-controls"] || movingPayload) &&
                             [receipt[@"frame_sequence_compiled"] isEqual:@YES] && [receipt[@"frame_count"] isEqual:@8];
         BOOL imagePayload = ([receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-image-export-boot-controls"] || framePayload) &&
                             [receipt[@"image_gate_compiled"] isEqual:@YES];
         BOOL correctScope = graphics
             ? (imagePayload || (!images && [receipt[@"scope"] isEqual:@"linux-arm64-graphics-payload-missing-3d-boot-controls"]))
             : [receipt[@"kind"] isEqual:@"disposable-linux-abi-gate"];
-        if (!correctScope || (frames && !framePayload))
+        if (!correctScope || (frames && !framePayload) || (moving && !movingPayload))
             return failure(@"payload-receipt", error.localizedDescription ?: @"Missing payload provenance");
         for (NSString *name in @[@"Image", @"initramfs.cpio.gz"]) {
             NSDictionary *expected = receipt[@"files"][name];
@@ -163,7 +167,11 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
                 return failure(@"guest-metal-observer-unavailable", error.localizedDescription);
             MPCDiagnosticStage(@"linux-guest-metal-observer-configured", @{@"abi": @1,
                 @"adds_gpu_work": @NO, @"metal_host_verified": @NO});
-            if (frames) {
+            if (moving) {
+                NSString *serialPath = [[directory URLByAppendingPathComponent:@"serial.log"] path];
+                if (!MPCGuestMovingScreenBegin(nonce, &error) || !MPCMovingTransportBegin(nonce, library, serialPath, &error))
+                    return failure(@"moving-adapter-unavailable", error.localizedDescription ?: @"Moving adapter preflight failed.");
+            } else if (frames) {
                 if (!MPCGuestFrameScreenBegin(nonce, &error) || !MPCGuestFrameImportBegin(nonce, library, &error))
                     return failure(@"frame-adapter-unavailable", error.localizedDescription);
                 MPCDiagnosticStage(@"linux-eight-frame-adapter-configured", @{@"frame_count": @8, @"source_readbacks": @2});
@@ -177,10 +185,10 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
             }
         }
         NSString *serial = [[directory URLByAppendingPathComponent:@"serial.log"] path];
-        NSString *kernelOptions = frames ? @"console=ttyAMA0 rdinit=/init panic=1 mpc_frames=1 mpc_run=" : images ? @"console=ttyAMA0 rdinit=/init panic=1 mpc_image=1 mpc_run=" : @"console=ttyAMA0 rdinit=/init panic=1 mpc_run=";
+        NSString *kernelOptions = moving ? @"console=ttyAMA0 rdinit=/init panic=1 mpc_moving=1 mpc_run=" : frames ? @"console=ttyAMA0 rdinit=/init panic=1 mpc_frames=1 mpc_run=" : images ? @"console=ttyAMA0 rdinit=/init panic=1 mpc_image=1 mpc_run=" : @"console=ttyAMA0 rdinit=/init panic=1 mpc_run=";
         NSMutableArray<NSString *> *arguments = [@[@"qemu-system-aarch64", @"-machine", @"virt", @"-cpu", @"max",
             @"-accel", @"tcg,thread=multi,split-wx=on,tb-size=32", @"-smp", @"2", @"-m", @"512", @"-nodefaults", @"-display", graphics ? @"egl-headless,gl=es" : @"none",
-            @"-chardev", [NSString stringWithFormat:@"file,id=serial0,path=%@", serial], @"-serial", @"chardev:serial0",
+            @"-chardev", moving ? [NSString stringWithFormat:@"socket,id=serial0,fd=%d,server=off", MPCMovingTransportEngineFD()] : [NSString stringWithFormat:@"file,id=serial0,path=%@", serial], @"-serial", @"chardev:serial0",
             @"-monitor", @"none", @"-kernel", image, @"-initrd", initramfs, @"-append",
             [kernelOptions stringByAppendingString:nonce], @"-no-reboot"] mutableCopy];
         if (graphics) [arguments addObjectsFromArray:@[@"-device", @"virtio-gpu-gl-pci,blob=on,venus=on,hostmem=128M,xres=1280,yres=720", @"-d", @"guest_errors"]];
@@ -192,6 +200,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
             @"payload": receipt, @"linux_execution": @NO, @"steamos": @NO, @"graphics_tested": @NO,
             @"serial_file": @"serial.log"} mutableCopy];
         run[@"requires_relaunch"] = @YES;
+        if (moving) { run[@"scope"] = @"physical-ios-linux-three-buffer-moving-gate"; run[@"moving_frames_requested"] = @YES; }
         if (graphics) {
             run[@"engine_bundle"] = engineBundle;
             run[@"host_private_file_directory_prepared"] = @YES;
@@ -210,7 +219,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
             run[@"gpu_sequence_verified"] = @NO;
             run[@"screen_presentation_requested"] = @(screenOutput);
             run[@"gameplay_verified"] = @NO;
-            run[@"route_requested"] = @"Linux ARM64 Mesa Venus Ã¢â€ â€™ virtio-GPU Ã¢â€ â€™ native iOS virgl/Venus Ã¢â€ â€™ MoltenVK Ã¢â€ â€™ Metal";
+            run[@"route_requested"] = @"Linux ARM64 Mesa Venus ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ virtio-GPU ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ native iOS virgl/Venus ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ MoltenVK ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Metal";
         }
         NSURL *reportURL = [directory URLByAppendingPathComponent:@"linux-test.json"];
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
@@ -219,6 +228,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         std::vector<std::string> values;
         for (NSString *arg in arguments) values.emplace_back(arg.UTF8String);
         double start = NSProcessInfo.processInfo.systemUptime;
+        if (moving) MPCMovingTransportTransferEngineFD();
         // The pinned qemu_init acquires BQL/replay locks. Keep them held for the
         // main loop/cleanup, matching upstream system/main.c, without its exit().
         std::thread engineWorker([values = std::move(values), initialize, loop, cleanup, unlockBQL, unlockReplay, unregisterRCU]() mutable {
@@ -261,6 +271,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         const bool workerRetired = finished.load();
         if (workerRetired) engineWorker.join();
         else engineWorker.detach();
+        if (moving) MPCMovingTransportJoinReader(workerRetired);
         run[@"elapsed_ms"] = @((NSProcessInfo.processInfo.systemUptime - start) * 1000);
         run[@"engine_finished"] = @(workerRetired);
         run[@"engine_worker_joined"] = @(workerRetired);
@@ -306,7 +317,17 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
                 @"metal_host_verified": metal[@"metal_host_verified"],
                 @"observed_commit_points": metal[@"observed_commit_points"],
                 @"pending": metal[@"pending"], @"failed": metal[@"failed"]});
-            if (frames) {
+            if (moving) {
+                NSDictionary *result = MPCMovingTransportFinish(text, workerRetired && engineStatus.load() == 0,
+                    linuxPassed, [metal[@"metal_host_verified"] isEqual:@YES]);
+                run[@"moving_output"] = result;
+                run[@"buffer_reuse_verified"] = result[@"buffer_reuse_verified"];
+                run[@"host_memory_import_verified"] = result[@"buffer_reuse_verified"];
+                run[@"presentation_verified"] = result[@"presentation_verified"];
+                passed = passed && [result[@"buffer_reuse_verified"] isEqual:@YES];
+                MPCDiagnosticStage(@"linux-moving-output-checked", @{@"buffer_reuse_verified": result[@"buffer_reuse_verified"],
+                    @"presentation_verified": result[@"presentation_verified"]});
+            } else if (frames) {
                 MPCDiagnosticStage(@"linux-before-frame-import-finish", @{});
                 NSDictionary *importResult = MPCGuestFrameImportFinish(text, workerRetired && engineStatus.load() == 0,
                     linuxPassed, [metal[@"metal_host_verified"] isEqual:@YES]);
@@ -348,6 +369,7 @@ static NSDictionary *runKernel(BOOL graphics, BOOL images, BOOL screenOutput, BO
         if (images) run[@"limitations"] = @"The image gate correlates two immutable Linux-rendered images with their native Metal buffer layouts, GPU consumers and cleanup. Its bounded diagnostic readbacks are correctness checks. Visible presentation, production zero-copy transport, SteamOS/Steam/FEX and game performance remain unfinished.";
         if (screenOutput) run[@"limitations"] = @"This gate presents two distinct immutable Linux-rendered 720p images through the native imported texture, with separate GPU and actual drawable presentation callbacks. It retains two source-pixel diagnostic readbacks and serializes screen consumers. Continuous moving animation, frame pacing, zero-copy transport, SteamOS desktop/Steam/FEX and game FPS remain unverified.";
         if (frames) run[@"limitations"] = @"This bounded sequence uses eight distinct immutable 720p images rendered inside Linux, with eight native aliases/screen GPU draws and only first/last source readbacks. A GPU sequence pass is separate from actual positive display timestamps. Minimum guest dwell is 125ms, not a measured FPS target. Continuous animation, mutable-buffer synchronization, WSI/compositor, SteamOS/ARM Steam/FEX/Proton and game performance remain unverified.";
+        if (moving) run[@"limitations"] = @"Three shared buffers and 120 changing Linux Vulkan frames with explicit diagnostic UART releases after actual Metal source-reader completion. Endpoint readbacks check first/last contents only. Actual positive drawable timestamps have separate acceptance. Production KMS/WSI, compositor, desktop, Steam ARM, FEX/Proton and game FPS remain unfinished. QEMU TCG is software system emulation.";
         [[NSJSONSerialization dataWithJSONObject:run options:NSJSONWritingPrettyPrinted error:nil] writeToURL:reportURL atomically:YES];
         return run;
     }
@@ -359,3 +381,5 @@ NSDictionary *MPCLinuxGuestImageProbe(void) { return runKernel(YES, YES, NO, NO)
 NSDictionary *MPCLinuxGuestScreenProbe(void) { return runKernel(YES, YES, YES, NO); }
 
 NSDictionary *MPCLinuxGuestFrameProbe(void) { return runKernel(YES, NO, YES, YES); }
+
+NSDictionary *MPCLinuxGuestMovingProbe(void) { return runKernel(YES, NO, YES, NO, YES); }

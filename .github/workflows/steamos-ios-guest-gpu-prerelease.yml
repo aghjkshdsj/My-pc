@@ -24,7 +24,8 @@ jobs:
           import json, subprocess
           pins = {
               'gpu-engine': (37244178261, 'e31b9fcc6609b8ab50f8d6f72acd7cf9f1124300'),
-              'gpu-guest': (37233435975, '8759ffe84d360ca61e0d7de7b2f3347682916cde'),
+              'gpu-guest': (37249739205, 'c17f369ff17df6337a77dc90e6780232a2f859ec'),
+              'release-channel': (37249739190, 'c17f369ff17df6337a77dc90e6780232a2f859ec'),
               'cpu-guest': (37014232445, '33c54e5be2d022bc19bcf3e1a448163016dc84af'),
               'molten': (37178467526, '3f83d181b40439f868fba52abe54f02e9b857c36'),
           }
@@ -41,8 +42,8 @@ jobs:
           path: steamos-ios/out/gpu-engine-artifact
       - uses: actions/download-artifact@v4
         with:
-          name: Fresh-ARM-Linux-Frame-Payload
-          run-id: 37233435975
+          name: Fresh-ARM-Linux-Moving-Payload
+          run-id: 37249739205
           github-token: ${{ github.token }}
           path: steamos-ios/out/gpu-guest-artifact
       - uses: actions/download-artifact@v4
@@ -93,6 +94,19 @@ jobs:
           /tmp/mpc-frame-budget-tests
           clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host steamos-ios/Host/GuestFrameReceipt.mm steamos-ios/Host/GuestFrameScreenReceipt.mm steamos-ios/tests/GuestFrameReceiptTests.mm -o /tmp/mpc-frame-receipt-tests
           /tmp/mpc-frame-receipt-tests
+      - name: Exercise moving-frame ownership and receipt rejection
+        run: |
+          python3 steamos-ios/tests/moving_fixture.py /tmp/mpc-moving-fixture.json
+          clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host steamos-ios/Host/MovingFrameReceipt.mm steamos-ios/tests/MovingFrameReceiptTests.mm -o /tmp/mpc-moving-receipt-tests
+          /tmp/mpc-moving-receipt-tests /tmp/mpc-moving-fixture.json
+          clang++ -std=c++17 -O1 -g -fobjc-arc -fsanitize=address,undefined -fno-omit-frame-pointer -framework Foundation -Isteamos-ios/Host steamos-ios/Host/MovingFrameReceipt.mm steamos-ios/tests/MovingFrameReceiptTests.mm -o /tmp/mpc-moving-receipt-sanitized
+          /tmp/mpc-moving-receipt-sanitized /tmp/mpc-moving-fixture.json
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror steamos-ios/tests/FrameLeaseLedgerTests.cpp -o /tmp/mpc-moving-lease-tests
+          /tmp/mpc-moving-lease-tests
+          clang++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer steamos-ios/tests/FrameLeaseLedgerTests.cpp -o /tmp/mpc-moving-lease-sanitized
+          /tmp/mpc-moving-lease-sanitized
+          clang -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/tests/MovingFramePixelContractTests.c -o /tmp/mpc-moving-pixel-tests
+          /tmp/mpc-moving-pixel-tests
       - name: Compile fresh physical iOS Release ARM64 host
         run: |
           python3 steamos-ios/tests/validate_sources.py
@@ -128,8 +142,8 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000025 --receipt steamos-ios/out/package/verification.json
-          python3 steamos-ios/tools/verify_host_symbols.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/xcode/Build/Products/Release-iphoneos/MyPCSteamOSProbe.app.dSYM/Contents/Resources/DWARF/MyPCSteamOSProbe "$GITHUB_SHA" 4000025 --receipt steamos-ios/out/package/host-symbols.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000026 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_host_symbols.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/xcode/Build/Products/Release-iphoneos/MyPCSteamOSProbe.app.dSYM/Contents/Resources/DWARF/MyPCSteamOSProbe "$GITHUB_SHA" 4000026 --receipt steamos-ios/out/package/host-symbols.json
           tar -czf steamos-ios/out/package/Host-Debug-Symbols.tar.gz -C steamos-ios/out/xcode/Build/Products/Release-iphoneos MyPCSteamOSProbe.app.dSYM
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -144,13 +158,15 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000025 corrects the QEMU initialization-thread lifetime in the fresh host. The pinned shared-library qemu_init registers the calling thread with RCU. The previous adapter allowed its std::thread to exit without unregistering that TLS reader. The new native engine exports the original upstream rcu_unregister_thread API. The host calls it on the same initialized thread after cleanup, lock release and autorelease-pool drain, before publishing retirement and joining the worker. This corrects an identified source bug; elimination of phone crashes is not yet verified.
+          Build 4000026 adds a material new Linux moving-output gate: 120 changing Vulkan frames at 1280x720 across exactly three reused exported buffers. The first/last Linux and native readbacks check actual endpoint content. Ordinary frames have no full-image CPU readback and no artificial dwell. Native Metal samples the imported guest texture directly into the real screen drawable.
 
-          Native thread/TLS regression tests exercise explicit and destructor retirement, exception unwind, missing/double/wrong-thread calls, and an omitted-retirement negative control. Optimized and address/undefined-behavior-sanitized executions are required. They test the host lease contract, not execution of QEMU on iOS. The actual physical ARM64 iOS engine is independently audited for its defined retirement export and compiled RCU source. The package rejects private/string-only/undefined exports; device report validation requires an observed successful same-thread retirement and joined worker. Display timestamps still require actual positive callback values.
+          A fresh bounded local socketpair carries Linux UART control receipts and fixed-size, session/resource/incarnation/content-bound binary replies. Actual native GPU terminal callbacks enqueue results on a dedicated transport executor before releasing a source. Linux then completes a separate external-queue ownership reacquisition and fence wait before reusing the corresponding allocation. A CPU timeout cannot grant reuse. This explicit diagnostic protocol exercises the current Linux/QEMU/Venus/virgl/MoltenVK/Metal architecture. It is not yet integrated into production KMS/Wayland/WSI or an ordinary compositor.
 
-          The guest eight-frame payload, Mesa/Venus, renderer, native image ABI and MoltenVK observer remain pinned. QEMU and its dependency closure are rebuilt with the unchanged source recipe plus this narrow export. Automatic local MetricKit crash capture and matching host dSYM retention continue. No private phone logs, previous applications, credentials, Valve client or game content are included.
+          Hosted ARM Linux checks verified the actual bidirectional UART with valid and byte-fragmented responses, and rejected wrong-session, wrong-resource, corrupt-integrity, partial and missing responses. The actual ARM moving binary compiled; Linux boot controls rejected missing 3D and a software ICD control rejected the software renderer. Native ownership/rejection tests and iOS compilation do not establish successful moving graphics on the phone. Phone verification is pending. Source-reader completion, actual positive display timestamps and game performance have separate verdicts. Missing or zero drawable timestamps stay incomplete.
 
-          This is a crash-fix candidate, not a new desktop/game milestone. Install with iLoader, enable JIT using StikDebug, and run one eight-frame screen test in a fresh app process. Leave the completed result open for 30 seconds so a delayed cleanup failure can be captured; then share report and saved logs. QEMU TCG remains software system emulation. Continuous moving-output transport, full SteamOS desktop/Game Mode/ARM Steam, FEX/Proton, input/audio/downloads/overlays/plugins and all game/startup/sustained-performance targets remain unfinished. Original licenses and complete corresponding source accompany the native packages.
+          Install using iLoader, relaunch, enable JIT through StikDebug, and pass the ARM64 JIT check. Make Show changing Linux frames / Start moving-frame test the first Linux test in that process. Keep it foreground without rotating until finished, then share the screen-test report and saved logs. The working eight-immutable-frame gate remains available as a separate diagnostic. The build25 same-thread QEMU RCU retirement fix, native crash capture and matching host dSYM remain included. Private phone reports, credentials, old apps and game data are excluded.
+
+          Full SteamOS desktop, Game Mode, compositor/WSI, Valve ARM Steam/CEF, FEX/Proton games, input, audio, downloads, overlays/plugins, Steam under one minute and Hollow Knight 60–80 base FPS at 720p remain unfinished. QEMU TCG is software system emulation. Original licenses, pinned upstream source, fresh host/guest source and build recipes accompany this prerelease. No Valve client or game content is distributed.
           EOF
           gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "My-pc Linux guest Vulkan gate ${GITHUB_RUN_NUMBER}" --notes-file steamos-ios/out/package/release-notes.md \
             steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/package/verification.json \
@@ -158,7 +174,7 @@ jobs:
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000025
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000026
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()

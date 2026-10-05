@@ -6,11 +6,13 @@ of a reused buffer. NativeScanoutABI1 has installation/flush generations and a
 borrowed texture, but no per-frame guest identity or native consumer release
 acknowledgement. Neither mechanism is a production swapchain.
 
-FrameLeaseLedger.h now implements the bounded ownership table for a future
-three-buffer transport. It is independent source code and is not connected to
-the shipping ABI1, Metal consumer or Linux compositor. Compilation/rejection/
-sanitizer results are source-contract results; no phone animation, transport or
-memory-performance result is implied.
+FrameLeaseLedger.h implements the bounded ownership table. Build26 source
+connects it to a three-buffer/120-frame producer and native Metal consumer
+through a fresh local UART release adapter. This diagnostic mechanism preserves
+ABI1 and supplies content/release identities independently. It is not integrated
+into production KMS/WSI or an ordinary Linux compositor. Compilation/rejection/
+sanitizer results are source-contract results; phone acceptance is pending.
+See GPU-GATE-4000026.md.
 
 Each lease identifies a session, resource, resource incarnation and globally
 increasing content frame serial. Repeating a resource ID does not repeat a

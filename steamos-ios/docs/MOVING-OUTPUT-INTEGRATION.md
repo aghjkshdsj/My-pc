@@ -61,8 +61,12 @@ semantics do not certify this existing virtual GPU bridge.
 | Lifecycle | Quarantine on interruption/resize/timeout; retain active sources until real work drains | Reversed/late callbacks, cancellation and resource removal cannot release another frame or use freed resources |
 
 `Engine/FrameLeaseLedger.h` is the already tested bounded ownership contract.
-It is not yet connected to these components. Its hosted reuse/sanitizer result
-must not become a claim of moving graphics on the phone.
+Build26 source connects it to a fresh diagnostic UART release adapter and the
+native screen consumer, with a three-buffer/120-frame Linux producer. Hosted
+Linux channel and moving-payload controls pass. iOS package and phone acceptance
+are tracked separately in [build26](GPU-GATE-4000026.md). The local protocol does
+not implement production KMS/WSI or ordinary compositor releases. Hosted reuse/
+sanitizer results must not become claims of moving phone graphics.
 
 The next device gate should show visibly changing Linux-generated contents while
 the same three resource identities are reused across many frames. Endpoint

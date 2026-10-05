@@ -108,7 +108,7 @@ final class RecoveryJournal {
         // Keep ordinary receipts intact instead of exporting an invalid JSON
         // suffix. Both classes remain bounded; oversized entries stay explicitly
         // truncated and cannot establish a successful diagnostic result.
-        let limit = url.pathExtension == "json" ? 512 * 1024 : 128 * 1024
+        let limit = url.pathExtension == "json" ? 2 * 1024 * 1024 : 1024 * 1024
         let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
         guard values.isRegularFile == true, values.isSymbolicLink != true else {
             throw NSError(domain: "RecoveryJournal", code: 3, userInfo: [NSLocalizedDescriptionKey: "Not a regular diagnostic file"])

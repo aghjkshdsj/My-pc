@@ -6,6 +6,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <Metal/Metal.h>
 #include <cmath>
+#include "../Engine/MovingFrameContract.h"
 
 @interface MPCScreenContext : NSObject
 @property(nonatomic, strong) CAMetalLayer *layer;
@@ -18,6 +19,7 @@
 @property(nonatomic) uint64_t registry, geometry;
 @property(nonatomic) NSUInteger errors, pending;
 @property(nonatomic) BOOL visible, begun, interrupted, finished, frameSequence;
+@property(nonatomic) BOOL movingSequence;
 @end
 @implementation MPCScreenContext
 @end
@@ -132,7 +134,7 @@ UIView *MPCGuestScreenCreateView(void) {
     return view;
 }
 
-static BOOL beginScreen(NSString *nonce, BOOL frames, NSError **error) {
+static BOOL beginScreen(NSString *nonce, BOOL frames, BOOL moving, NSError **error) {
     __block BOOL active = NO;
     void (^readState)(void) = ^{ active = UIApplication.sharedApplication.applicationState == UIApplicationStateActive; };
     if (NSThread.isMainThread) readState(); else dispatch_sync(dispatch_get_main_queue(), readState);
@@ -145,6 +147,7 @@ static BOOL beginScreen(NSString *nonce, BOOL frames, NSError **error) {
         }
         screen.nonce = nonce;
         screen.frameSequence = frames;
+        screen.movingSequence = moving;
         screen.begun = YES;
         MPCDiagnosticStage(@"linux-screen-surface-ready", @{@"registry_id": @(screen.registry),
             @"drawable_width": @(screen.layer.drawableSize.width), @"drawable_height": @(screen.layer.drawableSize.height),
@@ -154,10 +157,12 @@ static BOOL beginScreen(NSString *nonce, BOOL frames, NSError **error) {
     }
 }
 
-BOOL MPCGuestScreenBegin(NSString *nonce, NSError **error) { return beginScreen(nonce, NO, error); }
-BOOL MPCGuestFrameScreenBegin(NSString *nonce, NSError **error) { return beginScreen(nonce, YES, error); }
+BOOL MPCGuestScreenBegin(NSString *nonce, NSError **error) { return beginScreen(nonce, NO, NO, error); }
+BOOL MPCGuestFrameScreenBegin(NSString *nonce, NSError **error) { return beginScreen(nonce, YES, NO, error); }
+BOOL MPCGuestMovingScreenBegin(NSString *nonce, NSError **error) { return beginScreen(nonce, YES, YES, error); }
 
-NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictionary *image) {
+static NSDictionary *consumeScreen(const MPCNativeScanoutEvent *event, NSDictionary *image,
+    BOOL (^willSubmit)(void), void (^completedSource)(uint32_t, BOOL)) {
     MPCScreenContext *context = screen;
     // Retain while the borrowed handle is valid. Both completion blocks retain it
     // even after a timeout, scanout disable or guest resource destruction.
@@ -165,12 +170,14 @@ NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictio
     uint64_t resource = event->resource_id, generation = event->generation;
     NSUInteger phase = [image[@"phase"] unsignedIntegerValue];
     @synchronized(context) {
+        unsigned index = (unsigned)context.frames.count;
+        BOOL endpoint = context.movingSequence ? mpc_moving_endpoint(index) : !context.frameSequence || index == 0 || index == 7;
+        unsigned expectedPhase = context.movingSequence ? mpc_moving_phase(index) : context.frameSequence ? index * 17u : index ? 41u : 0u;
         if (!context || !context.begun || !context.visible || context.interrupted || context.pending ||
-            context.frames.count >= (context.frameSequence ? 8u : 2u) || !texture || texture.device.registryID != context.registry ||
+            context.frames.count >= (context.movingSequence ? MPC_MOVING_FRAMES : context.frameSequence ? 8u : 2u) || !texture || texture.device.registryID != context.registry ||
             ![image[@"resource_id"] isEqual:@(resource)] || ![image[@"generation"] isEqual:@(generation)] ||
-            ![image[@"mismatches"] isEqual:@0] || ![image[@"pixels_checked"] isEqual:(context.frameSequence && context.frames.count != 0 && context.frames.count != 7 ? @0 : @921600)] ||
-            (context.frameSequence && ![image[@"pixel_verification_performed"] isEqual:@(context.frames.count == 0 || context.frames.count == 7)]) ||
-            phase != (context.frameSequence ? context.frames.count * 17u : context.frames.count ? 41u : 0u)) {
+            ![image[@"mismatches"] isEqual:@0] || ![image[@"pixels_checked"] isEqual:(endpoint ? @921600 : @0)] ||
+            (context.frameSequence && ![image[@"pixel_verification_performed"] isEqual:@(endpoint)]) || phase != expectedPhase) {
             context.errors++;
             MPCDiagnosticStage(@"linux-screen-source-rejected", @{@"resource_id": @(resource),
                 @"generation": @(generation), @"phase": @(phase), @"interrupted": @(context.interrupted),
@@ -271,6 +278,7 @@ NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictio
                     if (completed.status != MTLCommandBufferStatusCompleted || completed.error) context.errors++;
                     retire(context, row, done);
                 }
+                if (completedSource) completedSource((uint32_t)completed.status, completed.error != nil);
             }];
             [command addScheduledHandler:^(id<MTLCommandBuffer> scheduled) {
                 @synchronized(context) {
@@ -307,14 +315,45 @@ NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictio
                 });
             }];
             MPCDiagnosticStage(@"linux-screen-before-submit", @{@"resource_id": @(resource), @"phase": @(phase)});
+            if (willSubmit && !willSubmit()) {
+                @synchronized(context) {
+                    row[@"error"] = @"source-lease-not-consumable";
+                    context.errors++; context.pending--;
+                }
+                dispatch_semaphore_signal(done); return;
+            }
+            @synchronized(context) { row[@"gpu_submitted"] = @YES; }
             [command commit];
         }
     });
     if (dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC))) {
-        @synchronized(context) { context.errors++; row[@"error"] = @"screen-completion-or-presentation-timeout"; }
+        @synchronized(context) { context.errors++; context.interrupted = YES; row[@"error"] = @"screen-completion-or-presentation-timeout"; }
         MPCDiagnosticStage(@"linux-screen-presentation-timeout", @{@"resource_id": @(resource)});
     }
     @synchronized(context) { return [row copy]; }
+}
+
+NSDictionary *MPCGuestScreenConsume(const MPCNativeScanoutEvent *event, NSDictionary *image) {
+    return consumeScreen(event, image, nil, nil);
+}
+NSDictionary *MPCGuestMovingScreenConsume(const MPCNativeScanoutEvent *event, NSDictionary *image,
+    BOOL (^willSubmit)(void), void (^completed)(uint32_t, BOOL)) {
+    return consumeScreen(event, image, willSubmit, completed);
+}
+NSDictionary *MPCGuestMovingScreenSnapshot(void) {
+    if (!screen) return @{@"error": @"screen-not-created"};
+    @synchronized(screen) {
+        screen.finished = YES;
+        NSMutableArray *copies = [NSMutableArray array];
+        for (NSDictionary *row in screen.frames) [copies addObject:[row copy]];
+        return @{@"schema": @1, @"scope": @"native-metal-three-buffer-changing-linux-screen",
+            @"run": screen.nonce ?: @"", @"registry_id": @(screen.registry), @"frames": copies,
+            @"errors": @(screen.errors), @"pending": @(screen.pending), @"interrupted": @(screen.interrupted),
+            @"surface_visible": @(screen.visible), @"surface_geometry": @(screen.geometry),
+            @"maximum_inflight": @1, @"drawable_limit": @2, @"lifecycle_events": [screen.lifecycle copy],
+            @"presentation_route": @"scheduled-main-thread-core-animation-transaction",
+            @"diagnostic_source_readbacks": @2, @"drawable_cpu_readbacks": @0};
+    }
 }
 
 NSDictionary *MPCGuestScreenFinish(NSDictionary *imageImport, BOOL engineFinished) {

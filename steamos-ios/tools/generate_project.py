@@ -15,6 +15,7 @@ def generate():
     objects = []
     files = ['Host/ProbeApp.swift', 'Host/ProbeBridge.mm', 'Host/LinuxGate.mm', 'Host/GuestGPUReceipt.mm', 'Host/GuestMetalTrace.mm', 'Host/GuestFrameImport.mm', 'Host/GuestFrameReceipt.mm', 'Host/GuestFrameScreenReceipt.mm', 'Host/GuestFrameImport.h', 'Host/GuestFrameBudget.h', 'Host/GuestImageImport.mm', 'Host/GuestImageReceipt.mm', 'Host/GuestScreenPresentation.mm', 'Host/GuestScreenReceipt.mm', 'Host/GuestScreenPresentation.h', 'Host/GuestImageImport.h', 'Host/NativeVulkan.mm', 'Host/NativeVulkanDraw.c', 'Host/RecoveryJournal.swift', 'Host/SystemCrashDiagnostics.swift', 'Host/ProbeRecovery.mm', 'Host/StikDebugRequest.swift', 'Host/ProbeBridge.h', 'Host/GuestMetalTrace.h', 'Host/GuestMetalTraceLedger.h', 'Host/Info.plist']
     files.append('Host/QEMUInitThreadLease.h')
+    files += ['Host/MovingFrameTransport.h', 'Host/MovingFrameTransport.mm', 'Host/MovingFrameReceipt.mm']
     for path in files:
         kind = {'swift':'sourcecode.swift','mm':'sourcecode.cpp.objcpp','c':'sourcecode.c.c','h':'sourcecode.c.h','plist':'text.plist.xml'}[path.rsplit('.',1)[1]]
         objects.append(f'{ident(path)} = {{isa = PBXFileReference; lastKnownFileType = {kind}; path = "{path}"; sourceTree = "<group>"; }};')

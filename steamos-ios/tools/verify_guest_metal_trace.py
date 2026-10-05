@@ -21,7 +21,7 @@ def validate(trace, nonce, expected_device):
                 'identity_errors', 'initial_errors', 'invalid_timing'):
         require(type(trace.get(key)) is int and trace[key] == 0, 'Incomplete/invalid native callback: ' + key)
     samples = trace.get('samples')
-    require(isinstance(samples, list) and 2 <= len(samples) <= 256, 'Missing or unbounded native completions')
+    require(isinstance(samples, list) and 2 <= len(samples) <= 1024, 'Missing or unbounded native completions')
     for key in ('observed_commit_points', 'completed'):
         require(type(trace.get(key)) is int and trace[key] == len(samples), 'Native command counts disagree')
     registry = None

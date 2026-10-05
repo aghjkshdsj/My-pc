@@ -1,4 +1,4 @@
-// Fresh MIT component for future mutable-buffer transport. No GPU proof.
+// Fresh MIT bounded ownership table. CPU contract tests are not GPU proof.
 #ifndef MPC_FRAME_LEASE_LEDGER_H
 #define MPC_FRAME_LEASE_LEDGER_H
 #include <array>
@@ -22,7 +22,8 @@ enum class LeaseState { Unregistered, Free, Producing, Ready, Consuming, Consume
 
 // All methods run on one owning transport executor. A Metal completion callback
 // must enqueue its observed result there. No GPU objects, waits, allocation or
-// lock ownership are hidden in this table. It is not wired to scanout ABI1.
+// lock ownership are hidden in this table. The diagnostic UART adapter owns
+// the table; this is not a production KMS/WSI/compositor release interface.
 class FrameLeaseLedger {
 public:
     static constexpr std::size_t capacity = 3, maximumConsumers = 2;

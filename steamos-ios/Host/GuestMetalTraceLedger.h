@@ -15,7 +15,7 @@ struct MPCMetalTraceEntry {
 };
 class MPCMetalTraceLedger {
 public:
-    static constexpr size_t capacity = 256;
+    static constexpr size_t capacity = 1024;
     std::vector<MPCMetalTraceEntry> entries;
     uint64_t overflow = 0, unknown = 0, duplicates = 0, identityErrors = 0;
     uint64_t initialErrors = 0, invalidTiming = 0;
