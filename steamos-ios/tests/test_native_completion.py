@@ -14,6 +14,9 @@ from collect_completion_engine_sources import audit_completion
 from patch_qemu_native_completion import PINS, patch
 
 class NativeCompletionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        (PROJECT/'out').mkdir(exist_ok=True)
     def test_incomplete_export_or_source_rejected(self):
         exports='0001 T _mpc_qemu_configure_native_completion\n0002 T _mpc_qemu_complete_native_read\n'
         commands=[{'file':'../'+n,'command':'clang -c ../'+n} for n in
@@ -58,7 +61,8 @@ class NativeCompletionTests(unittest.TestCase):
                 command=[compiler,'-std=c11','-Wall','-Wextra','-Werror','-pthread','-I'+str(root),
                     str(PROJECT/'tests/native_completion_control.c'),'-o',str(exe)]
                 if sanitized:command+=['-fsanitize=address,undefined','-fno-omit-frame-pointer','-g']
-                subprocess.run(command,check=True,capture_output=True,text=True)
+                compiled=subprocess.run(command,capture_output=True,text=True)
+                self.assertEqual(compiled.returncode,0,compiled.stdout+compiled.stderr)
                 result=subprocess.run([str(exe)],check=True,capture_output=True,text=True,timeout=15)
                 self.assertIn('MPC_NATIVE_COMPLETION_CPU_CONTROL passed',result.stdout)
                 print(result.stdout.strip()+(' [ASan/UBSan]' if sanitized else ' [normal]'))
