@@ -4,6 +4,22 @@
   "engine_release": "steamos-ios-guest-gpu-gate-20",
   "engine_source_archive_sha256": "6ecdd1f67d84a63f927c8e9c37a6bed7c8623d863de92a219a852dd287236572",
   "qemu_input_sha256": "7c9605290b34152debb842e965a55d2e4fbba4793e536ab677b4027e5dc0ba1a",
+  "qemu_selected_sources_reconstructed_after_ordered_patches": true,
+  "selected_scanout_sources_match_archived_pre_and_post_patch_digests": true,
+  "ordered_patch_inputs": [
+    {
+      "name": "patches/qemu-10.0.12-utm.patch",
+      "sha256": "05a46d5e52fd662e8d40bd28d23c0cf702f92cc28a83eca89e9ee14c1646aee7"
+    },
+    {
+      "name": "qemu-angle-metal-diagnostic.patch",
+      "sha256": "672c8e81f090c298844160bf1e878a84c6e7007d1b2d25c78d55d284f8a45e22"
+    },
+    {
+      "name": "qemu-native-scanout.patch",
+      "sha256": "0785c39c7081e9bfe75b6011f9f0df02a7005bb43ac01c8027826488193501aa"
+    }
+  ],
   "guest_release": "steamos-ios-guest-gpu-gate-17",
   "nested_source_packages": [
     "Parent-Guest-GPU-Corresponding-Source.tar.gz",
@@ -37,6 +53,30 @@
       "sha256": "24010e5fcd9c1e20f3a2e1757b7f60f5a3bff83b4a894269b001d1d17e6d3b35"
     },
     {
+      "component": "qemu-reconstructed-final-recipe-source",
+      "path": "ui/console.c",
+      "bytes": 46686,
+      "sha256": "5f7405a341f830dbe58be6fbd9d9202c9a5fcca1edb1b472d4a777a743a55bda"
+    },
+    {
+      "component": "qemu-reconstructed-final-recipe-source",
+      "path": "hw/display/virtio-gpu-base.c",
+      "bytes": 9381,
+      "sha256": "3a6160648b5a6d5e67774d382e4452b0389a6af396fcbdf05632b217819d9df6"
+    },
+    {
+      "component": "qemu-reconstructed-final-recipe-source",
+      "path": "hw/display/virtio-gpu-virgl.c",
+      "bytes": 60204,
+      "sha256": "2aa4d94f53aa5c10153a76fb9e64658d02d423427c9bd0e0001e842b5472d368"
+    },
+    {
+      "component": "qemu-reconstructed-final-recipe-source",
+      "path": "ui/egl-headless.c",
+      "bytes": 10184,
+      "sha256": "53dc53535c5b4fdc7b0c366786fc178c909a6a54da75f12205bf01eceebd72c3"
+    },
+    {
       "component": "linux-6.12.111-original-pinned-input",
       "path": "drivers/gpu/drm/virtio/virtgpu_plane.c",
       "bytes": 13016,
@@ -66,21 +106,23 @@
       "finding": "Display flush callback scope ends synchronously; ABI1 has no native completion/release token.",
       "source": {
         "path": "ui/console.c",
-        "line": 1202
+        "line": 1161
       },
       "fresh_abi_sha256": "74af109698654cf6e21c51a5ea2e0218bb22731dfa80593af2a4e42342392796",
       "fresh_scanout_patch_sha256": "0785c39c7081e9bfe75b6011f9f0df02a7005bb43ac01c8027826488193501aa"
     },
     {
-      "finding": "The inherited console timer force-clears a live GL block. This is unsuitable as mutable-source reuse authority.",
+      "finding": "The original tar input force-clears a GL block after 500ms, but the packaged UTM patch removes that behavior. The reconstructed final timer warns after 1000ms and does not release the reader. No missing completion may be replaced by a timeout in the new transport.",
       "source": {
         "path": "ui/console.c",
         "line": 167
       },
       "timer_source": {
         "path": "ui/console.c",
-        "line": 234
-      }
+        "line": 193
+      },
+      "final_source_reconstructed": true,
+      "forced_timeout_release_in_final_source": false
     },
     {
       "finding": "Console unblock restarts the virtual GPU processing path; arbitrary Metal callback threads cannot call it directly.",
@@ -93,7 +135,7 @@
       "finding": "Virtio flush invokes display update; renderer-fence response is a distinct mechanism with no ABI1 native-consumer dependency.",
       "source": {
         "path": "hw/display/virtio-gpu-virgl.c",
-        "line": 1199
+        "line": 1356
       }
     },
     {

@@ -7,8 +7,9 @@ lease tests pass optimized/sanitized execution, alongside all preserved receipt
 controls. Device stability/readiness verdicts are kept in the private local
 record; no desktop, ARM Steam, mutable transport, game or performance row is
 completed by this package. Next implementation is explicit native-reader release
-and guest buffer reacquisition; the source-only trace identifies the inherited
-forced-unblock timer and guest fence gaps. See MOVING-OUTPUT-INTEGRATION.md and
+and guest buffer reacquisition; the final source trace verifies the packaged
+warning-only timer and identifies the missing native-consumer/guest fence dependency.
+See MOVING-OUTPUT-INTEGRATION.md and
 [thread retirement](RCU-THREAD-RETIREMENT.md). Owner inputs/results remain only
 in the private local record; the original archive/blueprint mapping is preserved.
 

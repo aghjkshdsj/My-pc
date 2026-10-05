@@ -81,14 +81,15 @@ already propagates native iPhone release completion. Source reuse stays within
 the selected ARM Linux/QEMU/Venus/native Metal architecture. No substitute
 Darwin syscall layer, old VM app, native preview or Madeira app is adopted.
 
-Steam<60s, Hollow Knight60–80baseFPS at 720p, sustained pacing/thermals, games,
+Steam<60s, Hollow Knight60�80baseFPS at 720p, sustained pacing/thermals, games,
 audio/controllers/downloads/overlays/plugins and the complete desktop/client
 remain unfinished. This ledger creates no new percentage or device milestone.
 
 The pinned release20 engine/release17 guest dependency trace is now recorded in
 evidence/primary/linux-metal-release-source-trace.json. It identifies the
-inherited 500ms forced console-unblock timer and the exported-image guest fence
-gap as mandatory integration work. Neither timeout nor renderer enqueue may
+original tar's 500ms forced console unblock, its removal by the packaged UTM
+patch, and the remaining exported-image/native-consumer guest fence gap. The
+reconstructed final timer only warns after 1000ms. Neither timeout nor renderer enqueue may
 free a live native reader. See [next implementation](MOVING-OUTPUT-INTEGRATION.md)
 for the component changes and distinct source/device acceptance requirements.
 This trace itself changes no upstream code and establishes no moving phone output.
