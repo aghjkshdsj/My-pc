@@ -1,6 +1,26 @@
 # Component coverage record
 
-Current build4000026 connects the new ARM Linux three-buffer producer to native
+Current build4000027 corrects display refresh classification in the fresh host
+and compiles in [prerelease23](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-23).
+Repeat installation generations of an already claimed content ticket add no
+reader and grant no release. Every flush is joined to one actual content draw
+or a bounded refresh record. All 120 draws/releases/reacquisitions remain
+required; missing/zero actual display timestamps stay incomplete.
+
+125 Python checks and native normal/sanitized source replay and receipt controls
+pass. The independently downloaded IPA/fresh source, matching host dSYM,
+four rehashed unchanged corresponding-source bundles and full dependency closure
+pass. All ten upstream framework executables and ten guest/graphics payload
+files are unchanged. This is a host correctness fix; corrected phone acceptance
+is pending. Source, device and full product milestones remain separate.
+See [build27](GPU-GATE-4000027.md) and the package-only audit
+evidence/primary/ios-content-ticket-refresh-prerelease-4000027.json.
+The mapping and table below are historical/current-component snapshots from
+build26. None of the desktop, compositor/WSI, Valve ARM Steam/FEX/Proton,
+audio/controllers/storage/network/downloads/overlays/plugins or startup/game/
+sustained-performance rows becomes complete through this correction.
+
+Historical build4000026 connects the new ARM Linux three-buffer producer to native
 reader completion and explicit guest reacquisition. It is compiled and packaged
 in [prerelease22](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-22).
 The public IPA, exact host dSYM, complete new guest corresponding source and

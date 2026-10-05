@@ -1,0 +1,258 @@
+{
+  "schema": 1,
+  "scope": "independent-public-content-ticket-refresh-package-audit",
+  "build": "4000027",
+  "source_commit": "73f699a9cbb537b83b59192bd5b1a78c4e5dae40",
+  "workflow_run": 37261555174,
+  "workflow_conclusion": "success",
+  "release_url": "https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-23",
+  "package": {
+    "schema": 1,
+    "kind": "ios-linux-kernel-gate",
+    "commit": "73f699a9cbb537b83b59192bd5b1a78c4e5dae40",
+    "build": "4000027",
+    "bundle_id": "com.aghjkshdsj.mypc.steamos.probe",
+    "sha256": "316ddc7a81ef392c1bbb8db5c76ae6c2332baaf2b5849fa8c37d4c5655ba3833",
+    "bytes": 24512398,
+    "zip_crc": "passed",
+    "arm64_ios": true,
+    "linux_gate_bundled": true,
+    "native_vulkan_bundled": true,
+    "guest_gpu_bundled": true,
+    "engine_frameworks_checked": [
+      "Payload/MyPCSteamOSProbe.app/Frameworks/pixman-1.0.framework/pixman-1.0",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/MoltenVK.framework/MoltenVK",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/GLESv2.framework/GLESv2",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/glib-2.0.0.framework/glib-2.0.0",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/epoxy.0.framework/epoxy.0",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/intl.8.framework/intl.8",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/iconv.2.framework/iconv.2",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/EGL.framework/EGL",
+      "Payload/MyPCSteamOSProbe.app/Frameworks/virglrenderer.1.framework/virglrenderer.1"
+    ],
+    "linux_boot_verified": false,
+    "game_graphics_verified": false,
+    "phone_performance_verified": false
+  },
+  "debug_symbols": {
+    "schema": 1,
+    "scope": "exact-packaged-arm64-host-debug-symbols",
+    "source_commit": "73f699a9cbb537b83b59192bd5b1a78c4e5dae40",
+    "build": "4000027",
+    "binary_uuid": "95109112-6CAC-3032-8782-83C1EA0793F9",
+    "host_executable_sha256": "edad74aea0b8e600880e6482884b5872744a0ba1368a83cad217d10175661ad7",
+    "dwarf_bytes": 3004192,
+    "dwarf_sha256": "4b0740948d6cc9e0401f883deb8e658552a9fa54a044f74fa6f6899ecb4500d5",
+    "phone_tested": false,
+    "crash_cause_established": false,
+    "limitation": "Matching host UUID permits host symbolication. It does not establish the crash cause or provide upstream framework dSYMs."
+  },
+  "public_assets": [
+    {
+      "name": "cpu-guest-run.json",
+      "bytes": 13400,
+      "sha256": "e4c2d517a5a3e8a27c9db9d53f317c1e4768dbaa858c0023299886fe60dce8c9",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "GPU-Engine-Corresponding-Source.tar.gz",
+      "bytes": 212086434,
+      "sha256": "6ecdd1f67d84a63f927c8e9c37a6bed7c8623d863de92a219a852dd287236572",
+      "verification": "verified-unchanged-source-cache"
+    },
+    {
+      "name": "gpu-engine-run.json",
+      "bytes": 13400,
+      "sha256": "cc859eefba3f2abfb86f7e2cd1a531cccdea290747d84030718d823813b0836f",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "gpu-guest-run.json",
+      "bytes": 13449,
+      "sha256": "bd0a0ed632208dde5b87fe85f618f97ad7c2b58a896ea3b0451b952d50b5e714",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "Guest-GPU-Corresponding-Source.tar.gz",
+      "bytes": 381210219,
+      "sha256": "55a6e15f6db3edce2c3ef1e5be5c2b608d5d8a3638d493ff3ef33274ced69952",
+      "verification": "verified-unchanged-source-cache"
+    },
+    {
+      "name": "Host-Debug-Symbols.tar.gz",
+      "bytes": 1089271,
+      "sha256": "b8e49b88c2dce2d5a3d5457233c2ad0b6e0bbffbb095caaddc3ff72555a24c24",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "host-symbols.json",
+      "bytes": 624,
+      "sha256": "c494d62858f4b5c101781bc107c729636e1ae42ccc771ec5cfd50306c4c292fd",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "Linux-Gate-Corresponding-Source.tar.gz",
+      "bytes": 151293901,
+      "sha256": "751f9beb8b37146b8a04854cb7519377e83ccb96022647b0892c7bfe50ed0546",
+      "verification": "verified-unchanged-source-cache"
+    },
+    {
+      "name": "molten-run.json",
+      "bytes": 13476,
+      "sha256": "7984887d3756d680a4db47fe115fea59f5f092c256cf359c2b3a8080d171bf17",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "MoltenVK-Corresponding-Source.tar.gz",
+      "bytes": 11117319,
+      "sha256": "9577d3a782917c1da25e179de5f720ab947db89afe7c81fc978bba0d0c9a4f6f",
+      "verification": "verified-unchanged-source-cache"
+    },
+    {
+      "name": "MyPCSteamOS-Fresh-Source.tar.gz",
+      "bytes": 695721,
+      "sha256": "23fb1075a9e29b64a1ff9947667f841f883f342564e460bbefdad3420ed97690",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "MyPCSteamOS-Guest-GPU-Gate.ipa",
+      "bytes": 24512398,
+      "sha256": "316ddc7a81ef392c1bbb8db5c76ae6c2332baaf2b5849fa8c37d4c5655ba3833",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "release-channel-run.json",
+      "bytes": 13429,
+      "sha256": "99f579d4d2f3d70cc0fa3aa040b73b7696b0dc3ca608288f777278bcd024b8f6",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 1301,
+      "sha256": "9b4fd3824292be088a3b14eca3fa7d1c84690d49a150493023630a9804c7fed5",
+      "verification": "independently-downloaded-and-verified"
+    },
+    {
+      "name": "verification.json",
+      "bytes": 1337,
+      "sha256": "0e9ba82b7a26c9b9e02e2b61d9ffbc948c1a9f9598708d7c628c91301779d11b",
+      "verification": "independently-downloaded-and-verified"
+    }
+  ],
+  "published_checksum_entries_verified": 14,
+  "source_matches": [
+    {
+      "path": "steamos-ios/Engine/MovingFrameRefresh.h",
+      "archived_sha256": "e31749ffa970bf68def22e92e061ed97a6bcd8739ec886ed600832376152e517",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/Host/MovingFrameTransport.mm",
+      "archived_sha256": "138923c5e859963a013184ab68bfcbdc019f892a051f307fa0225c68d48a8621",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/Host/MovingFrameReceipt.mm",
+      "archived_sha256": "2bc5b63998c449e8b4701f31e77a6d1cbd3d00a3b41e59c4c131f079a801625b",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/tests/MovingFrameRefreshTests.cpp",
+      "archived_sha256": "66a4efce89ad06f2d3cb72bb9434dfa11dbd67de6591152653e1dfa117bd7a90",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/tests/MovingFrameReceiptTests.mm",
+      "archived_sha256": "c74f2a5bf2d3c1ccf1f61ff3789256fa0c0a5ef816a8830886122823ab77ac46",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/tests/moving_fixture.py",
+      "archived_sha256": "b1f9aa8138d339f225195a09c27a7ce85fb76b630eafcd4a9ed03c5d5dde6326",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/tests/test_guest_moving.py",
+      "archived_sha256": "fde83b0a30dbe65cd7e013677b6a0466b50e817db70186c9cf9bd87ddd2d49d0",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/tools/verify_guest_moving_output.py",
+      "archived_sha256": "3124a41d34e86624b7d1590bbb83150132ac95c0ccbc55ad319b9e4889590fb6",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/tools/verify_guest_gpu_report.py",
+      "archived_sha256": "e9265714471a9340c0f4185258785b0ff385317e2a31899489a3b59849cfb9f5",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/tools/bundle_guest_gpu.py",
+      "archived_sha256": "5d8688e37555d807ab0e64c137dc86b57749dd644dbbcbb9d24066d305606ccd",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/tools/verify_ipa.py",
+      "archived_sha256": "48df274fcfda7902e0d59c97f1d7cfe036e22f3c380b3df6e0e6262d221292a7",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": ".github/workflows/steamos-ios-guest-gpu-prerelease.yml",
+      "archived_sha256": "52a0f6c49472dbad053be2d588a8680ae6c03a05db9910a8dab43674e485d294",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    },
+    {
+      "path": "steamos-ios/docs/GPU-GATE-4000027.md",
+      "archived_sha256": "3411f1b5b55e56f32fa8fa4e50bba5e25dd6e15d70a819b49139a8acf55c0e7d",
+      "comparison": "UTF-8 text, CRLF normalized to LF"
+    }
+  ],
+  "unchanged_packaged_components": [
+    "Frameworks/pixman-1.0.framework/pixman-1.0",
+    "Frameworks/MoltenVK.framework/MoltenVK",
+    "Frameworks/GLESv2.framework/GLESv2",
+    "Frameworks/qemu-aarch64-softmmu.framework/qemu-aarch64-softmmu",
+    "Frameworks/glib-2.0.0.framework/glib-2.0.0",
+    "Frameworks/epoxy.0.framework/epoxy.0",
+    "Frameworks/intl.8.framework/intl.8",
+    "Frameworks/iconv.2.framework/iconv.2",
+    "Frameworks/EGL.framework/EGL",
+    "Frameworks/virglrenderer.1.framework/virglrenderer.1",
+    "LinuxGate/Image",
+    "LinuxGate/initramfs.cpio.gz",
+    "LinuxGate/payload-receipt.json",
+    "LinuxGuestGPU/Image",
+    "LinuxGuestGPU/initramfs.cpio.gz",
+    "LinuxGuestGPU/payload-receipt.json",
+    "LinuxGuestGPU/engine-bundle.json",
+    "NativeVulkan/payload-receipt.json",
+    "NativeVulkan/vertex.spv",
+    "NativeVulkan/fragment.spv"
+  ],
+  "corresponding_source": "Four exact unchanged source archives rehashed against public metadata and the prior independent audit. Fresh host source independently downloaded with 13 changed selections compared. No new semantic audit of all unchanged upstream source.",
+  "source_contract": "Repeat installation/flush of already claimed content submits no reader and issues no release. Each real content ticket still requires native GPU terminal completion and guest reacquisition before reuse. All display events are preserved and every flush is classified.",
+  "hosted_tests": {
+    "python": 125,
+    "native_source_refresh_replay": true,
+    "native_receipt_without_refresh": true,
+    "native_receipt_with120_reinstallations": true,
+    "optimized_and_address_undefined_sanitizers_passed": true,
+    "frame_lease_content_reuses": 100000,
+    "native_refresh_checks_per_execution": 28,
+    "base_moving_receipt_checks_per_execution": 59,
+    "reinstalled_moving_receipt_checks_per_execution": 70
+  },
+  "test_scope": "Source/receipt fixtures and device-target ARM64 iOS compilation. No iPhone GPU execution or corrected phone result in this package audit.",
+  "phone_tested": false,
+  "corrected_moving_output_verified": false,
+  "buffer_reuse_verified": false,
+  "presentation_verified": false,
+  "production_kms_wsi_verified": false,
+  "steam_os_verified": false,
+  "steam_arm_verified": false,
+  "gameplay_verified": false,
+  "performance_verified": false,
+  "hardware_virtualization": false,
+  "remaining": "Owner test of corrected build27 pending. Full desktop/client/game/product components and all startup/FPS/pacing/thermal targets remain unfinished."
+}

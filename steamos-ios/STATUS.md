@@ -1,5 +1,42 @@
 # Verified state and next work - 2026-10-04
 
+**[Build4000027 / content-ticket refresh correction](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-23)**
+passed device-target ARM64 iOS Release run37261555174 at compiled source
+73f699a9cbb537b83b59192bd5b1a78c4e5dae40. The host now distinguishes a
+display reinstallation/refresh of already claimed content from a new armed
+ticket. Refreshes create no GPU reader and issue no release. Actual Metal
+completion and guest Vulkan reacquisition remain required before source reuse.
+Every installation/flush/disable stays in the bounded receipt, and every flush
+must join to either its one actual draw or a recorded refresh of the last
+claimed ticket for that resource. 120 real content draws/releases/acquisitions
+and the final drained pool remain mandatory.
+
+All 125 Python tests passed. Native source replay passed 28 checks, and receipt
+controls passed 59 without additional refreshes and 70 with 120 extra reinstallations,
+in both normal and address/undefined-behavior-sanitized executions. The ownership
+table still passes 1,100,086 checks and 100,000 content reuses per execution.
+These are source/receipt tests, not execution of the corrected gate on a phone.
+
+Eleven public assets were independently downloaded; all four unchanged
+corresponding-source archives were rehashed from earlier independently verified
+downloads. All 14 published checksum entries, 13 selected fresh-source matches,
+the exact bundle and matching host dSYM passed. IPA: 24,512,398 bytes, SHA256
+316ddc7a81ef392c1bbb8db5c76ae6c2332baaf2b5849fa8c37d4c5655ba3833.
+Host UUID: 95109112-6CAC-3032-8782-83C1EA0793F9. All ten native framework
+executables and ten guest/graphics payload metadata/files are byte-identical
+to build26. The fresh host and validation changed; upstream engines/guest did not.
+
+Corrected phone acceptance is pending. Install linked build27, relaunch, enable
+JIT/pass the ARM64 check, then choose **Show changing Linux frames** and
+**Start moving-frame test** as the first Linux boot in that process. Keep
+foreground without rotating until finished and share the report/saved logs.
+See [build27 gate](docs/GPU-GATE-4000027.md) and package-only audit
+evidence/primary/ios-content-ticket-refresh-prerelease-4000027.json.
+Private owner attempts remain in the local coverage record. The full SteamOS,
+ARM Steam/FEX/Proton, desktop/compositor/WSI/product and all performance rows
+remain unfinished. QEMU TCG remains software system emulation. Entries below
+are historical package checkpoints; they do not override current device verdicts.
+
 **[Build4000026 / 120 changing Linux frames](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-guest-gpu-gate-22)**
 passed device-target ARM64 iOS Release run37251790340 at compiled source
 b62ad0a5ee279b283d0986cb9a64b6d171516333. The final public IPA and thirteen
