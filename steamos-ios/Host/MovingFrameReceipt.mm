@@ -166,7 +166,7 @@ NSDictionary *MPCValidateMovingFrames(NSString *serial, NSString *nonce, NSDicti
             [draw[@"drawable_presented"] isEqual:@YES] && ![draw[@"presentation_aborted"] boolValue] &&
             [draw[@"presents_with_transaction"] isEqual:@YES] && [draw[@"presentation_on_main_thread"] isEqual:@YES] &&
             [draw[@"presentation_application_state"] isEqual:@0] && [draw[@"presentation_call_completed"] isEqual:@YES] &&
-            [draw[@"drawable_id"] unsignedLongLongValue] &&
+            [draw[@"drawable_id"] isKindOfClass:NSNumber.class] && [draw[@"drawable_id"] longLongValue] >= 0 &&
             [release[@"serial"] isEqual:serialID] && [release[@"incarnation"] isEqual:@1] && [release[@"resource_id"] isEqual:r] &&
             [release[@"release"] isEqual:serialID] && [release[@"status"] isEqual:@4] && [release[@"has_error"] isEqual:@NO] &&
             [release[@"wire_sent"] isEqual:@YES] && [release[@"actual_gpu_terminal_callback"] isEqual:@YES] &&

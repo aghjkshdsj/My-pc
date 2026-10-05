@@ -17,20 +17,21 @@ from verify_ipa import verify as verify_ipa
 from verify_guest_metal_trace import validate as validate_metal_trace
 
 
-def validate(report, commit, build, payload, bundle, ios, machine=None, serial=None, image_import=False, image_control_only=False, screen_presentation=False, screen_controls_only=False, frame_sequence=False):
-    require(not frame_sequence or (build in ('4000023', '4000024', '4000025') and not any((image_import, image_control_only, screen_presentation, screen_controls_only))), 'Eight-frame mode is separate and build23/24/25-only')
+def validate(report, commit, build, payload, bundle, ios, machine=None, serial=None, image_import=False, image_control_only=False, screen_presentation=False, screen_controls_only=False, frame_sequence=False, moving_output=False):
+    require(not moving_output or (build == '4000026' and not any((image_import, image_control_only, screen_presentation, screen_controls_only, frame_sequence))), 'Moving mode requires its separate build26 gate')
+    require(not frame_sequence or (build in ('4000023', '4000024', '4000025', '4000026') and not any((image_import, image_control_only, screen_presentation, screen_controls_only))), 'Eight-frame mode is separate and build23/24/25-only')
     require(not screen_controls_only or (build in ('4000021', '4000022') and not screen_presentation and not image_control_only),
             'Failed-screen progress is supported for the original build21/build22 failures')
     require(not (screen_presentation and image_control_only), 'Screen and failed-image controls cannot be combined')
     image_import = image_import or screen_presentation or screen_controls_only
     require(not (image_import and image_control_only), 'Choose import acceptance or failed-image controls')
     image_gate = image_import or image_control_only
-    test_key = "linux_frames" if frame_sequence else "linux_screen" if screen_presentation or screen_controls_only else "linux_image" if image_gate else "linux_gpu"
+    test_key = "linux_moving" if moving_output else "linux_frames" if frame_sequence else "linux_screen" if screen_presentation or screen_controls_only else "linux_image" if image_gate else "linux_gpu"
     require(report.get('schema') == 1 and report.get('scope') == 'physical-ios-host-probe', 'Expected a phone report')
     require(report.get('source_commit') == commit and report.get('build') == build, 'Wrong IPA source/build')
     require(report.get('executed_tests') == [test_key], 'The guest GPU gate was not freshly executed')
     gate = report.get('tests', {}).get(test_key, {})
-    require(gate.get('schema') == 1 and gate.get('scope') == ('physical-ios-linux-guest-eight-frame-gate' if frame_sequence else 'physical-ios-linux-guest-image-gate' if image_gate else 'physical-ios-linux-guest-vulkan-gate'), 'Wrong gate scope')
+    require(gate.get('schema') == 1 and gate.get('scope') == ('physical-ios-linux-three-buffer-moving-gate' if moving_output else 'physical-ios-linux-guest-eight-frame-gate' if frame_sequence else 'physical-ios-linux-guest-image-gate' if image_gate else 'physical-ios-linux-guest-vulkan-gate'), 'Wrong gate scope')
     require(gate.get('source_commit') == commit and gate.get('payload') == payload and gate.get('engine_bundle') == bundle,
             'Guest/engine provenance differs from the verified IPA')
     require(gate.get('engine_text_sections_verified') is True and
@@ -38,17 +39,17 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     require(gate.get('status') == ('failed' if image_control_only or screen_controls_only else 'passed') and gate.get('linux_execution') is True and
             gate.get('engine_finished') is True and type(gate.get('engine_status')) is int and gate['engine_status'] == 0,
             'Linux engine/guest did not complete')
-    if build in ('4000024', '4000025'):
+    if build in ('4000024', '4000025', '4000026'):
         require(gate.get('engine_worker_joined') is True, 'Engine worker was not joined before finalization')
-    if build == '4000025':
+    if build in ('4000025', '4000026'):
         require(gate.get('engine_init_thread_rcu_unregistered') is True, 'QEMU init-thread registration was not retired before thread exit')
     require(gate.get('engine') == 'qemu-10.0.12-utm-aarch64-tcg' and
             gate.get('hardware_virtualization') is False and gate.get('steamos') is False, 'Wrong execution scope')
     require(gate.get('guest_gpu_device_requested') is True and gate.get('guest_gpu_host_visible_mib') == 128 and
             gate.get('requested_jit_cache_mib') == 32 and gate.get('split_wx_requested') is True, 'Wrong GPU/JIT configuration')
-    if build in ('4000012', '4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025'):
+    if build in ('4000012', '4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         require(gate.get('display_backend_registered') is True, 'No observed built-in display backend registration')
-    if build in ('4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025'):
+    if build in ('4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         require(gate.get('host_private_file_directory_prepared') is True,
                 'No observed preparation of the app-private renderer namespace')
     device = gate.get('device', {})
@@ -103,7 +104,7 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
     for key in ('fresh_guest_vulkan_nonce_bound', 'graphics_kernel_device_detected', 'guest_vulkan_pixels_verified', 'graphics_tested'):
         require(gate.get(key) is True, 'Parsed GPU acceptance disagrees: ' + key)
     native_metal = False
-    if build in ('4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025'):
+    if build in ('4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         require(gate.get('host_metal_completion_observer_requested') is True, 'Native guest observer was not requested')
         validate_metal_trace(gate.get('native_metal_trace'), nonce, device.get('metal_device'))
         require(gate.get('metal_host_verified') is True, 'Native completion and parsed result disagree')
@@ -182,15 +183,26 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
         require(acceptance_flag(report, 'linux_guest_two_image_screen_presentation') is False and
                 acceptance_flag(report, 'linux_guest_eight_frame_display_timing') is frame_progress['presentation_verified'], 'Wrong display timing acceptance')
         image_verified = True
-    for key in (('gameplay_verified',) if frame_sequence else ('gameplay_verified',) if screen_presentation else ('presentation_verified', 'gameplay_verified') if image_import else ('host_memory_import_verified', 'presentation_verified', 'gameplay_verified')):
+    moving_progress = None
+    if moving_output:
+        from verify_guest_moving_output import validate as validate_moving
+        require(gate.get('moving_frames_requested') is True and gate.get('buffer_reuse_verified') is True and
+                gate.get('host_memory_import_verified') is True, 'Moving reuse acceptance missing')
+        moving_progress = validate_moving(gate.get('moving_output'), text, nonce)
+        require(gate.get('presentation_verified') is moving_progress['presentation_verified'], 'Moving display verdict differs')
+        require(acceptance_flag(report, 'linux_guest_three_buffer_reuse') is True and
+                acceptance_flag(report, 'linux_guest_image_import') is True and
+                acceptance_flag(report, 'linux_guest_moving_display_timing') is moving_progress['presentation_verified'], 'Exported moving verdict differs')
+        image_verified = True
+    for key in (('gameplay_verified',) if moving_output else ('gameplay_verified',) if frame_sequence else ('gameplay_verified',) if screen_presentation else ('presentation_verified', 'gameplay_verified') if image_import else ('host_memory_import_verified', 'presentation_verified', 'gameplay_verified')):
         require(gate.get(key) is False, 'Guest pixels claim independent host/game proof: ' + key)
     acceptance = report.get('acceptance', {})
-    if build in ('4000021', '4000022', '4000023', '4000024', '4000025'):
+    if build in ('4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         for key in ('linux_guest_continuous_animation', 'linux_guest_frame_pacing'):
             require(acceptance.get(key) is False, 'Unsupported moving-output claim: ' + key)
     require(acceptance.get('linux_kernel_boot') is True and acceptance.get('linux_guest_vulkan_pixels') is True,
             'Exported acceptance disagrees')
-    if build in ('4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025'):
+    if build in ('4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
         require(acceptance.get('linux_guest_offscreen_metal_completion') is True, 'Exported native completion disagrees')
     for key in ('steam_arm_client', 'fex_game', 'linux_game_graphics_to_metal', 'steam_under_60_seconds',
                 'hollow_knight_60_to_80_base_fps'):
@@ -201,8 +213,8 @@ def validate(report, commit, build, payload, bundle, ios, machine=None, serial=N
             'execution': 'qemu-tcg-software-system-emulation', 'pixels_checked': draw['pixels_checked'],
             'gate_elapsed_ms': gate['elapsed_ms'], 'validation_layer_observed': draw.get('validation_enabled', False),
             'hardware_virtualization_verified': False, 'metal_host_verified': native_metal,
-            'host_memory_import_verified': image_verified, 'presentation_verified': frame_progress['presentation_verified'] if frame_sequence else screen_presentation,
-            'eight_frame_gpu_sequence_verified': frame_sequence, 'steamos_verified': False,
+            'host_memory_import_verified': image_verified, 'presentation_verified': moving_progress['presentation_verified'] if moving_output else frame_progress['presentation_verified'] if frame_sequence else screen_presentation,
+            'eight_frame_gpu_sequence_verified': frame_sequence, 'moving_buffer_reuse_verified': moving_output, 'steamos_verified': False,
             'failed_image_controls_only': image_control_only, 'image_rejection': rejection,
             'partial_image_progress': partial_image_progress,
             'failed_screen_controls_only': screen_controls_only, 'partial_screen_progress': partial_screen_progress,
@@ -215,8 +227,8 @@ def acceptance_flag(report, key):
     return report.get('acceptance', {}).get(key)
 
 
-def unpack_private(document, commit=None, build=None, image_import=False, screen_presentation=False, frame_sequence=False):
-    test_key = "linux_frames" if frame_sequence else "linux_screen" if screen_presentation else "linux_image" if image_import else "linux_gpu"
+def unpack_private(document, commit=None, build=None, image_import=False, screen_presentation=False, frame_sequence=False, moving_output=False):
+    test_key = "linux_moving" if moving_output else "linux_frames" if frame_sequence else "linux_screen" if screen_presentation else "linux_image" if image_import else "linux_gpu"
     if document.get('scope') == 'physical-ios-host-probe':
         return document, None
     require(document.get('scope') == 'private-ios-interrupted-probe-diagnostics', 'Unknown private export scope')
@@ -254,6 +266,7 @@ if __name__ == '__main__':
     parser.add_argument('--serial', type=pathlib.Path, help='Complete saved serial for the exact nonce; large frame reports may have a bounded tail')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--frame-sequence', action='store_true')
+    mode.add_argument('--moving-output', action='store_true')
     mode.add_argument('--image-import', action='store_true')
     mode.add_argument('--screen-presentation', action='store_true')
     mode.add_argument('--screen-controls-only', action='store_true', help='Check preserved build21/build22 GPU/import work in a failed screen report; never accept display timing')
@@ -270,11 +283,11 @@ if __name__ == '__main__':
         require(document.get('scope') == 'physical-ios-host-probe', 'Failed-image control mode requires a normal complete report')
         report, serial = document, None
     else:
-        report, serial = unpack_private(document, args.commit, package['build'], args.image_import, args.screen_presentation, args.frame_sequence)
+        report, serial = unpack_private(document, args.commit, package['build'], args.image_import, args.screen_presentation, args.frame_sequence, args.moving_output)
     if args.serial:
         serial = args.serial.read_text(encoding='utf-8-sig')
     result = validate(report, args.commit, package['build'], payload, bundle, args.ios_version, args.machine, serial,
-                      args.image_import, args.image_control_only, args.screen_presentation, args.screen_controls_only, args.frame_sequence)
+                      args.image_import, args.image_control_only, args.screen_presentation, args.screen_controls_only, args.frame_sequence, args.moving_output)
     result['report_sha256'] = hashlib.file_digest(args.report.open('rb'), 'sha256').hexdigest()
     result['verified_ipa_sha256'] = package['sha256']
     print(json.dumps(result, indent=2))

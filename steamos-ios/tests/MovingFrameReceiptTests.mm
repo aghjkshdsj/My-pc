@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
         bad = clone(f); bad[@"serial"] = [bad[@"serial"] stringByReplacingOccurrencesOfString:@"MPC_MOVE_GUEST_EXIT=0" withString:@"MPC_MOVE_GUEST_EXIT=99"];
         check(![validate(bad)[@"buffer_reuse_verified"] boolValue]);
         bad = clone(f);
-        for (NSUInteger i = 0; i < 120; ++i) bad[@"screen"][@"frames"][i][@"drawable_id"] = @(1 + i % 2);
+        for (NSUInteger i = 0; i < 120; ++i) bad[@"screen"][@"frames"][i][@"drawable_id"] = @(i % 2);
         check([validate(bad)[@"buffer_reuse_verified"] boolValue]);
         printf("MOVING_RECEIPT_TESTS_PASSED checks=%u scope=synthetic-rejection-only gpu_verified=0\n",checks);
     }

@@ -91,7 +91,7 @@ def validate(receipt,serial,nonce):
             consumer_error=False,completion_join_retired=True,drawable_presented=True,presents_with_transaction=True,
             presentation_on_main_thread=True,presentation_application_state=0,presentation_call_completed=True),'Incomplete screen draw')
         require('error' not in image and 'error' not in draw and draw.get('presentation_aborted') is not True,'Screen error')
-        require(type(draw['drawable_id']) is int and draw['drawable_id']>0,'Missing drawable identity')
+        require(type(draw['drawable_id']) is int and draw['drawable_id']>=0,'Missing drawable identity')
         drawable_ids.add(draw['drawable_id'])
         start,end=draw['gpu_start_seconds'],draw['gpu_end_seconds']
         require(all(type(v) in (int,float) and math.isfinite(v) for v in (start,end)) and 0<start<=end,'Invalid screen GPU timing')
