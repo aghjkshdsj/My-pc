@@ -97,10 +97,17 @@ jobs:
       - name: Exercise moving-frame ownership and receipt rejection
         run: |
           python3 steamos-ios/tests/moving_fixture.py /tmp/mpc-moving-fixture.json
+          python3 steamos-ios/tests/moving_fixture.py /tmp/mpc-moving-refresh-fixture.json --refreshes
           clang++ -std=c++17 -fobjc-arc -framework Foundation -Isteamos-ios/Host steamos-ios/Host/MovingFrameReceipt.mm steamos-ios/tests/MovingFrameReceiptTests.mm -o /tmp/mpc-moving-receipt-tests
           /tmp/mpc-moving-receipt-tests /tmp/mpc-moving-fixture.json
+          /tmp/mpc-moving-receipt-tests /tmp/mpc-moving-refresh-fixture.json
           clang++ -std=c++17 -O1 -g -fobjc-arc -fsanitize=address,undefined -fno-omit-frame-pointer -framework Foundation -Isteamos-ios/Host steamos-ios/Host/MovingFrameReceipt.mm steamos-ios/tests/MovingFrameReceiptTests.mm -o /tmp/mpc-moving-receipt-sanitized
           /tmp/mpc-moving-receipt-sanitized /tmp/mpc-moving-fixture.json
+          /tmp/mpc-moving-receipt-sanitized /tmp/mpc-moving-refresh-fixture.json
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror steamos-ios/tests/MovingFrameRefreshTests.cpp -o /tmp/mpc-refresh-tests
+          /tmp/mpc-refresh-tests
+          clang++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer steamos-ios/tests/MovingFrameRefreshTests.cpp -o /tmp/mpc-refresh-sanitized
+          /tmp/mpc-refresh-sanitized
           clang++ -std=c++17 -O2 -Wall -Wextra -Werror steamos-ios/tests/FrameLeaseLedgerTests.cpp -o /tmp/mpc-moving-lease-tests
           /tmp/mpc-moving-lease-tests
           clang++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer steamos-ios/tests/FrameLeaseLedgerTests.cpp -o /tmp/mpc-moving-lease-sanitized
@@ -142,8 +149,8 @@ jobs:
           (app/'UPSTREAM-NOTICES.txt').write_text('QEMU/Linux/BusyBox GPL; glibc LGPL; GCC runtime exceptions; ANGLE BSD and per-file licenses; virgl/epoxy/Mesa MIT and per-file licenses; MoltenVK/Vulkan loader Apache-2.0 and dependency licenses. Exact originals, patches, build configuration, package copyright notices and corresponding source accompany this prerelease. The fresh host MIT license does not replace upstream licenses. No Valve client or game content is distributed.\n')
           PY
           (cd steamos-ios/out/package && zip -qr MyPCSteamOS-Guest-GPU-Gate.ipa Payload)
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000026 --receipt steamos-ios/out/package/verification.json
-          python3 steamos-ios/tools/verify_host_symbols.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/xcode/Build/Products/Release-iphoneos/MyPCSteamOSProbe.app.dSYM/Contents/Resources/DWARF/MyPCSteamOSProbe "$GITHUB_SHA" 4000026 --receipt steamos-ios/out/package/host-symbols.json
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000027 --receipt steamos-ios/out/package/verification.json
+          python3 steamos-ios/tools/verify_host_symbols.py steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/xcode/Build/Products/Release-iphoneos/MyPCSteamOSProbe.app.dSYM/Contents/Resources/DWARF/MyPCSteamOSProbe "$GITHUB_SHA" 4000027 --receipt steamos-ios/out/package/host-symbols.json
           tar -czf steamos-ios/out/package/Host-Debug-Symbols.tar.gz -C steamos-ios/out/xcode/Build/Products/Release-iphoneos MyPCSteamOSProbe.app.dSYM
           cp steamos-ios/out/gpu-engine-artifact/GPU-Engine-Corresponding-Source.tar.gz steamos-ios/out/package/
           cp steamos-ios/out/gpu-guest-artifact/Guest-GPU-Corresponding-Source.tar.gz steamos-ios/out/package/
@@ -158,7 +165,9 @@ jobs:
         run: |
           tag="steamos-ios-guest-gpu-gate-${GITHUB_RUN_NUMBER}"
           cat > steamos-ios/out/package/release-notes.md <<'EOF'
-          Build 4000026 adds a material new Linux moving-output gate: 120 changing Vulkan frames at 1280x720 across exactly three reused exported buffers. The first/last Linux and native readbacks check actual endpoint content. Ordinary frames have no full-image CPU readback and no artificial dwell. Native Metal samples the imported guest texture directly into the real screen drawable.
+          Build 4000027 corrects a host display-refresh classification bug in build26. A new installation generation can refresh an already consumed content ticket. These refreshes now submit no extra reader, issue no release and stay in complete event evidence. All 120 actual content draws/releases/reacquisitions remain required. Native optimized/sanitized replay and receipt controls cover additional installations and reject stale tickets, early reuse, hidden readers/releases and incomplete event coverage. Phone acceptance is pending.
+
+          This retains the material Linux moving-output gate: 120 changing Vulkan frames at 1280x720 across exactly three reused exported buffers. The first/last Linux and native readbacks check actual endpoint content. Ordinary frames have no full-image CPU readback and no artificial dwell. Native Metal samples the imported guest texture directly into the real screen drawable.
 
           A fresh bounded local socketpair carries Linux UART control receipts and fixed-size, session/resource/incarnation/content-bound binary replies. Actual native GPU terminal callbacks enqueue results on a dedicated transport executor before releasing a source. Linux then completes a separate external-queue ownership reacquisition and fence wait before reusing the corresponding allocation. A CPU timeout cannot grant reuse. This explicit diagnostic protocol exercises the current Linux/QEMU/Venus/virgl/MoltenVK/Metal architecture. It is not yet integrated into production KMS/Wayland/WSI or an ordinary compositor.
 
@@ -174,7 +183,7 @@ jobs:
           mkdir steamos-ios/out/redownload-guest-gpu
           gh release download "$tag" --dir steamos-ios/out/redownload-guest-gpu --pattern MyPCSteamOS-Guest-GPU-Gate.ipa
           cmp steamos-ios/out/package/MyPCSteamOS-Guest-GPU-Gate.ipa steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa
-          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000026
+          python3 steamos-ios/tools/verify_ipa.py steamos-ios/out/redownload-guest-gpu/MyPCSteamOS-Guest-GPU-Gate.ipa "$GITHUB_SHA" --linux-gate --native-vulkan --guest-gpu --build 4000027
           gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()

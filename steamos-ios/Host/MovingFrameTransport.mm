@@ -7,6 +7,7 @@
 #include "../Engine/FrameLeaseLedger.h"
 #include "../Engine/FrameReleaseWire.h"
 #include "../Engine/MovingFrameContract.h"
+#include "../Engine/MovingFrameRefresh.h"
 #include "GuestFrameBudget.h"
 #include <atomic>
 #include <dlfcn.h>
@@ -27,7 +28,7 @@
 }
 @property(nonatomic, strong) dispatch_queue_t executor;
 @property(nonatomic, strong) id<MTLCommandQueue> queue;
-@property(nonatomic, strong) NSMutableArray *buffers, *offers, *releases, *acquires, *images, *events;
+@property(nonatomic, strong) NSMutableArray *buffers, *offers, *releases, *acquires, *images, *events, *refreshes;
 @property(nonatomic, copy) NSString *nonce;
 @property(nonatomic) int hostFD, engineFD, logFD;
 @property(nonatomic) uint64_t registry, sequence, generation, activeResource, nextFence;
@@ -114,7 +115,7 @@ static void control(MPCMovingContext *c, NSDictionary *row) {
             fault(c, @"registration-layout"); return;
         }
         NSMutableDictionary *buffer = [row mutableCopy];
-        buffer[@"last_generation"] = @0; buffer[@"serial"] = @0; buffer[@"release"] = @0;
+        buffer[@"last_generation"] = @0; buffer[@"last_consumed_serial"] = @0; buffer[@"serial"] = @0; buffer[@"release"] = @0;
         [c.buffers addObject:buffer];
         reply(c, MPC_RELEASE_REGISTERED, {c->session, 0, 1, resource}, 0, 0); return;
     }
@@ -188,6 +189,7 @@ static NSDictionary *consume(MPCMovingContext *c, const MPCNativeScanoutEvent *e
     auto ticket = ticketFor(c, offer);
     NSMutableDictionary *image = [@{@"serial": @(ticket.serial), @"incarnation": @(ticket.incarnation),
         @"resource_id": @(event->resource_id), @"generation": @(event->generation), @"phase": @(phase),
+        @"flush_sequence": @(event->sequence),
         @"width": @1280, @"height": @720, @"row_pitch": @(event->stride), @"offset": @(event->offset),
         @"backing_bytes": @(backing.length), @"linear_alignment": @(alignment),
         @"native_pixel_format": @(texture.pixelFormat), @"native_registry_id": @(texture.device.registryID),
@@ -298,13 +300,28 @@ static void scanout(void *opaque, const MPCNativeScanoutEvent *event) {
             if (event->kind != MPC_SCANOUT_FLUSH || !c.active || event->resource_id != c.activeResource || event->generation != c.generation) {
                 fault(c, @"flush-identity"); return;
             }
-            if ([buffer[@"last_generation"] unsignedLongLongValue] == event->generation) { c.repeatedFlushes++; return; }
-            if (c.finished || !c.offers.count) { fault(c, @"flush-without-offer"); return; }
             NSMutableDictionary *candidate = c.offers.lastObject;
-            if (![candidate[@"resource_id"] isEqual:@(event->resource_id)] || [candidate[@"native_consumed"] boolValue] ||
-                c->ledger->state(event->resource_id) != mpc::LeaseState::Ready) { fault(c, @"flush-not-armed"); return; }
+            auto resourceTicket = ticketFor(c, buffer);
+            auto state = c->ledger->state(event->resource_id);
+            auto decision = mpc::classifyMovingFlush(c->session, resourceTicket, ticketFor(c, candidate),
+                [buffer[@"last_consumed_serial"] unsignedLongLongValue], state);
+            if (decision == mpc::MovingFlushDecision::RefreshOnly) {
+                // Even a new installation generation can refresh already claimed
+                // content. Preserve the event; submit no reader and issue no release.
+                if ([buffer[@"last_generation"] unsignedLongLongValue] == event->generation) c.repeatedFlushes++;
+                [c.refreshes addObject:@{@"event_sequence": @(event->sequence), @"generation": @(event->generation),
+                    @"resource_id": @(event->resource_id), @"serial": @(resourceTicket.serial),
+                    @"incarnation": @(resourceTicket.incarnation), @"lease_state": @((unsigned)state),
+                    @"native_reads_added": @0, @"releases_added": @0}];
+                MPCDiagnosticStage(@"linux-moving-refresh-without-new-reader", @{@"resource_id": @(event->resource_id),
+                    @"serial": @(resourceTicket.serial), @"generation": @(event->generation)});
+                return;
+            }
+            if (decision != mpc::MovingFlushDecision::Consume || c.finished || [candidate[@"native_consumed"] boolValue] ||
+                event->generation <= [buffer[@"last_generation"] unsignedLongLongValue]) { fault(c, @"flush-not-armed"); return; }
             candidate[@"native_consumed"] = @YES; candidate[@"generation"] = @(event->generation);
-            buffer[@"last_generation"] = @(event->generation); offer = candidate;
+            candidate[@"flush_sequence"] = @(event->sequence);
+            buffer[@"last_generation"] = @(event->generation); buffer[@"last_consumed_serial"] = @(resourceTicket.serial); offer = candidate;
         });
         if (!offer) return;
         NSDictionary *image = consume(c, event, offer);
@@ -328,7 +345,7 @@ BOOL MPCMovingTransportBegin(NSString *nonce, void *engine, NSString *serialPath
     c.executor = dispatch_queue_create("com.mypc.linux-moving-release", DISPATCH_QUEUE_SERIAL);
     c.queue = [MTLCreateSystemDefaultDevice() newCommandQueue];
     c.buffers = [NSMutableArray array]; c.offers = [NSMutableArray array]; c.releases = [NSMutableArray array];
-    c.acquires = [NSMutableArray array]; c.images = [NSMutableArray array]; c.events = [NSMutableArray array];
+    c.acquires = [NSMutableArray array]; c.images = [NSMutableArray array]; c.events = [NSMutableArray array]; c.refreshes = [NSMutableArray array];
     int pair[2];
     if (!c.registry || !c.queue || socketpair(AF_UNIX, SOCK_STREAM, 0, pair)) goto failed;
     c.hostFD = pair[0]; c.engineFD = pair[1];
@@ -413,6 +430,7 @@ NSDictionary *MPCMovingTransportFinish(NSString *serial, BOOL engineFinished, BO
         native = @{@"schema": @1, @"scope": @"native-explicit-linux-moving-release", @"run": c.nonce,
             @"registry_id": @(c.registry), @"buffers": buffers, @"offers": offers, @"releases": [c.releases copy],
             @"reacquisitions": [c.acquires copy], @"images": images, @"events": [c.events copy],
+            @"refreshes": [c.refreshes copy], @"refresh_flushes_skipped": @(c.refreshes.count), @"refresh_contract": @1,
             @"errors": @(c.errors), @"finished": @(c.finished), @"active": @(c.active),
             @"ledger_drained": @(c->ledger->drained()), @"ledger_faulted": @(c->ledger->faulted()),
             @"pending_consumers": @(c->ledger->consumers()), @"reader_joined": @(c.readerJoined),

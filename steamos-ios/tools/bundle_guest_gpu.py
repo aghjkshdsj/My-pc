@@ -11,6 +11,7 @@ from verify_ipa import macho_platform, macho_text
 
 ENGINE_PINS = {
     '4000026': (37244178261, 'e31b9fcc6609b8ab50f8d6f72acd7cf9f1124300'),
+    '4000027': (37244178261, 'e31b9fcc6609b8ab50f8d6f72acd7cf9f1124300'),
     '4000025': (37244178261, 'e31b9fcc6609b8ab50f8d6f72acd7cf9f1124300'),
     '4000024': (37215070827, '6b6e268bffdce59d2d15b319abdee46eaa4b8cee'),
     '4000023': (37215070827, '6b6e268bffdce59d2d15b319abdee46eaa4b8cee'),
@@ -29,6 +30,7 @@ ENGINE_PINS = {
 }
 GUEST_PINS = {
     '4000026': (37249739205, 'c17f369ff17df6337a77dc90e6780232a2f859ec'),
+    '4000027': (37249739205, 'c17f369ff17df6337a77dc90e6780232a2f859ec'),
     '4000025': (37233435975, '8759ffe84d360ca61e0d7de7b2f3347682916cde'),
     '4000024': (37233435975, '8759ffe84d360ca61e0d7de7b2f3347682916cde'),
     '4000023': (37233435975, '8759ffe84d360ca61e0d7de7b2f3347682916cde'),
@@ -45,7 +47,7 @@ GUEST_PINS = {
     '4000020': (37222125501, '453a1d1f19c04b5d49328f135db32257a22d8f30'),
     '4000019': (37222125501, '453a1d1f19c04b5d49328f135db32257a22d8f30'),
 }
-BUNDLE_BUILD = '4000026'
+BUNDLE_BUILD = '4000027'
 ENGINE_RUN, ENGINE_SOURCE = ENGINE_PINS[BUNDLE_BUILD]
 GUEST_RUN, GUEST_SOURCE = GUEST_PINS[BUNDLE_BUILD]
 
@@ -140,11 +142,11 @@ def bundle(engine_artifact, guest_artifact, app):
     assert private_file['host_memory_import_verified'] is False
     for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
         assert engine['display_backend_build_audit'][field] is True
-    if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
+    if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027'):
         assert engine['native_scanout_adapter_export'] is True
         assert engine['native_scanout_adapter']['abi'] == 1
         assert engine['native_scanout_adapter']['phone_tested'] is False
-    if BUNDLE_BUILD in ('4000025', '4000026'):
+    if BUNDLE_BUILD in ('4000025', '4000026', '4000027'):
         retirement = engine['init_thread_retirement_build_audit']
         assert all(retirement[field] is True for field in ('shared_library_init_registers_thread', 'rcu_unregister_definition_exported', 'rcu_source_compiled'))
         assert retirement['host_unregister_executed'] is False and retirement['phone_crash_fixed'] is False
@@ -188,15 +190,15 @@ def bundle(engine_artifact, guest_artifact, app):
     assert not payload.exists()
     payload.mkdir()
     receipt = json.loads((guest_artifact / 'payload/payload-receipt.json').read_text(encoding='utf-8'))
-    if BUNDLE_BUILD in ('4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
+    if BUNDLE_BUILD in ('4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027'):
         assert receipt['export_tiling'] == 'drm-format-modifier' and receipt['required_drm_modifier'] == 0
         assert receipt['native_format_contract_tests_passed'] is True
         assert 'Guest/image_export_contract.h' in receipt['image_source_files']
-    assert receipt['scope'] == ('linux-arm64-graphics-payload-moving-frames-boot-controls' if BUNDLE_BUILD == '4000026' else 'linux-arm64-graphics-payload-eight-frame-boot-controls' if BUNDLE_BUILD in ('4000023', '4000024', '4000025') else 'linux-arm64-graphics-payload-image-export-boot-controls' if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025') else 'linux-arm64-graphics-payload-missing-3d-boot-controls')
-    if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
+    assert receipt['scope'] == ('linux-arm64-graphics-payload-moving-frames-boot-controls' if BUNDLE_BUILD in ('4000026', '4000027') else 'linux-arm64-graphics-payload-eight-frame-boot-controls' if BUNDLE_BUILD in ('4000023', '4000024', '4000025') else 'linux-arm64-graphics-payload-image-export-boot-controls' if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025') else 'linux-arm64-graphics-payload-missing-3d-boot-controls')
+    if BUNDLE_BUILD in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027'):
         assert receipt['image_gate_compiled'] is True and receipt['software_image_rejected'] is True
         assert receipt['image_export_verified'] is False and receipt['host_memory_import_verified'] is False
-    if BUNDLE_BUILD in ('4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
+    if BUNDLE_BUILD in ('4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027'):
         expected_formats = dict(export_vulkan_format=44, scanout_drm_fourcc=875713112,
             scanout_virtio_format=2, native_metal_pixel_format=80, channel_order='bgra')
         assert all(type(receipt.get(k)) is type(v) and receipt[k] == v for k,v in expected_formats.items())
@@ -206,8 +208,8 @@ def bundle(engine_artifact, guest_artifact, app):
         for name in ['Engine/ImagePixelContract.h', 'Guest/image_framebuffer.h', 'Guest/kms_format_probe.c', 'tests/ImagePixelContractTests.c']:
             assert name in receipt['image_source_files']
         assert 'kms-format-control' in receipt['inventory']
-    if BUNDLE_BUILD in ('4000023', '4000024', '4000025', '4000026'):
-        verify_moving_payload(receipt) if BUNDLE_BUILD == '4000026' else verify_frame_payload(receipt)
+    if BUNDLE_BUILD in ('4000023', '4000024', '4000025', '4000026', '4000027'):
+        verify_moving_payload(receipt) if BUNDLE_BUILD in ('4000026', '4000027') else verify_frame_payload(receipt)
     assert receipt['source_commit'] == GUEST_SOURCE and int(receipt['workflow_run']) == GUEST_RUN
     assert receipt['linux_runtime_boot_verified'] and receipt['runtime_dependency_closure_verified']
     assert receipt['cases'][0]['kernel_gpu']['resource_bind_flags'] == 2

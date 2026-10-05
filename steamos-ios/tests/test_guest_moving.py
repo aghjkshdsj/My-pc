@@ -51,6 +51,22 @@ class MovingRejectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.check_device(r)
     def test_synthetic_schedule(self):
         f=fixture();self.assertTrue(validate(receipt(f),f['serial'],f['nonce'])['buffer_reuse_verified'])
+    def test_reinstallation_refresh_does_not_create_a_new_content_draw(self):
+        f=fixture(reinstall=True);r=receipt(f)
+        self.assertTrue(validate(r,f['serial'],f['nonce'])['buffer_reuse_verified'])
+        self.assertEqual(len(r['native']['images']),120)
+        self.assertEqual(len(r['native']['refreshes']),120)
+        self.assertEqual(len(r['native']['releases']),120)
+    def test_refresh_corruption_cannot_hide_a_missing_consumer_or_release(self):
+        f=fixture(reinstall=True);r=receipt(f)
+        for key,value in [('serial',2),('generation',3),('resource_id',99),('incarnation',2),
+                          ('native_reads_added',1),('releases_added',1),('lease_state',2),('event_sequence',2)]:
+            bad=copy.deepcopy(r);bad['native']['refreshes'][0][key]=value
+            with self.subTest(key=key),self.assertRaises(ValueError):validate(bad,f['serial'],f['nonce'])
+        bad=copy.deepcopy(r);del bad['native']['images'][1]
+        with self.assertRaises(ValueError):validate(bad,f['serial'],f['nonce'])
+        bad=copy.deepcopy(r);bad['native']['offers'][1]['flush_sequence']=2
+        with self.assertRaises(ValueError):validate(bad,f['serial'],f['nonce'])
     def test_damage_native_join(self):
         f=fixture();r=receipt(f)
         mutations=[('offers','serial',0),('offers','producer_fence_completed',False),('offers','external_queue_release',False),

@@ -59,6 +59,23 @@ def validate(receipt,serial,nonce):
             require(i==243 and not leases,'Finish with live buffers')
     require(offer_index==acquire_index==len(drained)==120 and fence==240,'Undrained moving schedule')
     events=n['events'];require(isinstance(events,list) and 360<=len(events)<=2048,'Unbounded native events')
+    refresh_contract=n.get('refresh_contract')==1
+    refreshes=n.get('refreshes',[])
+    require(isinstance(refreshes,list) and len(refreshes)<=2048,'Unbounded refresh evidence')
+    consumed_sequences={};refresh_sequences={};last_consumed={};consumed_count=0;refreshed_count=0
+    if refresh_contract:
+        require(type(n.get('refresh_contract')) is int and n.get('refresh_flushes_skipped')==len(refreshes),'Wrong refresh contract/count')
+        for image in n['images']:
+            sequence=image.get('flush_sequence')
+            require(type(sequence) is int and sequence>0 and sequence not in consumed_sequences,'Missing or duplicate consuming flush')
+            consumed_sequences[sequence]=image
+        for refresh in refreshes:
+            sequence=refresh.get('event_sequence')
+            require(type(sequence) is int and sequence>0 and sequence not in refresh_sequences and sequence not in consumed_sequences,'Duplicate refresh/consumer event')
+            fixed(refresh,dict(incarnation=1,native_reads_added=0,releases_added=0),'Refresh added a reader or release')
+            require(type(refresh.get('lease_state')) is int and refresh['lease_state'] in (1,3,4,5,6),'Refresh has unregistered or producing ownership')
+            refresh_sequences[sequence]=refresh
+    else:require(not refreshes,'Legacy receipt cannot contain unbound refreshes')
     active=None;generation=0;installs={};flushed=set()
     for index,event in enumerate(events,1):
         fixed(event,dict(sequence=index),'Event order');g=event['generation'];r=event['resource_id']
@@ -67,15 +84,29 @@ def validate(receipt,serial,nonce):
             active=(g,r);generation=g;installs[g]=r
         elif event['kind'] in (2,3):
             require(active==(g,r),'Wrong active event identity')
-            if event['kind']==2:flushed.add(g)
+            if event['kind']==2:
+                flushed.add(g)
+                if refresh_contract:
+                    image=consumed_sequences.get(index);refresh=refresh_sequences.get(index)
+                    if image:
+                        consumed_count+=1
+                        fixed(image,dict(generation=g,resource_id=r,serial=consumed_count),'Consuming flush identity/order differs')
+                        last_consumed[r]=image['serial']
+                    elif refresh:
+                        require(r in last_consumed,'Refresh before any content claim')
+                        fixed(refresh,dict(generation=g,resource_id=r,serial=last_consumed[r]),'Refresh ticket differs from last consumed content')
+                        refreshed_count+=1
+                    else:raise ValueError('Unclassified native flush')
             else:active=None
         else:raise ValueError('Unknown native event')
-    require(active is None and len(installs)==len(flushed)==120,'Incomplete generation lifecycle')
+    require(active is None and len(installs)==len(flushed) and
+        (len(installs)>=120 and consumed_count==120 and refreshed_count==len(refreshes) if refresh_contract else len(installs)==120),'Incomplete generation lifecycle')
     generations=set();drawable_ids=set();total_pixels=0;total_sum=0;missing=0;previous=0
     for i,(image,draw,release,guest) in enumerate(zip(n['images'],screen['frames'],n['releases'],received)):
         serial_id=i+1;p=phase(i);r=resources[i%3];g=image['generation'];endpoint=i in(0,119)
         require(g in flushed and g not in generations and installs[g]==r and n['offers'][i]['generation']==g,'Wrong frame generation')
         generations.add(g)
+        if refresh_contract:require(n['offers'][i].get('flush_sequence')==image['flush_sequence'],'Offer and consuming flush differ')
         fixed(image,dict(serial=serial_id,incarnation=1,resource_id=r,phase=p,width=1280,height=720,
             native_registry_id=registry,native_pixel_format=80,virtio_format=2,channel_order='bgra',
             native_buffer_alias_verified=True,pixel_verification_performed=endpoint,

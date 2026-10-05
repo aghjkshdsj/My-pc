@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
             NSMutableDictionary *bad = clone(f); [bad[@"native"] removeObjectForKey:key];
             check(![validate(bad)[@"buffer_reuse_verified"] boolValue]);
         }
-        for (NSString *key in @[@"serial", @"incarnation", @"resource_id", @"phase", @"generation", @"producer_fence", @"producer_fence_completed", @"external_queue_release", @"native_consumed", @"release_sent", @"terminal_status"] ) {
+        for (NSString *key in @[@"serial", @"incarnation", @"resource_id", @"phase", @"generation", @"flush_sequence", @"producer_fence", @"producer_fence_completed", @"external_queue_release", @"native_consumed", @"release_sent", @"terminal_status"] ) {
             NSMutableDictionary *bad = clone(f); [bad[@"native"][@"offers"][17] removeObjectForKey:key];
             check(![validate(bad)[@"buffer_reuse_verified"] boolValue]);
         }
@@ -49,6 +49,20 @@ int main(int argc, char **argv) {
         bad = clone(f);
         for (NSUInteger i = 0; i < 120; ++i) bad[@"screen"][@"frames"][i][@"drawable_id"] = @(i % 2);
         check([validate(bad)[@"buffer_reuse_verified"] boolValue]);
+        bad = clone(f); [bad[@"native"][@"images"][60] removeObjectForKey:@"flush_sequence"];
+        check(![validate(bad)[@"buffer_reuse_verified"] boolValue]);
+        if ([f[@"native"][@"refreshes"] count]) {
+            for (NSString *key in @[@"event_sequence",@"generation",@"resource_id",@"serial",@"incarnation",@"native_reads_added",@"releases_added",@"lease_state"]) {
+                bad = clone(f); [bad[@"native"][@"refreshes"][0] removeObjectForKey:key];
+                check(![validate(bad)[@"buffer_reuse_verified"] boolValue]);
+            }
+            bad = clone(f); bad[@"native"][@"refreshes"][0][@"serial"] = @2;
+            check(![validate(bad)[@"buffer_reuse_verified"] boolValue]);
+            bad = clone(f); bad[@"native"][@"refreshes"][0][@"lease_state"] = @2;
+            check(![validate(bad)[@"buffer_reuse_verified"] boolValue]);
+            bad = clone(f); bad[@"native"][@"refreshes"][0][@"native_reads_added"] = @1;
+            check(![validate(bad)[@"buffer_reuse_verified"] boolValue]);
+        }
         printf("MOVING_RECEIPT_TESTS_PASSED checks=%u scope=synthetic-rejection-only gpu_verified=0\n",checks);
     }
 }

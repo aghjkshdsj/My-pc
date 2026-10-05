@@ -115,8 +115,32 @@ NSDictionary *MPCValidateMovingFrames(NSString *serial, NSString *nonce, NSDicti
         }
     }
     passed = passed && offerIndex == 120 && acquireIndex == 120 && released.count == 120 && fence == 240;
-    // Independently join each actual install/flush generation to its source draw.
+    // Every flush either owns one content draw or refreshes an already claimed
+    // ticket. Refreshes never count as draws, releases or reacquisitions.
+    BOOL refreshContract = [native[@"refresh_contract"] isEqual:@1];
+    NSArray *refreshes = native[@"refreshes"] ?: @[];
+    NSMutableDictionary *consumeSequences = [NSMutableDictionary dictionary], *refreshSequences = [NSMutableDictionary dictionary],
+        *lastConsumed = [NSMutableDictionary dictionary];
+    passed = passed && [refreshes isKindOfClass:NSArray.class] && refreshes.count <= 2048;
+    if (refreshContract) {
+        passed = passed && [native[@"refresh_flushes_skipped"] isEqual:@(refreshes.count)];
+        for (NSDictionary *image in images) {
+            id key = image[@"flush_sequence"];
+            passed = passed && [key unsignedLongLongValue] && !consumeSequences[key];
+            if (key) consumeSequences[key] = image;
+        }
+        for (NSDictionary *refresh in refreshes) {
+            id key = refresh[@"event_sequence"];
+            passed = passed && [key unsignedLongLongValue] && !refreshSequences[key] && !consumeSequences[key] &&
+                [refresh[@"incarnation"] isEqual:@1] && [refresh[@"native_reads_added"] isEqual:@0] &&
+                [refresh[@"releases_added"] isEqual:@0] &&
+                [@[@1,@3,@4,@5,@6] containsObject:refresh[@"lease_state"]];
+            if (key) refreshSequences[key] = refresh;
+        }
+    } else passed = passed && refreshes.count == 0;
+    // Independently join the complete installation lifecycle to those claims.
     BOOL active = NO; uint64_t sequence = 0, generation = 0, resource = 0;
+    NSUInteger consumedFlushes = 0, refreshedFlushes = 0;
     NSMutableDictionary *generationResources = [NSMutableDictionary dictionary];
     NSMutableSet *flushed = [NSMutableSet set], *imageGenerations = [NSMutableSet set], *drawables = [NSMutableSet set];
     for (NSDictionary *event in events) {
@@ -128,11 +152,25 @@ NSDictionary *MPCValidateMovingFrames(NSString *serial, NSString *nonce, NSDicti
             generation = g; resource = r; active = YES; generationResources[@(g)] = @(r);
         } else if ([event[@"kind"] isEqual:@2]) {
             passed = passed && active && g == generation && r == resource; [flushed addObject:@(g)];
+            if (refreshContract) {
+                NSDictionary *image = consumeSequences[@(sequence)], *refresh = refreshSequences[@(sequence)];
+                if (image) {
+                    passed = passed && [image[@"generation"] isEqual:@(g)] && [image[@"resource_id"] isEqual:@(r)] &&
+                        [image[@"serial"] isEqual:@(++consumedFlushes)];
+                    lastConsumed[@(r)] = image[@"serial"];
+                } else if (refresh) {
+                    passed = passed && [refresh[@"generation"] isEqual:@(g)] && [refresh[@"resource_id"] isEqual:@(r)] &&
+                        lastConsumed[@(r)] && [refresh[@"serial"] isEqual:lastConsumed[@(r)]];
+                    refreshedFlushes++;
+                } else passed = NO;
+            }
         } else if ([event[@"kind"] isEqual:@3]) {
             passed = passed && active && g == generation && r == resource; active = NO;
         } else passed = NO;
     }
-    passed = passed && !active && generationResources.count == 120 && flushed.count == 120;
+    passed = passed && !active && generationResources.count == flushed.count &&
+        (refreshContract ? (generationResources.count >= 120 && consumedFlushes == 120 && refreshedFlushes == refreshes.count) :
+                           (generationResources.count == 120 && flushed.count == 120));
     uint64_t sum = 0, pixels = 0; NSUInteger missingTimes = 0; double previousTime = 0;
     for (NSUInteger i = 0; passed && i < 120; ++i) {
         NSDictionary *image = images[i], *draw = draws[i], *release = releases[i], *guestRelease = received[i], *offer = offers[i];
@@ -156,6 +194,7 @@ NSDictionary *MPCValidateMovingFrames(NSString *serial, NSString *nonce, NSDicti
             (!endpoint || ([image[@"endpoint_consumer_status"] isEqual:@4] && [image[@"endpoint_consumer_error"] isEqual:@NO])) &&
             [g unsignedLongLongValue] && ![imageGenerations containsObject:g] && [flushed containsObject:g] &&
             [generationResources[g] isEqual:r] && [offer[@"generation"] isEqual:g] &&
+            (!refreshContract || [offer[@"flush_sequence"] isEqual:image[@"flush_sequence"]]) &&
             [draw[@"resource_id"] isEqual:r] && [draw[@"generation"] isEqual:g] && [draw[@"phase"] isEqual:phase] &&
             [draw[@"frame_index"] isEqual:serialID] && [draw[@"source_registry_id"] isEqual:native[@"registry_id"]] &&
             [draw[@"drawable_registry_id"] isEqual:native[@"registry_id"]] && [draw[@"source_is_imported_guest_texture"] isEqual:@YES] &&

@@ -4,7 +4,7 @@ NONCE='0123456789abcdef0123456789abcdef'
 def phase(i):return i*17%120
 def channel_sum(p):
     return 720*sum((x+p)&255 for x in range(1280))+1280*sum((y+p)&255 for y in range(720))+921600*((165^p)+255)
-def fixture():
+def fixture(reinstall=False):
     buffers=[];offers=[];releases=[];acquires=[];images=[];draws=[];controls=[];received=[];events=[];fence=0
     for i in range(3):
         row=dict(schema=1,type='register',run=NONCE,slot=i,resource_id=7+i,incarnation=1,width=1280,height=720,format=80,row_pitch=5120,offset=0,backing_bytes=3686400)
@@ -33,6 +33,25 @@ def fixture():
     for n in range(118,121):acquire(n)
     controls.append(dict(schema=1,type='finish',run=NONCE,frames=120,buffers=3))
     events.append(dict(kind=3,sequence=len(events)+1,generation=120,resource_id=9))
+    for i,image in enumerate(images):
+        image['flush_sequence']=next(row['sequence'] for row in events if row['kind']==2 and row['generation']==image['generation'])
+        offers[i]['flush_sequence']=image['flush_sequence']
+    refreshes=[]
+    if reinstall:
+        events=[];active_generation=0;active_resource=0
+        def event(kind,generation,resource):
+            events.append(dict(kind=kind,sequence=len(events)+1,generation=generation,resource_id=resource))
+            return len(events)
+        for i,image in enumerate(images):
+            r=image['resource_id'];g=2*i+1
+            if i:event(3,active_generation,active_resource)
+            event(1,g,r);sequence=event(2,g,r)
+            image['generation']=offers[i]['generation']=draws[i]['generation']=g
+            image['flush_sequence']=offers[i]['flush_sequence']=sequence
+            event(3,g,r);event(1,g+1,r);refresh_sequence=event(2,g+1,r)
+            refreshes.append(dict(event_sequence=refresh_sequence,generation=g+1,resource_id=r,serial=i+1,incarnation=1,lease_state=6,native_reads_added=0,releases_added=0))
+            active_generation=g+1;active_resource=r
+        event(3,active_generation,active_resource)
     base=dict(machine='aarch64',renderer='synthetic-gpu-fixture',api_version=1,driver_version=2,vendor_id=3,device_id=4,device_type=2)
     render=dict(base,shader_phases=120,pixels_checked=1843200,width=1280,height=720,mismatches=0,validation_errors=0,software=False,metal_host_verified=False,presentation_verified=False,game_fps_verified=False,channel_sum=channel_sum(0)+channel_sum(phase(119)))
     exit=dict(schema=1,run=NONCE,frames=120,buffers=3,status=0,scanout_disabled=True,images_released=True,presentation_verified=False)
@@ -43,8 +62,9 @@ def fixture():
         if row['type']=='offer':lines.append('MPC_MOVE_RELEASE_RECEIVED '+json.dumps(received[row['serial']-1]))
     lines+=['MPC_MOVE_EXIT '+json.dumps(exit),'MPC_VK_MOVING_RENDER '+json.dumps(render),'MPC_MOVE_GUEST_EXIT=0']
     native=dict(schema=1,scope='native-explicit-linux-moving-release',run=NONCE,registry_id=99,buffers=buffers,offers=offers,releases=releases,reacquisitions=acquires,images=images,events=events,errors=0,finished=True,active=False,ledger_drained=True,ledger_faulted=False,pending_consumers=0,reader_joined=True,channel_eof=True,diagnostic_full_image_readbacks=2,repeated_flushes_skipped=0,binary_replies_sent=364,final_submission_fence=240,source_release='actual-metal-gpu-terminal-callback',production_kms_wsi_verified=False)
+    native.update(refresh_contract=1,refreshes=refreshes,refresh_flushes_skipped=len(refreshes))
     screen=dict(schema=1,scope='native-metal-three-buffer-changing-linux-screen',run=NONCE,registry_id=99,frames=draws,errors=0,pending=0,interrupted=False,surface_visible=True,surface_geometry=1,maximum_inflight=1,drawable_limit=2,lifecycle_events=[],diagnostic_source_readbacks=2,drawable_cpu_readbacks=0)
     return copy.deepcopy(dict(nonce=NONCE,native=native,screen=screen,serial='\n'.join(lines)+'\n'))
 if __name__=='__main__':
     import pathlib,sys
-    pathlib.Path(sys.argv[1]).write_text(json.dumps(fixture()),encoding='utf-8')
+    pathlib.Path(sys.argv[1]).write_text(json.dumps(fixture(reinstall='--refreshes' in sys.argv[2:])),encoding='utf-8')

@@ -93,8 +93,8 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             vk = prefix + 'NativeVulkan/'
             inputs = json.loads(z.read(vk + 'payload-receipt.json'))
             assert inputs['scope'] == 'bundled-native-ios-vulkan-diagnostic'
-            observer = info['CFBundleVersion'] in ['4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026']
-            if info['CFBundleVersion'] in ['4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026']:
+            observer = info['CFBundleVersion'] in ['4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027']
+            if info['CFBundleVersion'] in ['4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027']:
                 assert b'capture_limit_bytes' in binary, 'Structured recovery export limit was not compiled'
             assert inputs['engine_run'] == (TRACE_RUN if observer else 37056046870)
             molten = z.read(prefix + 'Frameworks/MoltenVK.framework/MoltenVK')
@@ -139,15 +139,15 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             assert bundled['guest_run'] == guest_run and bundled['guest_source'] == guest_source
             assert bundled['hardware_virtualization'] is False and bundled['root_gles_version_requested'] == 3
             original = bundled['engine_receipt']
-            if info['CFBundleVersion'] in ['4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026']:
+            if info['CFBundleVersion'] in ['4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027']:
                 assert bundled['guest_metal_trace_engine_receipt'] == inputs['guest_metal_trace_engine_receipt']
-            if info['CFBundleVersion'] in ['4000012', '4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026']:
+            if info['CFBundleVersion'] in ['4000012', '4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027']:
                 assert b'mpc_qemu_register_egl_headless' in binary
                 assert b'_mpc_qemu_register_egl_headless' in z.read(engine)
                 assert bundled['display_backend_compiled'] is True and bundled['display_registration_preflight_required'] is True
                 for field in ['pixman_enabled', 'egl_headless_builtin_compiled', 'egl_headless_registration_export']:
                     assert original['display_backend_build_audit'][field] is True
-            if info['CFBundleVersion'] in ['4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026']:
+            if info['CFBundleVersion'] in ['4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027']:
                 assert b'MPC_GPU_CONTEXT_CREATE' in z.read(engine)
                 assert b'output-flush-failed' in binary and b'tail_truncated' in binary
                 assert b'guest_errors' in binary
@@ -158,7 +158,7 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                 diagnostics = original['graphics_dependency']['failure_diagnostics']
                 assert diagnostics['failure_errno_and_stage_compiled'] is True
                 assert diagnostics['allocator_policy_changed'] is False and diagnostics['success_override'] is False
-            if info['CFBundleVersion'] in ['4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026']:
+            if info['CFBundleVersion'] in ['4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027']:
                 assert b'linux-private-file-directory-prepared' in binary and b'MPC_GPU_SHM_DIR' in binary
                 renderer = z.read(prefix + 'Frameworks/virglrenderer.1.framework/virglrenderer.1')
                 for marker in [b'MPC_GPU_PRIVATE_FILE_OPENED', b'MPC_GPU_PRIVATE_FILE_FAIL', b'MPC_GPU_SHM_DIR']:
@@ -178,8 +178,8 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                 if not relative.startswith('MoltenVK.'):
                     hashed(data, original['files']['sysroot-iOS-arm64/Frameworks/' + relative])
             payload = json.loads(z.read(gpu + 'payload-receipt.json'))
-            assert payload['scope'] == ('linux-arm64-graphics-payload-moving-frames-boot-controls' if info['CFBundleVersion'] == '4000026' else 'linux-arm64-graphics-payload-eight-frame-boot-controls' if info['CFBundleVersion'] in ('4000023', '4000024', '4000025', '4000026') else 'linux-arm64-graphics-payload-image-export-boot-controls' if info['CFBundleVersion'] in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026') else 'linux-arm64-graphics-payload-missing-3d-boot-controls')
-            if info['CFBundleVersion'] in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
+            assert payload['scope'] == ('linux-arm64-graphics-payload-moving-frames-boot-controls' if info['CFBundleVersion'] in ('4000026', '4000027') else 'linux-arm64-graphics-payload-eight-frame-boot-controls' if info['CFBundleVersion'] in ('4000023', '4000024', '4000025', '4000026', '4000027') else 'linux-arm64-graphics-payload-image-export-boot-controls' if info['CFBundleVersion'] in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027') else 'linux-arm64-graphics-payload-missing-3d-boot-controls')
+            if info['CFBundleVersion'] in ('4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027'):
                 assert original['native_scanout_adapter_export'] is True
                 assert original['native_scanout_adapter']['abi'] == 1
                 assert original['native_scanout_adapter']['phone_tested'] is False
@@ -188,11 +188,11 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                     assert marker in binary, 'Required image adapter was not compiled'
                 assert payload['image_gate_compiled'] is True and payload['software_image_rejected'] is True
                 assert payload['image_export_verified'] is False and payload['host_memory_import_verified'] is False
-            if info['CFBundleVersion'] in ('4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
+            if info['CFBundleVersion'] in ('4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027'):
                 assert payload['export_tiling'] == 'drm-format-modifier' and payload['required_drm_modifier'] == 0
                 assert payload['native_format_contract_tests_passed'] is True
                 assert 'Guest/image_export_contract.h' in payload['image_source_files']
-            if info['CFBundleVersion'] in ('4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
+            if info['CFBundleVersion'] in ('4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027'):
                 expected_formats = dict(export_vulkan_format=44, scanout_drm_fourcc=875713112,
                     scanout_virtio_format=2, native_metal_pixel_format=80, channel_order='bgra')
                 assert all(type(payload.get(k)) is type(v) and payload[k] == v for k,v in expected_formats.items())
@@ -203,7 +203,7 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
                     assert name in payload['image_source_files']
                 assert 'kms-format-control' in payload['inventory']
             assert payload['source_commit'] == guest_source and int(payload['workflow_run']) == guest_run
-            if info['CFBundleVersion'] in ['4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026']:
+            if info['CFBundleVersion'] in ['4000013', '4000014', '4000015', '4000016', '4000017', '4000018', '4000019', '4000020', '4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027']:
                 assert payload['cases'][0]['kernel_gpu']['resource_bind_flags'] == 2
             assert payload['runtime_dependency_closure_verified'] and payload['linux_runtime_boot_verified']
             for name in ['Image', 'initramfs.cpio.gz']:
@@ -211,24 +211,24 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             for field in ['guest_shader_verified', 'metal_host_verified', 'host_memory_import_verified',
                           'presentation_verified', 'steamos_verified', 'gameplay_verified']:
                 assert bundled[field] is False
-        if info['CFBundleVersion'] in ('4000021', '4000022', '4000023', '4000024', '4000025', '4000026'):
+        if info['CFBundleVersion'] in ('4000021', '4000022', '4000023', '4000024', '4000025', '4000026', '4000027'):
             for marker in [b'linux-screen-before-submit', b'linux-screen-drawable-presented', b'physical-ios-linux-two-image-screen-gate', b'Show Linux-rendered images']:
                 assert marker in binary, 'Missing compiled guest screen presentation boundary'
-        if info['CFBundleVersion'] in ('4000022','4000023', '4000024', '4000025', '4000026'):
+        if info['CFBundleVersion'] in ('4000022','4000023', '4000024', '4000025', '4000026', '4000027'):
             for marker in [b'linux-screen-transaction-present-enqueued', b'linux-screen-lifecycle', b'scheduled-main-thread-core-animation-transaction', b'presented_seconds_later_query']:
                 assert marker in binary, 'Missing compiled transaction presenter diagnostics'
-        if info['CFBundleVersion'] in ('4000023', '4000024', '4000025', '4000026'):
+        if info['CFBundleVersion'] in ('4000023', '4000024', '4000025', '4000026', '4000027'):
             from bundle_guest_gpu import verify_frame_payload, verify_moving_payload
-            verify_moving_payload(payload) if info['CFBundleVersion'] == '4000026' else verify_frame_payload(payload)
+            verify_moving_payload(payload) if info['CFBundleVersion'] in ('4000026', '4000027') else verify_frame_payload(payload)
             for marker in [b'linux-eight-frame-adapter-configured', b'linux-eight-frame-sequence-checked', b'MPC_FRAME_PRODUCER ',
                            b'MPC_FRAME_EXIT ', b'MPC_VK_FRAME_RENDER ', b'mpc_frames=1', b'Show eight Linux-rendered frames',
                            b'physical-ios-linux-eight-frame-screen-gate']:
                 assert marker in binary, 'Missing compiled eight-frame guest boundary'
-        if info['CFBundleVersion'] in ('4000024', '4000025', '4000026'):
+        if info['CFBundleVersion'] in ('4000024', '4000025', '4000026', '4000027'):
             for marker in [b'linux-engine-worker-retired', b'linux-before-serial-receipt-read', b'engine_worker_joined', b'private-apple-metrickit-crash-diagnostics', b'SystemCrashDiagnostics']:
                 assert marker in binary, 'Missing compiled worker/crash-diagnostic boundary: ' + marker.decode()
             assert any(path.endswith('/MetricKit.framework/MetricKit') for path in macho_platform(binary, 2)), 'Missing native MetricKit dependency'
-        if info['CFBundleVersion'] in ('4000025', '4000026'):
+        if info['CFBundleVersion'] in ('4000025', '4000026', '4000027'):
             from macho_exports import defined_export
             for marker in [b'linux-init-thread-rcu-unregistered', b'engine_init_thread_rcu_unregistered', b'rcu_unregister_thread']:
                 assert marker in binary, 'Missing compiled init-thread retirement boundary'
@@ -236,12 +236,15 @@ def verify(path, commit, linux_gate=False, expected_build=None, native_vulkan=Fa
             assert defined_export(qemu_binary, 'rcu_unregister_thread'), 'Required actual RCU retirement export is missing'
             audit = original['init_thread_retirement_build_audit']
             assert all(audit[key] is True for key in ('shared_library_init_registers_thread', 'rcu_unregister_definition_exported', 'rcu_source_compiled'))
-        if info['CFBundleVersion'] == '4000026':
+        if info['CFBundleVersion'] in ('4000026', '4000027'):
             for marker in [b'Show changing Linux frames', b'MPC_MOVE_CTL ', b'MPC_MOVE_RELEASE_RECEIVED ',
                 b'MPC_VK_MOVING_RENDER ', b'mpc_moving=1', b'linux-moving-channel-configured',
                 b'actual-metal-gpu-terminal-callback', b'physical-ios-linux-three-buffer-moving-output',
                 b'linux-moving-output-checked', b'ledger_drained']:
                 assert marker in binary, 'Missing compiled moving-frame transport: ' + marker.decode()
+        if info['CFBundleVersion'] == '4000027':
+            for marker in [b'linux-moving-refresh-without-new-reader', b'last_consumed_serial', b'refresh_contract', b'flush_sequence', b'refresh_flushes_skipped']:
+                assert marker in binary, 'Missing compiled content-ticket refresh boundary'
         return {'schema': 1, 'kind': 'ios-linux-kernel-gate' if linux_gate else 'ios-host-probe-only', 'commit': commit, 'build': info['CFBundleVersion'],
                 'bundle_id': info['CFBundleIdentifier'], 'sha256': hashlib.file_digest(path.open('rb'), 'sha256').hexdigest(),
                 'bytes': path.stat().st_size, 'zip_crc': 'passed', 'arm64_ios': True,
