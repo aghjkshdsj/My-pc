@@ -87,17 +87,37 @@ with the standard GEM atomic helper, retains their eventual error status,
 allocates an independent Linux fence context for each primary display response,
 waits without the old 50 ms timeout release, and carries an erroneous response
 into the transaction's OUT_FENCE before its virtual event is sent. OOM and
-reservation-lock failures also mark that transaction as failed. This is source
-implementation pending actual compiled/boot controls, not native Metal proof.
+reservation-lock failures also mark that transaction as failed. Primary display
+work uses the transaction's retained new state, so a subsequent nonblocking
+state swap cannot change the buffer/fence being awaited. This fork compiles
+and passes the four actual hosted controls below; it is not native Metal proof.
 
 The separate hosted workflow compiles this kernel and a CPU-only QEMU fault
-control, then boots real delayed, error and missing-response cases. The guest
+control, then boots real delayed, error, failed-producer and missing-response cases. The guest
 requires its OUT_FENCE and event to remain pending beyond 50 ms; an injected
 error must produce a negative sync-file status, and an absent response must keep
 objects retained. That last disposable VM is deliberately killed by the test
 host after recording retention; it does not claim graceful cleanup. The injected
 QEMU timer only schedules a test response and is never a production buffer
-release deadline. Neither control engine nor this fork is installed in an IPA.
+release deadline. Importing an actual failed sync-file through IN_FENCE_FD
+produces a failed output fence without issuing a third display flush. Neither
+control engine nor this fork is installed in an IPA.
+
+Verified hosted run: [37327189927](https://github.com/aghjkshdsj/My-pc/actions/runs/37327189927),
+compiled source a3455de052b85b994de9341d6d74081ea31dd6b0. The kernel's normal
+mapped-resource and missing-device controls also pass; the unchanged image
+payload/rejection pipeline passes in run37327189955. All 141 Python tests pass.
+The independent actual job/boot-log audit accepts the four distinct sessions
+and rejects 29 altered real-result controls. See
+`evidence/primary/hosted-linux-display-completion-control.json`.
+
+Published artifacts retain the full parent userspace source, modified kernel
+source/patch/build inputs and CPU test-engine source/patch/build inputs. Their
+reported hashes and GitHub metadata are recorded. The combined 686,814,009-byte
+control artifact exceeds the connector's 536,870,912-byte download limit;
+independent local artifact-byte/source-package verification remains pending.
+Job-log validation and local reconstruction of six pinned patched source files
+are separately recorded and do not imply an independent binary-package audit.
 
 The production engine still must defer its exact display command until every
 matching native reader is terminal, including failure and disable/unregister

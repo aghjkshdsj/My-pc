@@ -1,3 +1,38 @@
+# Linux display-response completion controls verified; Metal connection remains open
+
+On 2026-10-05, the isolated Linux 6.12.111 fork and test-only QEMU 10.0.12
+CPU engine compile and pass four actual ARM Linux boots in
+[run 37327189927](https://github.com/aghjkshdsj/My-pc/actions/runs/37327189927),
+source a3455de052b85b994de9341d6d74081ea31dd6b0.
+
+| Control | Actual observed result |
+| --- | --- |
+| Delayed display response | Two output fences/events stay pending past 100 ms, then both finish successfully |
+| Failed engine response | Output sync-file reports -EIO; a virtual event does not turn it into success |
+| Failed explicit input fence | Import through IN_FENCE_FD produces a second failed output; no third host display flush occurs |
+| Missing response | Fence/event remain pending through the additional 1.5 s check; objects remain held; the disposable VM is deliberately killed |
+
+The default mapped-resource/missing-device controls and unchanged image payload
+regression also pass. All 141 Python tests pass. The independent real-log audit
+rejects 29 altered-result controls. Kernel waits use the exact transaction's
+new state and independent display fence contexts. Higher unrelated-response
+stress, native Metal completion, cursor/disable/reset/unregister drain and an
+ordinary compositor remain unverified. No new iPhone performance, SteamOS
+desktop/Game Mode, Valve ARM Steam/CEF, FEX/Proton or gameplay row is accepted.
+
+This is a Linux completion dependency test using CPU dumb buffers on QEMU TCG
+software system emulation. The injected engine timer is a test response, not a
+production release deadline. The control engine/kernel are not installed in an
+IPA. The combined control artifact exceeds the connector's 512 MiB download
+limit, so local artifact-byte verification remains pending; reported hashes,
+source reconstruction and job/boot-log evidence are recorded separately in
+`evidence/primary/hosted-linux-display-completion-control.json`. The next
+implementation must join exact engine display commands to actual terminal
+Metal readers before a real Linux compositor is accepted. All previous
+component rows, archives and private owner records remain preserved below.
+
+---
+
 # Standard Linux display API control implemented; native completion integration open
 
 The new AArch64 DRM atomic control passes actual hosted kernel boots in

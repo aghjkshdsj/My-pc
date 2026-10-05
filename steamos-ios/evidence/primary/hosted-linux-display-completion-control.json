@@ -1,0 +1,267 @@
+{
+  "schema": 1,
+  "scope": "independent-hosted-arm-linux-exact-display-response-job-log-audit",
+  "date": "2026-10-05",
+  "workflow_run": 37327189927,
+  "source_commit": "a3455de052b85b994de9341d6d74081ea31dd6b0",
+  "jobs": {
+    "kernel": 111820822785,
+    "engine": 111820822725,
+    "controls": 111822473700
+  },
+  "actual_four_linux_response_controls_verified": true,
+  "cases": [
+    {
+      "case": "delayed",
+      "guest_result": {
+        "schema": 1,
+        "run": "b2be38f2e64241b8a7ff53c744839341",
+        "case": "delayed",
+        "stage": "complete",
+        "initial_status": 1,
+        "early_pending": 2,
+        "events": 2,
+        "positive_fences": 2,
+        "error_fences": 0,
+        "last_status": 1,
+        "buffers_retained": false,
+        "cleaned": true,
+        "cpu_dumb_control": true,
+        "metal_verified": false,
+        "physical_iphone": false
+      },
+      "host_flushes": [
+        {
+          "index": 1,
+          "fence_id": 2
+        },
+        {
+          "index": 2,
+          "fence_id": 3
+        },
+        {
+          "index": 3,
+          "fence_id": 4
+        }
+      ],
+      "observed_normal_guest_exit": true,
+      "intentional_termination_expected": false
+    },
+    {
+      "case": "error",
+      "guest_result": {
+        "schema": 1,
+        "run": "3bf030217b0d47ff9f2e5cc993836980",
+        "case": "error",
+        "stage": "complete",
+        "initial_status": 1,
+        "early_pending": 1,
+        "events": 1,
+        "positive_fences": 0,
+        "error_fences": 1,
+        "last_status": -5,
+        "buffers_retained": false,
+        "cleaned": true,
+        "cpu_dumb_control": true,
+        "metal_verified": false,
+        "physical_iphone": false
+      },
+      "host_flushes": [
+        {
+          "index": 1,
+          "fence_id": 2
+        },
+        {
+          "index": 2,
+          "fence_id": 3
+        }
+      ],
+      "observed_normal_guest_exit": true,
+      "intentional_termination_expected": false
+    },
+    {
+      "case": "producer-error",
+      "guest_result": {
+        "schema": 1,
+        "run": "124411e80c3146cb9ffa46355e0cc0a9",
+        "case": "producer-error",
+        "stage": "complete",
+        "initial_status": 1,
+        "early_pending": 1,
+        "events": 2,
+        "positive_fences": 0,
+        "error_fences": 2,
+        "last_status": -5,
+        "buffers_retained": false,
+        "cleaned": true,
+        "cpu_dumb_control": true,
+        "metal_verified": false,
+        "physical_iphone": false
+      },
+      "host_flushes": [
+        {
+          "index": 1,
+          "fence_id": 2
+        },
+        {
+          "index": 2,
+          "fence_id": 3
+        }
+      ],
+      "observed_normal_guest_exit": true,
+      "intentional_termination_expected": false
+    },
+    {
+      "case": "missing",
+      "guest_result": {
+        "schema": 1,
+        "run": "6a8149d210704a7f84a00fd4cfc880cd",
+        "case": "missing",
+        "stage": "missing-response-held",
+        "initial_status": 1,
+        "early_pending": 1,
+        "events": 0,
+        "positive_fences": 0,
+        "error_fences": 0,
+        "last_status": 0,
+        "buffers_retained": true,
+        "cleaned": false,
+        "cpu_dumb_control": true,
+        "metal_verified": false,
+        "physical_iphone": false
+      },
+      "host_flushes": [
+        {
+          "index": 1,
+          "fence_id": 2
+        },
+        {
+          "index": 2,
+          "fence_id": 3
+        }
+      ],
+      "observed_normal_guest_exit": false,
+      "intentional_termination_expected": true
+    }
+  ],
+  "altered_actual_receipt_controls_rejected": 29,
+  "local_python_tests": 141,
+  "hosted_control_test_methods": 7,
+  "source_transform": {
+    "schema": 1,
+    "scope": "exact-upstream-source-transform-only",
+    "linux_archive_sha256": "9e59dc67624188fa12a6601f9598499cd6662a9066be572b59f935e3d7849810",
+    "qemu_archive_sha256": "7c9605290b34152debb842e965a55d2e4fbba4793e536ab677b4027e5dc0ba1a",
+    "files": {
+      "linux/virtgpu_drv.h": {
+        "before_sha256": "4e75ff1c5da3a2001c2a372a2a27db86db99d6f7fd114afcb738a30afbe8f6e9",
+        "after_sha256": "72cfae25565558d0b0b4b463824df68364df199d688c2a8b4791d18d9d6cb0a8"
+      },
+      "linux/virtgpu_fence.c": {
+        "before_sha256": "83199ad3f23fab434eba62d6cc821939fac4d3967f4ebe7f6b4f0fe73da62fb3",
+        "after_sha256": "deffeaabec48285b399f586c87955a611e245d5579321f82144746ad3f98ee20"
+      },
+      "linux/virtgpu_vq.c": {
+        "before_sha256": "73f4ea19d59267017631621f44dd5d7cc68661112a3251abb45dfc23b23f0665",
+        "after_sha256": "360bafdc51d892dcf49ec07edc8509130a99a5f5ed88db50f468680097205901"
+      },
+      "linux/virtgpu_plane.c": {
+        "before_sha256": "81fb8aed2433252c38e98337b3da34c6c18d7793d9beca6af684b75a6c261e10",
+        "after_sha256": "bd93fb0fa527ddd149ad91bf07689aca5795c909694814ac0b6e69ec85c3da9e"
+      },
+      "qemu/include/hw/virtio/virtio-gpu.h": {
+        "before_sha256": "7e804deaf4ad4f477aa61300221686982a9c69e8d1c5bd0ef891d0b3739991a2",
+        "after_sha256": "a0d06e823d4abcecb17dc1bafe91adff74c465c49c8ba83540206aa9290a8e36"
+      },
+      "qemu/hw/display/virtio-gpu.c": {
+        "before_sha256": "c60e4a331567d2d9c2bf9effa74716532771383ba2bc3f086131de558e10df0f",
+        "after_sha256": "038623a6627a6aad82cbf41aee82e987888adbb14738a42a4fc6f6b6e9213379"
+      }
+    },
+    "phone_verified": false,
+    "metal_verified": false
+  },
+  "normalized_control_job_log_sha256": "b20c17dff99fcbb82f904ab892675a7602a1cf9b049c6b2a54fb3887318c39e7",
+  "artifact_metadata": [
+    {
+      "id": 11353275585,
+      "name": "Fresh-ARM-Display-Completion-Controls",
+      "size_in_bytes": 686814009,
+      "url": "https://api.github.com/repos/aghjkshdsj/My-pc/actions/artifacts/11353275585",
+      "archive_download_url": "https://api.github.com/repos/aghjkshdsj/My-pc/actions/artifacts/11353275585/zip",
+      "expired": false,
+      "created_at": "2026-10-05T14:49:53Z",
+      "expires_at": "2026-10-19T14:49:36Z",
+      "updated_at": "2026-10-05T14:49:53Z",
+      "digest": "sha256:375b98c9f630524a7fba7e3b347ae3ac757b5d3875dc6f6bd55eee30976564b9",
+      "workflow_run": {
+        "id": 37327189927,
+        "repository_id": 1376330438,
+        "head_repository_id": 1376330438,
+        "head_branch": "codex/steamos-ios-fresh",
+        "head_sha": "a3455de052b85b994de9341d6d74081ea31dd6b0"
+      }
+    },
+    {
+      "id": 11353060593,
+      "name": "Fresh-ARM-Display-Fault-Control-Engine",
+      "size_in_bytes": 178580715,
+      "url": "https://api.github.com/repos/aghjkshdsj/My-pc/actions/artifacts/11353060593",
+      "archive_download_url": "https://api.github.com/repos/aghjkshdsj/My-pc/actions/artifacts/11353060593/zip",
+      "expired": false,
+      "created_at": "2026-10-05T14:48:18Z",
+      "expires_at": "2026-10-19T14:48:12Z",
+      "updated_at": "2026-10-05T14:48:18Z",
+      "digest": "sha256:109380799d5c5ad6e46f33c28943a3bc92d5fcc5bba966693845f25d8ac13950",
+      "workflow_run": {
+        "id": 37327189927,
+        "repository_id": 1376330438,
+        "head_repository_id": 1376330438,
+        "head_branch": "codex/steamos-ios-fresh",
+        "head_sha": "a3455de052b85b994de9341d6d74081ea31dd6b0"
+      }
+    },
+    {
+      "id": 11352209375,
+      "name": "Fresh-ARM-Display-Completion-Kernel",
+      "size_in_bytes": 153976610,
+      "url": "https://api.github.com/repos/aghjkshdsj/My-pc/actions/artifacts/11352209375",
+      "archive_download_url": "https://api.github.com/repos/aghjkshdsj/My-pc/actions/artifacts/11352209375/zip",
+      "expired": false,
+      "created_at": "2026-10-05T14:47:21Z",
+      "expires_at": "2026-10-19T14:47:17Z",
+      "updated_at": "2026-10-05T14:47:21Z",
+      "digest": "sha256:8cdd9b2b883818d27a1f126e51521abc5ec4f1c4845b0333c0202426a3a5242b",
+      "workflow_run": {
+        "id": 37327189927,
+        "repository_id": 1376330438,
+        "head_repository_id": 1376330438,
+        "head_branch": "codex/steamos-ios-fresh",
+        "head_sha": "a3455de052b85b994de9341d6d74081ea31dd6b0"
+      }
+    }
+  ],
+  "reported_archive_sha256": {
+    "Display-Completion-Control-Corresponding-Source.tar.gz": "e9030ac2fee44720bb272cac95a9bffe983310569f7e07bc4ca88c4e44ae8581",
+    "Display-Completion-Control-Payload.tar.gz": "a9fab20e58fa461604f767a398ba0c9e7415125619104d0041debc74369d8937"
+  },
+  "independent_artifact_bytes_verified": false,
+  "artifact_download_limitation": {
+    "connector_max_bytes": 536870912,
+    "control_artifact_bytes": 686814009,
+    "reason": "Download connector rejected this artifact because it exceeds its maximum size; no artifact bytes were independently downloaded."
+  },
+  "native_reader_dependency_verified": false,
+  "metal_verified": false,
+  "phone_verified": false,
+  "compositor_verified": false,
+  "desktop_verified": false,
+  "game_fps_verified": false,
+  "architecture": "AArch64 Linux on QEMU TCG software system emulation; CPU dumb-buffer fault controls only",
+  "limitations": [
+    "Error and missing responses are hosted test injections, not physical GPU observations.",
+    "Missing-response VM intentionally terminated while guest objects remained held; no clean shutdown claimed.",
+    "Higher unrelated response/context-isolation stress remains unverified.",
+    "Native Metal, display disable/cursor/reset/unregister drain, ordinary compositor and performance acceptance remain open."
+  ]
+}
