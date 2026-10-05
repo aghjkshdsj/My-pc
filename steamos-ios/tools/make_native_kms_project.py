@@ -46,5 +46,6 @@ def generate():
     info=plistlib.loads((PROJECT/'Host/Info.plist').read_bytes())
     info['CFBundleDisplayName']='My-pc Linux Display';info['CFBundleVersion']='4000028'
     info['UISupportedInterfaceOrientations']=['UIInterfaceOrientationPortrait']
+    info['UIRequiresFullScreen']=True
     (PROJECT/'NativeKMS/Info.plist').write_bytes(plistlib.dumps(info))
 if __name__=='__main__':generate()

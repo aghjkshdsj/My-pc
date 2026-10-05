@@ -10,7 +10,7 @@
 - (void)layoutSubviews {
     [super layoutSubviews];
     CAMetalLayer *metal=(CAMetalLayer *)self.layer;
-    CGFloat scale=self.window.screen.scale ?: UIScreen.mainScreen.scale;
+    CGFloat scale=self.window.windowScene.screen.scale ?: self.traitCollection.displayScale;
     metal.contentsScale=scale;
     metal.drawableSize=CGSizeMake(MAX(1,self.bounds.size.width*scale),MAX(1,self.bounds.size.height*scale));
 }

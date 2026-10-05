@@ -41,8 +41,11 @@ NSDictionary *MPCNativeKMSReceipt(NSString *text,NSString *nonce,NSDictionary *n
         id resource=p[@"resource_id"];
         valid=valid && [resource isKindOfClass:NSNumber.class] && [resource unsignedIntValue]>0 && ![resources containsObject:resource];
         if(resource)[resources addObject:resource];
-        if(i>=flips.count || i>=terminals.count){valid=NO;continue;}
-        NSDictionary *f=flips[i],*t=terminals[i];
+        NSArray *matches=[terminals filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSDictionary *t, NSDictionary *bindings) {
+            (void)bindings;return [t[@"resource_id"] isEqual:resource];
+        }]];
+        if(i>=flips.count || matches.count!=1){valid=NO;continue;}
+        NSDictionary *f=flips[i],*t=matches[0];
         if(!crtc)crtc=f[@"crtc"];
         if(!session)session=t[@"session"];
         valid=valid && [f[@"schema"] isEqual:@1] && [f[@"run"] isEqual:nonce] && [f[@"index"] isEqual:@(i)] &&

@@ -35,7 +35,7 @@
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
-	<key>UIFileSharingEnabled</key>
+	<key>UIRequiresFullScreen</key><true/><key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>

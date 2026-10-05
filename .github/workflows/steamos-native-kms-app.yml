@@ -26,9 +26,94 @@ jobs:
       - name: Compile separate physical iOS application with actual consumer
         run: |
           xcodebuild -project steamos-ios/NativeKMS.xcodeproj -scheme MyPCSteamOSNativeKMS -configuration Release -sdk iphoneos -destination generic/platform=iOS -derivedDataPath steamos-ios/out/native-kms-xcode CODE_SIGNING_ALLOWED=NO MPC_SOURCE_COMMIT="$GITHUB_SHA" build
+      - name: Verify exact successful upstream source builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json,subprocess
+          pins={'completion-engine':(37338802991,'a7fe6de4eb4a8e8a27987f1884a34da1d0e3a2c2'),
+                'native-kms-guest':(37338803071,'a7fe6de4eb4a8e8a27987f1884a34da1d0e3a2c2'),
+                'guest-metal-observer':(37178467526,'3f83d181b40439f868fba52abe54f02e9b857c36')}
+          for name,(run,source) in pins.items():
+              row=json.loads(subprocess.check_output(['gh','api',f'repos/aghjkshdsj/My-pc/actions/runs/{run}']))
+              assert row['conclusion']=='success' and row['head_sha']==source
+              open(name+'-run.json','w').write(json.dumps(row,indent=2)+'\n')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-iOS-Native-Completion-Engine
+          run-id: 37338802991
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/native-kms-engine
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Native-KMS-Payload
+          run-id: 37338803071
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/native-kms-guest
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-iOS-MoltenVK-Guest-Metal-Observer
+          run-id: 37178467526
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/native-kms-graphics
+      - name: Bundle audited frameworks and standard Linux display payload
+        run: |
+          mkdir -p steamos-ios/out/native-kms-package/Payload
+          cp -R steamos-ios/out/native-kms-xcode/Build/Products/Release-iphoneos/MyPCSteamOSNativeKMS.app steamos-ios/out/native-kms-package/Payload/
+          python3 steamos-ios/tools/bundle_native_kms.py steamos-ios/out/native-kms-engine steamos-ios/out/native-kms-guest steamos-ios/out/native-kms-graphics steamos-ios/out/native-kms-package/Payload/MyPCSteamOSNativeKMS.app
+          (cd steamos-ios/out/native-kms-package && zip -qr MyPCSteamOS-Native-KMS.ipa Payload)
+          python3 steamos-ios/tools/verify_native_kms_ipa.py steamos-ios/out/native-kms-package/MyPCSteamOS-Native-KMS.ipa "$GITHUB_SHA" --dwarf steamos-ios/out/native-kms-xcode/Build/Products/Release-iphoneos/MyPCSteamOSNativeKMS.app.dSYM/Contents/Resources/DWARF/MyPCSteamOSNativeKMS --receipt steamos-ios/out/native-kms-package/verification.json
+          tar -czf steamos-ios/out/native-kms-package/Host-Debug-Symbols.tar.gz -C steamos-ios/out/native-kms-xcode/Build/Products/Release-iphoneos MyPCSteamOSNativeKMS.app.dSYM
+          cp steamos-ios/out/native-kms-engine/Native-Completion-Corresponding-Source.tar.gz steamos-ios/out/native-kms-package/
+          cp steamos-ios/out/native-kms-guest/Native-KMS-Corresponding-Source.tar.gz steamos-ios/out/native-kms-package/
+          cp steamos-ios/out/native-kms-graphics/MoltenVK-Corresponding-Source.tar.gz steamos-ios/out/native-kms-package/
+          cp *-run.json steamos-ios/out/native-kms-package/
+          git archive --format=tar.gz -o steamos-ios/out/native-kms-package/MyPCSteamOS-Fresh-Source.tar.gz HEAD steamos-ios ':(glob).github/workflows/steamos-*.yml'
+          python3 - <<'PY'
+          import hashlib,json,pathlib
+          root=pathlib.Path('steamos-ios/out/native-kms-package')
+          files={}
+          for p in sorted(root.iterdir()):
+              if p.is_file() and p.suffix in ('.gz','.json','.ipa'):
+                  with p.open('rb') as f: checksum=hashlib.file_digest(f,'sha256').hexdigest()
+                  files[p.name]={'bytes':p.stat().st_size,'sha256':checksum}
+          required={'Native-Completion-Corresponding-Source.tar.gz','Native-KMS-Corresponding-Source.tar.gz',
+                    'MoltenVK-Corresponding-Source.tar.gz','MyPCSteamOS-Fresh-Source.tar.gz'}
+          assert required<=set(files)
+          (root/'source-index.json').write_text(json.dumps({'scope':'complete-release-source-and-package-index','files':files},indent=2)+'\n')
+          PY
+          (cd steamos-ios/out/native-kms-package && shasum -a 256 *.ipa *.tar.gz *.json > SHA256SUMS)
+      - name: Publish draft, verify redownload, then expose prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="steamos-ios-native-kms-${GITHUB_RUN_NUMBER}"
+          cat > steamos-ios/out/native-kms-package/release-notes.md <<'EOF'
+          Build 4000028 introduces the separate My-pc Linux Display application. It replaces the diagnostic UART release protocol for this gate with standard Linux atomic KMS output fences and page-flip events connected to actual native Metal reader completion. Eight immutable 720p Linux Vulkan images are submitted; each requires a positive Linux output fence, the expected flip event and matching completed Metal reader. Missing completion retains resources. Reset/unrealize drain has no timeout granting release. There is no fixed frame dwell or native CPU image readback in this consumer.
+
+          Actual ARM64 device-iOS engine, Metal consumer and application compiled. Hosted Linux controls reject missing 3D/software graphics, and production receipt controls reject 31 malformed results under optimized and sanitized native execution. These are build/control results: phone acceptance remains pending. This gate still has diagnostic guest Vulkan fence waits and pixel readbacks; it is not a production compositor/Wayland/WSI, mutable buffer performance or display timestamp test.
+
+          Install MyPCSteamOS-Native-KMS.ipa with iLoader. It installs separately as My-pc Linux Display. Relaunch, enable JIT in StikDebug with universal.js, return and pass the ARM64 JIT check. Open Linux standard display test, then Start Linux display test once as the first Linux boot in that process. Keep it foreground without rotation for up to three minutes. Share device report and saved logs; after a crash reopen and share saved logs. Previous apps and their data are preserved.
+
+          Full SteamOS desktop/Game Mode, Valve ARM Steam/CEF, FEX/Proton, games, audio/input/network/storage/downloads, overlays/plugins, Steam under one minute and Hollow Knight 60–80 base FPS at 720p remain unfinished. QEMU TCG is software system emulation; no hardware virtualization claim. The new ordinary Linux display completion boundary needs real phone evidence before moving to a compositor. No architecture substitution is made.
+
+          Exact corresponding engine/kernel/userspace/MoltenVK source, patches/configuration/recipes, original licenses, fresh host source and matching host dSYM accompany this release. No proprietary Valve client/rootfs, game data, credentials, private phone logs or previous project source is included. Package verification and byte-identical redownload precede publication.
+          EOF
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "My-pc standard Linux display gate ${GITHUB_RUN_NUMBER}" --notes-file steamos-ios/out/native-kms-package/release-notes.md steamos-ios/out/native-kms-package/*.ipa steamos-ios/out/native-kms-package/*.tar.gz steamos-ios/out/native-kms-package/*.json steamos-ios/out/native-kms-package/SHA256SUMS
+          mkdir steamos-ios/out/native-kms-redownload
+          gh release download "$tag" --dir steamos-ios/out/native-kms-redownload --pattern MyPCSteamOS-Native-KMS.ipa
+          cmp steamos-ios/out/native-kms-package/MyPCSteamOS-Native-KMS.ipa steamos-ios/out/native-kms-redownload/MyPCSteamOS-Native-KMS.ipa
+          python3 steamos-ios/tools/verify_native_kms_ipa.py steamos-ios/out/native-kms-redownload/MyPCSteamOS-Native-KMS.ipa "$GITHUB_SHA"
+          gh release edit "$tag" --draft=false
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Fresh-iPhone-Native-KMS-Application-Compile
-          path: steamos-ios/out/native-kms-xcode/Build/Products/Release-iphoneos/*
+          name: Fresh-iPhone-Native-KMS-Prerelease
+          path: |
+            steamos-ios/out/native-kms-package/*.ipa
+            steamos-ios/out/native-kms-package/*.json
+            steamos-ios/out/native-kms-package/SHA256SUMS
+            steamos-ios/out/native-kms-package/Host-Debug-Symbols.tar.gz
           retention-days: 14
