@@ -121,3 +121,25 @@ and share recovery logs. An accepted phone result requires eight joined resource
 eight positive output fences, seven correct events, actual Metal terminals,
 zero outstanding readers/callback bookkeeping/backing/images, and exact same-worker
 engine cleanup/RCU retirement/join. Desktop, ARM Steam and game FPS remain unverified.
+
+
+The final [native-kms-3](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-native-kms-3)
+package uses the same compiled application code with source identity
+`bff919948ae41240b4e479bf7f826675149c2b3e` and two additional duplicate-token/
+generation rejections. All 33 native optimized/sanitized controls pass, including
+valid callback-bookkeeping reordering. IPA SHA-256
+`5726cd7eff45c357a44dec36b5b615d6cb2e6e82192ea47ce3e7860df95cbaf0`,
+23,786,127 bytes. The complete IPA, fresh source and matching crash dSYM were
+independently downloaded and verified on this PC. Compiled source inputs match
+the published source archive. Upstream source archive bytes remain independently
+unverified locally; their complete published files and pinned hosted audits are
+separate evidence. Details: `evidence/primary/native-kms-prerelease-3.json`.
+
+`tools/verify_native_kms_report.py` independently checks the private new report
+against the exact expected IPA source, the owner's model/OS, raw Linux producer/
+flip/pixel/cleanup rows, unique matching actual Metal reader terminals, actual
+guest Metal observer identity/timing, zero outstanding ownership and same-worker
+engine retirement/join. It requires the reported target iPhone16,2 / iOS27.0.1 /
+24A446. Tests use labeled synthetic fixtures only, including 32 ownership mutations
+plus source/device/retirement/observer/type controls. No device verdict is inferred
+from those fixtures or the app's declared pass. No private report is uploaded.

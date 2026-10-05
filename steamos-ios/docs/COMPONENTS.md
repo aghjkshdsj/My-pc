@@ -13,7 +13,7 @@ The separate `NativeKMS.xcodeproj` and My-pc Linux Display app now integrate
 that new engine/kernel/producer with actual Metal terminal callbacks. Its
 physical-iOS application build and 31 optimized/sanitized production receipt
 rejections passed in [run 37342231643](https://github.com/aghjkshdsj/My-pc/actions/runs/37342231643).
-The package workflow is preparing a separately installed build 4000028.
+Build 4000028 is published as [native-kms-3](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-native-kms-3), source bff919948ae41240b4e479bf7f826675149c2b3e, run 37343735846. The actual application/engine/payload builds and 33 optimized/sanitized production receipt rejections pass. The complete public IPA, fresh source and matching dSYM were independently downloaded and checked on this PC. Actual phone join remains pending; the owner has agreed to test this new gate.
 The old accepted diagnostic app and all previous phone/user data are preserved.
 No old VM app or Madeira app source is linked into this target.
 
