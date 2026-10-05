@@ -8,6 +8,9 @@ int main(int argc,const char **argv) {
         NSDictionary *f=all[@"valid"];
         NSDictionary *r=MPCNativeKMSReceipt(f[@"serial"],f[@"nonce"],f[@"native"],YES);
         assert([r[@"standard_kms_native_completion_verified"] isEqual:@YES]);
+        NSMutableDictionary *reordered=[f[@"native"] mutableCopy];
+        reordered[@"recent_terminals"]=[[f[@"native"][@"recent_terminals"] reverseObjectEnumerator] allObjects];
+        assert([MPCNativeKMSReceipt(f[@"serial"],f[@"nonce"],reordered,YES)[@"standard_kms_native_completion_verified"] isEqual:@YES]);
         assert([MPCNativeKMSReceipt(f[@"serial"],f[@"nonce"],f[@"native"],NO)[@"standard_kms_native_completion_verified"] isEqual:@NO]);
         for(NSDictionary *bad in all[@"invalid"])
             assert([MPCNativeKMSReceipt(bad[@"serial"],bad[@"nonce"],bad[@"native"],YES)[@"standard_kms_native_completion_verified"] isEqual:@NO]);

@@ -1,3 +1,45 @@
+# Native standard Linux display app compiled; phone join remains unverified
+
+On 2026-10-05 the actual modified QEMU/Venus device-iOS ARM64 engine compiled
+and passed export/source audits in [run 37338802991](https://github.com/aghjkshdsj/My-pc/actions/runs/37338802991).
+Its actual adapter CPU fault/drain controls also passed optimized and sanitized
+execution. The bounded asynchronous Metal consumer and its exact inline shader
+compiled in [run 37339470595](https://github.com/aghjkshdsj/My-pc/actions/runs/37339470595).
+The actual ARM Linux Vulkan/KMS producer compiled and rejected missing 3D,
+missing device and software graphics in [run 37338803071](https://github.com/aghjkshdsj/My-pc/actions/runs/37338803071).
+These are compiler/control results, not positive phone execution.
+
+The separate `NativeKMS.xcodeproj` and My-pc Linux Display app now integrate
+that new engine/kernel/producer with actual Metal terminal callbacks. Its
+physical-iOS application build and 31 optimized/sanitized production receipt
+rejections passed in [run 37342231643](https://github.com/aghjkshdsj/My-pc/actions/runs/37342231643).
+The package workflow is preparing a separately installed build 4000028.
+The old accepted diagnostic app and all previous phone/user data are preserved.
+No old VM app or Madeira app source is linked into this target.
+
+This next gate submits eight immutable Vulkan images through Linux atomic KMS,
+checks eight positive output fences and seven matching flip events, joins exact
+session/command/reader/resource/generation tokens to completed Metal commands,
+and requires zero pending callbacks/backing/installed images plus same-worker
+QEMU cleanup/RCU retirement and join. No UART release or fixed frame dwell is
+used. Producer fence waits and diagnostic guest pixel readbacks remain; this
+is not yet production WSI, a compositor, mutable-buffer performance or a display
+timestamp test. Missing completion retains resources and cannot pass from a
+CPU deadline. Device acceptance is still required before an ordinary compositor.
+
+Current component coverage: native completion engine/consumer and standard KMS
+producer implemented and compiled; their complete positive iPhone join pending.
+All 3,672 original archive files and 735 DroidDeck blueprint files remain accounted
+for. SteamOS desktop/Game Mode, Valve ARM Steam/CEF, FEX/Proton, gameplay, input,
+audio, networking/downloads, storage and overlays/plugins remain unfinished.
+No Steam launch or Hollow Knight FPS target is accepted. QEMU TCG remains software
+system emulation; no hypervisor or alternative architecture is claimed.
+
+See `docs/NATIVE-DISPLAY-COMPLETION.md` and
+`evidence/primary/native-completion-build-controls.json` for exact build identities
+and package-byte limitations. Earlier checkpoints below are retained as history.
+
+---
 # Linux display-response completion controls verified; Metal connection remains open
 
 On 2026-10-05, the isolated Linux 6.12.111 fork and test-only QEMU 10.0.12

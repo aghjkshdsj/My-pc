@@ -2,7 +2,9 @@
 
 This separate engine variant connects the new Linux display response contract
 to an asynchronous native reader interface. It does not replace the accepted
-build 4000027 engine, image payload or iPhone results. No new IPA is ready yet.
+build 4000027 engine, image payload or iPhone results. The separate build 4000028
+application compiles; package publication and actual phone acceptance are tracked
+in STATUS.md. Compiler results do not establish the native completion join.
 
 ## Implemented source
 
@@ -51,9 +53,10 @@ defined exports, compiled translation units and exact patched source hashes.
 
 ## Remaining work
 
-1. Compile and integrate the new bounded generic host consumer with ABI2. Retain texture/backing through
-   actual Metal terminal callbacks; report command errors; never wait for GPU on
-   the main thread. Keep CPU-copy diagnostics separate.
+1. Verify the compiled, integrated ABI2 consumer on the phone. It retains texture/backing through
+   actual Metal terminal callbacks, reports command errors and submits on a
+   separate executor. The main thread prepares only the stable native surface.
+   Source-reader completion and actual presentation timestamps remain separate.
 2. Join actual guest Vulkan/WSI producer dependencies before the host samples the
    image. The source's renderer completion plus native completion join does not
    establish that cross-queue producer visibility or ordering is correct.
@@ -84,3 +87,37 @@ query leaves the guest paused with its images/GEM resources retained. Successful
 cleanup requires all eight prior frame dependencies to be positive before
 disabling the output. Its hosted missing-3D/device/software controls cannot
 establish a positive native path; that still requires the actual iPhone.
+
+The new `NativeKMS.xcodeproj` links only the fresh native KMS runner/surface/
+receipt and shared fresh JIT, diagnostics, observer and ABI2 consumer. It does not
+link the old UART moving transport, old VM app, Madeira app or old native preview.
+It has a separate bundle identifier, preserves the previous diagnostic app and
+uses one engine initialization per process. The generic consumer records bounded
+actual terminal identities. The receipt matches them by exact resource, rather
+than depending on callback bookkeeping order, and requires callback bookkeeping
+itself to have finished before accepting shutdown. Shared fresh recovery journals
+and StikDebug routing remain available. No logs are uploaded automatically.
+
+## First packaged native KMS prerelease
+
+[Build 4000028 / native-kms-2](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-native-kms-2)
+was built from source `3a7932c57030900ab6201b72e1acf4587df92b0c` in
+[run 37343003113](https://github.com/aghjkshdsj/My-pc/actions/runs/37343003113).
+The complete IPA was independently downloaded on this PC; ZIP CRC, physical-iOS
+Mach-O type/platform, ten-framework dependency closure/code identities, the new
+engine binary, exact kernel/initramfs and build/source identity all pass.
+IPA size 23,786,127 bytes; SHA-256
+`a193909a99064b7a2469a7935809ccffab0107b16a2c71c95c4a0f19b9469f35`.
+The hosted package audit also matched dSYM UUID
+`64E20628-E01D-3AC4-B38D-47CD239BB719`. The source closure and original notices
+are published with a complete hashed source/package index. Local IPA verification
+does not establish local source-archive bytes, a live GPU completion or phone success.
+
+The fresh app installs under a separate bundle identifier as My-pc Linux Display.
+Enable StikDebug universal.js, pass ARM64 JIT, then open/start the Linux standard
+display test once in a fresh process. Keep foreground without rotation for up to
+three minutes; share the device report and saved logs. On interruption, reopen
+and share recovery logs. An accepted phone result requires eight joined resources,
+eight positive output fences, seven correct events, actual Metal terminals,
+zero outstanding readers/callback bookkeeping/backing/images, and exact same-worker
+engine cleanup/RCU retirement/join. Desktop, ARM Steam and game FPS remain unverified.

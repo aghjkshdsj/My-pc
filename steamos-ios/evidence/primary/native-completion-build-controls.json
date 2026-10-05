@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "scope": "independent-hosted-native-completion-build-controls",
+  "date": "2026-10-05",
+  "engine": {
+    "run": 37338802991,
+    "job": 111860295107,
+    "source": "a7fe6de4eb4a8e8a27987f1884a34da1d0e3a2c2",
+    "actual_arm64_device_ios_compile": true,
+    "actual_exports_and_patched_translation_units_audited": true,
+    "abi": 2,
+    "binary_sha256": "34ccc088d8dff7075280cb561bb6a92e8396230109739f450a61936fc9ff3327",
+    "corresponding_source_sha256": "cedda5dc3bdc0ca53db8a0241da25651d973bf48a52b0258ce52e627a35450b1",
+    "artifact": {
+      "id": 11357159954,
+      "bytes": 223659161,
+      "zip_sha256": "5b6924048bdf9f246b01a495d6a2d84cda1a7bf488e8f1eb2934e732a12bd9dd"
+    },
+    "actual_adapter_cpu_normal_and_sanitized_controls": true
+  },
+  "host": {
+    "run": 37339470595,
+    "job": 111862549804,
+    "source": "9884a3ff75f4fd11f6c7be44844c3ff2aba725e1",
+    "actual_arm64_device_ios_compile": true,
+    "exact_inline_metal_shader_offline_compile": true,
+    "artifact": {
+      "id": 11358031692,
+      "bytes": 46510,
+      "zip_sha256": "06e6f4932ca59a62367d55a5f06ee76180056047f57161f822cc661d427b6020"
+    },
+    "retained_backing_budget_bytes": 134217728
+  },
+  "guest": {
+    "run": 37338803071,
+    "job": 111860296138,
+    "source": "a7fe6de4eb4a8e8a27987f1884a34da1d0e3a2c2",
+    "actual_arm64_linux_compile": true,
+    "kernel_sha256": "f5b28031447603bf2c66846cbdb503ccd35fa86106969af628752c733e188ee7",
+    "initramfs_sha256": "71809bd8ca89743ddf42dd2eafdbe245e1c022da3cbb273bd2a1a48e476507ed",
+    "hosted_2d_and_missing_device_rejected_before_native_producer": true,
+    "actual_software_renderer_rejected": true,
+    "artifact": {
+      "id": 11356783981,
+      "bytes": 555647624,
+      "zip_sha256": "dfde4b6d857350aff0090a296b9060047ea064f8c69ad054db7bca0e0af29254"
+    }
+  },
+  "application": {
+    "run": 37342231643,
+    "job": 111871888639,
+    "source": "c2b25834083bde89bdef63341e97ec54b7820cc1",
+    "actual_device_ios_application_compile": true,
+    "production_receipt_optimized_and_sanitized_controls_rejected": 31
+  },
+  "historical_build_failures_repaired": [
+    "Missing output directory on clean CI",
+    "Incorrect canonical symbols input hash",
+    "Nonexistent system/bql.h include; actual main-loop header used",
+    "Three GCC misleading-indentation errors in separate KMS helper"
+  ],
+  "independent_local_artifact_bytes_verified": false,
+  "local_artifact_limitations": "Previous small host connector file references returned HTTP403. Combined guest source artifact exceeds connector512MiB limit. No download success is inferred from artifact metadata. New IPA publication and byte verification are separately tracked.",
+  "phone_tested": false,
+  "standard_kms_native_completion_verified": false,
+  "desktop_verified": false,
+  "steam_verified": false,
+  "gameplay_verified": false,
+  "hardware_virtualization": false
+}

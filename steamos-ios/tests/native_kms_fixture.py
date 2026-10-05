@@ -32,6 +32,8 @@ def mutations(base):
                     ('actual_metal_error_code',1),('session',2),('reader',0),('generation',0),('command',0)]:
         f=copy.deepcopy(base);f['native']['recent_terminals'][3][key]=val;yield f
     f=copy.deepcopy(base);f['native']['recent_terminals'].pop();yield f
+    for key in ['generation','command']:
+        f=copy.deepcopy(base);f['native']['recent_terminals'][3][key]=f['native']['recent_terminals'][2][key];yield f
     for old,new in [('"output_fence_status": 1','"output_fence_status": 0'),('"event_count": 1','"event_count": 0'),
         ('"producer_fence_completed": true','"producer_fence_completed": false'),('"mismatches": 0','"mismatches": 1'),
         ('"software": false','"software": true'),('"images_released": true','"images_released": false'),
