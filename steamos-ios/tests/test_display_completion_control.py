@@ -2,10 +2,13 @@ import copy
 import json
 import pathlib
 import sys
+import stat
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'tools'))
 from verify_display_completion_control import validate
+from build_guest_image_payload import extend_newc
+from make_initramfs import record
 
 NONCE = '1234567890abcdef1234567890abcdef'
 
@@ -34,6 +37,18 @@ def serial(abi, row):
 
 
 class DisplayCompletionControls(unittest.TestCase):
+    def test_disposable_payload_preserves_parent_and_only_adds_named_binary(self):
+        parent = record('kept-parent', stat.S_IFREG | 0o644, b'unchanged-libraries')
+        cpio = parent + record('TRAILER!!!', 0)
+        replacement = {'kms-completion-control': (stat.S_IFREG | 0o755, b'new-ARM-ELF')}
+        result = extend_newc(cpio, replacement, additions=('kms-completion-control',))
+        self.assertTrue(result.startswith(parent))
+        self.assertIn(b'new-ARM-ELF', result)
+        with self.assertRaises(AssertionError): extend_newc(cpio, replacement)
+        for name in ('../kms-completion-control', '/kms-completion-control', 'user-data'):
+            with self.assertRaises(AssertionError):
+                extend_newc(cpio, {name: (stat.S_IFREG | 0o755, b'ELF')}, additions=(name,))
+
     def test_complete_controls_are_only_hosted_cpu_evidence(self):
         for case in ('delayed', 'error', 'producer-error', 'missing'):
             result = validate(serial(*fixture(case)), NONCE, case, -9 if case == 'missing' else 0)

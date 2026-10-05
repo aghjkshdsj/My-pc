@@ -2,7 +2,7 @@ name: ARM Linux exact display response completion controls
 on:
   push:
     branches: [codex/steamos-ios-fresh]
-    paths: ['steamos-ios/Guest/kms_completion_control.c', 'steamos-ios/tools/patch_linux_display_completion.py', 'steamos-ios/tools/patch_qemu_display_fault_control.py', 'steamos-ios/tools/build_display_completion_kernel.py', 'steamos-ios/tools/build_display_fault_qemu.sh', 'steamos-ios/tools/build_display_completion_control.py', 'steamos-ios/tools/verify_display_completion_control.py', 'steamos-ios/tests/test_display_completion_control.py', '.github/workflows/steamos-display-completion-control.yml']
+    paths: ['steamos-ios/Guest/kms_completion_control.c', 'steamos-ios/tools/patch_linux_display_completion.py', 'steamos-ios/tools/patch_qemu_display_fault_control.py', 'steamos-ios/tools/build_display_completion_kernel.py', 'steamos-ios/tools/build_display_fault_qemu.sh', 'steamos-ios/tools/build_display_completion_control.py', 'steamos-ios/tools/verify_display_completion_control.py', 'steamos-ios/tools/build_guest_image_payload.py', 'steamos-ios/tests/test_display_completion_control.py', '.github/workflows/steamos-display-completion-control.yml']
   workflow_dispatch:
 permissions:
   contents: read
