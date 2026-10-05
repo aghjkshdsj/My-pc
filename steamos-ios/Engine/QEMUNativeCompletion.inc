@@ -2,7 +2,6 @@
  * Included in the separately patched QEMU egl-headless backend. */
 #include "qemu/main-loop.h"
 #include "qemu/thread.h"
-#include "system/bql.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "ui/mpc-native-completion-ledger.h"
 static MPCNativeCompletionCallback mpc_completion_callback;

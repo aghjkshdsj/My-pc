@@ -24,7 +24,8 @@ static uint32_t native_property(uint32_t object,uint32_t type,const char *name,u
         if(!strcmp(p->name,name)) { found=p->prop_id;if(value)*value=props->prop_values[i]; }
         drmModeFreeProperty(p);if(found)break;
     }
-    if(props)drmModeFreeObjectProperties(props);return found;
+    if(props)drmModeFreeObjectProperties(props);
+    return found;
 }
 static int native_prepare(void)
 {
@@ -32,7 +33,8 @@ static int native_prepare(void)
        drmSetClientCap(scanout_fd,DRM_CLIENT_CAP_ATOMIC,1))return -1;
     drmModeRes *r=drmModeGetResources(scanout_fd);unsigned index=32;
     if(r && r->count_crtcs<=32)for(int i=0;i<r->count_crtcs;i++)if(r->crtcs[i]==scanout_crtc)index=(unsigned)i;
-    if(r)drmModeFreeResources(r);if(index>=32)return -1;
+    if(r)drmModeFreeResources(r);
+    if(index>=32)return -1;
     drmModePlaneRes *planes=drmModeGetPlaneResources(scanout_fd);
     if(planes && planes->count_planes<=64)for(uint32_t i=0;i<planes->count_planes && !native_atomic.plane;i++) {
         drmModePlane *p=drmModeGetPlane(scanout_fd,planes->planes[i]);uint64_t type=UINT64_MAX;int format=0;
@@ -43,7 +45,8 @@ static int native_prepare(void)
             native_atomic.plane=p->plane_id;
         drmModeFreePlane(p);
     }
-    if(planes)drmModeFreePlaneResources(planes);if(!native_atomic.plane)return -1;
+    if(planes)drmModeFreePlaneResources(planes);
+    if(!native_atomic.plane)return -1;
 #define NP(field,obj,type,name) native_atomic.field=native_property(obj,type,name,NULL);if(!native_atomic.field)return -1
     NP(connector_crtc,scanout_connector,DRM_MODE_OBJECT_CONNECTOR,"CRTC_ID");
     NP(active,scanout_crtc,DRM_MODE_OBJECT_CRTC,"ACTIVE");
