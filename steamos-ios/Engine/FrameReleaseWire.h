@@ -72,4 +72,3 @@ static inline int mpc_wire_session(const char *nonce, uint64_t *high, uint64_t *
     *high = halves[0]; *low = halves[1]; return 1;
 }
 #endif
-

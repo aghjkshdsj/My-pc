@@ -45,7 +45,7 @@ def boot(payload,output,case):
     host,engine=socket.socketpair();host.settimeout(0.2)
     cmd=['qemu-system-aarch64','-machine','virt','-cpu','max','-accel','tcg,thread=multi,split-wx=on,tb-size=32',
          '-smp','2','-m','512','-nodefaults','-display','none','-chardev',
-         f'socket,id=serial0,fd={engine.fileno()},server=off,wait=off','-serial','chardev:serial0','-monitor','none',
+         f'socket,id=serial0,fd={engine.fileno()},server=off','-serial','chardev:serial0','-monitor','none',
          '-kernel',str(payload/'Image'),'-initrd',str(payload/'initramfs.cpio.gz'),'-append',
          'console=ttyAMA0 rdinit=/init panic=1 mpc_channel=1 mpc_run='+nonce,'-no-reboot','-device','virtio-gpu-pci']
     child=subprocess.Popen(cmd,pass_fds=(engine.fileno(),),stdout=subprocess.PIPE,stderr=subprocess.PIPE)

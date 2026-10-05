@@ -10,7 +10,10 @@
 #include <string.h>
 #include <sys/utsname.h>
 #include "../Engine/ImagePixelContract.h"
-#ifdef MPC_FRAME_SEQUENCE
+#ifdef MPC_MOVING_SEQUENCE
+#include "../Engine/MovingFrameContract.h"
+#define MPC_RENDER_PHASE_COUNT MPC_MOVING_FRAMES
+#elif defined(MPC_FRAME_SEQUENCE)
 #include "../Engine/FrameSequenceContract.h"
 #define MPC_RENDER_PHASE_COUNT MPC_FRAME_COUNT
 #else
@@ -87,7 +90,11 @@ static VkShaderModule shader(VkDevice device, const char *path) {
     free(code); return result;
 }
 #ifdef MPC_IMAGE_SCANOUT
+#ifdef MPC_MOVING_SEQUENCE
+#include "moving_scanout.h"
+#else
 #include "image_scanout.h"
+#endif
 #endif
 int main(int argc, char **argv) {
     if (argc < 3 || argc > 5) {
@@ -287,7 +294,11 @@ int main(int argc, char **argv) {
     VkFence fence; VK_CHECK(vkCreateFence(device, &fence_info, NULL, &fence));
     uint64_t mismatches = 0, checksum = 0;
     for (unsigned pass = 0; pass < MPC_RENDER_PHASE_COUNT; ++pass) {
-        #ifdef MPC_FRAME_SEQUENCE
+#ifdef MPC_MOVING_SEQUENCE
+        uint32_t phase = mpc_moving_phase(pass);
+        int endpoint = mpc_moving_endpoint(pass);
+        if (image_reacquire(device,queue,command,fence,pass,family)) return 21;
+#elif defined(MPC_FRAME_SEQUENCE)
         uint32_t phase = mpc_frame_phase(pass);
 #else
         uint32_t phase = pass ? 41 : 0;
@@ -316,6 +327,9 @@ int main(int argc, char **argv) {
             0, 0, NULL, 0, NULL, 1, &barrier);
         VkBufferImageCopy copy = { .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
             .imageExtent = { WIDTH, HEIGHT, 1 } };
+#ifdef MPC_MOVING_SEQUENCE
+        if (endpoint)
+#endif
         vkCmdCopyImageToBuffer(command, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer, 1, &copy);
 #ifdef MPC_IMAGE_SCANOUT
         image_copy(command, image, pass, family);
@@ -324,12 +338,18 @@ int main(int argc, char **argv) {
             .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT, .dstAccessMask = VK_ACCESS_HOST_READ_BIT,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .buffer = buffer, .offset = 0, .size = VK_WHOLE_SIZE };
+#ifdef MPC_MOVING_SEQUENCE
+        if (endpoint)
+#endif
         vkCmdPipelineBarrier(command, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT,
             0, 0, NULL, 1, &host, 0, NULL);
         VK_CHECK(vkEndCommandBuffer(command)); VK_CHECK(vkResetFences(device, 1, &fence));
         VkSubmitInfo submit = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &command };
         VK_CHECK(vkQueueSubmit(queue, 1, &submit, fence));
         VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_C(30000000000)));
+#ifdef MPC_MOVING_SEQUENCE
+        if (endpoint) {
+#endif
         void *mapped; VK_CHECK(vkMapMemory(device, buffer_memory, 0, VK_WHOLE_SIZE, 0, &mapped));
         VkMappedMemoryRange invalidate = { .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
             .memory = buffer_memory, .offset = 0, .size = VK_WHOLE_SIZE };
@@ -337,7 +357,9 @@ int main(int argc, char **argv) {
         const unsigned char *pixels = mapped;
         for (unsigned y = 0; y < HEIGHT; ++y) for (unsigned x = 0; x < WIDTH; ++x) {
             const unsigned char *p = pixels + (y * WIDTH + x) * 4;
-            #ifdef MPC_FRAME_SEQUENCE
+#ifdef MPC_MOVING_SEQUENCE
+            mismatches += !mpc_moving_pattern_matches(p,x,y,phase,MPC_RENDER_BGRA);
+#elif defined(MPC_FRAME_SEQUENCE)
             mismatches += !mpc_frame_pattern_matches(p, x, y, phase, MPC_RENDER_BGRA);
 #else
             mismatches += !mpc_pattern_matches(p, x, y, phase, MPC_RENDER_BGRA);
@@ -345,13 +367,20 @@ int main(int argc, char **argv) {
             checksum += p[0] + p[1] + p[2] + p[3];
         }
         vkUnmapMemory(device, buffer_memory);
+#ifdef MPC_MOVING_SEQUENCE
+        }
+#endif
 #ifdef MPC_IMAGE_SCANOUT
         if (mismatches || atomic_load(&validation_errors)) return image_reject("guest-shader-pixels", 7);
         if (image_install(device, pass, phase)) return 21;
 #endif
     }
 #ifdef MPC_IMAGE_SCANOUT
+#ifdef MPC_MOVING_SEQUENCE
+    if (image_cleanup(device,queue,command,fence,family)) return 21;
+#else
     if (image_cleanup(device)) return 21;
+#endif
 #endif
     VK_CHECK(vkDeviceWaitIdle(device));
     vkDestroyFence(device, fence, NULL); vkDestroyCommandPool(device, pool, NULL);
@@ -370,7 +399,13 @@ int main(int argc, char **argv) {
            "\"limits\":{\"maxImageDimension2D\":%u,\"maxMemoryAllocationCount\":%u,\"nonCoherentAtomSize\":%" PRIu64 "},"
            "\"features\":{\"geometryShader\":%s,\"tessellationShader\":%s,\"multiDrawIndirect\":%s,\"samplerAnisotropy\":%s},\"device_extensions\":[",
            props.apiVersion, props.driverVersion, props.vendorID, props.deviceID, props.deviceType,
-           fallback ? "true" : "false", WIDTH, HEIGHT, WIDTH * HEIGHT * MPC_RENDER_PHASE_COUNT, MPC_RENDER_PHASE_COUNT, mismatches, checksum,
+           fallback ? "true" : "false", WIDTH, HEIGHT, WIDTH * HEIGHT *
+#ifdef MPC_MOVING_SEQUENCE
+           2,
+#else
+           MPC_RENDER_PHASE_COUNT,
+#endif
+           MPC_RENDER_PHASE_COUNT, mismatches, checksum,
            validated ? "true" : "false", validated ? "true" : "false", atomic_load(&validation_errors), family,
            format.optimalTilingFeatures, memory.memoryTypes[buffer_type].propertyFlags,
            props.limits.maxImageDimension2D, props.limits.maxMemoryAllocationCount, (uint64_t)props.limits.nonCoherentAtomSize,

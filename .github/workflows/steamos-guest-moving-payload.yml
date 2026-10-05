@@ -1,0 +1,42 @@
+name: ARM Linux three-buffer moving payload and rejection controls
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/vk_gate.c', 'steamos-ios/Guest/moving_scanout.h', 'steamos-ios/Guest/frame_release_channel.h', 'steamos-ios/Engine/MovingFrameContract.h', 'steamos-ios/Engine/FrameReleaseWire.h', 'steamos-ios/tests/MovingFramePixelContractTests.c', 'steamos-ios/tools/build_moving_frame_payload.py', '.github/workflows/steamos-guest-moving-payload.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  moving-payload:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM Linux graphics compiler and rejection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc binutils qemu-system-arm libvulkan-dev libdrm-dev mesa-vulkan-drivers
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Frame-Payload
+          run-id: 37233435975
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/parent-frame-artifact
+      - name: Exercise bounded payload parser and release packet integrity
+        run: |
+          python3 -m unittest discover -s steamos-ios/tests -p test_guest_image_payload.py -v
+          gcc -std=c11 -O2 -Wall -Wextra -Werror steamos-ios/tests/FrameReleaseWireTests.c -o /tmp/mpc-release-wire
+          /tmp/mpc-release-wire
+      - name: Compile actual ARM moving binary and boot missing-3D controls
+        run: python3 steamos-ios/tools/build_moving_frame_payload.py steamos-ios/out/parent-frame-artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Linux-Moving-Payload
+          path: |
+            steamos-ios/out/guest-moving-payload/Guest-GPU-*.tar.gz
+            steamos-ios/out/guest-moving-payload/payload/payload-receipt.json
+            steamos-ios/out/guest-moving-payload/payload/*.log
+            steamos-ios/out/guest-moving-payload/software-moving-rejected.log
+          retention-days: 14
