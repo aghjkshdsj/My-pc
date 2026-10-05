@@ -54,6 +54,8 @@ def transform(original):
              '            (cmd->cmd_hdr.flags & VIRTIO_GPU_FLAG_FENCE)) {\n'
              '            assert(!g->mpc_control_pending);\n'
              '            g->mpc_control_flushes++;\n'
+             '            fprintf(stderr, "MPC_CONTROL_FLUSH {\\\"index\\\":%u,\\\"fence_id\\\":%" PRIu64 "}\\n",\n'
+             '                    g->mpc_control_flushes, (uint64_t)cmd->cmd_hdr.fence_id);\n'
              '            cmd->mpc_control_issued = true;\n'
              '            cmd->suspended = true;\n'
              '            g->mpc_control_pending = cmd;\n'

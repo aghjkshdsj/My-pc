@@ -17,11 +17,24 @@ static int remain_pending(Output *o, int fence, int milliseconds) {
     return ret == 0 && !sync_status(fence, &status) && status == 0;
 }
 
+static int commit_failed_input(Output *o, uint32_t framebuffer, int producer, int *fence) {
+    drmModeAtomicReq *request = drmModeAtomicAlloc();
+    if (!request) return -1;
+    int ok = drmModeAtomicAddProperty(request, o->plane, o->fb, framebuffer) >= 0 &&
+             drmModeAtomicAddProperty(request, o->plane, o->in_fence, producer) >= 0 &&
+             drmModeAtomicAddProperty(request, o->crtc, o->out_fence, (uintptr_t)fence) >= 0;
+    int result = ok ? drmModeAtomicCommit(o->fd, request,
+                           DRM_MODE_ATOMIC_NONBLOCK | DRM_MODE_PAGE_FLIP_EVENT, o) : -1;
+    drmModeAtomicFree(request);
+    return result;
+}
+
 int main(void) {
     setvbuf(stdout, NULL, _IOLBF, 0);
     const char *run = getenv("MPC_KMS_RUN"), *kind = getenv("MPC_COMPLETION_CASE");
     if (!run || strlen(run) != 32 || strspn(run, "0123456789abcdef") != 32 || !kind ||
-        (strcmp(kind, "delayed") && strcmp(kind, "error") && strcmp(kind, "missing"))) return 2;
+        (strcmp(kind, "delayed") && strcmp(kind, "error") && strcmp(kind, "missing") &&
+         strcmp(kind, "producer-error"))) return 2;
     Output o = {.fd = -1};
     int result = 1, fence = -1, status = 99, initial_status = 99;
     unsigned early_pending = 0, events = 0, positive = 0, failed = 0;
@@ -60,12 +73,24 @@ int main(void) {
         stage = "exact-completion";
         if (await_flip(&o) || sync_status(fence, &status)) goto done;
         events++;
-        if (!strcmp(kind, "error")) {
+        if (!strcmp(kind, "error") || !strcmp(kind, "producer-error")) {
             if (status != -EIO) goto done;
             failed++;
         } else {
             if (status != 1) goto done;
             positive++;
+        }
+        if (!strcmp(kind, "producer-error")) {
+            stage = "failed-explicit-producer";
+            int next_fence = -1;
+            o.events = 0;
+            if (commit_failed_input(&o, o.buffers[2].fb, fence, &next_fence) || next_fence < 0) {
+                if (next_fence >= 0) close(next_fence);
+                goto done;
+            }
+            close(fence); fence = next_fence;
+            if (await_flip(&o) || sync_status(fence, &status) || status != -EIO) goto done;
+            events++; failed++;
         }
         close(fence); fence = -1;
     }

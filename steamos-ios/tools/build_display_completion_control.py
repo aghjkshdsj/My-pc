@@ -27,7 +27,7 @@ def digest(path):
 def boot(payload, engine, case, output):
     nonce = uuid.uuid4().hex
     properties = 'virtio-gpu-pci,xres=1280,yres=720,x-mpc-control-delay-ms=1000'
-    if case == 'error': properties += ',x-mpc-control-fail-at=2'
+    if case in ('error', 'producer-error'): properties += ',x-mpc-control-fail-at=2'
     if case == 'missing': properties += ',x-mpc-control-missing-at=2'
     args = [str(engine), '-machine', 'virt', '-cpu', 'max', '-accel', 'tcg,thread=multi,split-wx=on,tb-size=32',
             '-smp', '2', '-m', '512', '-nodefaults', '-display', 'none', '-serial', 'stdio', '-monitor', 'none',
@@ -51,7 +51,7 @@ def boot(payload, engine, case, output):
             while b'\n' in pending:
                 raw, _, pending = pending.partition(b'\n'); pending = bytearray(pending)
                 line = raw.decode('utf-8', errors='strict').rstrip('\r')
-                if line.startswith(('MPC_COMPLETION_', 'MPC_LINUX_ABI ', 'MPC_LINUX_EXIT=')):
+                if line.startswith(('MPC_COMPLETION_', 'MPC_CONTROL_FLUSH ', 'MPC_LINUX_ABI ', 'MPC_LINUX_EXIT=')):
                     print(line, flush=True)
                 if case == 'missing' and line.startswith('MPC_COMPLETION_RESULT '):
                     # Validate the pending receipt before terminating; invalid rows never pass.
@@ -108,7 +108,7 @@ done
     assert digest(payload / 'Image') != PARENT_FILES['Image'], 'Must test the actual modified kernel'
     (payload / 'initramfs.cpio.gz').write_bytes(gzip.compress(cpio, mtime=0))
     engine = engine_root / 'build/qemu-system-aarch64'
-    cases = [boot(payload, engine, name, payload) for name in ('delayed', 'error', 'missing')]
+    cases = [boot(payload, engine, name, payload) for name in ('delayed', 'error', 'producer-error', 'missing')]
     receipt = dict(schema=1, scope='hosted-arm-linux-exact-display-response-controls',
                    source_commit=os.environ['GITHUB_SHA'], workflow_run=os.environ['GITHUB_RUN_ID'],
                    parent_source=PARENT_SOURCE, parent_run=PARENT_RUN, parent_files=PARENT_FILES,

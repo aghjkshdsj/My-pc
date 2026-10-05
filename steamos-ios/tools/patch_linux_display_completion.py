@@ -47,7 +47,8 @@ def transform(original):
     p = texts['virtgpu_plane.c']
     p = once(p, '#include <drm/drm_fourcc.h>', '#include <drm/drm_fourcc.h>\n'
              '#include <drm/drm_atomic.h>\n#include <drm/drm_file.h>\n'
-             '#include <drm/drm_gem_atomic_helper.h>\n#include <linux/moduleparam.h>')
+             '#include <drm/drm_gem_atomic_helper.h>\n#include <drm/drm_vblank.h>\n'
+             '#include <linux/moduleparam.h>')
     p = once(p, '#include "virtgpu_drv.h"\n', '#include "virtgpu_drv.h"\n\n'
              '/* Fresh fork only. The shipping diagnostic payload does not enable this. */\n'
              'static bool mpc_native_display_fences;\n'
