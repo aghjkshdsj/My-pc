@@ -1,0 +1,47 @@
+name: ARM Linux compositor prerequisite inventory controls
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/compositor_capabilities.c', '.github/workflows/steamos-compositor-capabilities.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile-and-reject:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install authenticated build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc libvulkan-dev libdrm-dev mesa-vulkan-drivers
+      - name: Compile actual Linux ARM64 inventory and reject unsuitable runtimes
+        run: |
+          mkdir -p steamos-ios/out/compositor-capabilities
+          gcc -std=gnu11 -O2 -Wall -Wextra -Werror -I/usr/include/libdrm steamos-ios/Guest/compositor_capabilities.c -lvulkan -ldrm -o steamos-ios/out/compositor-capabilities/inventory
+          readelf -h steamos-ios/out/compositor-capabilities/inventory | tee steamos-ios/out/compositor-capabilities/elf.txt
+          python3 - <<'PY'
+          import glob,json,os,pathlib,subprocess,uuid
+          root=pathlib.Path('steamos-ios/out/compositor-capabilities')
+          assert os.uname().machine=='aarch64'
+          manifest=glob.glob('/usr/share/vulkan/icd.d/lvp*.json');assert len(manifest)==1
+          cases=[('software',manifest[0],'software-renderer',20),('missing-icd','/nonexistent-mypc-icd.json','instance',3)]
+          results=[]
+          for name,icd,stage,code in cases:
+              env=dict(os.environ,MPC_COMPOSITOR_RUN=uuid.uuid4().hex,VK_DRIVER_FILES=icd,VK_ICD_FILENAMES=icd)
+              result=subprocess.run([str(root/'inventory')],env=env,capture_output=True,text=True,timeout=30)
+              text=result.stdout+result.stderr;(root/(name+'.log')).write_text(text)
+              assert result.returncode==code and f'MPC_COMPOSITOR_REJECTED stage={stage} code={code}' in text
+              assert 'MPC_COMPOSITOR_CAPABILITIES ' not in text
+              results.append(dict(case=name,exit=code,rejected=True))
+          (root/'controls.json').write_text(json.dumps(dict(scope='arm-linux-query-inventory-compile-negative-controls',
+              source_commit=os.environ['GITHUB_SHA'],workflow_run=os.environ['GITHUB_RUN_ID'],arm64_compiled=True,
+              controls=results,phone_tested=False,compositor_verified=False,desktop_verified=False),indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ARM-Linux-Compositor-Prerequisite-Controls
+          path: steamos-ios/out/compositor-capabilities/
+          retention-days: 14

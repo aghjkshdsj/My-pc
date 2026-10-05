@@ -14,9 +14,9 @@ are independent of that optional diagnostic dependency. The correction separates
 validation availability from ownership completion, rejects malformed availability
 metadata and validation errors, and preserves the original verdict in independent
 audits. Vulkan API/synchronization validation remains unavailable, not verified.
-Build 4000029 is the corrected checker/UI; its build and publication are pending.
+Build 4000029 is the corrected checker/UI, published as [native-kms-4](https://github.com/aghjkshdsj/My-pc/releases/tag/steamos-ios-native-kms-4), source e05c10984c38c3836dc2eceac3f8a3abfd07c481. Its actual device-iOS application build and 42 optimized/sanitized production receipt rejection controls pass in [run 37346914737](https://github.com/aghjkshdsj/My-pc/actions/runs/37346914737). IPA, fresh source and matching symbols were independently downloaded and verified on the PC. The corrected UI has not yet been device-tested; the accepted raw phone observations are from build 4000028.
 Local verification: 151 Python tests pass (one unavailable local C compiler skip).
-Actual optimized/sanitized production receipt controls run on the macOS builder.
+Actual optimized/sanitized production receipt controls passed on the macOS builder.
 
 Next: a real Linux compositor, changing/reused buffers, Linux client presentation
 and input, with capability and error/retention controls before phone acceptance.
@@ -25,6 +25,8 @@ production FPS, sustained thermals, SteamOS Plasma/Game Mode, Valve ARM Steam/CE
 FEX/Proton and gameplay remain unfinished. Steam under one minute and Hollow
 Knight 60–80 base rendered FPS at 720p remain unverified. QEMU TCG is software
 system emulation. No architecture substitution or hypervisor claim is made.
+
+The new source-only compositor prerequisite inventory and separate ARM build/rejection workflow are implemented. They query actual Vulkan/DRM identity, shared-image and synchronization capabilities without submitting graphics. Compile/control and positive phone results are pending. See `docs/COMPOSITOR-NEXT-STAGE.md`; no new compositor acceptance is implied.
 
 Earlier checkpoints below are retained as history.
 
