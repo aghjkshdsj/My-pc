@@ -81,6 +81,31 @@ handoff completion safely and drain on interruption without double release.
 
 ## Real compositor and SteamOS session acceptance
 
+An isolated opt-in Linux 6.12.111 source fork now joins primary plane updates to
+their exact fenced RESOURCE_FLUSH response. It obtains producer dependencies
+with the standard GEM atomic helper, retains their eventual error status,
+allocates an independent Linux fence context for each primary display response,
+waits without the old 50 ms timeout release, and carries an erroneous response
+into the transaction's OUT_FENCE before its virtual event is sent. OOM and
+reservation-lock failures also mark that transaction as failed. This is source
+implementation pending actual compiled/boot controls, not native Metal proof.
+
+The separate hosted workflow compiles this kernel and a CPU-only QEMU fault
+control, then boots real delayed, error and missing-response cases. The guest
+requires its OUT_FENCE and event to remain pending beyond 50 ms; an injected
+error must produce a negative sync-file status, and an absent response must keep
+objects retained. That last disposable VM is deliberately killed by the test
+host after recording retention; it does not claim graceful cleanup. The injected
+QEMU timer only schedules a test response and is never a production buffer
+release deadline. Neither control engine nor this fork is installed in an IPA.
+
+The production engine still must defer its exact display command until every
+matching native reader is terminal, including failure and disable/unregister
+drain. Its renderer watermark must not release a command still read by Metal.
+Cursor completion and disable completion also require their own joins before
+full compositor lifetime safety can be accepted. Ordinary producer-fence,
+native-reader, interruption and repeated buffer reuse acceptance remain open.
+
 Only after that dependency is wired should a real compositor produce changing
 buffers with standard APIs and accept pointer/key/controller input. A small
 upstream compositor may be used as an explicitly identified Linux integration

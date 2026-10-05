@@ -1,0 +1,90 @@
+name: ARM Linux exact display response completion controls
+on:
+  push:
+    branches: [codex/steamos-ios-fresh]
+    paths: ['steamos-ios/Guest/kms_completion_control.c', 'steamos-ios/tools/patch_linux_display_completion.py', 'steamos-ios/tools/patch_qemu_display_fault_control.py', 'steamos-ios/tools/build_display_completion_kernel.py', 'steamos-ios/tools/build_display_fault_qemu.sh', 'steamos-ios/tools/build_display_completion_control.py', 'steamos-ios/tools/verify_display_completion_control.py', 'steamos-ios/tests/test_display_completion_control.py', '.github/workflows/steamos-display-completion-control.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  kernel:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native ARM kernel compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc make bc bison flex libssl-dev libelf-dev binutils qemu-system-arm curl
+      - name: Compile isolated opt-in kernel and unchanged driver controls
+        run: python3 steamos-ios/tools/build_display_completion_kernel.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Display-Completion-Kernel
+          path: |
+            steamos-ios/out/source-display-completion-kernel/Display-Completion-Kernel-Corresponding-Source.tar.gz
+            steamos-ios/out/source-display-completion-kernel/payload
+            steamos-ios/out/source-display-completion-kernel/display-patch
+          retention-days: 14
+  fault-engine:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install hosted CPU fault-control compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc g++ make pkg-config python3-venv libglib2.0-dev libpixman-1-dev libfdt-dev zlib1g-dev curl
+      - name: Build test-only delayed/error/missing response engine
+        run: bash steamos-ios/tools/build_display_fault_qemu.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Display-Fault-Control-Engine
+          path: |
+            steamos-ios/out/display-fault-qemu/build/qemu-system-aarch64
+            steamos-ios/out/display-fault-qemu/Display-Fault-QEMU-Corresponding-Source.tar.gz
+            steamos-ios/out/display-fault-qemu/SHA256SUMS
+            steamos-ios/out/display-fault-qemu/patch
+          retention-days: 14
+  completion-controls:
+    needs: [kernel, fault-engine]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actual ARM DRM compiler and engine libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc binutils libdrm-dev libglib2.0-0t64 libpixman-1-0 libfdt1 zlib1g
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Linux-Frame-Payload
+          run-id: 37233435975
+          github-token: ${{ github.token }}
+          path: steamos-ios/out/parent-frame-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Display-Completion-Kernel
+          path: steamos-ios/out/source-display-completion-kernel
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fresh-ARM-Display-Fault-Control-Engine
+          path: steamos-ios/out/display-fault-qemu
+      - name: Reject unsafe and fabricated completion receipts
+        run: python3 -m unittest discover -s steamos-ios/tests -p test_display_completion_control.py -v
+      - name: Boot actual delayed/error/missing Linux response controls
+        run: |
+          chmod +x steamos-ios/out/display-fault-qemu/build/qemu-system-aarch64
+          python3 steamos-ios/tools/build_display_completion_control.py steamos-ios/out/parent-frame-artifact steamos-ios/out/source-display-completion-kernel steamos-ios/out/display-fault-qemu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fresh-ARM-Display-Completion-Controls
+          path: |
+            steamos-ios/out/display-completion-control/Display-Completion-*.tar.gz
+            steamos-ios/out/display-completion-control/payload/display-completion-receipt.json
+            steamos-ios/out/display-completion-control/payload/*.log
+          retention-days: 14
