@@ -1,3 +1,30 @@
+# Standard Linux display API control implemented; native completion integration open
+
+The new AArch64 DRM atomic control passes actual hosted kernel boots in
+[run 37264039773](https://github.com/aghjkshdsj/My-pc/actions/runs/37264039773),
+source 62df335c7f13401bd117d09b0b3f869bef43e863. It selects the 720p primary plane,
+performs six nonblocking flips, observes six positive output sync-file statuses,
+rejects invalid geometry/input-fence descriptors and tears down. Removing the
+GPU rejects at the device boundary. Nine new receipt tests and 134 combined
+Python tests pass. The independent job/boot-log audit rejects nine altered
+actual-result controls. Returned artifact references cannot be downloaded by
+the local HTTP path (403), so independent package/source byte checks remain
+pending. This result is a hosted CPU dumb-buffer API control, not Metal,
+a compositor, a phone performance result or a SteamOS desktop.
+
+Both standard fence properties are present; their presence does not connect
+native-reader retirement. The exact pinned source audit identifies renderer-only
+fence progress, an OK fallback after renderer-context fence creation fails,
+the unfenced host3d path, ignored 50ms wait and void native callback. Production
+completion must join real producer/native-reader results and propagate errors.
+These are integration gaps; an iOS platform blocker has not been proven.
+See docs/LINUX-COMPOSITOR-INTEGRATION.md and the two source/hosted-control audits
+in evidence/primary. Current private owner results remain local. Earlier IPA
+package and device-pending descriptions below are historical checkpoints, not
+a replacement for that private coverage record. All product coverage is preserved.
+
+---
+
 # Component coverage record
 
 Current build4000027 corrects display refresh classification in the fresh host

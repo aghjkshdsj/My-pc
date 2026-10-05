@@ -9,7 +9,7 @@ Owner phone results remain in the ignored local device record.
 
 ## Implemented first control
 
-`Guest/kms_atomic_gate.c` selects a real connected1280x720 output and compatible
+`Guest/kms_atomic_gate.c` selects a real connected 1280x720 output and compatible
 primary XRGB8888 plane by querying DRM objects and properties. It allocates
 three CPU dumb buffers, validates a complete atomic request with TEST_ONLY,
 rejects invalid geometry and an invalid input-fence descriptor when that
@@ -19,7 +19,7 @@ sync-file's positive terminal status for each flip. It disables the output,
 unmaps/removes buffers and drops master before closing its descriptor.
 
 The new build workflow compiles the actual AArch64 program and boots it with
-the previously pinned Linux6.12.111 image and userspace. It also boots with the
+the previously pinned Linux 6.12.111 image and userspace. It also boots with the
 display device removed. The accepted phone IPA, guest image, old projects and
 user data are unchanged. The extra binary and init change live in a separate
 disposable control payload. Complete parent corresponding source and new source
@@ -32,13 +32,34 @@ emulation. Neither KMS property presence, a virtual page-flip event, a signaled
 DRM output fence nor successful TEST_ONLY establishes actual native Metal
 reader retirement. All native GPU, display, compositor, desktop, phone and game
 acceptance fields remain false. Synthetic altered-receipt tests are separate
-from actual kernel boots. Build/boot acceptance is pending until its run and
-downloaded artifacts have been independently checked.
+from actual kernel boots. Actual ARM compilation and two Linux boots pass in run 37264039773 at source
+62df335c7f13401bd117d09b0b3f869bef43e863. Six nonblocking flips and six positive
+output sync-files complete; invalid geometry returns ERANGE (34) and an invalid
+input-fence descriptor returns EINVAL (22). Removing the device rejects at open
+with ENOENT (2). Both fence properties are present. All event sequence numbers
+are 0: virtual events cannot establish physical display timing. Nine source
+receipt tests and 134 combined Python tests pass; nine independent changes to
+the actual logged result reject. See
+`evidence/primary/hosted-kms-atomic-api-control.json`.
+
+The audit independently checks the successful job and emitted boot receipts.
+The connector returned both artifact references, but local download requests
+returned HTTP 403. Independent ZIP/payload/corresponding-source byte inspection
+is still pending and is explicitly false; published archive digests are
+reported build values. This does not change the verified build 27 IPA audit or
+owner evidence, and does not certify production display fencing.
 
 ## Required production connection
 
 The pinned source trace identifies an unfenced host3d primary-plane path and a
-50ms wait whose return value is ignored. The current callback ABI is borrowed
+50 ms wait whose return value is ignored. The additional exact-source audit,
+`evidence/primary/kms-native-completion-source-gaps.json`, also records the
+renderer-only fence watermark and an OK response after renderer-context fence
+creation fails. Those paths cannot certify native display retirement. Display
+completion must join producer and native-reader results with exact identities
+and propagate errors; ordinary renderer progress cannot release a live reader.
+These are source integration gaps, not evidence of an iOS platform blocker.
+The current callback ABI is borrowed
 and lacks an explicit terminal result. Enabling a standard property or adding a
 timer cannot repair that dependency. The next adapter must establish all of:
 
@@ -76,7 +97,7 @@ permission from an accessible download URL. Necessary QEMU/Linux/Mesa/Wayland/
 compositor reuse retains each upstream notice and applicable corresponding-source
 requirements; original host adapter code does not change those obligations.
 
-Primary references checked2026-10-05: Linux's
+Primary references checked 2026-10-05: Linux's
 [explicit fencing properties](https://docs.kernel.org/gpu/drm-kms.html#explicit-fencing-properties)
 define input producer and output display fences; its
 [dma-buf synchronization](https://docs.kernel.org/driver-api/dma-buf.html)
@@ -85,6 +106,6 @@ describes reservation/explicit dependencies. Upstream
 separates DRM, nested backends and renderer choices. These sources describe the
 interfaces; they do not certify this iOS bridge or license a desktop substitution.
 
-Steam usable under60s, Hollow Knight60–80 base rendered FPS at1280x720,
+Steam usable under 60 s, Hollow Knight 60–80 base rendered FPS at 1280x720,
 production frame pacing, bounded memory, fast downloads and sustained thermals
 remain unverified until actual product workloads are measured on the phone.

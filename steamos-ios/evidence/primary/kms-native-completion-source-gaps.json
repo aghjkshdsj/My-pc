@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "scope": "pinned-standard-kms-to-native-completion-source-gaps-only",
+  "date": "2026-10-05",
+  "engine_source_archive_sha256": "6ecdd1f67d84a63f927c8e9c37a6bed7c8623d863de92a219a852dd287236572",
+  "kernel_input_sha256": "9e59dc67624188fa12a6601f9598499cd6662a9066be572b59f935e3d7849810",
+  "files": [
+    {
+      "component": "qemu-reconstructed-final-recipe-source",
+      "path": "hw/display/virtio-gpu-virgl.c",
+      "sha256": "2aa4d94f53aa5c10153a76fb9e64658d02d423427c9bd0e0001e842b5472d368",
+      "bytes": 60204,
+      "normalization": "UTF-8; CRLF converted to LF if present"
+    },
+    {
+      "component": "qemu-reconstructed-final-recipe-source",
+      "path": "ui/console.c",
+      "sha256": "5f7405a341f830dbe58be6fbd9d9202c9a5fcca1edb1b472d4a777a743a55bda",
+      "bytes": 46686,
+      "normalization": "UTF-8; CRLF converted to LF if present"
+    },
+    {
+      "component": "linux-6.12.111-original-pinned-input",
+      "path": "drivers/gpu/drm/virtio/virtgpu_plane.c",
+      "sha256": "81fb8aed2433252c38e98337b3da34c6c18d7793d9beca6af684b75a6c261e10",
+      "bytes": 13016,
+      "normalization": "UTF-8; CRLF converted to LF if present"
+    },
+    {
+      "component": "linux-6.12.111-original-pinned-input",
+      "path": "drivers/gpu/drm/virtio/virtgpu_display.c",
+      "sha256": "3e69c9b0bd14191009256e9b3b9ff8e2b2170c8e8d2b2d97da81f3b7a9ac2164",
+      "bytes": 11181,
+      "normalization": "UTF-8; CRLF converted to LF if present"
+    }
+  ],
+  "findings": [
+    {
+      "source": {
+        "path": "hw/display/virtio-gpu-virgl.c",
+        "line": 1345
+      },
+      "finding": "Packaged renderer-context fence creation failure responds with OK_NODATA. This cannot certify a native display-reader dependency or be reused as a successful display release."
+    },
+    {
+      "source": {
+        "path": "hw/display/virtio-gpu-virgl.c",
+        "line": 1356
+      },
+      "finding": "Global renderer fence watermark retires commands by fence_id; native display consumers need an explicit joined dependency so renderer-only progress cannot signal their completion."
+    },
+    {
+      "source": {
+        "path": "hw/display/virtio-gpu-virgl.c",
+        "line": 1386
+      },
+      "finding": "Context fences have ctx/ring/fence identity. Native display release must not be attributed to an unrelated renderer ring or global fence."
+    },
+    {
+      "source": {
+        "path": "ui/console.c",
+        "line": 1161
+      },
+      "finding": "Console blocks around a synchronous void display callback and unblocks after return. ABI1 callback return does not carry actual native terminal/error status."
+    },
+    {
+      "source": {
+        "path": "drivers/gpu/drm/virtio/virtgpu_plane.c",
+        "line": 180
+      },
+      "finding": "Resource-flush wait ignores timeout verdict; a 50ms timeout cannot authorize overwriting an active Metal reader."
+    },
+    {
+      "source": {
+        "path": "drivers/gpu/drm/virtio/virtgpu_plane.c",
+        "line": 264
+      },
+      "finding": "Primary host3d path does not acquire the dumb-buffer flush fence. Standard object/property presence alone does not repair producer/native-reader synchronization."
+    }
+  ],
+  "production_kms_native_dependency_verified": false,
+  "metal_verified": false,
+  "phone_tested": false,
+  "platform_blocker_proven": false
+}
